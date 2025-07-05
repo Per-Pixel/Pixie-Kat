@@ -1,0 +1,174 @@
+/* Animation styles */
+
+/* Animated Title styles */
+.animated-title {
+  overflow: hidden;
+}
+
+.animated-word {
+  display: inline-block;
+  opacity: 0;
+  transform: translate3d(0, 100%, 0) rotateX(-80deg);
+  transform-origin: top center;
+  transition: opacity 0.5s ease;
+}
+
+/* Clip path animation styles */
+.mask-clip-path {
+  transition: all 0.5s ease;
+}
+
+/* 3D hover effect styles */
+[data-hover-3d] {
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+/* Video transition styles */
+.video-transition {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Text scramble styles */
+.text-scramble {
+  font-family: monospace;
+}
+
+.text-scramble.animating {
+  opacity: 0.9;
+}
+
+/* Split text styles */
+.split-text-container {
+  overflow: hidden;
+}
+
+.split-char, .split-word {
+  display: inline-block;
+  overflow: hidden;
+}
+
+/* Magnetic button styles */
+.magnetic-button {
+  display: inline-block;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+/* Parallax section styles */
+.parallax-section {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Nav Hover Effect */
+.nav-hover-btn {
+  position: relative;
+  padding: 0.5rem 1rem;
+  transition: color 0.3s ease;
+}
+
+.nav-hover-btn::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: 0;
+  left: 50%;
+  background-color: #5724ff;
+  transition: all 0.3s ease;
+  transform: translateX(-50%);
+}
+
+.nav-hover-btn:hover::after {
+  width: 80%;
+}
+
+/* Split Text Clip Reveal */
+.split-text-clip-reveal div {
+  overflow: hidden;
+}
+
+.split-text-clip-reveal div div {
+  transform: translateY(100%);
+}
+
+/* Hero Heading */
+.hero-heading {
+  font-size: 5rem;
+  line-height: 1;
+}
+
+@media (min-width: 768px) {
+  .hero-heading {
+    font-size: 8rem;
+  }
+}
+
+/* Special Font */
+.special-font {
+  font-family: 'General Sans', sans-serif;
+}
+
+.special-font b {
+  font-family: 'General Sans', sans-serif;
+  color: #5724ff;
+}
+
+/* Bento Title */
+.bento-title {
+  font-size: 2rem;
+  font-weight: bold;
+  line-height: 1.2;
+}
+
+.bento-title b {
+  color: #5724ff;
+}
+
+/* Magnetic Button */
+.magnetic-button {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+/* Scroll Progress Bar */
+.scroll-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 4px;
+  background-color: #5724ff;
+  z-index: 1000;
+  width: 0%;
+}
+
+/* Text Wave */
+.text-wave span {
+  display: inline-block;
+  position: relative;
+}
+
+/* Gradient Text */
+.gradient-text {
+  background-size: 300% 300%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 8s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+
