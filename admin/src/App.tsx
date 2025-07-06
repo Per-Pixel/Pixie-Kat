@@ -15,6 +15,15 @@ import Messages from './pages/Messages';
 import Resellers from './pages/Resellers';
 import Settings from './pages/Settings';
 import Pages from './pages/Pages';
+import Notifications from './pages/Notifications';
+import Analytics from './pages/Analytics';
+import Wallets from './pages/Wallets';
+import SalesOverview from './pages/revenue/SalesOverview';
+import RevenueProducts from './pages/revenue/RevenueProducts';
+import Brokers from './pages/revenue/Brokers';
+import Referral from './pages/revenue/Referral';
+import Compose from './pages/messages/Compose';
+import Clients from './pages/auth/Clients';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -55,6 +64,27 @@ const AppRoutes: React.FC = () => {
         <Route path="resellers" element={<Resellers />} />
         <Route path="settings" element={<Settings />} />
         <Route path="pages" element={<Pages />} />
+        <Route path="notifications" element={<Notifications />} />
+        <Route path="analytics" element={<Analytics />} />
+        <Route path="wallets" element={<Wallets />} />
+        {/* Revenue Routes */}
+        <Route path="revenue/sales-overview" element={<SalesOverview />} />
+        <Route path="revenue/products" element={<RevenueProducts />} />
+        <Route path="revenue/brokers" element={<Brokers />} />
+        <Route path="revenue/referral" element={<Referral />} />
+        {/* Message Routes */}
+        <Route path="messages/compose" element={<Compose />} />
+        <Route path="messages/received" element={<Messages />} />
+        <Route path="messages/history" element={<Messages />} />
+        {/* Auth Routes */}
+        <Route path="auth/clients" element={<Clients />} />
+        <Route path="auth/broker" element={<Users />} />
+        <Route path="auth/admin" element={<Users />} />
+        {/* Page Management Routes */}
+        <Route path="pages/homepage" element={<Pages />} />
+        <Route path="pages/products" element={<Pages />} />
+        <Route path="pages/about" element={<Pages />} />
+        <Route path="pages/contact" element={<Pages />} />
       </Route>
     </Routes>
   );

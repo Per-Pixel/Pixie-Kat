@@ -10,6 +10,23 @@ import {
   Eye,
   MoreHorizontal,
 } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 interface StatCardProps {
   title: string;
@@ -82,6 +99,35 @@ const Dashboard: React.FC = () => {
     },
   ];
 
+  // Chart data
+  const revenueData = [
+    { month: 'Jan', revenue: 4000, orders: 240 },
+    { month: 'Feb', revenue: 3000, orders: 198 },
+    { month: 'Mar', revenue: 5000, orders: 300 },
+    { month: 'Apr', revenue: 4500, orders: 278 },
+    { month: 'May', revenue: 6000, orders: 389 },
+    { month: 'Jun', revenue: 5500, orders: 349 },
+    { month: 'Jul', revenue: 7000, orders: 430 },
+  ];
+
+  const salesData = [
+    { name: 'PUBG Mobile', value: 35, color: '#8884d8' },
+    { name: 'Free Fire', value: 25, color: '#82ca9d' },
+    { name: 'Mobile Legends', value: 20, color: '#ffc658' },
+    { name: 'Genshin Impact', value: 15, color: '#ff7300' },
+    { name: 'Others', value: 5, color: '#00ff88' },
+  ];
+
+  const dailyStats = [
+    { day: 'Mon', sales: 120, visitors: 400 },
+    { day: 'Tue', sales: 150, visitors: 450 },
+    { day: 'Wed', sales: 180, visitors: 500 },
+    { day: 'Thu', sales: 200, visitors: 550 },
+    { day: 'Fri', sales: 250, visitors: 600 },
+    { day: 'Sat', sales: 300, visitors: 700 },
+    { day: 'Sun', sales: 280, visitors: 650 },
+  ];
+
   const recentOrders = [
     { id: '#3210', customer: 'John Doe', product: 'PUBG Mobile Credits', amount: '$25.00', status: 'Completed' },
     { id: '#3209', customer: 'Jane Smith', product: 'Free Fire Diamonds', amount: '$15.00', status: 'Processing' },
@@ -116,13 +162,119 @@ const Dashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* Charts and Tables Row */}
+      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Orders */}
+        {/* Revenue Chart */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4 }}
+          className="bg-white rounded-lg shadow-sm border border-gray-200"
+        >
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
+            <p className="text-sm text-gray-500">Monthly revenue and order count</p>
+          </div>
+          <div className="p-6">
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={revenueData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip
+                  formatter={(value, name) => [
+                    name === 'revenue' ? `$${value}` : value,
+                    name === 'revenue' ? 'Revenue' : 'Orders'
+                  ]}
+                />
+                <Legend />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#3b82f6"
+                  fill="#3b82f6"
+                  fillOpacity={0.1}
+                  name="Revenue"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="orders"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  name="Orders"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+
+        {/* Sales Distribution */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.5 }}
+          className="bg-white rounded-lg shadow-sm border border-gray-200"
+        >
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Sales by Game</h3>
+            <p className="text-sm text-gray-500">Distribution of sales across games</p>
+          </div>
+          <div className="p-6">
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={salesData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {salesData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [`${value}%`, 'Share']} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Second Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Daily Performance */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="bg-white rounded-lg shadow-sm border border-gray-200"
+        >
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Weekly Performance</h3>
+            <p className="text-sm text-gray-500">Sales and visitor trends this week</p>
+          </div>
+          <div className="p-6">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={dailyStats}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="day" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="sales" fill="#3b82f6" name="Sales" />
+                <Bar dataKey="visitors" fill="#10b981" name="Visitors" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+
+        {/* Recent Orders */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
           className="bg-white rounded-lg shadow-sm border border-gray-200"
         >
           <div className="p-6 border-b border-gray-200">
@@ -141,7 +293,7 @@ const Dashboard: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-gray-900">{order.customer}</p>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        order.status === 'Completed' 
+                        order.status === 'Completed'
                           ? 'bg-green-100 text-green-800'
                           : order.status === 'Processing'
                           ? 'bg-yellow-100 text-yellow-800'
@@ -158,6 +310,10 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </motion.div>
+      </div>
+
+      {/* Third Row - Quick Actions */}
+      <div className="grid grid-cols-1 gap-6">
 
         {/* Quick Actions */}
         <motion.div
@@ -170,7 +326,7 @@ const Dashboard: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900">Quick Actions</h3>
           </div>
           <div className="p-6">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
                 <Package className="w-8 h-8 text-primary-600 mb-2" />
                 <p className="font-medium text-gray-900">Add Product</p>
