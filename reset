@@ -1,0 +1,27 @@
+[33mcommit 42c0bb40ab994064d74a260e7de706636f9c75e3[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: KoalaCoding05 <rishij906@gmail.com>
+Date:   Sun Jul 6 22:45:11 2025 +0530
+
+    feat: Add message composition page with recipient selection and validation
+    
+    feat: Implement brokers management page with performance metrics and actions
+    
+    feat: Create referral program overview with top referrers and performance metrics
+    
+    feat: Develop revenue products tracking page with product performance table
+    
+    feat: Add sales overview dashboard with metrics, charts, and top-selling products
+    
+    chore: Initialize package-lock.json for dependency management
+
+[33mcommit a7a555b73a3de63c24b90baf64131ce601a4efb4[m
+Author: KoalaCoding05 <rishij906@gmail.com>
+Date:   Sat Jul 5 19:15:00 2025 +0530
+
+    Pixie Kat web
+
+[33mcommit b945c30758a30e75c67bf8cdf37775cce353771c[m
+Author: KoalaCoding05 <rishij906@gmail.com>
+Date:   Sat Jul 5 19:12:17 2025 +0530
+
+    first commit

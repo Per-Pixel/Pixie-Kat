@@ -210,9 +210,17 @@ const NavBar = () => {
               ))}
             </div>
 
+            {/* Login Button */}
+            <Link to="/login" className="ml-6">
+              <Button
+                title="Login"
+                containerClass="bg-neon-purple hover:bg-neon-purple/80 text-black py-2 px-4 rounded-md transition-colors duration-200"
+              />
+            </Link>
+
             <button
               onClick={toggleAudioIndicator}
-              className="ml-10 flex items-center space-x-0.5"
+              className="ml-4 flex items-center space-x-0.5"
             >
               <audio
                 ref={audioElementRef}

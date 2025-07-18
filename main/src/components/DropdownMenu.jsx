@@ -159,6 +159,18 @@ const DropdownMenu = ({ onClose }) => {
                 </Link>
               </li>
             ))}
+            
+            {/* Login Button */}
+            <li>
+              <Link
+                to="/login"
+                className="text-white/70 hover:text-white text-2xl transition-colors duration-300 flex items-center gap-3 group"
+                onClick={handleClose}
+              >
+                <span className="w-0 group-hover:w-4 h-0.5 bg-neon-purple transition-all duration-300"></span>
+                Login
+              </Link>
+            </li>
           </ul>
         </div>
         
