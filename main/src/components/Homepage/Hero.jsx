@@ -56,10 +56,11 @@ const Hero = () => {
     setShowPopularGames(false); // Close the other card if open
   };
 
-  // Apply parallax scroll effect to the container
+  // Apply parallax scroll effect to a lightweight wrapper only
   useParallaxScroll(parallaxContainerRef, { 
-    speed: 0.3, 
-    direction: "vertical" 
+    speed: 0.2, 
+    direction: "vertical", 
+    scrub: 0.15 // Lower value for more real-time, fluid animation
   });
 
   const handleVideoLoad = () => {
@@ -209,7 +210,7 @@ const Hero = () => {
   }, []);
 
   return (
-    <div className="relative h-dvh w-screen overflow-x-hidden">
+  <div className="relative h-dvh w-screen overflow-x-hidden">
       {loading && (
         <Loading
           onComplete={() => setLoading(false)}
@@ -323,35 +324,37 @@ const Hero = () => {
         )}
 
         {/* Parallax container for all character images */}
+        {/* Parallax container for all character images (lightweight wrapper) */}
         <div 
           ref={parallaxContainerRef}
           className="absolute inset-0 z-20 pointer-events-none"
+          style={{ willChange: 'transform' }}
         >
           {/* Adjusted Jinx image */}
-          <div className="absolute left-[43%] top-[60%] z-30 -translate-x-1/2 -translate-y-1/2 scale-120">
+          <div className="absolute left-[43%] top-[60%] z-30 -translate-x-1/2 -translate-y-1/2 scale-120" style={{ willChange: 'transform' }}>
             <img 
               ref={jinxRef}
-              src="/img/hero/Jinx.png" 
+              src="/img/hero/Jinx.webp" 
               alt="Jinx" 
               className="h-auto w-90 md:w-120"
             />
           </div>
 
           {/* Faze logo image */}
-          <div className="absolute left-1/2 top-[70%] z-50 -translate-x-1/2 -translate-y-1/2 scale-150">
+          <div className="absolute left-1/2 top-[70%] z-50 -translate-x-1/2 -translate-y-1/2 scale-150" style={{ willChange: 'transform' }}>
             <img 
               ref={fazeLogoRef}
-              src="/img/hero/Faze.png" 
+              src="/img/hero/Faze.webp" 
               alt="Faze" 
               className="h-auto w-64 md:w-80"
             />
           </div>
 
           {/* Melissa image */}
-          <div className="absolute left-[59%] top-[65%] z-20 -translate-x-1/2 -translate-y-1/2 scale-150">
+          <div className="absolute left-[59%] top-[65%] z-20 -translate-x-1/2 -translate-y-1/2 scale-150" style={{ willChange: 'transform' }}>
             <img 
               ref={lunoxRef}
-              src="/img/hero/melissa.png" 
+              src="/img/hero/melissa.webp" 
               alt="Lunox" 
               className="h-auto w-90 md:w-130"
             />
