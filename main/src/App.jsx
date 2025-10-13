@@ -5,7 +5,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import Loading from "./components/Loading";
 import NavBar from "./components/Navbar";
 import Hero from "./components/Homepage/Hero";
-// import SingleProduct from "./components/Homepage/SingleProduct";
+import TrendingGames from "./components/TrendingGames";
 import About from "./components/Homepage/About";
 import Features from "./components/Homepage/Features";
 import Story from "./components/Homepage/Story";
@@ -86,7 +86,7 @@ function App() {
   const HomePage = () => (
     <>
       <Hero />
-  {/* <SingleProduct /> */}
+  <TrendingGames />
       <About />
       <Features />
       <Story />
