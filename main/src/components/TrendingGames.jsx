@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const trendingGames = [
   {
@@ -50,6 +51,7 @@ const trendingGames = [
 
 const TrendingGames = () => {
   const containerRef = useRef(null);
+  const navigate = useNavigate();
   const [active, setActive] = useState(0);
 
   useEffect(() => {
@@ -114,8 +116,12 @@ const TrendingGames = () => {
               <span className="text-lg font-bold text-black">{game.price}$</span>
               <span className="bg-orange-500 text-xs text-white rounded px-1.5 py-0.5 ml-1">{game.discount}%</span>
             </div>
-            <button className="w-full mt-1 py-1.5 rounded bg-black text-white font-semibold flex items-center justify-center gap-2 border border-black transition-colors duration-300 hover:bg-white hover:text-black active:bg-white active:text-black">
-              Buy Now <span className="text-base">→</span>
+            <button onClick={() => navigate('/games')} className="w-full mt-1 py-1.5 rounded bg-black text-white font-semibold flex items-center justify-center gap-2 border border-black transition-colors duration-300 hover:bg-white hover:text-black active:bg-white active:text-black group" aria-label="Buy Now - Go to All Games">
+              <span className="relative inline-flex overflow-hidden font-general text-xs uppercase">
+                <div className="translate-y-0 skew-y-0 transition duration-500 group-hover:translate-y-[-160%] group-hover:skew-y-12">Buy Now</div>
+                <div className="absolute translate-y-[164%] skew-y-12 transition duration-500 group-hover:translate-y-0 group-hover:skew-y-0">Buy Now</div>
+              </span>
+              <span className="text-base">→</span>
             </button>
           </div>
         ))}
