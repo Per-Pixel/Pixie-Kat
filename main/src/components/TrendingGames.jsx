@@ -100,6 +100,10 @@ const TrendingGames = () => {
                 alt={game.title}
                 className="w-full h-40 object-cover object-top"
                 draggable={false}
+                loading="lazy"
+                decoding="async"
+                fetchpriority={idx === 0 ? 'high' : 'low'}
+                sizes="(max-width: 768px) 220px, 240px"
               />
             </div>
             <div className="text-black font-semibold text-base mb-1 truncate">{game.title}</div>

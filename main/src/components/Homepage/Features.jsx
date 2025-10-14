@@ -63,6 +63,12 @@ export const BentoCard = ({ src, title, description, isComingSoon }) => {
         loop
         muted
         autoPlay
+        playsInline
+        webkit-playsinline="true"
+        controls={false}
+        controlsList="nodownload noplaybackrate nofullscreen"
+        disablePictureInPicture
+        preload="metadata"
         className="absolute left-0 top-0 size-full object-cover object-center"
       />
       <div className="relative z-10 flex size-full flex-col justify-between p-5 text-blue-50">
@@ -181,6 +187,12 @@ const Features = () => (
             loop
             muted
             autoPlay
+            playsInline
+            webkit-playsinline="true"
+            controls={false}
+            controlsList="nodownload noplaybackrate nofullscreen"
+            disablePictureInPicture
+            preload="metadata"
             className="size-full object-cover object-center"
           />
         </BentoTilt>

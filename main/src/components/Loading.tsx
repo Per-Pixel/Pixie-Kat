@@ -239,6 +239,9 @@ const Loading = ({
                   filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5))',
                   pointerEvents: 'none'
                 }}
+                loading="lazy"
+                decoding="async"
+                fetchpriority="low"
               />
             </div>
           ))}

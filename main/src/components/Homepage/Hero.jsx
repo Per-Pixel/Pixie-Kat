@@ -21,6 +21,7 @@ const Hero = () => {
   const fazeLogoRef = useRef(null);
   const lunoxRef = useRef(null);
   const parallaxContainerRef = useRef(null);
+  const featureVideoRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
   const [showPopularGames, setShowPopularGames] = useState(false);
   const [showContactUs, setShowContactUs] = useState(false);
@@ -56,11 +57,12 @@ const Hero = () => {
     setShowPopularGames(false); // Close the other card if open
   };
 
-  // Apply parallax scroll effect to a lightweight wrapper only
+  // Apply parallax scroll with reduced motion gating
+  const prefersReduced = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   useParallaxScroll(parallaxContainerRef, { 
-    speed: 0.2, 
+    speed: prefersReduced ? 0 : 0.2, 
     direction: "vertical", 
-    scrub: 0.15 // Lower value for more real-time, fluid animation
+    scrub: prefersReduced ? 0 : 0.15
   });
 
   const handleVideoLoad = () => {
@@ -229,6 +231,13 @@ const Hero = () => {
             autoPlay
             loop
             muted
+            preload="metadata"
+            playsInline
+            webkit-playsinline="true"
+            controls={false}
+            controlsList="nodownload noplaybackrate nofullscreen"
+            disablePictureInPicture
+            poster="/img/hero/Jinx.webp"
             className="absolute left-0 top-0 size-full object-cover object-center"
             onLoadedData={handleVideoLoad}
           />
@@ -239,11 +248,19 @@ const Hero = () => {
           <BentoTilt className="absolute bottom-16 left-8 z-50 h-48 w-80 md:h-64 md:w-96 pointer-events-auto rounded-lg overflow-hidden shadow-[0_0_15px_rgba(79,183,221,0.5)]">
             <div className="relative size-full rounded-lg overflow-hidden">
               <video
+                ref={featureVideoRef}
                 src="videos/feature-4.mp4" 
-                autoPlay
-                loop
                 muted
+                preload="metadata"
+                playsInline
+                webkit-playsinline="true"
+                controls={false}
+                controlsList="nodownload noplaybackrate nofullscreen"
+                disablePictureInPicture
+                poster="/img/hero/Faze.webp"
                 className="absolute left-0 top-0 size-full object-cover object-center"
+                onMouseEnter={() => featureVideoRef.current && featureVideoRef.current.play()}
+                onMouseLeave={() => featureVideoRef.current && featureVideoRef.current.pause()}
               />
               <div className="relative z-20 flex size-full flex-col justify-between p-5">
                 <div className="absolute bottom-3 left-3 z-80">
@@ -282,6 +299,12 @@ const Hero = () => {
                   autoPlay
                   loop
                   muted
+                  preload="metadata"
+                  playsInline
+                  webkit-playsinline="true"
+                  controls={false}
+                  controlsList="nodownload noplaybackrate nofullscreen"
+                  disablePictureInPicture
                   className="absolute left-0 top-0 size-full object-cover object-center"
                 />
                 <div className="relative z-20 flex size-full flex-col justify-between p-5">
@@ -337,6 +360,10 @@ const Hero = () => {
               src="/img/hero/Jinx.webp" 
               alt="Jinx" 
               className="h-auto w-90 md:w-120"
+              loading="lazy"
+              decoding="async"
+              fetchpriority="low"
+              sizes="(max-width: 768px) 360px, 480px"
             />
           </div>
 
@@ -347,6 +374,10 @@ const Hero = () => {
               src="/img/hero/Faze.webp" 
               alt="Faze" 
               className="h-auto w-64 md:w-80"
+              loading="lazy"
+              decoding="async"
+              fetchpriority="low"
+              sizes="(max-width: 768px) 256px, 320px"
             />
           </div>
 
@@ -357,6 +388,10 @@ const Hero = () => {
               src="/img/hero/melissa.webp" 
               alt="Lunox" 
               className="h-auto w-90 md:w-130"
+              loading="lazy"
+              decoding="async"
+              fetchpriority="low"
+              sizes="(max-width: 768px) 360px, 520px"
             />
           </div>
         </div>

@@ -34,6 +34,12 @@ const FlipCard = ({
           autoPlay
           loop
           muted
+          playsInline
+          webkit-playsinline="true"
+          controls={false}
+          controlsList="nodownload noplaybackrate nofullscreen"
+          disablePictureInPicture
+          preload="metadata"
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
         <div className="relative z-10">
@@ -56,6 +62,12 @@ const FlipCard = ({
           autoPlay
           loop
           muted
+          playsInline
+          webkit-playsinline="true"
+          controls={false}
+          controlsList="nodownload noplaybackrate nofullscreen"
+          disablePictureInPicture
+          preload="metadata"
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
         <div className="relative z-10 flex flex-col items-center">
