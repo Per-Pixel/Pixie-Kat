@@ -32,7 +32,7 @@ const Hero = () => {
   useEffect(() => {
     const checkMobile = () => {
       const width = window.innerWidth;
-      setIsMobile(width < 768); // Considering devices under 768px as mobile
+      setIsMobile(width < 1024); // Treat devices under 1024px (tablets and phones) as mobile
     };
 
     // Check initially
@@ -245,11 +245,13 @@ const Hero = () => {
 
         {/* Desktop view: bottom-left rectangular video */}
         {!isMobile && (
-          <BentoTilt className="absolute bottom-16 left-8 z-50 h-48 w-80 md:h-64 md:w-96 pointer-events-auto rounded-lg overflow-hidden shadow-[0_0_15px_rgba(79,183,221,0.5)]">
+          <BentoTilt className="absolute bottom-10 left-6 md:bottom-12 md:left-10 lg:left-16 z-50 h-44 w-72 md:h-56 md:w-96 pointer-events-auto rounded-lg overflow-hidden shadow-[0_0_15px_rgba(79,183,221,0.5)]">
             <div className="relative size-full rounded-lg overflow-hidden">
               <video
                 ref={featureVideoRef}
                 src="videos/feature-4.mp4" 
+                autoPlay
+                loop
                 muted
                 preload="metadata"
                 playsInline
@@ -259,8 +261,6 @@ const Hero = () => {
                 disablePictureInPicture
                 poster="/img/hero/Faze.webp"
                 className="absolute left-0 top-0 size-full object-cover object-center"
-                onMouseEnter={() => featureVideoRef.current && featureVideoRef.current.play()}
-                onMouseLeave={() => featureVideoRef.current && featureVideoRef.current.pause()}
               />
               <div className="relative z-20 flex size-full flex-col justify-between p-5">
                 <div className="absolute bottom-3 left-3 z-80">
@@ -291,7 +291,7 @@ const Hero = () => {
 
         {/* Mobile view: Contact Us card that appears when toggled */}
         {isMobile && showContactUs && (
-          <div className="absolute left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 h-80 w-80 pointer-events-auto">
+          <div className="absolute left-1/2 top-1/2 z-[500] -translate-x-1/2 -translate-y-1/2 h-80 w-80 pointer-events-auto">
             <BentoTilt className="h-full w-full rounded-lg overflow-hidden shadow-[0_0_15px_rgba(79,183,221,0.5)]">
               <div className="relative size-full rounded-lg overflow-hidden">
                 <video
@@ -305,11 +305,11 @@ const Hero = () => {
                   controls={false}
                   controlsList="nodownload noplaybackrate nofullscreen"
                   disablePictureInPicture
-                  className="absolute left-0 top-0 size-full object-cover object-center"
+                  className="absolute left-0 top-0 size-full object-cover object-center pointer-events-none"
                 />
                 <div className="relative z-20 flex size-full flex-col justify-between p-5">
                   <button 
-                    className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 z-90"
+                    className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 z-[600]"
                     onClick={toggleContactUs}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -334,15 +334,26 @@ const Hero = () => {
 
         {/* Mobile view: Popular Games card that appears when toggled */}
         {isMobile && showPopularGames && (
-          <div className="absolute left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 h-80 w-80 pointer-events-auto">
-            <FlipCard 
-              frontVideo="videos/feature-2.mp4"
-              backVideo="videos/feature-3.mp4"
-              title="Popular Games"
-              description="Top up your favorite games instantly"
-              buttonText="View All Games"
-              onClose={togglePopularGames}
-            />
+          <div className="absolute left-1/2 top-1/2 z-[500] -translate-x-1/2 -translate-y-1/2 h-80 w-80 pointer-events-auto">
+            <div className="relative h-full w-full">
+              <button 
+                className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 z-[600]"
+                onClick={togglePopularGames}
+                aria-label="Close Popular Games"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <FlipCard 
+                frontVideo="videos/feature-2.mp4"
+                backVideo="videos/feature-3.mp4"
+                title="Popular Games"
+                description="Top up your favorite games instantly"
+                buttonText="View All Games"
+                enableTap={true}
+              />
+            </div>
           </div>
         )}
 

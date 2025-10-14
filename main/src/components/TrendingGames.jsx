@@ -81,13 +81,20 @@ const TrendingGames = () => {
 
   return (
     <section className="relative isolate z-50 py-10 px-2 md:px-8 overflow-visible">
+      {/* Local stylesheet to hide native scrollbar while keeping scroll functionality */}
+      <style>{`
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; background: transparent; }
+        .no-scrollbar::-webkit-scrollbar-thumb { background: transparent; }
+        .no-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      `}</style>
       <div className="relative z-0 flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold" style={{ color: '#111', fontFamily: 'zentry, sans-serif' }}>Trending Games</h2>
         <button className="text-orange-400 font-semibold flex items-center gap-1 hover:underline">
           View All <span className="text-lg">→</span>
         </button>
       </div>
-      <div ref={containerRef} className="relative z-50 flex gap-6 overflow-x-auto overflow-y-visible pb-2 mt-4">
+      <div ref={containerRef} className="relative z-50 flex gap-6 overflow-x-auto overflow-y-visible pb-2 mt-4 no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
         {trendingGames.map((game, idx) => (
           <div
             key={game.title}
