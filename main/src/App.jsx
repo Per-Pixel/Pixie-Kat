@@ -13,6 +13,7 @@ import Contact from "./components/Homepage/Contact";
 import Footer from "./components/Homepage/Footer";
 import BottomNav from "./components/BottomNav";
 
+
 // Import new pages
 import Games from "./pages/Games";
 import Pricing from "./pages/Pricing";
