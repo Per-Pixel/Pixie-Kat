@@ -244,7 +244,7 @@ const Hero = () => {
         </div>
 
         {/* Desktop view: bottom-left rectangular video */}
-        {!isMobile && (
+        {false && !isMobile && (
           <BentoTilt className="absolute bottom-10 left-6 md:bottom-12 md:left-10 lg:left-16 z-50 h-44 w-72 md:h-56 md:w-96 pointer-events-auto rounded-lg overflow-hidden shadow-[0_0_15px_rgba(79,183,221,0.5)]">
             <div className="relative size-full rounded-lg overflow-hidden">
               <video
@@ -277,7 +277,7 @@ const Hero = () => {
         )}
 
         {/* Desktop view: right side card with flip animation */}
-        {!isMobile && (
+        {false && !isMobile && (
           <div className="absolute bottom-64 right-8 z-50 h-48 w-80 md:h-64 md:w-96 pointer-events-auto">
             <FlipCard 
               frontVideo="videos/feature-2.mp4"
@@ -290,7 +290,7 @@ const Hero = () => {
         )}
 
         {/* Mobile view: Contact Us card that appears when toggled */}
-        {isMobile && showContactUs && (
+        {showContactUs && (
           <div className="absolute left-1/2 top-1/2 z-[500] -translate-x-1/2 -translate-y-1/2 h-80 w-80 pointer-events-auto">
             <BentoTilt className="h-full w-full rounded-lg overflow-hidden shadow-[0_0_15px_rgba(79,183,221,0.5)]">
               <div className="relative size-full rounded-lg overflow-hidden">
@@ -333,7 +333,7 @@ const Hero = () => {
         )}
 
         {/* Mobile view: Popular Games card that appears when toggled */}
-        {isMobile && showPopularGames && (
+        {showPopularGames && (
           <div className="absolute left-1/2 top-1/2 z-[500] -translate-x-1/2 -translate-y-1/2 h-80 w-80 pointer-events-auto">
             <div className="relative h-full w-full">
               <button 
@@ -408,7 +408,7 @@ const Hero = () => {
         </div>
 
         {/* Mobile contact square button next to Pixiekat title */}
-        {isMobile && (
+        {(
           <MobileSquareButton
             className="absolute top-24 right-5 z-[60]"
             onClick={toggleContactUs}
@@ -441,7 +441,7 @@ const Hero = () => {
       </div>
 
       {/* Mobile games square button - moved outside the video frame for better positioning */}
-      {isMobile && (
+      {(
         <div className="absolute bottom-5 left-5 z-[60]">
           <MobileSquareButton
             onClick={togglePopularGames}
