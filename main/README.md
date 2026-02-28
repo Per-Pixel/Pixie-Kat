@@ -1,384 +1,325 @@
-## <a name="tech-stack">⚙️ Tech Stack</a>
+# PixieKat.com (Main Frontend)
 
-- GSAP
-- React.js
-- Tailwind CSS
+PixieKat.com is a React + Vite web frontend for instant gaming credit top-ups with a motion-heavy, responsive UI.
 
-## <a name="features">🔋 Features</a>
+## Quick Navigation
 
-👉 **Scroll-Based Animations**: Dynamic animations triggered by scrolling for a more engaging user experience.
+- [At a Glance](#at-a-glance)
+- [Tech Stack](#tech-stack)
+- [Local Development](#local-development)
+- [Scripts](#scripts)
+- [Architecture Overview](#architecture-overview)
+- [Route Map](#route-map)
+- [Folder Structure](#folder-structure)
+- [Design System](#design-system)
+- [Animation System](#animation-system)
+- [Key UI Flows](#key-ui-flows)
+- [Component Ownership Map](#component-ownership-map)
+- [Assets and Media Conventions](#assets-and-media-conventions)
+- [Known Gaps and Risks](#known-gaps-and-risks)
+- [Contribution Guidelines](#contribution-guidelines)
+- [License and Credits](#license-and-credits)
 
-👉 **Clip Path Shaped Animations**: Unique geometric transitions using CSS clip-paths to create visually stunning effects.
+## At a Glance
 
-👉 **3D Hover Effects**: Interactive 3D transformations that respond to user interactions for a modern feel.
+- Single-page React Router app mounted from `src/main.jsx` to `src/App.jsx`.
+- Global app shell wraps all routes with `AuthProvider`, `Navbar`, `Footer`, and `BottomNav`.
+- Home page is section-based (`Hero`, `TrendingGames`, `About`, `Features`, `Story`, `Contact`).
+- Secondary pages (`games`, `pricing`, `faq`, `support`, `how-it-works`, `auth`) are route folders under `src/pages`.
+- Motion is a first-class part of UX (GSAP + ScrollTrigger + Framer Motion + CSS keyframes).
+- A custom full-screen loading sequence runs before app reveal.
+- Desktop and mobile behaviors are intentionally differentiated in several page modules.
 
-👉 **Video Transitions**: Seamlessly integrated video elements to enhance storytelling and flow.
+## Tech Stack
 
-👉 **Smooth UI/UX**: Polished interfaces with buttery-smooth interactions for an intuitive user journey.
+| Category | Libraries |
+| --- | --- |
+| Core | React 18, React DOM, React Router DOM 6, Vite 5 |
+| Styling | Tailwind CSS, PostCSS, global `index.css` |
+| Motion | GSAP, `@gsap/react`, Framer Motion |
+| Data / Utilities | Axios, `react-use`, `clsx`, `jwt-decode` |
+| UI / Icons | `react-icons`, `lucide-react` |
+| Quality Tooling | ESLint, Prettier, TypeScript types |
 
-👉 **Completely Responsive**: Flawless adaptation across all devices, ensuring a consistent experience.
+## Local Development
 
-and many more, including code architecture and reusability
+### Prerequisites
 
-## <a name="quick-start">🤸 Quick Start</a>
+- Node.js (LTS recommended)
+- npm
 
-Follow these steps to set up the project locally on your machine.
-
-**Prerequisites**
-
-Make sure you have the following installed on your machine:
-
-- [Git](https://git-scm.com/)
-- [Node.js](https://nodejs.org/en)
-- [npm](https://www.npmjs.com/) (Node Package Manager)
-
-**Cloning the Repository**
-
-```bash
-git clone https://github.com/adrianhajdin/award-winning-website.git
-cd award-winning-website
-```
-
-**Installation**
-
-Install the project dependencies using npm:
+### Setup and Run
 
 ```bash
 npm install
-```
-
-**Running the Project**
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser to view the project.
+App default URL: `http://localhost:5173`
 
-## <a name="snippets">🕸️ Snippets</a>
+### Build and Preview
 
-<details>
-<summary><code>index.css</code></summary>
-
-```css
-@import url("https://fonts.cdnfonts.com/css/general-sans");
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-body {
-  width: 100dvw;
-  overflow-x: hidden;
-  background-color: #dfdff0;
-  font-family: "General Sans", sans-serif;
-}
-
-@layer base {
-  @font-face {
-    font-family: "circular-web";
-    src: url("/fonts/circularweb-book.woff2") format("woff2");
-  }
-
-  @font-face {
-    font-family: "general";
-    src: url("/fonts/general.woff2") format("woff2");
-  }
-
-  @font-face {
-    font-family: "robert-medium";
-    src: url("/fonts/robert-medium.woff2") format("woff2");
-  }
-
-  @font-face {
-    font-family: "robert-regular";
-    src: url("/fonts/robert-regular.woff2") format("woff2");
-  }
-
-  @font-face {
-    font-family: "zentry";
-    src: url("/fonts/zentry-regular.woff2") format("woff2");
-  }
-}
-
-@layer utilities {
-  .border-hsla {
-    @apply border border-white/20;
-  }
-
-  .nav-hover-btn {
-    @apply relative ms-10 font-general text-xs uppercase text-blue-50 after:absolute after:-bottom-0.5 after:left-0 after:h-[2px] after:w-full after:origin-bottom-right after:scale-x-0 after:bg-neutral-800 after:transition-transform after:duration-300 after:ease-[cubic-bezier(0.65_0.05_0.36_1)] hover:after:origin-bottom-left hover:after:scale-x-100 dark:after:bg-white cursor-pointer;
-  }
-
-  .floating-nav {
-    @apply bg-black rounded-lg border;
-  }
-
-  .absolute-center {
-    @apply absolute top-1/2 left-1/2 translate-x-[-50%] translate-y-[-50%];
-  }
-
-  .flex-center {
-    @apply flex justify-center items-center;
-  }
-
-  .mask-clip-path {
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
-  }
-
-  .special-font b {
-    font-family: "Zentry";
-    font-feature-settings: "ss01" on;
-  }
-
-  .hero-heading {
-    @apply uppercase font-zentry font-black text-5xl sm:right-10 sm:text-7xl md:text-9xl lg:text-[12rem];
-  }
-
-  .about-subtext {
-    @apply absolute bottom-[-80dvh] left-1/2 w-full max-w-96 -translate-x-1/2 text-center font-circular-web text-lg md:max-w-[34rem];
-  }
-
-  .about-image {
-    @apply absolute left-1/2 top-0 z-20 h-[60vh] w-96 origin-center -translate-x-1/2 overflow-hidden rounded-3xl md:w-[30vw];
-  }
-
-  .animated-title {
-    @apply flex flex-col gap-1 text-7xl uppercase leading-[.8] text-white sm:px-32 md:text-[6rem];
-  }
-
-  .animated-word {
-    @apply special-font font-zentry font-black opacity-0;
-    transform: translate3d(10px, 51px, -60px) rotateY(60deg) rotateX(-40deg);
-    transform-origin: 50% 50% -150px !important;
-    will-change: opacity, transform;
-  }
-
-  .bento-tilt_1 {
-    @apply relative border-hsla col-span-2 overflow-hidden rounded-md transition-transform duration-300 ease-out;
-  }
-
-  .bento-tilt_2 {
-    @apply relative col-span-1 row-span-1 overflow-hidden rounded-md transition-transform duration-300 ease-out;
-  }
-
-  .bento-title {
-    @apply uppercase md:text-6xl text-4xl font-black font-zentry;
-  }
-
-  .story-img-container {
-    @apply relative md:h-dvh h-[90vh] w-full;
-    filter: url("#flt_tag");
-  }
-
-  .story-img-mask {
-    @apply absolute left-0 top-0 size-full overflow-hidden md:left-[20%] md:top-[-10%] md:size-4/5;
-    clip-path: polygon(4% 0, 83% 21%, 100% 73%, 0% 100%);
-  }
-
-  .story-img-content {
-    @apply absolute w-full md:h-dvh h-[50dvh] opacity-100 left-10 top-16 md:left-0 md:top-10 lg:left-[-300px] lg:top-[-100px];
-    transform: translate3d(0, 0, 0) rotateX(0) rotateY(0) rotateZ(0) scale(1);
-  }
-
-  .gallery-img-container {
-    @apply size-64 overflow-hidden bg-violet-300;
-  }
-
-  .gallery-img {
-    @apply size-full bg-cover;
-  }
-
-  .gallery-img-4 {
-    @apply sm:size-80 md:h-96 md:w-[25rem] rounded-lg;
-  }
-
-  .sword-man-clip-path {
-    clip-path: polygon(16% 0, 89% 15%, 75% 100%, 0 97%);
-  }
-
-  .contact-clip-path-1 {
-    clip-path: polygon(25% 0%, 74% 0, 69% 64%, 34% 73%);
-  }
-
-  .contact-clip-path-2 {
-    clip-path: polygon(29% 15%, 85% 30%, 50% 100%, 10% 64%);
-  }
-}
-
-.indicator-line {
-  @apply h-1 w-px rounded-full bg-white transition-all duration-200 ease-in-out;
-}
-
-.indicator-line.active {
-  animation: indicator-line 0.5s ease infinite;
-  animation-delay: calc(var(--animation-order) * 0.1s);
-}
-
-@keyframes indicator-line {
-  0% {
-    height: 4px;
-    transform: translateY(-0px);
-  }
-  50% {
-    height: 16px;
-    transform: translateY(-4px);
-  }
-  100% {
-    height: 4px;
-    transform: translateY(-0px);
-  }
-}
-
-/* From Uiverse.io by G4b413l */
-/* https://uiverse.io/G4b413l/tidy-walrus-92 */
-.three-body {
-  --uib-size: 35px;
-  --uib-speed: 0.8s;
-  --uib-color: #5d3fd3;
-  position: relative;
-  display: inline-block;
-  height: var(--uib-size);
-  width: var(--uib-size);
-  animation: spin78236 calc(var(--uib-speed) * 2.5) infinite linear;
-}
-
-.three-body__dot {
-  position: absolute;
-  height: 100%;
-  width: 30%;
-}
-
-.three-body__dot:after {
-  content: "";
-  position: absolute;
-  height: 0%;
-  width: 100%;
-  padding-bottom: 100%;
-  background-color: var(--uib-color);
-  border-radius: 50%;
-}
-
-.three-body__dot:nth-child(1) {
-  bottom: 5%;
-  left: 0;
-  transform: rotate(60deg);
-  transform-origin: 50% 85%;
-}
-
-.three-body__dot:nth-child(1)::after {
-  bottom: 0;
-  left: 0;
-  animation: wobble1 var(--uib-speed) infinite ease-in-out;
-  animation-delay: calc(var(--uib-speed) * -0.3);
-}
-
-.three-body__dot:nth-child(2) {
-  bottom: 5%;
-  right: 0;
-  transform: rotate(-60deg);
-  transform-origin: 50% 85%;
-}
-
-.three-body__dot:nth-child(2)::after {
-  bottom: 0;
-  left: 0;
-  animation: wobble1 var(--uib-speed) infinite calc(var(--uib-speed) * -0.15)
-    ease-in-out;
-}
-
-.three-body__dot:nth-child(3) {
-  bottom: -5%;
-  left: 0;
-  transform: translateX(116.666%);
-}
-
-.three-body__dot:nth-child(3)::after {
-  top: 0;
-  left: 0;
-  animation: wobble2 var(--uib-speed) infinite ease-in-out;
-}
-
-@keyframes spin78236 {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes wobble1 {
-  0%,
-  100% {
-    transform: translateY(0%) scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: translateY(-66%) scale(0.65);
-    opacity: 0.8;
-  }
-}
-
-@keyframes wobble2 {
-  0%,
-  100% {
-    transform: translateY(0%) scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: translateY(66%) scale(0.65);
-    opacity: 0.8;
-  }
-}
+```bash
+npm run build
+npm run preview
 ```
 
-</details>
+### Lint
 
-<details>
-  <summary><code>components/RoundedCorners.jsx</code></summary>
-
-```js
-import React from 'react'
-
-const RoundedCorners = () => {
-  return (
-    <svg
-      className="invisible absolute size-0"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <defs>
-        <filter id="flt_tag">
-          <feGaussianBlur
-            in="SourceGraphic"
-            stdDeviation="8"
-            result="blur"
-          />
-          <feColorMatrix
-            in="blur"
-            mode="matrix"
-            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9"
-            result="flt_tag"
-          />
-          <feComposite
-            in="SourceGraphic"
-            in2="flt_tag"
-            operator="atop"
-          />
-        </filter>
-      </defs>
-    </svg>
-  )
-}
-export default RoundedCorners
+```bash
+npm run lint
 ```
 
-</details>
+Entrypoint flow: `src/main.jsx` -> `src/App.jsx`.
 
-## <a name="links">🔗 Assets</a>
+## Scripts
 
-Assets used in the project can be found [here](https://drive.google.com/file/d/12hCVnanOAUmM1vzz2dTWZ_uEFGG8xDcT/view?usp=sharing)
+| Script | Command | Purpose |
+| --- | --- | --- |
+| `dev` | `vite` | Start local dev server |
+| `build` | `vite build` | Create production build |
+| `preview` | `vite preview` | Preview production build locally |
+| `lint` | `eslint .` | Run lint checks |
 
+## Architecture Overview
+
+`src/App.jsx` composes the app shell and route system:
+
+- Providers: `AuthProvider` (`src/contexts/AuthContext.jsx`)
+- Router: `BrowserRouter` + `Routes`
+- Layout: `Navbar` + route view + `Footer` + `BottomNav`
+- Global loading gate: `components/common/Loading.tsx`
+
+Pattern notes:
+
+- Route pages live under `src/pages/<route>/index.jsx`.
+- Shared cross-route UI is under `src/components/common` and `src/components/layout`.
+- Some route pages wrap content in `PageWrapper` for consistent animated page entry and base surface styles.
+- Legacy code is isolated under `src/legacy/next-app`.
+
+## Route Map
+
+Routes are defined in `src/App.jsx`.
+
+| Route | Component |
+| --- | --- |
+| `/` | `src/pages/home/index.jsx` |
+| `/games` | `src/pages/games/index.jsx` |
+| `/pricing` | `src/pages/pricing/index.jsx` |
+| `/faq` | `src/pages/faq/index.jsx` |
+| `/support` | `src/pages/support/index.jsx` |
+| `/how-it-works` | `src/pages/how-it-works/index.jsx` |
+| `/auth` | `src/pages/auth/index.jsx` |
+| `/login` | `src/pages/auth/index.jsx` |
+| `/register` | `src/pages/auth/index.jsx` |
+
+## Folder Structure
+
+Current structure for `src/`:
+
+```text
+src/
+  App.jsx
+  main.jsx
+  assets/
+    react.svg
+  animations/
+    README.md
+    components/
+      SlideTextButton.jsx
+    hooks/
+      useParallaxScroll.js
+    styles/
+      animations.css
+  contexts/
+    AuthContext.jsx
+  components/
+    common/
+      AnimatedTitle.jsx
+      Button.jsx
+      DropdownMenu.jsx
+      FlipCard.jsx
+      Loading.tsx
+      MobileSquareButton.jsx
+      PageWrapper.jsx
+    layout/
+      BottomNav.jsx
+      Footer.jsx
+      Navbar.jsx
+  pages/
+    auth/
+      index.jsx
+    faq/
+      index.jsx
+    games/
+      index.jsx
+      components/
+        ContactSection.jsx
+        FloatingParticles.jsx
+        GameDetailsModal.jsx
+        GameGrid.jsx
+        GameHero.jsx
+        MobileActionButtons.jsx
+        MobileHelpSection.jsx
+    home/
+      index.jsx
+      sections/
+        About.jsx
+        Contact.jsx
+        Features.jsx
+        Hero.jsx
+        Story.jsx
+        TrendingGames.jsx
+    how-it-works/
+      index.jsx
+    pricing/
+      index.jsx
+    support/
+      index.jsx
+  legacy/
+    README.md
+    next-app/
+      products/
+        [productId]/
+          page.tsx
+```
+
+## Design System
+
+### Palette Tokens (`tailwind.config.js`)
+
+| Token | Value |
+| --- | --- |
+| `blue.50` | `#DFDFF0` |
+| `blue.75` | `#dfdff2` |
+| `blue.100` | `#F0F2FA` |
+| `blue.200` | `#010101` |
+| `blue.300` | `#4FB7DD` |
+| `violet.300` | `#5724ff` |
+| `yellow.100` | `#8e983f` |
+| `yellow.300` | `#edff66` |
+
+### Surface and Theme Usage
+
+| Pattern | Where It Appears |
+| --- | --- |
+| Light brand surfaces (`blue-*`, `yellow-*`) | Home hero, shared buttons, nav accents |
+| Dark surface + neon gradient styling (`dark-*`, `neon-*`) | Pricing, FAQ, Support, How-it-works, parts of Auth |
+| High-contrast white-on-dark cards | Support/FAQ/Pricing callouts and forms |
+
+### Typography
+
+Font sources in `index.css`:
+
+- Imported: `General Sans` (CDN)
+- Local `@font-face`: `circular-web`, `general`, `robert-medium`, `robert-regular`, `zentry`
+
+Tailwind font families in `tailwind.config.js` map to those local font names.
+
+### Color Usage by Page
+
+| Area | Dominant Color Behavior |
+| --- | --- |
+| Home (`src/pages/home`) | `blue` + `yellow` brand tones, violet accent, media-heavy hero |
+| Games (`src/pages/games`) | Mixed bright gradients and white card surfaces |
+| Pricing / FAQ / Support / How-it-works | Dark backgrounds with neon gradient highlights (`neon-purple`, `neon-blue`, etc.) |
+| Auth (`src/pages/auth`) | Dark gradient background with violet/blue accents |
+
+## Animation System
+
+### GSAP + ScrollTrigger
+
+Primary usage:
+
+- `src/pages/home/sections/Hero.jsx` (clip-path reveal, floating image loops, parallax hook)
+- `src/pages/home/sections/About.jsx` (scroll-driven mask/clip behavior)
+- `src/components/common/AnimatedTitle.jsx` (scroll-triggered word reveal)
+- `src/components/common/Loading.tsx` (timeline-driven startup sequence)
+- `src/components/layout/Navbar.jsx` and `src/components/common/DropdownMenu.jsx` (UI state transitions)
+
+### Framer Motion
+
+Primary usage:
+
+- Route/page transitions via `src/components/common/PageWrapper.jsx`
+- Rich section and card transitions on `games`, `pricing`, `faq`, `support`, `how-it-works`, `auth`
+- Modal and interaction transitions (`GameDetailsModal`, mobile help/action components)
+
+### CSS Animation Utilities and Keyframes
+
+Defined mainly in `index.css` and `src/animations/styles/animations.css`:
+
+- Loading/counter behavior (`indicator-line`, loader gallery transitions)
+- Text shimmer / gradient shift helpers
+- 3D/flip/perspective utility classes
+- Hover and micro-interaction helpers
+
+### Major Motion Patterns
+
+- Full-screen loading gallery: grayscale-to-color reveal, scaling center frame, timed handoff to app shell.
+- Scroll-linked reveal sequences: clip-path and mask-based storytelling sections.
+- Interaction motion: hover tilt, flip cards, gradient button transitions, menu transitions.
+- Ambient motion: floating particles and subtle bobbing loops.
+
+### Accessibility Note
+
+Reduced motion gating exists in `Hero.jsx` (`prefers-reduced-motion`) for parallax behavior. Most other motion remains active by default.
+
+## Key UI Flows
+
+- Home (`/`): loader -> hero video + layered assets -> section progression (`TrendingGames` -> `About` -> `Features` -> `Story` -> `Contact`).
+- Games (`/games`): hero slider -> mobile quick actions -> game grid + modal -> help/contact blocks.
+- Auth (`/auth`, `/login`, `/register`): animated auth form with login/register mode handling.
+- Informational pages (`/pricing`, `/faq`, `/support`, `/how-it-works`): dark neon-themed content sections with staggered animated blocks and CTA zones.
+
+## Component Ownership Map
+
+| Area | Responsibility |
+| --- | --- |
+| `src/components/common` | Reusable primitives and cross-page building blocks (`Button`, `Loading`, `PageWrapper`, etc.) |
+| `src/components/layout` | Global layout shell (`Navbar`, `Footer`, `BottomNav`) |
+| `src/pages/*/components` | Route-local UI modules that should stay page-scoped |
+| `src/animations/*` | Shared animation-focused helpers, hooks, and style layer |
+| `src/contexts` | Global providers and state context (current: auth) |
+
+## Assets and Media Conventions
+
+Public assets are served from `main/public`:
+
+- Images: `/img/...`
+- Videos: `/videos/...`
+- Audio: `/audio/...`
+- Fonts: `/fonts/...`
+
+Current loading hints used in components:
+
+- `loading="lazy"`
+- `decoding="async"`
+- `fetchpriority="low"`
+
+Use these conventions for new media to keep loading behavior consistent.
+
+## Known Gaps and Risks
+
+These are documented implementation observations, not code fixes:
+
+- Token visibility mismatch: utility classes like `dark-*` and `neon-*` are used across pages, but those scales are not clearly defined in `tailwind.config.js` color extension.
+- Config anomaly: `tailwind.config.js` currently includes a `safelist` array nested inside `theme.extend.colors`, which is likely misplaced.
+- Style overlap risk: motion/utility classes are split across `index.css` and `src/animations/styles/animations.css` with some conceptual overlap.
+- Legacy residue: `src/legacy/next-app` remains in repo and can cause confusion if contributors do not follow the route-folder convention in `src/pages`.
+
+## Contribution Guidelines
+
+- Add or modify routes in `src/pages/<route>/index.jsx` and wire them in `src/App.jsx`.
+- Keep reusable UI in `src/components/common` and shell-only UI in `src/components/layout`.
+- Keep page-specific components inside the owning route folder.
+- Put shared motion helpers in `src/animations/*`; keep one-off animation logic near its page/component.
+- Keep design token usage centralized in Tailwind config and document any new token groups in this README.
+- Avoid introducing new global CSS utilities unless they are shared by multiple route families.
+
+## License and Credits
+
+- Project: PixieKat frontend (this `main/` app).
+- Animation/style inspiration patterns are adapted from general modern React/GSAP UI practices.
+- Existing third-party references in code comments are retained (for example, Uiverse loader snippet attribution in `index.css`).
+- Historical template wording from prior README versions has been removed in favor of repository-accurate documentation.
