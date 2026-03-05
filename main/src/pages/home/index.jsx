@@ -2,7 +2,7 @@ import Hero from "./sections/Hero";
 import TrendingGames from "./sections/TrendingGames";
 import About from "./sections/About";
 import Features from "./sections/Features";
-import Story from "./sections/Story";
+import Promotion from "./sections/Promotion";
 import Contact from "./sections/Contact";
 
 const HomePage = () => {
@@ -12,7 +12,7 @@ const HomePage = () => {
       <TrendingGames />
       <About />
       <Features />
-      <Story />
+      <Promotion />
       <Contact />
     </>
   );
