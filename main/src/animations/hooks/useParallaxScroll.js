@@ -7,11 +7,11 @@ gsap.registerPlugin(ScrollTrigger);
 export const useParallaxScroll = (elementRef, options = {}) => {
   useEffect(() => {
     const defaults = {
-      speed: 0.5,
+      speed: 0.2,
       direction: "vertical", // "vertical" or "horizontal"
       start: "top bottom",
       end: "bottom top",
-      scrub: true,
+      scrub: 0.15, // Lower value for more real-time, fluid animation
     };
 
     const settings = { ...defaults, ...options };
