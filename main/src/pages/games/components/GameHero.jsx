@@ -10,39 +10,46 @@ const GameHero = () => {
   const slides = [
     {
       id: 1,
-      title: "UXSIOSTORE",
-      subtitle: "Official Gaming Platform",
-      description: "UXSIOSTORE is a practical solution for every game lover to buy game vouchers without having to go to a physical store.",
-      cta: "WWW.UXSIOSTORE.COM",
-      bgGradient: "from-blue-600 via-purple-600 to-blue-800"
+      title: 'UXSIOSTORE',
+      subtitle: 'Official Gaming Platform',
+      description:
+        'UXSIOSTORE is a practical solution for every game lover to buy game vouchers without having to go to a physical store.',
+      cta: 'WWW.UXSIOSTORE.COM',
+      bgGradient: 'from-blue-700/90 via-violet-700/85 to-indigo-900/90',
+      image: '/img/hero/Jinx.webp',
     },
     {
       id: 2,
-      title: "MOBILE LEGENDS",
-      subtitle: "Top Up Diamonds",
-      description: "Get instant diamonds for Mobile Legends. Fast, secure, and reliable top-up service with 24/7 support.",
-      cta: "TOP UP NOW",
-      bgGradient: "from-blue-500 via-indigo-600 to-purple-700"
+      title: 'MOBILE LEGENDS',
+      subtitle: 'Top Up Diamonds',
+      description:
+        'Get instant diamonds for Mobile Legends. Fast, secure, and reliable top-up service with 24/7 support.',
+      cta: 'TOP UP NOW',
+      bgGradient: 'from-indigo-700/90 via-fuchsia-700/85 to-violet-900/90',
+      image: '/img/hero/melissa.webp',
     },
     {
       id: 3,
-      title: "PUBG GLOBAL",
-      subtitle: "UC Coins Available",
-      description: "Purchase UC coins for PUBG Mobile Global. Instant delivery and competitive prices guaranteed.",
-      cta: "BUY UC COINS",
-      bgGradient: "from-orange-500 via-red-600 to-pink-700"
+      title: 'PUBG GLOBAL',
+      subtitle: 'UC Coins Available',
+      description:
+        'Purchase UC coins for PUBG Mobile Global. Instant delivery and competitive prices guaranteed.',
+      cta: 'BUY UC COINS',
+      bgGradient: 'from-orange-600/90 via-rose-700/85 to-red-900/90',
+      image: '/img/hero/Faze.webp',
     },
     {
       id: 4,
-      title: "GENSHIN IMPACT",
-      subtitle: "Genesis Crystals",
-      description: "Top up Genesis Crystals for Genshin Impact. Safe transactions with instant delivery to your account.",
-      cta: "GET CRYSTALS",
-      bgGradient: "from-purple-500 via-pink-600 to-rose-700"
-    }
+      title: 'GENSHIN IMPACT',
+      subtitle: 'Genesis Crystals',
+      description:
+        'Top up Genesis Crystals for Genshin Impact. Safe transactions with instant delivery to your account.',
+      cta: 'GET CRYSTALS',
+      bgGradient: 'from-cyan-700/90 via-sky-700/85 to-indigo-900/90',
+      image: '/img/hero/promotion-art.png',
+    },
   ];
 
-  // Auto-advance slides
   useEffect(() => {
     if (!isAutoPlaying) return;
 
@@ -65,7 +72,6 @@ const GameHero = () => {
     setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
   };
 
-  // Touch handlers for mobile swipe
   const handleTouchStart = (e) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
@@ -89,113 +95,142 @@ const GameHero = () => {
     }
   };
 
+  const getRelativeIndex = (index) => {
+    const total = slides.length;
+    let diff = index - currentSlide;
+
+    if (diff > total / 2) diff -= total;
+    if (diff < -total / 2) diff += total;
+
+    return diff;
+  };
+
+  const getCardPositionClasses = (index) => {
+    const relativeIndex = getRelativeIndex(index);
+
+    if (relativeIndex === 0) {
+      return 'w-[96%] sm:w-[88%] md:w-[76%] h-[145px] sm:h-[308px] md:h-[374px] opacity-100 scale-100 z-30 -translate-x-1/2';
+    }
+
+    if (relativeIndex === -1) {
+      return 'w-[72%] md:w-[38%] h-[130px] sm:h-[275px] md:h-[330px] opacity-55 scale-95 z-20 -translate-x-[112%] md:-translate-x-[122%]';
+    }
+
+    if (relativeIndex === 1) {
+      return 'w-[72%] md:w-[38%] h-[130px] sm:h-[275px] md:h-[330px] opacity-55 scale-95 z-20 translate-x-[12%] md:translate-x-[22%]';
+    }
+
+    return 'w-[66%] md:w-[32%] h-[121px] sm:h-[253px] md:h-[308px] opacity-0 scale-90 z-10 pointer-events-none -translate-x-1/2';
+  };
+
   return (
     <div
-      className="relative pt-20 pb-16 px-4 md:px-8 min-h-[60vh] flex items-center overflow-hidden"
+      className="relative px-4 py-1 md:px-8 md:py-2 lg:py-6 min-h-[calc(28vh-3rem)] min-h-[calc(28svh-3rem)] md:min-h-[calc(34vh-4rem)] md:min-h-[calc(34svh-4rem)] lg:min-h-[calc(50vh-6rem)] lg:min-h-[calc(50svh-6rem)] flex items-start lg:items-center overflow-hidden"
       onMouseEnter={() => setIsAutoPlaying(false)}
       onMouseLeave={() => setIsAutoPlaying(true)}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Background with gradient */}
-      <div className={`absolute inset-0 bg-gradient-to-br ${slides[currentSlide].bgGradient} transition-all duration-1000`} />
-
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
+      <div className="absolute inset-0 bg-[#dfdff0]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.2),transparent_58%)]" />
+      <div className="absolute inset-0 opacity-[0.15]">
+        <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/20" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto w-full">
-        {/* Carousel Content */}
-        <div className="relative">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentSlide}
-              initial={{ opacity: 0, x: 100 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.5, ease: "easeInOut" }}
-              className="text-center mb-12"
-            >
-              {/* Logo/Brand */}
-              <div className="flex items-center justify-center mb-8">
-                <div className="text-4xl md:text-5xl font-bold text-white flex items-center">
-                  <span className="text-5xl md:text-6xl mr-3">✚</span>
-                  <span>{slides[currentSlide].title}</span>
-                </div>
+      <div className="relative z-10 mx-auto w-full max-w-7xl">
+        <div className="relative mx-auto -mt-5 md:-mt-10 lg:mt-0 h-[180px] sm:h-[340px] md:h-[390px]">
+          {slides.map((slide, index) => {
+            const relativeIndex = getRelativeIndex(index);
+            const isActive = relativeIndex === 0;
+
+            return (
+              <div
+                key={slide.id}
+                className={`absolute left-1/2 top-1/2 -translate-y-1/2 overflow-hidden rounded-[26px] shadow-[0_16px_36px_rgba(0,0,0,0.32)] transition-all duration-700 ease-out ${getCardPositionClasses(index)}`}
+              >
+                <img
+                  src={slide.image}
+                  alt={slide.title}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  loading={isActive ? 'eager' : 'lazy'}
+                />
+                <div className={`absolute inset-0 bg-gradient-to-r ${slide.bgGradient}`} />
+                <div className="absolute inset-0 bg-black/20" />
+
+                {isActive && (
+                  <div className="relative z-10 flex h-full flex-col justify-center px-4 sm:px-10 md:px-12">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={currentSlide}
+                        initial={{ opacity: 0, x: 36 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -36 }}
+                        transition={{ duration: 0.45, ease: 'easeInOut' }}
+                        className="mx-auto max-w-3xl text-center"
+                      >
+                        <button
+                          type="button"
+                          onClick={nextSlide}
+                          className="mx-auto block text-center text-xl font-extrabold uppercase leading-none text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.4)] sm:mb-4 sm:text-4xl md:text-6xl"
+                          aria-label={`${slide.title} heading`}
+                        >
+                          {slide.title}
+                        </button>
+                        <p className="hidden sm:block mb-3 text-base font-semibold tracking-wide text-blue-100 md:text-xl">
+                          {slide.subtitle}
+                        </p>
+                        <p className="hidden sm:block mx-auto mb-5 max-w-2xl text-sm text-white/90 md:text-base">
+                          {slide.description}
+                        </p>
+                        <button className="hidden sm:inline-flex rounded-lg bg-[#f4b73f] px-6 py-2 text-sm font-bold text-black transition-all duration-300 hover:bg-[#ffd06f] md:px-8 md:text-base">
+                          {slide.cta}
+                        </button>
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+                )}
               </div>
+            );
+          })}
 
-              {/* Subtitle */}
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-blue-200 text-lg md:text-xl mb-6"
-              >
-                {slides[currentSlide].subtitle}
-              </motion.p>
-
-              {/* Main Description */}
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="text-base md:text-lg text-white/90 mb-8 max-w-3xl mx-auto leading-relaxed"
-              >
-                {slides[currentSlide].description}
-              </motion.p>
-
-              {/* CTA Button */}
-              <motion.button
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.6 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-white text-black px-6 md:px-8 py-3 rounded-lg font-bold hover:bg-gray-100 transition-all duration-300 text-sm md:text-base"
-              >
-                {slides[currentSlide].cta}
-              </motion.button>
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-        {/* Navigation Arrows */}
-        <div className="hidden md:block">
           <button
             onClick={prevSlide}
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-200"
+            className="absolute left-[2.5%] top-1/2 z-40 h-10 w-10 -translate-y-1/2 rounded-full bg-[#cbb6a7] text-black backdrop-blur-sm transition-all duration-200 hover:bg-[#d8c6b9] sm:left-[4%] md:left-[12%] md:h-12 md:w-12 md:bg-white/25 md:text-white md:hover:bg-white/35"
+            aria-label="Previous slide"
           >
-            ←
+            <span className="text-lg leading-none md:text-2xl">{'<'}</span>
           </button>
           <button
             onClick={nextSlide}
-            className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-200"
+            className="absolute right-[2.5%] top-1/2 z-40 h-10 w-10 -translate-y-1/2 rounded-full bg-[#cbb6a7] text-black backdrop-blur-sm transition-all duration-200 hover:bg-[#d8c6b9] sm:right-[4%] md:right-[12%] md:h-12 md:w-12 md:bg-white/25 md:text-white md:hover:bg-white/35"
+            aria-label="Next slide"
           >
-            →
+            <span className="text-lg leading-none md:text-2xl">{'>'}</span>
           </button>
-        </div>
 
-        {/* Pagination Dots */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.8 }}
-          className="flex justify-center space-x-3 mt-12"
-        >
-          {slides.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => goToSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                index === currentSlide
-                  ? 'bg-white scale-125'
-                  : 'bg-white/40 hover:bg-white/60'
-              }`}
-            />
-          ))}
-        </motion.div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.7 }}
+            className="absolute bottom-3 left-1/2 z-40 -translate-x-1/2 rounded-full bg-[#c7d08a]/85 px-3 py-1.5 backdrop-blur-sm md:bottom-4 md:bg-white/45"
+          >
+            <div className="flex items-center gap-2">
+              {slides.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => goToSlide(index)}
+                  className={`h-2.5 rounded-full transition-all duration-300 ${
+                    index === currentSlide
+                      ? 'w-6 bg-black'
+                      : 'w-2.5 bg-black/40 hover:bg-black/60'
+                  }`}
+                  aria-label={`Go to slide ${index + 1}`}
+                />
+              ))}
+            </div>
+          </motion.div>
+        </div>
       </div>
     </div>
   );
