@@ -11,7 +11,7 @@ const promotions = [
       "Celebrate this festive season by topping up MLBB Diamonds with GCash on Codashop and earn 5% Coda Rewards.",
     details:
       "How to earn? Make a minimum purchase of 70 Diamonds and pay with GCash to enjoy extra rewards for your next top up.",
-    image: "/img/hero/melissa.webp",
+    image: "/img/promotion/leomord.webp",
     discount: "5%",
   },
   {
@@ -20,7 +20,7 @@ const promotions = [
       "Great news, Commanders. The 2x Recharge Bonus in Magic Chess: Go Go has been reset.",
     details:
       "Even if you bought it before, you can buy it again now. Enjoy double Diamonds on eligible first recharge bundles and extra 10% rewards.",
-    image: "/img/hero/Jinx.webp",
+    image: "/img/promotion/eternal.webp",
     discount: "10%",
   },
   {
@@ -29,7 +29,7 @@ const promotions = [
       "Power up faster with bonus value and unlock more in-game rewards while the promotion lasts.",
     details:
       "Top up during the active period to receive bonus credits and seasonal perks. Limited-time offer, terms and conditions apply.",
-    image: "/img/hero/Faze.webp",
+    image: "/img/promotion/starlight.webp",
     discount: "15%",
   },
 ];
@@ -84,7 +84,7 @@ const Promotion = () => {
   const smallCarouselRef = useRef(null);
   const [activeSmallIndex, setActiveSmallIndex] = useState(0);
 
-  const smallPromotions = promotions.slice(1);
+  const smallPromotions = promotions;
 
   const handlePromoMouseMove = (event) => {
     const { clientX, clientY } = event;

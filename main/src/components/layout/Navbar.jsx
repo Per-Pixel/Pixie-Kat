@@ -16,6 +16,8 @@ const navItems = [
   { name: "Support", path: "/support" }
 ];
 
+const darkTextTopRoutes = ["/games", "/pricing", "/support"];
+
 const NavBar = () => {
   // State for toggling audio and visual indicator
   const [isAudioPlaying, setIsAudioPlaying] = useState(true); // Default to true for autoplay
@@ -33,6 +35,13 @@ const NavBar = () => {
   const { y: currentScrollY } = useWindowScroll();
   const [isNavVisible, setIsNavVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+
+  const useDarkTextAtTop =
+    currentScrollY === 0 &&
+    darkTextTopRoutes.some((route) => location.pathname.startsWith(route));
+
+  const navTextColorClass = useDarkTextAtTop ? "text-black" : "text-white";
+  const navActiveBorderClass = useDarkTextAtTop ? "border-black" : "border-white";
 
   // Toggle audio and visual indicator
   const toggleAudioIndicator = () => {
@@ -179,7 +188,14 @@ const NavBar = () => {
           <div className="flex items-center gap-7">
             <Link to="/" className="flex items-center">
               <img src="/img/logo.png" alt="PixieKat Logo" className="w-10" />
-              <span className="ml-2 text-white font-bold text-xl hidden sm:block">PixieKat</span>
+              <span
+                className={clsx(
+                  "ml-2 font-bold text-xl hidden sm:block",
+                  useDarkTextAtTop ? "text-black" : "text-white"
+                )}
+              >
+                PixieKat
+              </span>
             </Link>
 
             <Button
@@ -201,8 +217,8 @@ const NavBar = () => {
                   to={item.path}
                   className={`nav-hover-btn ${
                     location.pathname === item.path
-                      ? 'text-neon-purple border-b-2 border-neon-purple'
-                      : 'text-white hover:text-neon-purple'
+                      ? `${navTextColorClass} border-b-2 ${navActiveBorderClass}`
+                      : `${navTextColorClass} hover:text-neon-purple`
                   }`}
                 >
                   {item.name}

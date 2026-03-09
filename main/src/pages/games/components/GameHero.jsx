@@ -10,13 +10,13 @@ const GameHero = () => {
   const slides = [
     {
       id: 1,
-      title: 'UXSIOSTORE',
+      title: 'PIXIEKAT STORE',
       subtitle: 'Official Gaming Platform',
       description:
-        'UXSIOSTORE is a practical solution for every game lover to buy game vouchers without having to go to a physical store.',
-      cta: 'WWW.UXSIOSTORE.COM',
-      bgGradient: 'from-blue-700/90 via-violet-700/85 to-indigo-900/90',
-      image: '/img/hero/Jinx.webp',
+        'PIXIEKAT STORE is a practical solution for every game lover to buy game vouchers without having to go to a physical store.',
+      cta: 'WWW.PIXIEKATSTORE.COM',
+      bgGradient: 'from-blue-700 via-violet-700 to-indigo-900',
+      image: '/img/hero/game-hero-card.gif',
     },
     {
       id: 2,
@@ -25,8 +25,8 @@ const GameHero = () => {
       description:
         'Get instant diamonds for Mobile Legends. Fast, secure, and reliable top-up service with 24/7 support.',
       cta: 'TOP UP NOW',
-      bgGradient: 'from-indigo-700/90 via-fuchsia-700/85 to-violet-900/90',
-      image: '/img/hero/melissa.webp',
+      bgGradient: 'from-indigo-700 via-fuchsia-700 to-violet-900',
+      image: '/img/hero/game-mlbb-card.webp',
     },
     {
       id: 3,
@@ -35,8 +35,8 @@ const GameHero = () => {
       description:
         'Purchase UC coins for PUBG Mobile Global. Instant delivery and competitive prices guaranteed.',
       cta: 'BUY UC COINS',
-      bgGradient: 'from-orange-600/90 via-rose-700/85 to-red-900/90',
-      image: '/img/hero/Faze.webp',
+      bgGradient: 'from-orange-600 via-rose-700 to-red-900',
+      image: '/img/hero/game-pubg-card.webp',
     },
     {
       id: 4,
@@ -45,8 +45,8 @@ const GameHero = () => {
       description:
         'Top up Genesis Crystals for Genshin Impact. Safe transactions with instant delivery to your account.',
       cta: 'GET CRYSTALS',
-      bgGradient: 'from-cyan-700/90 via-sky-700/85 to-indigo-900/90',
-      image: '/img/hero/promotion-art.png',
+      bgGradient: 'from-cyan-700 via-sky-700 to-indigo-900',
+      image: '/img/hero/game-genshin-card.webp',
     },
   ];
 
@@ -125,7 +125,7 @@ const GameHero = () => {
 
   return (
     <div
-      className="relative px-4 py-1 md:px-8 md:py-2 lg:py-6 min-h-[calc(28vh-3rem)] min-h-[calc(28svh-3rem)] md:min-h-[calc(34vh-4rem)] md:min-h-[calc(34svh-4rem)] lg:min-h-[calc(50vh-6rem)] lg:min-h-[calc(50svh-6rem)] flex items-start lg:items-center overflow-hidden"
+      className="group relative px-4 py-1 md:px-8 md:py-2 lg:py-6 min-h-[calc(28vh-3rem)] min-h-[calc(28svh-3rem)] md:min-h-[calc(34vh-4rem)] md:min-h-[calc(34svh-4rem)] lg:min-h-[calc(50vh-6rem)] lg:min-h-[calc(50svh-6rem)] flex items-start lg:items-center overflow-hidden"
       onMouseEnter={() => setIsAutoPlaying(false)}
       onMouseLeave={() => setIsAutoPlaying(true)}
       onTouchStart={handleTouchStart}
@@ -155,7 +155,9 @@ const GameHero = () => {
                   className="absolute inset-0 h-full w-full object-cover"
                   loading={isActive ? 'eager' : 'lazy'}
                 />
-                <div className={`absolute inset-0 bg-gradient-to-r ${slide.bgGradient}`} />
+                <div
+                  className={`absolute inset-0 bg-gradient-to-r opacity-[0.3] ${slide.bgGradient}`}
+                />
                 <div className="absolute inset-0 bg-black/20" />
 
                 {isActive && (
@@ -196,14 +198,14 @@ const GameHero = () => {
 
           <button
             onClick={prevSlide}
-            className="absolute left-[2.5%] top-1/2 z-40 h-10 w-10 -translate-y-1/2 rounded-full bg-[#cbb6a7] text-black backdrop-blur-sm transition-all duration-200 hover:bg-[#d8c6b9] sm:left-[4%] md:left-[12%] md:h-12 md:w-12 md:bg-white/25 md:text-white md:hover:bg-white/35"
+            className="absolute left-[2.5%] top-1/2 z-40 h-10 w-10 -translate-y-1/2 rounded-full bg-[#cbb6a7] text-black backdrop-blur-sm transition-all duration-200 hover:bg-[#d8c6b9] sm:left-[4%] md:left-[12%] md:h-12 md:w-12 md:bg-white/25 md:text-white md:hover:bg-white/35 md:opacity-0 md:pointer-events-none md:group-hover:opacity-100 md:group-hover:pointer-events-auto"
             aria-label="Previous slide"
           >
             <span className="text-lg leading-none md:text-2xl">{'<'}</span>
           </button>
           <button
             onClick={nextSlide}
-            className="absolute right-[2.5%] top-1/2 z-40 h-10 w-10 -translate-y-1/2 rounded-full bg-[#cbb6a7] text-black backdrop-blur-sm transition-all duration-200 hover:bg-[#d8c6b9] sm:right-[4%] md:right-[12%] md:h-12 md:w-12 md:bg-white/25 md:text-white md:hover:bg-white/35"
+            className="absolute right-[2.5%] top-1/2 z-40 h-10 w-10 -translate-y-1/2 rounded-full bg-[#cbb6a7] text-black backdrop-blur-sm transition-all duration-200 hover:bg-[#d8c6b9] sm:right-[4%] md:right-[12%] md:h-12 md:w-12 md:bg-white/25 md:text-white md:hover:bg-white/35 md:opacity-0 md:pointer-events-none md:group-hover:opacity-100 md:group-hover:pointer-events-auto"
             aria-label="Next slide"
           >
             <span className="text-lg leading-none md:text-2xl">{'>'}</span>
