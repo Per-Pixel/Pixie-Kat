@@ -1,50 +1,56 @@
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 const MobileActionButtons = () => {
+  const navigate = useNavigate();
+
   const actions = [
     {
       id: 1,
       title: 'Add Money',
-      icon: '💰',
+      icon: '$',
       bgColor: 'bg-blue-100',
-      textColor: 'text-blue-600'
+      textColor: 'text-blue-600',
+      onClick: () => navigate('/games/mobile-legends/add-money'),
     },
     {
       id: 2,
       title: 'Payments',
-      icon: '💳',
+      icon: 'Card',
       bgColor: 'bg-purple-100',
-      textColor: 'text-purple-600'
+      textColor: 'text-purple-600',
     },
     {
       id: 3,
       title: 'Purchase',
-      icon: '🛒',
+      icon: 'Buy',
       bgColor: 'bg-green-100',
-      textColor: 'text-green-600'
+      textColor: 'text-green-600',
     },
     {
       id: 4,
       title: 'Refer & Earn',
-      icon: '🎁',
+      icon: 'Gift',
       bgColor: 'bg-orange-100',
-      textColor: 'text-orange-600'
-    }
+      textColor: 'text-orange-600',
+    },
   ];
 
   return (
-    <div className="px-4 py-6 bg-blue-50">
+    <div className="bg-blue-50 px-4 py-6">
       <div className="grid grid-cols-4 gap-4">
         {actions.map((action, index) => (
           <motion.button
             key={action.id}
+            type="button"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className={`${action.bgColor} rounded-xl p-4 flex flex-col items-center space-y-2 hover:scale-105 transition-transform`}
+            onClick={action.onClick}
+            className={`${action.bgColor} rounded-xl p-4 transition-transform hover:scale-105 flex flex-col items-center space-y-2`}
           >
-            <div className="text-2xl">{action.icon}</div>
-            <span className={`text-xs font-medium ${action.textColor} text-center leading-tight`}>
+            <div className="text-center text-sm font-bold">{action.icon}</div>
+            <span className={`text-center text-xs font-medium leading-tight ${action.textColor}`}>
               {action.title}
             </span>
           </motion.button>

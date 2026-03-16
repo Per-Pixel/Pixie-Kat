@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+
+import { fallbackGameImage, gamesData } from '../gamesData';
 import GameDetailsModal from './GameDetailsModal';
 
 const GameGrid = () => {
@@ -7,116 +9,7 @@ const GameGrid = () => {
   const [selectedGameForModal, setSelectedGameForModal] = useState(null);
   const [showAllGames, setShowAllGames] = useState(false);
 
-  const fallbackGameImage = '/img/games/mobile-legends.webp';
-
-  const allGames = [
-    {
-      id: 'mobile-legends',
-      name: 'Mobile Legends',
-      subtitle: 'Mobile Legends',
-      image: '/img/games/mobile-legends.webp',
-      icon: 'M',
-      bgColor: 'from-blue-400 to-blue-600',
-    },
-    {
-      id: 'honor-of-kings',
-      name: 'Honor Of Kings',
-      subtitle: 'Honor Of Kings',
-      image: '/img/games/honor-of-kings.jpg',
-      icon: 'H',
-      bgColor: 'from-yellow-400 to-amber-600',
-    },
-    {
-      id: 'pubg-global',
-      name: 'PUBG Global',
-      subtitle: 'PUBG Global',
-      image: '/img/games/honor-of-kings.jpg',
-      icon: 'P',
-      bgColor: 'from-orange-400 to-red-500',
-    },
-    {
-      id: 'genshin-impact',
-      name: 'Genshin Impact',
-      subtitle: 'Genshin Impact',
-      image: '/img/games/mobile-legends.webp',
-      icon: 'G',
-      bgColor: 'from-purple-400 to-pink-500',
-    },
-    {
-      id: 'clash-of-clans',
-      name: 'Clash of Clans',
-      subtitle: 'Clash Of Clans',
-      image: '/img/games/honor-of-kings.jpg',
-      icon: 'C',
-      bgColor: 'from-yellow-400 to-orange-500',
-    },
-    {
-      id: 'honkai-star-rail',
-      name: 'Honkai: Star Rail',
-      subtitle: 'Honkai Star Rail',
-      image: '/img/games/mobile-legends.webp',
-      icon: 'H',
-      bgColor: 'from-indigo-400 to-purple-500',
-    },
-    {
-      id: 'clash-royale',
-      name: 'Clash Royale',
-      subtitle: 'Clash Royale',
-      image: '/img/games/honor-of-kings.jpg',
-      icon: 'R',
-      bgColor: 'from-red-400 to-pink-500',
-    },
-    {
-      id: 'farlight-84',
-      name: 'Farlight 84',
-      subtitle: 'Farlight 84',
-      image: '/img/games/mobile-legends.webp',
-      icon: 'F',
-      bgColor: 'from-green-400 to-teal-500',
-    },
-    {
-      id: 'free-fire',
-      name: 'Free Fire',
-      subtitle: 'Free Fire',
-      image: '/img/games/honor-of-kings.jpg',
-      icon: 'F',
-      bgColor: 'from-red-500 to-orange-500',
-    },
-    {
-      id: 'call-of-duty',
-      name: 'Call of Duty',
-      subtitle: 'Call Of Duty',
-      image: '/img/games/mobile-legends.webp',
-      icon: 'C',
-      bgColor: 'from-gray-600 to-gray-800',
-    },
-    {
-      id: 'valorant',
-      name: 'Valorant',
-      subtitle: 'Valorant',
-      image: '/img/games/honor-of-kings.jpg',
-      icon: 'V',
-      bgColor: 'from-red-600 to-pink-600',
-    },
-    {
-      id: 'apex-legends',
-      name: 'Apex Legends',
-      subtitle: 'Apex Legends',
-      image: '/img/games/mobile-legends.webp',
-      icon: 'A',
-      bgColor: 'from-orange-500 to-red-600',
-    },
-    {
-      id: 'fortnite',
-      name: 'Fortnite',
-      subtitle: 'Fortnite',
-      image: '/img/games/honor-of-kings.jpg',
-      icon: 'F',
-      bgColor: 'from-purple-500 to-blue-500',
-    },
-  ];
-
-  const games = showAllGames ? allGames : allGames.slice(0, 7);
+  const games = showAllGames ? gamesData : gamesData.slice(0, 7);
 
   const handleGameClick = (game) => {
     setSelectedGameForModal(game);

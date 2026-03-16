@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 
 import { AuthProvider } from "./contexts/AuthContext";
 import Loading from "./components/common/Loading";
@@ -14,6 +14,7 @@ import FAQ from "./pages/faq";
 import Support from "./pages/support";
 import HowItWorks from "./pages/how-it-works";
 import Auth from "./pages/auth";
+import AddMoneyPage from "./pages/wallet/AddMoneyPage";
 
 const preloadImage = (src) => {
   return new Promise((resolve, reject) => {
@@ -22,6 +23,20 @@ const preloadImage = (src) => {
     img.onerror = img.onabort = () => reject(new Error(`Failed to load image: ${src}`));
     img.src = src;
   });
+};
+
+const AppShell = ({ children }) => {
+  const location = useLocation();
+  const isWalletRoute = /^\/games\/[^/]+\/add-money$/.test(location.pathname);
+
+  return (
+    <>
+      {!isWalletRoute ? <NavBar /> : null}
+      {children}
+      {!isWalletRoute ? <Footer /> : null}
+      <BottomNav />
+    </>
+  );
 };
 
 function App() {
@@ -67,20 +82,20 @@ function App() {
             ref={mainContentRef}
             style={{ opacity: isLoading ? 0 : 1 }}
           >
-            <NavBar />
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/games" element={<Games />} />
-              <Route path="/pricing" element={<Pricing />} />
-              <Route path="/faq" element={<FAQ />} />
-              <Route path="/support" element={<Support />} />
-              <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/login" element={<Auth />} />
-              <Route path="/register" element={<Auth />} />
-            </Routes>
-            <Footer />
-            <BottomNav />
+            <AppShell>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/games" element={<Games />} />
+                <Route path="/games/:gameId/add-money" element={<AddMoneyPage />} />
+                <Route path="/pricing" element={<Pricing />} />
+                <Route path="/faq" element={<FAQ />} />
+                <Route path="/support" element={<Support />} />
+                <Route path="/how-it-works" element={<HowItWorks />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/login" element={<Auth />} />
+                <Route path="/register" element={<Auth />} />
+              </Routes>
+            </AppShell>
           </main>
         </>
       </Router>
