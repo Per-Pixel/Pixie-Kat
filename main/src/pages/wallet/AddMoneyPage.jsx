@@ -154,24 +154,20 @@ const AddMoneyPage = () => {
                           : "border-slate-200 hover:border-slate-300"
                       }`}
                     >
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <div className="grid grid-cols-[96px_minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-row sm:items-center">
                         <div className="flex h-12 w-full items-center justify-center rounded-[12px] border border-slate-200 bg-white px-3 text-lg font-bold text-slate-500 shadow-sm sm:w-auto sm:min-w-28">
                           {method.logo}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="min-w-0">
-                              <p className="truncate text-xl font-bold text-slate-800">{method.name}</p>
-                              <p className="truncate text-sm text-slate-500">{method.description}</p>
-                            </div>
-                            <div className="text-left sm:text-right">
-                              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">You pay</p>
-                              <p className={`break-words text-2xl font-black tracking-tight ${method.accent ?? "text-slate-900"}`}>
-                                {method.priceLabel}
-                              </p>
-                              {method.note ? <p className="text-xs text-slate-400">{method.note}</p> : null}
-                            </div>
-                          </div>
+                          <p className="truncate text-xl font-bold text-slate-800">{method.name}</p>
+                          <p className="truncate text-sm text-slate-500">{method.description}</p>
+                        </div>
+                        <div className="min-w-0 text-right">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">You pay</p>
+                          <p className={`text-2xl font-black tracking-tight ${method.accent ?? "text-slate-900"}`}>
+                            {method.priceLabel}
+                          </p>
+                          {method.note ? <p className="text-xs text-slate-400">{method.note}</p> : null}
                         </div>
                       </div>
                     </motion.button>
@@ -190,6 +186,35 @@ const AddMoneyPage = () => {
             </motion.button>
           </div>
         </div>
+
+      </div>
+
+      <div className="mx-auto mt-8 w-full max-w-[1400px]">
+        <footer className="overflow-hidden rounded-[28px] bg-[#1f1f1f] px-4 py-8 text-white shadow-[0_24px_60px_rgba(0,0,0,0.22)] sm:px-6 md:px-8">
+          <div className="flex flex-col items-center text-center">
+            <img src="/img/logo.png" alt="PixieKat logo" className="h-14 w-auto object-contain" />
+            <p className="mt-4 text-sm text-white/70 sm:text-base">
+              Seamless game top-ups and digital vouchers.
+            </p>
+          </div>
+
+          <div className="mt-6 rounded-[18px] border border-white/10 bg-white/5 p-4">
+            <p className="text-sm font-extrabold uppercase tracking-wide text-white/85">Newsletter</p>
+            <div className="mt-3 flex items-center gap-3">
+              <input
+                type="email"
+                placeholder="Email address"
+                className="h-12 min-w-0 flex-1 rounded-[12px] border border-white/10 bg-[#181818] px-4 text-sm text-white outline-none placeholder:text-white/35"
+              />
+              <button
+                type="button"
+                className="h-12 rounded-[12px] bg-[#6542ff] px-5 text-sm font-bold text-white transition hover:bg-[#7a5bff]"
+              >
+                Go
+              </button>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   );
