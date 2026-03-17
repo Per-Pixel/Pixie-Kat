@@ -1,6 +1,44 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 
 const AuthContext = createContext();
+const AUTH_STORAGE_KEY = 'pixiekat-demo-auth';
+
+export const DEMO_CREDENTIALS = {
+  email: 'demo@client.com',
+  password: 'password123',
+};
+
+const getStoredAuth = () => {
+  const localValue = localStorage.getItem(AUTH_STORAGE_KEY);
+  const sessionValue = sessionStorage.getItem(AUTH_STORAGE_KEY);
+  const storedValue = localValue || sessionValue;
+
+  if (!storedValue) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(storedValue);
+  } catch {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    return null;
+  }
+};
+
+const persistAuth = (authState, persist) => {
+  const serializedState = JSON.stringify(authState);
+
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+  sessionStorage.removeItem(AUTH_STORAGE_KEY);
+
+  if (persist) {
+    localStorage.setItem(AUTH_STORAGE_KEY, serializedState);
+    return;
+  }
+
+  sessionStorage.setItem(AUTH_STORAGE_KEY, serializedState);
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -13,88 +51,73 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Check for existing auth token
-    const token = localStorage.getItem('authToken');
-    const userType = localStorage.getItem('userType');
-    
-    if (token) {
-      // In a real app, you'd validate the token with your backend
-      setUser({ token });
-      setIsAdmin(userType === 'admin');
+    const storedAuth = getStoredAuth();
+
+    if (storedAuth?.user) {
+      setUser(storedAuth.user);
     }
+
     setIsLoading(false);
   }, []);
 
-  const login = async (email, password, userType = 'user') => {
-    try {
-      // Mock login - replace with actual API call
-      const mockUser = {
-        id: 1,
-        email,
-        name: email.split('@')[0],
-        type: userType
+  const login = async (email, password, options = {}) => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (
+      normalizedEmail !== DEMO_CREDENTIALS.email ||
+      password !== DEMO_CREDENTIALS.password
+    ) {
+      return {
+        success: false,
+        error: `Use ${DEMO_CREDENTIALS.email} / ${DEMO_CREDENTIALS.password}`,
       };
-      
-      const mockToken = 'mock-jwt-token-' + Date.now();
-      
-      localStorage.setItem('authToken', mockToken);
-      localStorage.setItem('userType', userType);
-      
-      setUser({ ...mockUser, token: mockToken });
-      setIsAdmin(userType === 'admin');
-      
-      return { success: true, user: mockUser };
-    } catch (error) {
-      return { success: false, error: error.message };
     }
+
+    const demoUser = {
+      id: 'demo-user',
+      email: DEMO_CREDENTIALS.email,
+      name: 'Demo Client',
+    };
+
+    persistAuth({ user: demoUser }, Boolean(options.persist));
+    setUser(demoUser);
+
+    return { success: true, user: demoUser };
   };
 
-  const register = async (userData) => {
-    try {
-      // Mock registration - replace with actual API call
-      const mockUser = {
-        id: Date.now(),
-        ...userData,
-        type: 'user'
-      };
-      
-      const mockToken = 'mock-jwt-token-' + Date.now();
-      
-      localStorage.setItem('authToken', mockToken);
-      localStorage.setItem('userType', 'user');
-      
-      setUser({ ...mockUser, token: mockToken });
-      setIsAdmin(false);
-      
-      return { success: true, user: mockUser };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
+  const register = async ({ name, email, password }, options = {}) => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const demoUser = {
+      id: 'demo-user',
+      email: normalizedEmail,
+      name: name.trim() || 'New User',
+      passwordHint: password,
+    };
+
+    persistAuth({ user: demoUser }, Boolean(options.persist));
+    setUser(demoUser);
+
+    return { success: true, user: demoUser };
   };
 
   const logout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userType');
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
     setUser(null);
-    setIsAdmin(false);
   };
 
   const value = {
     user,
     isLoading,
-    isAdmin,
     login,
     register,
     logout,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    demoCredentials: DEMO_CREDENTIALS,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

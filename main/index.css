@@ -873,3 +873,47 @@ html {
     font-size: 25px !important;
   }
 }
+
+.more-menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  transition: opacity 280ms ease-in-out;
+}
+
+.more-menu-overlay-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.more-menu-overlay-closed {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.more-menu-sheet {
+  position: absolute;
+  left: 50%;
+  bottom: 5.5rem;
+  width: min(22rem, calc(100vw - 2rem));
+  transform-origin: bottom center;
+  border-radius: 1.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 24px 60px rgba(35, 23, 62, 0.2);
+  padding: 1.25rem;
+  backdrop-filter: blur(18px);
+  transition:
+    opacity 280ms ease-in-out,
+    transform 280ms ease-in-out;
+}
+
+.more-menu-sheet-open {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
+.more-menu-sheet-closed {
+  opacity: 0;
+  transform: translateX(-50%) translateY(1rem) scale(0.98);
+}

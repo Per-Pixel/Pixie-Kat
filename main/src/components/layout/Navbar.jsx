@@ -3,8 +3,10 @@ import gsap from "gsap";
 import { useWindowScroll } from "react-use";
 import { useEffect, useRef, useState } from "react";
 import { TiLocationArrow } from "react-icons/ti";
+import { Plus, UserRound } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
+import { useAuth } from "../../contexts/AuthContext";
 import Button from "../common/Button";
 import DropdownMenu from "../common/DropdownMenu";
 
@@ -19,17 +21,14 @@ const navItems = [
 const darkTextTopRoutes = ["/games", "/pricing", "/support"];
 
 const NavBar = () => {
-  // State for toggling audio and visual indicator
-  const [isAudioPlaying, setIsAudioPlaying] = useState(true); // Default to true for autoplay
-  const [isIndicatorActive, setIsIndicatorActive] = useState(true); // Default to true for visual indicator
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // Add state for menu
-  const [isMuted, setIsMuted] = useState(true); // Start muted to help with autoplay
+  const { isAuthenticated } = useAuth();
+  const [isAudioPlaying, setIsAudioPlaying] = useState(true);
+  const [isIndicatorActive, setIsIndicatorActive] = useState(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
 
-  // Refs for audio and navigation container
   const audioElementRef = useRef(null);
   const navContainerRef = useRef(null);
-
-  // Get current location for active nav highlighting
   const location = useLocation();
 
   const { y: currentScrollY } = useWindowScroll();
@@ -42,33 +41,28 @@ const NavBar = () => {
 
   const navTextColorClass = useDarkTextAtTop ? "text-black" : "text-white";
   const navActiveBorderClass = useDarkTextAtTop ? "border-black" : "border-white";
+  const authPanelClass = useDarkTextAtTop
+    ? "bg-white/95 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.12)]"
+    : "bg-white/90 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.22)]";
 
-  // Toggle audio and visual indicator
   const toggleAudioIndicator = () => {
     setIsAudioPlaying((prev) => !prev);
     setIsIndicatorActive((prev) => !prev);
   };
 
-  // Toggle menu
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
-  // Initialize audio on component mount with multiple attempts
   useEffect(() => {
     if (!audioElementRef.current) return;
-    
-    // Set initial volume to 50%
+
     audioElementRef.current.volume = 0.5;
-    // Start muted to bypass autoplay restrictions
     audioElementRef.current.muted = true;
-    
-    // Function to attempt playback
+
     const attemptPlay = () => {
       audioElementRef.current.play()
         .then(() => {
-          console.log("Audio playback started successfully (muted)");
-          // After successful play, try to unmute
           setTimeout(() => {
             audioElementRef.current.muted = false;
             setIsMuted(false);
@@ -76,76 +70,57 @@ const NavBar = () => {
             setIsIndicatorActive(true);
           }, 1000);
         })
-        .catch(error => {
-          console.log("Autoplay prevented:", error);
-          // Try again with user interaction
+        .catch(() => {
           const resumeAudio = () => {
-            // Unmute and play
             audioElementRef.current.muted = false;
             setIsMuted(false);
             audioElementRef.current.play()
               .then(() => {
-                console.log("Audio playback started after user interaction");
                 setIsAudioPlaying(true);
                 setIsIndicatorActive(true);
-                // Remove the event listeners once successful
                 document.removeEventListener('click', resumeAudio);
                 document.removeEventListener('touchstart', resumeAudio);
                 document.removeEventListener('keydown', resumeAudio);
               })
-              .catch(e => console.log("Still couldn't play:", e));
+              .catch(() => {});
           };
-          
-          // Add event listeners for user interaction
+
           document.addEventListener('click', resumeAudio, { once: true });
           document.addEventListener('touchstart', resumeAudio, { once: true });
           document.addEventListener('keydown', resumeAudio, { once: true });
         });
     };
-    
-    // Try to play immediately
+
     attemptPlay();
-    
-    // Also try after a short delay (sometimes helps)
     setTimeout(attemptPlay, 500);
-    
-    // Try again after page has fully loaded
     window.addEventListener('load', attemptPlay);
-    
+
     return () => {
       window.removeEventListener('load', attemptPlay);
     };
   }, []);
 
-  // Manage audio playback
   useEffect(() => {
     if (isAudioPlaying) {
-      audioElementRef.current.play().catch(e => console.log("Play error:", e));
+      audioElementRef.current.play().catch(() => {});
     } else {
       audioElementRef.current.pause();
     }
   }, [isAudioPlaying]);
 
-  // Handle tab visibility changes
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // Tab is hidden, pause audio
         if (audioElementRef.current) {
           audioElementRef.current.pause();
         }
-      } else {
-        // Tab is visible again, resume audio if it was playing before
-        if (isAudioPlaying && audioElementRef.current) {
-          audioElementRef.current.play().catch(e => console.log("Resume error:", e));
-        }
+      } else if (isAudioPlaying && audioElementRef.current) {
+        audioElementRef.current.play().catch(() => {});
       }
     };
 
-    // Add event listener for visibility change
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    // Clean up
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
@@ -153,15 +128,12 @@ const NavBar = () => {
 
   useEffect(() => {
     if (currentScrollY === 0) {
-      // Topmost position: show navbar without floating-nav
       setIsNavVisible(true);
       navContainerRef.current.classList.remove("floating-nav");
     } else if (currentScrollY > lastScrollY) {
-      // Scrolling down: hide navbar and apply floating-nav
       setIsNavVisible(false);
       navContainerRef.current.classList.add("floating-nav");
     } else if (currentScrollY < lastScrollY) {
-      // Scrolling up: show navbar with floating-nav
       setIsNavVisible(true);
       navContainerRef.current.classList.add("floating-nav");
     }
@@ -184,13 +156,12 @@ const NavBar = () => {
     >
       <header className="absolute top-1/2 w-full -translate-y-1/2">
         <nav className="flex size-full items-center justify-between p-4">
-          {/* Logo and Menu button */}
           <div className="flex items-center gap-7">
             <Link to="/" className="flex items-center">
               <img src="/img/logo.png" alt="PixieKat Logo" className="w-10" />
               <span
                 className={clsx(
-                  "ml-2 font-bold text-xl hidden sm:block",
+                  "ml-2 hidden text-xl font-bold sm:block",
                   useDarkTextAtTop ? "text-black" : "text-white"
                 )}
               >
@@ -202,13 +173,11 @@ const NavBar = () => {
               id="product-button"
               title="Menu"
               rightIcon={<TiLocationArrow />}
-              containerClass="bg-blue-50 flex items-center justify-center gap-1"
+              containerClass="hidden bg-blue-50 items-center justify-center gap-1 md:flex"
               onClick={toggleMenu}
             />
-
           </div>
 
-          {/* Navigation Links and Audio Button */}
           <div className="flex h-full items-center">
             <div className="hidden md:block">
               {navItems.map((item, index) => (
@@ -226,15 +195,46 @@ const NavBar = () => {
               ))}
             </div>
 
-            {/* Login Button */}
-            <Link to="/login" className="ml-6">
-              <Button
-                title="Login"
-                containerClass="bg-neon-purple hover:bg-neon-purple/80 text-black py-2 px-4 rounded-md transition-colors duration-200"
-              />
-            </Link>
+            {!isAuthenticated ? (
+              <Link to="/login" className="ml-6">
+                <Button
+                  title="Login"
+                  containerClass="bg-neon-purple hover:bg-neon-purple/80 rounded-md px-4 py-2 text-black transition-colors duration-200"
+                />
+              </Link>
+            ) : (
+              <div className="ml-6 flex items-center gap-3">
+                <Link
+                  to="/games/mobile-legends/add-money"
+                  className={clsx(
+                    "flex h-11 items-center gap-2 rounded-full border border-slate-200/80 px-2.5 backdrop-blur-md transition-all duration-300 ease-in-out hover:-translate-y-0.5",
+                    authPanelClass
+                  )}
+                >
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-[10px] font-semibold text-amber-700">
+                    PKS
+                  </span>
+                  <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-violet-100 px-2 text-xs font-semibold text-violet-700">
+                    0
+                  </span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white">
+                    <Plus className="h-3.5 w-3.5" />
+                  </span>
+                </Link>
+
+                <button
+                  type="button"
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-violet-200 via-white to-violet-400 text-violet-700 shadow-[0_10px_25px_rgba(168,85,247,0.35)] transition-all duration-300 ease-in-out hover:-translate-y-0.5"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 backdrop-blur">
+                    <UserRound className="h-4 w-4" />
+                  </span>
+                </button>
+              </div>
+              )}
 
             <button
+              type="button"
               onClick={toggleAudioIndicator}
               className="ml-4 flex items-center space-x-0.5"
             >
@@ -262,30 +262,17 @@ const NavBar = () => {
         </nav>
       </header>
 
-      {/* Dropdown Menu */}
-      {isMenuOpen && (
-        <DropdownMenu 
+      {isMenuOpen ? (
+        <DropdownMenu
           onClose={() => {
             setTimeout(() => {
               setIsMenuOpen(false);
             }, 500);
-          }} 
+          }}
         />
-      )}
+      ) : null}
     </div>
   );
 };
 
 export default NavBar;
-
-
-
-
-
-
-
-
-
-
-
-
