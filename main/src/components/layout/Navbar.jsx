@@ -222,14 +222,15 @@ const NavBar = () => {
                   </span>
                 </Link>
 
-                <button
-                  type="button"
+                <Link
+                  to="/account"
                   className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-violet-200 via-white to-violet-400 text-violet-700 shadow-[0_10px_25px_rgba(168,85,247,0.35)] transition-all duration-300 ease-in-out hover:-translate-y-0.5"
+                  aria-label="Open account page"
                 >
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 backdrop-blur">
                     <UserRound className="h-4 w-4" />
                   </span>
-                </button>
+                </Link>
               </div>
               )}
 

@@ -14,7 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 
 const menuItems = [
-  { id: "profile", label: "Profile", icon: UserRound },
+  { id: "profile", label: "Profile", icon: UserRound, path: "/account" },
   { id: "membership", label: "Membership", icon: Crown, path: "/pricing" },
   { id: "promo", label: "Promo", icon: Percent, comingSoon: true },
   { id: "blog", label: "Blog", icon: Newspaper, comingSoon: true },

@@ -309,7 +309,7 @@ const Auth = () => {
               Before login: top nav shows <span className="font-semibold text-gray-900">Login</span> and bottom nav shows <span className="font-semibold text-gray-900">Account</span>.
             </p>
             <p className="mt-2">
-              After login: the top-nav login button is removed and the bottom nav swaps <span className="font-semibold text-gray-900">Account</span> for <span className="font-semibold text-gray-900">More</span>.
+              After login: the top-nav login button is replaced by wallet and profile shortcuts, and the bottom nav keeps <span className="font-semibold text-gray-900">Account</span> while also adding <span className="font-semibold text-gray-900">More</span>.
             </p>
           </div>
         </div>

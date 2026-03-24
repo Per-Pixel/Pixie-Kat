@@ -15,9 +15,8 @@ const BottomNav = () => {
     { id: "home", path: "/", icon: <FaHome />, label: "Home" },
     { id: "games", path: "/games", icon: <FaGamepad />, label: "Games" },
     { id: "support", path: "/support", icon: <FaHeadset />, label: "Support" },
-    isAuthenticated
-      ? { id: "more", path: null, icon: <FaBars />, label: "More", isStatic: true }
-      : { id: "account", path: "/auth", icon: <FaUser />, label: "Account" },
+    { id: "account", path: isAuthenticated ? "/account" : "/auth", icon: <FaUser />, label: "Account" },
+    ...(isAuthenticated ? [{ id: "more", path: null, icon: <FaBars />, label: "More", isStatic: true }] : []),
   ];
 
   const isActive = (item) => {

@@ -15,6 +15,7 @@ import Support from "./pages/support";
 import HowItWorks from "./pages/how-it-works";
 import Auth from "./pages/auth";
 import AddMoneyPage from "./pages/wallet/AddMoneyPage";
+import AccountPage from "./pages/account";
 
 const preloadImage = (src) => {
   return new Promise((resolve, reject) => {
@@ -94,6 +95,7 @@ function App() {
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/login" element={<Auth />} />
                 <Route path="/register" element={<Auth />} />
+                <Route path="/account/*" element={<AccountPage />} />
               </Routes>
             </AppShell>
           </main>
