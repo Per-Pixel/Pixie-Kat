@@ -21,16 +21,25 @@ const Hero = () => {
   const parallaxContainerRef = useRef(null);
   const featureVideoRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [isPhone, setIsPhone] = useState(false);
   const [showPopularGames, setShowPopularGames] = useState(false);
   const [showContactUs, setShowContactUs] = useState(false);
   const heroRef = useRef(null);
   const heroContainerRef = useRef(null);
+  const mobileTabletCharacterSize = isMobile ? "w-[320px] md:w-[420px]" : "";
+  const mobileTabletJinxPosition = isMobile
+    ? "left-[30%] top-[69%]"
+    : "left-[43%] top-[60%]";
+  const mobileTabletMelissaPosition = isMobile
+    ? "left-[70%] top-[69%]"
+    : "left-[59%] top-[65%]";
 
   // Effect to detect mobile devices
   useEffect(() => {
     const checkMobile = () => {
       const width = window.innerWidth;
       setIsMobile(width < 1024); // Treat devices under 1024px (tablets and phones) as mobile
+      setIsPhone(width < 768);
     };
 
     // Check initially
@@ -298,18 +307,20 @@ const Hero = () => {
           style={{ willChange: 'transform' }}
         >
           {/* Adjusted Jinx image */}
-          <div className="absolute left-[43%] top-[60%] z-30 -translate-x-1/2 -translate-y-1/2 scale-120" style={{ willChange: 'transform' }}>
+          {!isPhone && (
+          <div className={`absolute ${mobileTabletJinxPosition} z-30 -translate-x-1/2 -translate-y-1/2 scale-120`} style={{ willChange: 'transform' }}>
             <img 
               ref={jinxRef}
               src="/img/hero/Jinx.webp" 
               alt="Jinx" 
-              className="h-auto w-90 md:w-120"
+              className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-120"}`}
               loading="lazy"
               decoding="async"
               fetchpriority="low"
               sizes="(max-width: 768px) 360px, 480px"
             />
           </div>
+          )}
 
           {/* Faze logo image */}
           <div className="absolute left-1/2 top-[70%] z-50 -translate-x-1/2 -translate-y-1/2 scale-150" style={{ willChange: 'transform' }}>
@@ -317,7 +328,7 @@ const Hero = () => {
               ref={fazeLogoRef}
               src="/img/hero/Faze.webp" 
               alt="Faze" 
-              className="h-auto w-64 md:w-80"
+              className={`h-auto ${isPhone ? "w-[461px]" : "w-64 md:w-80"}`}
               loading="lazy"
               decoding="async"
               fetchpriority="low"
@@ -326,18 +337,20 @@ const Hero = () => {
           </div>
 
           {/* Melissa image */}
-          <div className="absolute left-[59%] top-[65%] z-20 -translate-x-1/2 -translate-y-1/2 scale-150" style={{ willChange: 'transform' }}>
+          {!isPhone && (
+          <div className={`absolute ${mobileTabletMelissaPosition} z-20 -translate-x-1/2 -translate-y-1/2 scale-150`} style={{ willChange: 'transform' }}>
             <img 
               ref={lunoxRef}
               src="/img/hero/melissa.webp" 
               alt="Lunox" 
-              className="h-auto w-90 md:w-130"
+              className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-130"}`}
               loading="lazy"
               decoding="async"
               fetchpriority="low"
               sizes="(max-width: 768px) 360px, 520px"
             />
           </div>
+          )}
         </div>
 
         {/* Mobile contact square button next to Pixiekat title */}
