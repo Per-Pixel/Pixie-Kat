@@ -7,12 +7,9 @@ import { fallbackGameImage, gamesData } from "../games/gamesData";
 
 const paymentMethods = [
   { id: "binance", name: "Binance", description: "Secure online crypto payment", priceLabel: "10.42 USDT", note: "(~ Rs 1000)", accent: "text-[#6542ff]", logo: "BINANCE" },
-  { id: "fampay", name: "FamPay", description: "Secure online payment", priceLabel: "Rs 1000", note: "", logo: "fampay" },
-  { id: "google-pay", name: "Google Pay", description: "Secure online payment", priceLabel: "Rs 1000", note: "", logo: "G Pay" },
   { id: "mobikwik", name: "Mobikwik", description: "Secure online payment", priceLabel: "Rs 1000", note: "", logo: "MobiKwik" },
   { id: "paytm", name: "Paytm", description: "Secure online payment", priceLabel: "Rs 1000", note: "", logo: "Paytm" },
   { id: "upi", name: "UPI", description: "Secure online payment", priceLabel: "Rs 1000", note: "", logo: "UPI" },
-  { id: "phonepe", name: "PhonePe", description: "Secure online payment", priceLabel: "Rs 1000", note: "", logo: "PhonePe" },
 ];
 
 const quickAddAmounts = [1000, 5000, 10000];

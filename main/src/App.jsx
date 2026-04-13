@@ -16,6 +16,7 @@ import HowItWorks from "./pages/how-it-works";
 import Auth from "./pages/auth";
 import AddMoneyPage from "./pages/wallet/AddMoneyPage";
 import AccountPage from "./pages/account";
+import GameInfoPage from "./pages/games/GameInfoPage";
 
 const preloadImage = (src) => {
   return new Promise((resolve, reject) => {
@@ -35,7 +36,7 @@ const AppShell = ({ children }) => {
       {!isWalletRoute ? <NavBar /> : null}
       {children}
       {!isWalletRoute ? <Footer /> : null}
-      <BottomNav />
+      {!isWalletRoute ? <BottomNav /> : null}
     </>
   );
 };
@@ -87,6 +88,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/games" element={<Games />} />
+                <Route path="/games/:gameId" element={<GameInfoPage />} />
                 <Route path="/games/:gameId/add-money" element={<AddMoneyPage />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/faq" element={<FAQ />} />

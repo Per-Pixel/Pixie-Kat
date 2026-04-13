@@ -61,7 +61,7 @@ const BottomNav = () => {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 z-[100] w-full md:hidden">
+    <div className="fixed bottom-0 left-0 z-[150] w-full md:hidden">
       <div className="relative mx-auto max-w-md">
         <div className="absolute inset-0 h-16 rounded-t-xl bg-white shadow-md" />
 

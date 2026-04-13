@@ -1,19 +1,17 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 import { fallbackGameImage, gamesData } from '../gamesData';
-import GameDetailsModal from './GameDetailsModal';
 
 const GameGrid = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedGameForModal, setSelectedGameForModal] = useState(null);
+  const navigate = useNavigate();
   const [showAllGames, setShowAllGames] = useState(false);
 
   const games = showAllGames ? gamesData : gamesData.slice(0, 7);
 
   const handleGameClick = (game) => {
-    setSelectedGameForModal(game);
-    setIsModalOpen(true);
+    navigate(`/games/${game.id}`);
   };
 
   const handleSeeAllClick = () => {
@@ -149,15 +147,6 @@ const GameGrid = () => {
             </motion.div>
           )}
         </motion.div>
-
-        <GameDetailsModal
-          game={selectedGameForModal}
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedGameForModal(null);
-          }}
-        />
       </div>
     </div>
   );
