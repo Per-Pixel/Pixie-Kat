@@ -1,44 +1,16 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import axios from 'axios';
 
 const AuthContext = createContext();
-const AUTH_STORAGE_KEY = 'pixiekat-demo-auth';
+const API_BASE_URL = 'http://localhost:3001/api';
 
-export const DEMO_CREDENTIALS = {
-  email: 'demo@client.com',
-  password: 'password123',
-};
-
-const getStoredAuth = () => {
-  const localValue = localStorage.getItem(AUTH_STORAGE_KEY);
-  const sessionValue = sessionStorage.getItem(AUTH_STORAGE_KEY);
-  const storedValue = localValue || sessionValue;
-
-  if (!storedValue) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(storedValue);
-  } catch {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    sessionStorage.removeItem(AUTH_STORAGE_KEY);
-    return null;
-  }
-};
-
-const persistAuth = (authState, persist) => {
-  const serializedState = JSON.stringify(authState);
-
-  localStorage.removeItem(AUTH_STORAGE_KEY);
-  sessionStorage.removeItem(AUTH_STORAGE_KEY);
-
-  if (persist) {
-    localStorage.setItem(AUTH_STORAGE_KEY, serializedState);
-    return;
-  }
-
-  sessionStorage.setItem(AUTH_STORAGE_KEY, serializedState);
-};
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -53,60 +25,70 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedAuth = getStoredAuth();
+    const checkAuth = async () => {
+      try {
+        const response = await api.get('/auth/me');
+        if (response.data.success) {
+          setUser(response.data.user);
+        }
+      } catch (error) {
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    if (storedAuth?.user) {
-      setUser(storedAuth.user);
-    }
-
-    setIsLoading(false);
+    checkAuth();
   }, []);
 
-  const login = async (email, password, options = {}) => {
-    const normalizedEmail = email.trim().toLowerCase();
+  const login = async (email, password) => {
+    try {
+      const response = await api.post('/auth/login', {
+        email: email.trim(),
+        password,
+      });
 
-    if (
-      normalizedEmail !== DEMO_CREDENTIALS.email ||
-      password !== DEMO_CREDENTIALS.password
-    ) {
-      return {
-        success: false,
-        error: `Use ${DEMO_CREDENTIALS.email} / ${DEMO_CREDENTIALS.password}`,
-      };
+      if (response.data.success) {
+        setUser(response.data.user);
+        return { success: true, user: response.data.user };
+      }
+
+      return { success: false, error: response.data.message };
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 'Invalid email or password';
+      return { success: false, error: errorMessage };
     }
-
-    const demoUser = {
-      id: 'demo-user',
-      email: DEMO_CREDENTIALS.email,
-      name: 'Demo Client',
-    };
-
-    persistAuth({ user: demoUser }, Boolean(options.persist));
-    setUser(demoUser);
-
-    return { success: true, user: demoUser };
   };
 
-  const register = async ({ name, email, password }, options = {}) => {
-    const normalizedEmail = email.trim().toLowerCase();
+  const register = async ({ name, email, password, confirmPassword }) => {
+    try {
+      const response = await api.post('/auth/signup', {
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        confirmPassword,
+      });
 
-    const demoUser = {
-      id: 'demo-user',
-      email: normalizedEmail,
-      name: name.trim() || 'New User',
-      passwordHint: password,
-    };
+      if (response.data.success) {
+        setUser(response.data.user);
+        return { success: true, user: response.data.user };
+      }
 
-    persistAuth({ user: demoUser }, Boolean(options.persist));
-    setUser(demoUser);
-
-    return { success: true, user: demoUser };
+      return { success: false, error: response.data.message };
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 'Registration failed';
+      return { success: false, error: errorMessage };
+    }
   };
 
-  const logout = () => {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    sessionStorage.removeItem(AUTH_STORAGE_KEY);
-    setUser(null);
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+    }
   };
 
   const value = {
@@ -116,7 +98,6 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     isAuthenticated: !!user,
-    demoCredentials: DEMO_CREDENTIALS,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

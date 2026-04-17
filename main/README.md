@@ -2,6 +2,23 @@
 
 PixieKat.com is a React + Vite web frontend for instant gaming credit top-ups with a motion-heavy, responsive UI.
 
+## 🔐 Authentication System
+
+This project includes a complete authentication system with:
+- ✅ Real user registration and login
+- ✅ Secure password hashing with bcryptjs
+- ✅ JWT tokens in httpOnly cookies
+- ✅ SQLite database for user storage
+- ✅ Rate limiting and security features
+
+**📚 [View Complete Authentication Documentation →](docs/)**
+
+Quick links:
+- [Quick Start Guide](docs/QUICK_START.md) - Get up and running in 5 minutes
+- [Setup Guide](docs/AUTH_SETUP.md) - Complete installation and configuration
+- [Security Guide](docs/SECURITY_GUIDE.md) - Protecting your secrets
+- [Production Checklist](docs/PRODUCTION_CHECKLIST.md) - Before deploying
+
 ## Quick Navigation
 
 - [At a Glance](#at-a-glance)
