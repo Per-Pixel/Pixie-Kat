@@ -4,8 +4,9 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { initDb, findUserByEmail, createUser, findUserById } from './database.js';
+import { initDb, findUserByEmail, createUser, findUserById } from './database-postgres.js';
 import { authMiddleware } from './middleware/auth.js';
 import { validateSignup, validateEmail } from './utils/validation.js';
 
@@ -14,9 +15,15 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+app.use(helmet());
+
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? [process.env.CORS_ORIGIN]
+  : ['http://localhost:5173', 'http://localhost:5174'];
+
 app.use(
   cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174'],
+    origin: allowedOrigins,
     credentials: true,
   })
 );
@@ -24,15 +31,25 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-const loginLimiter = rateLimit({
+const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: 'Too many login attempts, please try again after 15 minutes',
+  max: 100,
+  message: 'Too many requests from this IP, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-app.post('/api/auth/signup', async (req, res) => {
+app.use('/api/', globalLimiter);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'Too many attempts, please try again after 15 minutes',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.post('/api/auth/signup', authLimiter, async (req, res) => {
   try {
     const { name, email, password, confirmPassword } = req.body;
 
@@ -41,14 +58,14 @@ app.post('/api/auth/signup', async (req, res) => {
       return res.status(400).json({ message: validation.error });
     }
 
-    const existingUser = findUserByEmail(email);
+    const existingUser = await findUserByEmail(email);
     if (existingUser) {
       return res.status(400).json({ message: 'Email already registered' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const userId = createUser(name.trim(), email, passwordHash);
+    const userId = await createUser(name.trim(), email, passwordHash);
 
     const token = jwt.sign(
       { userId, email: email.toLowerCase(), name: name.trim() },
@@ -77,7 +94,7 @@ app.post('/api/auth/signup', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', loginLimiter, async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -85,7 +102,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
 
-    const user = findUserByEmail(email);
+    const user = await findUserByEmail(email);
     if (!user) {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
@@ -132,9 +149,9 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
-app.get('/api/auth/me', authMiddleware, (req, res) => {
+app.get('/api/auth/me', authMiddleware, async (req, res) => {
   try {
-    const user = findUserById(req.user.userId);
+    const user = await findUserById(req.user.userId);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
