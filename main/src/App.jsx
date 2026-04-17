@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 
 import { AuthProvider } from "./contexts/AuthContext";
@@ -7,16 +7,16 @@ import NavBar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
 import BottomNav from "./components/layout/BottomNav";
 
-import HomePage from "./pages/home";
-import Games from "./pages/games";
-import Pricing from "./pages/pricing";
-import FAQ from "./pages/faq";
-import Support from "./pages/support";
-import HowItWorks from "./pages/how-it-works";
-import Auth from "./pages/auth";
-import AddMoneyPage from "./pages/wallet/AddMoneyPage";
-import AccountPage from "./pages/account";
-import GameInfoPage from "./pages/games/GameInfoPage";
+const HomePage = lazy(() => import("./pages/home"));
+const Games = lazy(() => import("./pages/games"));
+const Pricing = lazy(() => import("./pages/pricing"));
+const FAQ = lazy(() => import("./pages/faq"));
+const Support = lazy(() => import("./pages/support"));
+const HowItWorks = lazy(() => import("./pages/how-it-works"));
+const Auth = lazy(() => import("./pages/auth"));
+const AddMoneyPage = lazy(() => import("./pages/wallet/AddMoneyPage"));
+const AccountPage = lazy(() => import("./pages/account"));
+const GameInfoPage = lazy(() => import("./pages/games/GameInfoPage"));
 
 const preloadImage = (src) => {
   return new Promise((resolve, reject) => {
@@ -85,20 +85,22 @@ function App() {
             style={{ opacity: isLoading ? 0 : 1 }}
           >
             <AppShell>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/games" element={<Games />} />
-                <Route path="/games/:gameId" element={<GameInfoPage />} />
-                <Route path="/games/:gameId/add-money" element={<AddMoneyPage />} />
-                <Route path="/pricing" element={<Pricing />} />
-                <Route path="/faq" element={<FAQ />} />
-                <Route path="/support" element={<Support />} />
-                <Route path="/how-it-works" element={<HowItWorks />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/login" element={<Auth />} />
-                <Route path="/register" element={<Auth />} />
-                <Route path="/account/*" element={<AccountPage />} />
-              </Routes>
+              <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div></div>}>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/games" element={<Games />} />
+                  <Route path="/games/:gameId" element={<GameInfoPage />} />
+                  <Route path="/games/:gameId/add-money" element={<AddMoneyPage />} />
+                  <Route path="/pricing" element={<Pricing />} />
+                  <Route path="/faq" element={<FAQ />} />
+                  <Route path="/support" element={<Support />} />
+                  <Route path="/how-it-works" element={<HowItWorks />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/login" element={<Auth />} />
+                  <Route path="/register" element={<Auth />} />
+                  <Route path="/account/*" element={<AccountPage />} />
+                </Routes>
+              </Suspense>
             </AppShell>
           </main>
         </>
