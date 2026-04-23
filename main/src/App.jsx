@@ -30,12 +30,13 @@ const preloadImage = (src) => {
 const AppShell = ({ children }) => {
   const location = useLocation();
   const isWalletRoute = /^\/games\/[^/]+\/add-money$/.test(location.pathname);
+  const isHomePage = location.pathname === "/";
 
   return (
     <>
       {!isWalletRoute ? <NavBar /> : null}
       {children}
-      {!isWalletRoute ? <Footer /> : null}
+      {!isWalletRoute && !isHomePage ? <Footer /> : null}
       {!isWalletRoute ? <BottomNav /> : null}
     </>
   );

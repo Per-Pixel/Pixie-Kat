@@ -108,66 +108,6 @@ const ContactSection = () => {
             ))}
           </motion.div>
         </motion.div>
-
-        {/* Footer Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          viewport={{ once: true }}
-          className="bg-gray-900 rounded-xl md:rounded-2xl p-6 md:p-8 text-white"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-            {/* Company Info */}
-            <div className="md:col-span-1">
-              <div className="flex items-center mb-3 md:mb-4">
-                <span className="text-xl md:text-2xl mr-2">✚</span>
-                <span className="text-lg md:text-xl font-bold">UXSIOSTORE</span>
-              </div>
-              <p className="text-gray-300 text-xs md:text-sm leading-relaxed mb-3 md:mb-4">
-                UXSIOSTORE is a practical solution for every game lover who wants to buy game vouchers without having to go to a physical store.
-              </p>
-              <p className="text-gray-300 text-xs md:text-sm leading-relaxed">
-                With a variety of game choices, community comments, and vouchers, UXSIOSTORE can provide a comfortable and satisfying experience for all gamers.
-              </p>
-            </div>
-
-            {/* Site Map */}
-            <div>
-              <h3 className="text-base md:text-lg font-bold mb-3 md:mb-4">Site Map</h3>
-              <ul className="space-y-1 md:space-y-2 text-xs md:text-sm text-gray-300">
-                <li><a href="#" className="hover:text-white transition-colors">UXSIOSTORE Official</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Games</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Promotions</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Affiliate Program</a></li>
-              </ul>
-            </div>
-
-            {/* Payment Methods */}
-            <div>
-              <h3 className="text-base md:text-lg font-bold mb-3 md:mb-4">Payment Method</h3>
-              <div className="grid grid-cols-3 gap-1.5 md:gap-2">
-                {paymentMethods.map((method, index) => (
-                  <motion.div
-                    key={index}
-                    whileHover={{ scale: 1.05 }}
-                    className={`${method.color} text-white text-xs font-bold py-1.5 md:py-2 px-2 md:px-3 rounded text-center cursor-pointer transition-transform`}
-                  >
-                    {method.name}
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Copyright */}
-          <div className="border-t border-gray-700 mt-6 md:mt-8 pt-4 md:pt-6 text-center">
-            <p className="text-gray-400 text-xs md:text-sm">
-              Copyright © 2023 UXSIOSTORE
-            </p>
-          </div>
-        </motion.div>
       </div>
     </div>
   );
