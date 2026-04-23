@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Lock, LogIn, Mail, UserRound } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, UserRound, ArrowLeft } from 'lucide-react';
 
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -15,33 +15,18 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
 
-  const { demoCredentials, isAuthenticated, login, register } = useAuth();
+  const { isAuthenticated, login, register } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const from = location.state?.from?.pathname || '/';
   const isRegisterRoute = location.pathname === '/register';
-  const pageTitle = isRegisterRoute ? 'Create Account' : 'Demo Login';
-  const submitLabel = isRegisterRoute ? 'Create Account' : 'Sign In';
+  const pageTitle = isRegisterRoute ? 'Sign Up' : 'Welcome!';
+  const submitLabel = isRegisterRoute ? 'Create Account' : 'Login';
   const helperText = isRegisterRoute
-    ? 'Create a client-side demo account to enter the authenticated app state.'
-    : 'Sign in with the fixed demo credential to trigger the authenticated navbar state.';
-
-  const credentialSummary = useMemo(() => {
-    if (isRegisterRoute) {
-      return [
-        'This is a demo sign-up flow with no backend.',
-        'Any valid name, email, and matching password will create a local demo session.'
-      ];
-    }
-
-    return [
-      `Email: ${demoCredentials.email}`,
-      `Password: ${demoCredentials.password}`
-    ];
-  }, [demoCredentials.email, demoCredentials.password, isRegisterRoute]);
+    ? 'Create your account'
+    : 'Log in with email';
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -67,17 +52,16 @@ const Auth = () => {
       if (isRegisterRoute) {
         if (formData.password !== formData.confirmPassword) {
           setError('Passwords do not match');
+          setIsLoading(false);
           return;
         }
 
-        const result = await register(
-          {
-            name: formData.name,
-            email: formData.email,
-            password: formData.password
-          },
-          { persist: rememberMe }
-        );
+        const result = await register({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          confirmPassword: formData.confirmPassword
+        });
 
         if (result.success) {
           navigate(from, { replace: true });
@@ -88,61 +72,78 @@ const Auth = () => {
         return;
       }
 
-      const result = await login(formData.email, formData.password, {
-        persist: rememberMe
-      });
+      const result = await login(formData.email, formData.password);
 
       if (result.success) {
         navigate(from, { replace: true });
       } else {
         setError(result.error || 'Login failed');
       }
-    } catch {
-      setError('An unexpected error occurred');
+    } catch (err) {
+      setError(err.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-dark-900 via-dark-800 to-dark-700 px-4 py-20">
-      <div className="absolute left-1/4 top-0 h-64 w-64 rounded-full bg-violet-300/20 blur-3xl"></div>
-      <div className="absolute bottom-0 right-1/4 h-80 w-80 rounded-full bg-blue-300/20 blur-3xl"></div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="relative z-10 w-full max-w-md"
+    <div className="relative flex min-h-screen overflow-hidden" style={{ backgroundColor: '#0a0a0a' }}>
+      <Link
+        to="/"
+        className="absolute left-6 top-6 z-50 flex items-center gap-2 text-white/80 transition-colors hover:text-white"
       >
-        <div className="mb-8 text-center">
-          <h1 className="mb-2 text-4xl font-bold">
-            <span className="bg-gradient-to-r from-violet-300 to-blue-300 bg-clip-text text-transparent">
-              {pageTitle}
-            </span>
-          </h1>
-          <p className="text-gray-500">{helperText}</p>
-        </div>
+        <ArrowLeft className="h-5 w-5" />
+        <span className="text-sm font-medium">Back</span>
+      </Link>
 
-        <div className="rounded-2xl border border-blue-50 bg-white/90 p-8 shadow-2xl backdrop-blur-md">
-          <div className="mb-6 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-gray-700">
-            <p className="font-semibold text-gray-900">
-              {isRegisterRoute ? 'Demo sign-up rules' : 'Demo credential'}
-            </p>
-            {credentialSummary.map((line) => (
-              <p key={line} className="mt-2">
-                {line}
-              </p>
-            ))}
+      <div className="hidden w-1/2 items-center justify-center bg-gradient-to-br from-emerald-400 to-emerald-500 p-12 lg:flex">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6 }}
+          className="relative flex h-full w-full max-w-lg flex-col items-center justify-center"
+        >
+          <div className="mb-8 text-center">
+            <img
+              src="/img/swordman.webp"
+              alt="PixieKat"
+              className="mx-auto mb-6 h-64 w-64 rounded-3xl object-cover shadow-2xl"
+            />
+            <div className="flex items-center justify-center gap-2">
+              <div className="h-12 w-12 rounded-lg bg-white p-2">
+                <img src="/img/logo.png" alt="Logo" className="h-full w-full object-contain" />
+              </div>
+              <h2 className="text-3xl font-bold text-white">SMILE ONE</h2>
+            </div>
+          </div>
+          <p className="mt-4 text-center text-lg text-white/90">
+            The refill store that will always be at your disposal.
+          </p>
+        </motion.div>
+      </div>
+
+      <div className="flex w-full items-center justify-center px-6 py-12 lg:w-1/2" style={{ backgroundColor: '#0a0a0a' }}>
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6 }}
+          className="w-full max-w-md"
+        >
+          <div className="mb-8">
+            <Link to="/" className="mb-6 inline-flex items-center gap-2">
+              <ArrowLeft className="h-5 w-5 text-white/60" />
+            </Link>
+            <h1 className="mb-2 text-4xl font-bold text-white">{pageTitle}</h1>
+            <p className="text-white/60">{helperText}</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {isRegisterRoute ? (
               <div>
-                <label className="mb-2 block font-medium text-gray-700">Full Name</label>
+                <label className="mb-2 block text-sm font-medium text-white/80">Name</label>
                 <div className="relative">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <UserRound className="h-5 w-5 text-violet-300" />
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                    <UserRound className="h-5 w-5 text-white/40" />
                   </div>
                   <input
                     type="text"
@@ -150,7 +151,7 @@ const Auth = () => {
                     value={formData.name}
                     onChange={handleInputChange}
                     required
-                    className="w-full rounded-lg border border-blue-75 bg-blue-50 py-3 pl-10 pr-4 text-gray-800 transition-all duration-200 focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-300/30"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white placeholder-white/40 transition-all duration-200 focus:border-emerald-400/50 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
                     placeholder="Enter your name"
                   />
                 </div>
@@ -158,10 +159,10 @@ const Auth = () => {
             ) : null}
 
             <div>
-              <label className="mb-2 block font-medium text-gray-700">Email Address</label>
+              <label className="mb-2 block text-sm font-medium text-white/80">Email</label>
               <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <Mail className="h-5 w-5 text-violet-300" />
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                  <Mail className="h-5 w-5 text-white/40" />
                 </div>
                 <input
                   type="email"
@@ -169,17 +170,17 @@ const Auth = () => {
                   value={formData.email}
                   onChange={handleInputChange}
                   required
-                  className="w-full rounded-lg border border-blue-75 bg-blue-50 py-3 pl-10 pr-4 text-gray-800 transition-all duration-200 focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-300/30"
-                  placeholder={isRegisterRoute ? 'you@example.com' : demoCredentials.email}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white placeholder-white/40 transition-all duration-200 focus:border-emerald-400/50 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
+                  placeholder="Email"
                 />
               </div>
             </div>
 
             <div>
-              <label className="mb-2 block font-medium text-gray-700">Password</label>
+              <label className="mb-2 block text-sm font-medium text-white/80">Password</label>
               <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <Lock className="h-5 w-5 text-violet-300" />
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                  <Lock className="h-5 w-5 text-white/40" />
                 </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -187,13 +188,13 @@ const Auth = () => {
                   value={formData.password}
                   onChange={handleInputChange}
                   required
-                  className="w-full rounded-lg border border-blue-75 bg-blue-50 py-3 pl-10 pr-12 text-gray-800 transition-all duration-200 focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-300/30"
-                  placeholder={isRegisterRoute ? 'Create a password' : demoCredentials.password}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-12 text-white placeholder-white/40 transition-all duration-200 focus:border-emerald-400/50 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
+                  placeholder="Password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors hover:text-violet-300"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-white/80"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -202,10 +203,10 @@ const Auth = () => {
 
             {isRegisterRoute ? (
               <div>
-                <label className="mb-2 block font-medium text-gray-700">Confirm Password</label>
+                <label className="mb-2 block text-sm font-medium text-white/80">Confirm Password</label>
                 <div className="relative">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <Lock className="h-5 w-5 text-violet-300" />
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                    <Lock className="h-5 w-5 text-white/40" />
                   </div>
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -213,48 +214,42 @@ const Auth = () => {
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
                     required
-                    className="w-full rounded-lg border border-blue-75 bg-blue-50 py-3 pl-10 pr-4 text-gray-800 transition-all duration-200 focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-300/30"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white placeholder-white/40 transition-all duration-200 focus:border-emerald-400/50 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
                     placeholder="Confirm your password"
                   />
                 </div>
               </div>
             ) : null}
 
-            {error ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-                <p className="text-sm text-red-500">{error}</p>
+            {!isRegisterRoute ? (
+              <div className="flex items-center justify-between">
+                <div className="text-sm">
+                  <a href="#" className="text-emerald-400 hover:text-emerald-300">
+                    Forgot password?
+                  </a>
+                </div>
               </div>
             ) : null}
 
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                checked={rememberMe}
-                onChange={() => setRememberMe(!rememberMe)}
-                className="h-4 w-4 rounded border-gray-300 text-violet-300 focus:ring-violet-300/30"
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-600">
-                Keep demo session after browser restart
-              </label>
-            </div>
+            {error ? (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3">
+                <p className="text-sm text-red-400">{error}</p>
+              </div>
+            ) : null}
 
             <motion.button
               type="submit"
               disabled={isLoading}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className={`w-full rounded-xl bg-gradient-to-r from-violet-300 to-blue-300 px-6 py-3 font-bold text-white shadow-lg transition-all duration-300 ${
-                isLoading ? 'cursor-not-allowed opacity-50' : 'hover:shadow-violet-300/50'
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              className={`w-full rounded-xl bg-emerald-500 px-6 py-3.5 font-semibold text-white shadow-lg transition-all duration-300 ${
+                isLoading ? 'cursor-not-allowed opacity-50' : 'hover:bg-emerald-600 hover:shadow-emerald-500/50'
               }`}
             >
               <div className="flex items-center justify-center">
                 {isLoading ? (
-                  <div className="mr-2 h-5 w-5 animate-spin rounded-full border-b-2 border-white"></div>
-                ) : (
-                  <LogIn className="mr-2 h-5 w-5" />
-                )}
+                  <div className="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                ) : null}
                 {isLoading ? `${submitLabel}...` : submitLabel}
               </div>
             </motion.button>
@@ -262,18 +257,18 @@ const Auth = () => {
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
+              <div className="w-full border-t border-white/10"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="bg-white px-4 text-gray-500">Or continue with</span>
+              <span className="bg-[#0a0a0a] px-4 text-white/40">Or continue with</span>
             </div>
           </div>
 
           <button
             type="button"
-            className="flex w-full items-center justify-center rounded-xl border border-white/20 bg-[#25163b] px-4 py-3 font-medium text-white transition-all duration-300 hover:bg-[#2d1a46]"
+            className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 font-medium text-white transition-all duration-300 hover:bg-white/10"
           >
-            <svg className="mr-3 h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+            <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 fill="#4285F4"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -294,26 +289,17 @@ const Auth = () => {
             Login with Google
           </button>
 
-          <div className="mt-5 text-center text-base text-gray-600">
+          <div className="mt-6 text-center text-sm text-white/60">
             {isRegisterRoute ? 'Already have an account? ' : "Don't have an account? "}
             <Link
               to={isRegisterRoute ? '/login' : '/register'}
-              className="font-semibold text-slate-900 transition-colors duration-200 hover:text-violet-500"
+              className="font-semibold text-emerald-400 transition-colors duration-200 hover:text-emerald-300"
             >
-              {isRegisterRoute ? 'Sign in here' : 'Sign up here'}
+              {isRegisterRoute ? 'Sign in' : 'Sign up'}
             </Link>
           </div>
-
-          <div className="mt-6 border-t border-gray-200 pt-4 text-sm text-gray-600">
-            <p>
-              Before login: top nav shows <span className="font-semibold text-gray-900">Login</span> and bottom nav shows <span className="font-semibold text-gray-900">Account</span>.
-            </p>
-            <p className="mt-2">
-              After login: the top-nav login button is replaced by wallet and profile shortcuts, and the bottom nav keeps <span className="font-semibold text-gray-900">Account</span> while also adding <span className="font-semibold text-gray-900">More</span>.
-            </p>
-          </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 };
