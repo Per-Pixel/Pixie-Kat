@@ -1214,3 +1214,18 @@ html {
     gap: 20px;
   }
 }
+
+/* ===================================================
+   MOUSE-GLOW — interactive cursor-following light
+   =================================================== */
+
+.mouse-glow-layer {
+  will-change: background, opacity;
+}
+
+/* ── Responsive: tone down glow on small screens ─────── */
+@media (max-width: 640px) {
+  .mouse-glow-layer {
+    filter: blur(30px) !important;
+  }
+}

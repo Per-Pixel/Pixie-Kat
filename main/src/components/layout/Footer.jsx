@@ -1,5 +1,6 @@
 import { FaLinkedinIn, FaFacebookF, FaTwitter } from "react-icons/fa";
 import { HiArrowUpRight } from "react-icons/hi2";
+import MouseGlow from "../common/MouseGlow";
 
 const footerNavLinks = [
   { label: "How It Works", href: "/how-it-works" },
@@ -17,8 +18,8 @@ const socialLinks = [
 const Footer = () => {
   return (
     <footer className="footer-wrapper">
-      {/* ——— Main dark container ——— */}
-      <div className="footer-main">
+      {/* ——— Main dark container with mouse-tracking glow ——— */}
+      <MouseGlow intensity={0.75} spotlight className="footer-main">
         {/* CTA / Contact section */}
         <div className="footer-cta">
           <div className="footer-cta-label">
@@ -69,9 +70,9 @@ const Footer = () => {
           <span className="footer-brand-name">pixie kat store</span>
         </div>
 
-        {/* Glow effect */}
+        {/* Static ambient glow at the bottom */}
         <div className="footer-glow" />
-      </div>
+      </MouseGlow>
 
       {/* ——— Bottom bar ——— */}
       <div className="footer-bottom">
