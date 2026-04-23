@@ -927,6 +927,28 @@ html {
    FOOTER STYLES — matches the new image-based design
    =================================================== */
 
+/* ---- Word-by-word reveal animation wrappers ---- */
+.footer-reveal-word-wrapper {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+}
+
+.footer-reveal-word {
+  display: inline-block;
+}
+
+/* ---- Brand letter-by-letter wrappers ---- */
+.footer-brand-letter-wrapper {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+}
+
+.footer-brand-letter {
+  display: inline-block;
+}
+
 .footer-wrapper {
   width: 100%;
   padding: 0 24px 24px;
