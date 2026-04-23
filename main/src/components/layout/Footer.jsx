@@ -1,40 +1,97 @@
-import { FaDiscord, FaTwitter, FaYoutube, FaMedium } from "react-icons/fa";
+import { FaLinkedinIn, FaFacebookF, FaTwitter } from "react-icons/fa";
+import { HiArrowUpRight } from "react-icons/hi2";
+
+const footerNavLinks = [
+  { label: "How It Works", href: "/how-it-works" },
+  { label: "Games", href: "/games" },
+  { label: "Pricing", href: "/pricing" },
+  { label: "Support", href: "/support" },
+];
 
 const socialLinks = [
-  { href: "https://discord.com", icon: <FaDiscord /> },
-  { href: "https://twitter.com", icon: <FaTwitter /> },
-  { href: "https://youtube.com", icon: <FaYoutube /> },
-  { href: "https://medium.com", icon: <FaMedium /> },
+  { href: "https://linkedin.com", icon: <FaLinkedinIn />, label: "LinkedIn" },
+  { href: "https://facebook.com", icon: <FaFacebookF />, label: "Facebook" },
+  { href: "https://twitter.com", icon: <FaTwitter />, label: "Twitter" },
 ];
 
 const Footer = () => {
   return (
-    <footer className="w-screen bg-[#5542ff] py-4 text-black">
-      <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 md:flex-row">
-        <p className="text-center text-sm font-light md:text-left">
-          ©Nova 2024. All rights reserved
+    <footer className="footer-wrapper">
+      {/* ——— Main dark container ——— */}
+      <div className="footer-main">
+        {/* CTA / Contact section */}
+        <div className="footer-cta">
+          <div className="footer-cta-label">
+            <img
+              src="/img/logo4.png"
+              alt="Pixie Kat"
+              className="footer-cta-label-icon"
+            />
+            <span>Get In Touch</span>
+          </div>
+
+          <h2 className="footer-cta-heading">
+            <span className="footer-cta-heading-bold">
+              Ready to level up your game?
+            </span>{" "}
+            <span className="footer-cta-heading-light">
+              Top up your favorite titles instantly or explore our premium membership plans.
+            </span>
+          </h2>
+        </div>
+
+        {/* Divider row: contact + nav */}
+        <div className="footer-divider-row">
+          <div className="footer-contact">
+            <span className="footer-contact-label">Reach us at:</span>
+            <a href="mailto:support@pixiekatstore.com" className="footer-contact-email">
+              support@pixiekatstore.com
+              <HiArrowUpRight className="footer-contact-arrow" />
+            </a>
+          </div>
+
+          <nav className="footer-nav">
+            {footerNavLinks.map((link) => (
+              <a key={link.label} href={link.href} className="footer-nav-link">
+                {link.label}
+              </a>
+            ))}
+          </nav>
+        </div>
+
+        {/* Large branding */}
+        <div className="footer-brand">
+          <img
+            src="/img/logo4.png"
+            alt="Pixie Kat Store"
+            className="footer-brand-logo"
+          />
+          <span className="footer-brand-name">pixie kat store</span>
+        </div>
+
+        {/* Glow effect */}
+        <div className="footer-glow" />
+      </div>
+
+      {/* ——— Bottom bar ——— */}
+      <div className="footer-bottom">
+        <p className="footer-copyright">
+          © {new Date().getFullYear()} Pixie Kat Store. All rights reserved.
         </p>
 
-        <div className="flex justify-center gap-4  md:justify-start">
-          {socialLinks.map((link, index) => (
+        <div className="footer-socials">
+          {socialLinks.map((link) => (
             <a
-              key={index}
+              key={link.label}
               href={link.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-black transition-colors duration-500 ease-in-out hover:text-white"
+              className="footer-social-link"
             >
-              {link.icon}
+              {link.label}
             </a>
           ))}
         </div>
-
-        <a
-          href="#privacy-policy"
-          className="text-center text-sm font-light hover:underline md:text-right"
-        >
-          Privacy Policy
-        </a>
       </div>
     </footer>
   );
