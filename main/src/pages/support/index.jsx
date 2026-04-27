@@ -1,348 +1,115 @@
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 
 const Support = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    priority: 'medium',
-    message: ''
-  });
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Reset form
-    setFormData({
-      name: '',
-      email: '',
-      subject: '',
-      priority: 'medium',
-      message: ''
-    });
-    
-    setIsSubmitting(false);
-    alert('Your message has been sent successfully! We\'ll get back to you soon.');
-  };
-
-  const supportChannels = [
+  const heroCards = [
     {
-      name: 'WhatsApp',
-      icon: '📱',
-      color: 'from-green-500 to-green-600',
-      description: 'Get instant support via WhatsApp',
-      contact: '+91 98765 43210',
-      action: 'Chat Now',
-      available: '24/7',
-      responseTime: '< 5 minutes'
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+          <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
+          <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+        </svg>
+      ),
+      title: 'Get Support',
+      description: 'Need help with a top-up? Connect with our support team instantly.',
     },
     {
-      name: 'Instagram',
-      icon: '📷',
-      color: 'from-pink-500 to-purple-600',
-      description: 'Follow us and DM for support',
-      contact: '@pixiekat_official',
-      action: 'Follow & DM',
-      available: '24/7',
-      responseTime: '< 15 minutes'
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+          <polyline points="22,6 12,13 2,6" />
+        </svg>
+      ),
+      title: 'Contact Us',
+      description: 'For bulk orders or any inquiries, talk to the Pixiekat team.',
     },
-    {
-      name: 'Email',
-      icon: '📧',
-      color: 'from-blue-500 to-blue-600',
-      description: 'Send us detailed queries via email',
-      contact: 'support@pixiekat.com',
-      action: 'Send Email',
-      available: '24/7',
-      responseTime: '< 2 hours'
-    },
-    {
-      name: 'Live Chat',
-      icon: '💬',
-      color: 'from-neon-purple to-neon-blue',
-      description: 'Chat with our support team',
-      contact: 'Available on website',
-      action: 'Start Chat',
-      available: '24/7',
-      responseTime: '< 1 minute'
-    }
   ];
 
-  const businessHours = [
-    { day: 'Monday - Friday', hours: '24/7 Support' },
-    { day: 'Saturday - Sunday', hours: '24/7 Support' },
-    { day: 'Public Holidays', hours: '24/7 Support' }
+  const categories = [
+    {
+      title: 'About Pixiekat',
+      description: 'Discover the basics of what Pixiekat does and how our instant game top-up service can level up your experience.',
+    },
+    {
+      title: 'Game Top-Up Guides',
+      description: 'Explore step-by-step top-up instructions for all your favorite games, from A to Z.',
+    },
+    {
+      title: 'Orders & Payments',
+      description: 'All about managing your top-up orders, tracking deliveries, and resolving payment issues — in one place.',
+    },
   ];
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        duration: 0.5
-      }
-    }
-  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-700 pt-20 pb-16">
-      <div className="container mx-auto px-4">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
-        >
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
-            <span className="bg-gradient-to-r from-neon-purple to-neon-blue bg-clip-text text-transparent">
-              Customer Support
-            </span>
-          </h1>
-          <p className="text-gray-300 text-lg md:text-xl max-w-3xl mx-auto">
-            We're here to help! Get instant support through multiple channels or send us a message
-          </p>
-        </motion.div>
+    <div className="min-h-screen font-general">
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-7xl mx-auto">
-          {/* Support Channels */}
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <h2 className="text-3xl font-bold text-white mb-8 text-center lg:text-left">
-              Get In Touch
-            </h2>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
-              {supportChannels.map((channel, index) => (
+      {/* ── Hero Section ─────────────────────────────────── */}
+      <section className="bg-[#dfdff0] pt-28 pb-20 md:pt-36 md:pb-28">
+        <div className="max-w-6xl mx-auto px-6 md:px-10">
+          <div className="flex flex-col lg:flex-row lg:items-start gap-12 lg:gap-20">
+
+            {/* Left — heading + subtitle */}
+            <motion.div
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="lg:flex-1"
+            >
+              <h1 className="text-4xl sm:text-5xl lg:text-[3.25rem] font-bold text-gray-900 leading-[1.12] mb-5">
+                Need help?<br />
+                You are in the right<br />
+                place.
+              </h1>
+              <p className="text-gray-500 text-sm md:text-[0.9375rem] max-w-xs leading-relaxed">
+                Pick from the categories to find advice and answers from the Pixiekat Team.
+              </p>
+            </motion.div>
+
+            {/* Right — action cards */}
+            <div className="lg:flex-1 flex flex-col sm:flex-row gap-4">
+              {heroCards.map((card, i) => (
                 <motion.div
-                  key={index}
-                  variants={itemVariants}
-                  whileHover={{ scale: 1.02, y: -5 }}
-                  className={`bg-gradient-to-br ${channel.color} rounded-2xl p-6 text-white shadow-xl`}
+                  key={i}
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.12 * (i + 1) }}
+                  whileHover={{ y: -4, boxShadow: '0 10px 32px rgba(0,0,0,0.10)' }}
+                  className="bg-white rounded-2xl p-6 flex-1 border border-gray-100 shadow-sm cursor-pointer transition-shadow duration-200"
                 >
-                  <div className="text-4xl mb-4">{channel.icon}</div>
-                  <h3 className="text-xl font-bold mb-2">{channel.name}</h3>
-                  <p className="text-gray-100 text-sm mb-4">{channel.description}</p>
-                  <div className="space-y-2 mb-4">
-                    <div className="text-sm">
-                      <span className="font-medium">Contact:</span> {channel.contact}
-                    </div>
-                    <div className="text-sm">
-                      <span className="font-medium">Available:</span> {channel.available}
-                    </div>
-                    <div className="text-sm">
-                      <span className="font-medium">Response:</span> {channel.responseTime}
-                    </div>
+                  <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center mb-4 text-violet-600">
+                    {card.icon}
                   </div>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="w-full bg-white/20 backdrop-blur-sm text-white font-bold py-2 px-4 rounded-lg hover:bg-white/30 transition-all duration-200"
-                  >
-                    {channel.action}
-                  </motion.button>
+                  <h3 className="font-semibold text-gray-900 text-[0.9375rem] mb-2">{card.title}</h3>
+                  <p className="text-gray-500 text-sm leading-relaxed">{card.description}</p>
                 </motion.div>
               ))}
             </div>
 
-            {/* Business Hours */}
-            <motion.div
-              variants={itemVariants}
-              className="bg-dark-600 rounded-2xl p-6"
-            >
-              <h3 className="text-xl font-bold text-white mb-4 flex items-center">
-                <span className="text-2xl mr-3">🕒</span>
-                Business Hours
-              </h3>
-              <div className="space-y-3">
-                {businessHours.map((schedule, index) => (
-                  <div key={index} className="flex justify-between items-center">
-                    <span className="text-gray-300">{schedule.day}</span>
-                    <span className="text-neon-purple font-medium">{schedule.hours}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 p-4 bg-neon-purple/10 rounded-lg border border-neon-purple/20">
-                <p className="text-neon-purple text-sm font-medium">
-                  ⚡ We provide 24/7 support for all our customers with premium members getting priority assistance!
-                </p>
-              </div>
-            </motion.div>
-          </motion.div>
-
-          {/* Contact Form */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <h2 className="text-3xl font-bold text-white mb-8 text-center lg:text-left">
-              Send Us a Message
-            </h2>
-            
-            <form onSubmit={handleSubmit} className="bg-dark-600 rounded-2xl p-8 shadow-xl">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                  <label className="block text-white font-medium mb-2">Name *</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-neon-purple focus:outline-none transition-colors duration-200"
-                    placeholder="Your full name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-white font-medium mb-2">Email *</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-neon-purple focus:outline-none transition-colors duration-200"
-                    placeholder="your@email.com"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                  <label className="block text-white font-medium mb-2">Subject *</label>
-                  <input
-                    type="text"
-                    name="subject"
-                    value={formData.subject}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-neon-purple focus:outline-none transition-colors duration-200"
-                    placeholder="Brief subject of your inquiry"
-                  />
-                </div>
-                <div>
-                  <label className="block text-white font-medium mb-2">Priority</label>
-                  <select
-                    name="priority"
-                    value={formData.priority}
-                    onChange={handleInputChange}
-                    className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-neon-purple focus:outline-none transition-colors duration-200"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-white font-medium mb-2">Message *</label>
-                <textarea
-                  name="message"
-                  value={formData.message}
-                  onChange={handleInputChange}
-                  required
-                  rows={6}
-                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-neon-purple focus:outline-none transition-colors duration-200 resize-vertical"
-                  placeholder="Please describe your issue or question in detail..."
-                />
-              </div>
-
-              <motion.button
-                type="submit"
-                disabled={isSubmitting}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className={`w-full bg-gradient-to-r from-neon-purple to-neon-blue text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-all duration-300 ${
-                  isSubmitting 
-                    ? 'opacity-50 cursor-not-allowed' 
-                    : 'hover:shadow-neon-purple/50'
-                }`}
-              >
-                {isSubmitting ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Sending...
-                  </div>
-                ) : (
-                  'Send Message'
-                )}
-              </motion.button>
-
-              <p className="text-gray-400 text-sm mt-4 text-center">
-                We typically respond within 2 hours during business hours
-              </p>
-            </form>
-          </motion.div>
-        </div>
-
-        {/* Quick Help Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.8 }}
-          className="mt-16 text-center"
-        >
-          <h2 className="text-3xl font-bold text-white mb-8">Quick Help</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="bg-dark-600 rounded-xl p-6">
-              <div className="text-3xl mb-4">❓</div>
-              <h3 className="text-neon-purple font-semibold mb-2">Check FAQ</h3>
-              <p className="text-gray-300 text-sm mb-4">Find answers to common questions</p>
-              <button className="text-neon-purple hover:text-neon-blue transition-colors duration-200">
-                View FAQ →
-              </button>
-            </div>
-            <div className="bg-dark-600 rounded-xl p-6">
-              <div className="text-3xl mb-4">📋</div>
-              <h3 className="text-neon-purple font-semibold mb-2">Order Status</h3>
-              <p className="text-gray-300 text-sm mb-4">Track your recent orders</p>
-              <button className="text-neon-purple hover:text-neon-blue transition-colors duration-200">
-                Track Order →
-              </button>
-            </div>
-            <div className="bg-dark-600 rounded-xl p-6">
-              <div className="text-3xl mb-4">💡</div>
-              <h3 className="text-neon-purple font-semibold mb-2">How It Works</h3>
-              <p className="text-gray-300 text-sm mb-4">Learn about our process</p>
-              <button className="text-neon-purple hover:text-neon-blue transition-colors duration-200">
-                Learn More →
-              </button>
-            </div>
           </div>
-        </motion.div>
-      </div>
+        </div>
+      </section>
+
+      {/* ── Categories Section ────────────────────────────── */}
+      <section className="bg-[#fef3c7] py-14 md:py-16">
+        <div className="max-w-6xl mx-auto px-6 md:px-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {categories.map((cat, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 * i }}
+                whileHover={{ y: -4 }}
+                className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm cursor-pointer transition-shadow duration-200"
+              >
+                <h3 className="font-semibold text-gray-900 text-[0.9375rem] mb-2">{cat.title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">{cat.description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
     </div>
   );
 };
