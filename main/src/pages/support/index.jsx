@@ -1,4 +1,7 @@
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+
+const HOVER = { y: -4, transition: { type: 'tween', duration: 0.18 } };
 
 const Support = () => {
   const heroCards = [
@@ -12,6 +15,7 @@ const Support = () => {
       ),
       title: 'Get Support',
       description: 'Need help with a top-up? Connect with our support team instantly.',
+      link: '/support/get-support',
     },
     {
       icon: (
@@ -22,6 +26,7 @@ const Support = () => {
       ),
       title: 'Contact Us',
       description: 'For bulk orders or any inquiries, talk to the Pixiekat team.',
+      link: '/support/contact-us',
     },
   ];
 
@@ -68,20 +73,21 @@ const Support = () => {
             {/* Right — action cards */}
             <div className="lg:flex-1 flex flex-col sm:flex-row gap-4">
               {heroCards.map((card, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 18 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.12 * (i + 1) }}
-                  whileHover={{ y: -4, boxShadow: '0 10px 32px rgba(0,0,0,0.10)' }}
-                  className="bg-white rounded-2xl p-6 flex-1 border border-gray-100 shadow-sm cursor-pointer transition-shadow duration-200"
-                >
-                  <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center mb-4 text-violet-600">
-                    {card.icon}
-                  </div>
-                  <h3 className="font-semibold text-gray-900 text-[0.9375rem] mb-2">{card.title}</h3>
-                  <p className="text-gray-500 text-sm leading-relaxed">{card.description}</p>
-                </motion.div>
+                <Link key={i} to={card.link} className="flex-1">
+                  <motion.div
+                    initial={{ opacity: 0, y: 18 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.12 * (i + 1) }}
+                    whileHover={HOVER}
+                    className="bg-white rounded-2xl p-6 h-full border border-gray-100 shadow-sm hover:shadow-lg cursor-pointer transition-shadow duration-200"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center mb-4 text-violet-600">
+                      {card.icon}
+                    </div>
+                    <h3 className="font-semibold text-gray-900 text-[0.9375rem] mb-2">{card.title}</h3>
+                    <p className="text-gray-500 text-sm leading-relaxed">{card.description}</p>
+                  </motion.div>
+                </Link>
               ))}
             </div>
 
@@ -99,8 +105,8 @@ const Support = () => {
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1 * i }}
-                whileHover={{ y: -4 }}
-                className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm cursor-pointer transition-shadow duration-200"
+                whileHover={HOVER}
+                className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg cursor-pointer transition-shadow duration-200"
               >
                 <h3 className="font-semibold text-gray-900 text-[0.9375rem] mb-2">{cat.title}</h3>
                 <p className="text-gray-500 text-sm leading-relaxed">{cat.description}</p>

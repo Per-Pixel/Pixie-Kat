@@ -12,6 +12,8 @@ const Games = lazy(() => import("./pages/games"));
 const Pricing = lazy(() => import("./pages/pricing"));
 const FAQ = lazy(() => import("./pages/faq"));
 const Support = lazy(() => import("./pages/support"));
+const GetSupportPage = lazy(() => import("./pages/support/GetSupportPage"));
+const ContactUsPage = lazy(() => import("./pages/support/ContactUsPage"));
 const HowItWorks = lazy(() => import("./pages/how-it-works"));
 const Auth = lazy(() => import("./pages/auth"));
 const AddMoneyPage = lazy(() => import("./pages/wallet/AddMoneyPage"));
@@ -95,6 +97,8 @@ function App() {
                   <Route path="/pricing" element={<Pricing />} />
                   <Route path="/faq" element={<FAQ />} />
                   <Route path="/support" element={<Support />} />
+                <Route path="/support/get-support" element={<GetSupportPage />} />
+                <Route path="/support/contact-us" element={<ContactUsPage />} />
                   <Route path="/how-it-works" element={<HowItWorks />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/login" element={<Auth />} />
