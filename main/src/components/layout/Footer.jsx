@@ -1,6 +1,7 @@
 import { FaLinkedinIn, FaFacebookF, FaTwitter } from "react-icons/fa";
 import { HiArrowUpRight } from "react-icons/hi2";
 import { useEffect, useRef, useMemo } from "react";
+import { Link } from "react-router-dom";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import MouseGlow from "../common/MouseGlow";
@@ -165,9 +166,9 @@ const Footer = () => {
 
           <nav className="footer-nav">
             {footerNavLinks.map((link) => (
-              <a key={link.label} href={link.href} className="footer-nav-link">
+              <Link key={link.label} to={link.href} className="footer-nav-link">
                 {link.label}
-              </a>
+              </Link>
             ))}
           </nav>
         </div>

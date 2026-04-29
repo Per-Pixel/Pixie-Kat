@@ -3,6 +3,7 @@ import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/all";
 import { TiLocationArrow } from "react-icons/ti";
 import { useRef, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Button from "../../../components/common/Button";
 import { BentoTilt } from "./Features";
 import SlideTextButton from "../../../animations/components/SlideTextButton";
@@ -14,6 +15,7 @@ import Loading from "../../../components/common/Loading";
 gsap.registerPlugin(ScrollTrigger);
 
 const Hero = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const jinxRef = useRef(null);
   const fazeLogoRef = useRef(null);
@@ -265,7 +267,7 @@ const Hero = () => {
                       title="Contact Support"
                       leftIcon={<TiLocationArrow />}
                       containerClass="bg-blue-50 text-xs py-2 px-4 text-black flex-center gap-1 mx-auto"
-                      onClick={() => console.log("Contact Support clicked")}
+                      onClick={() => navigate("/support/contact-us")}
                     />
                   </div>
                 </div>
@@ -293,6 +295,7 @@ const Hero = () => {
                 title="Popular Games"
                 description="Top up your favorite games instantly"
                 buttonText="View All Games"
+                onButtonClick={() => navigate("/games")}
                 enableTap={true}
               />
             </div>
@@ -381,6 +384,7 @@ const Hero = () => {
               title="Topup Now"
               leftIcon={<TiLocationArrow />}
               containerClass="bg-yellow-300 flex-center gap-1"
+              onClick={() => navigate("/games")}
             />
           </div>
         </div>

@@ -9,7 +9,8 @@ const FlipCard = ({
   description = "Explore our collection of top games",
   buttonText = "View All Games",
   forceFront = false,
-  enableTap = false
+  enableTap = false,
+  onButtonClick = null
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const showBack = forceFront ? false : isHovered;
@@ -83,7 +84,7 @@ const FlipCard = ({
             title={buttonText}
             leftIcon={<TiLocationArrow />}
             containerClass="bg-blue-50 text-sm py-2 px-6 text-black flex-center gap-1"
-            onClick={() => console.log("View all games clicked")}
+            onClick={onButtonClick ?? (() => {})}
           />
         </div>
       </div>
