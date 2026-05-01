@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Lock, Mail, UserRound, ArrowLeft, Headphones, Send } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, UserRound, ArrowLeft } from 'lucide-react';
 
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -357,43 +357,6 @@ const Auth = () => {
         </div>
       </div>
 
-      {/* ─── Floating Action Buttons (mobile/tablet) ────────────────────── */}
-      {/* Contact button */}
-      <motion.a
-        href="/support"
-        aria-label="Contact Support"
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.4, duration: 0.4 }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        className="fixed bottom-24 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg lg:hidden"
-        style={{ backgroundColor: '#DFDFF0', color: '#1a1a2e' }}
-      >
-        <Headphones className="h-6 w-6" />
-      </motion.a>
-
-      {/* Share button */}
-      <motion.button
-        type="button"
-        aria-label="Share"
-        onClick={() => {
-          if (navigator.share) {
-            navigator.share({ title: 'PixieKat', url: window.location.href });
-          } else {
-            navigator.clipboard.writeText(window.location.href);
-          }
-        }}
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.5, duration: 0.4 }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        className="fixed bottom-6 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg lg:hidden"
-        style={{ backgroundColor: '#e8a44a', color: '#fff' }}
-      >
-        <Send className="h-6 w-6" />
-      </motion.button>
     </div>
   );
 };

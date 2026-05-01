@@ -14,6 +14,8 @@ import Footer from "./components/layout/Footer";
 
 import BottomNav from "./components/layout/BottomNav";
 
+import FloatingActions from "./components/layout/FloatingActions";
+
 
 
 const HomePage = lazy(() => import("./pages/home"));
@@ -83,6 +85,8 @@ const AppShell = ({ children }) => {
       {!isWalletRoute && !isHomePage && !isAuthRoute ? <Footer /> : null}
 
       {!isWalletRoute ? <BottomNav /> : null}
+
+      {!isWalletRoute ? <FloatingActions /> : null}
 
     </>
 
