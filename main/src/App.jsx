@@ -68,6 +68,8 @@ const AppShell = ({ children }) => {
 
   const isHomePage = location.pathname === "/";
 
+  const isAuthRoute = ["/login", "/register", "/auth"].includes(location.pathname);
+
 
 
   return (
@@ -78,7 +80,7 @@ const AppShell = ({ children }) => {
 
       {children}
 
-      {!isWalletRoute && !isHomePage ? <Footer /> : null}
+      {!isWalletRoute && !isHomePage && !isAuthRoute ? <Footer /> : null}
 
       {!isWalletRoute ? <BottomNav /> : null}
 

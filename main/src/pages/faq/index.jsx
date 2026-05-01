@@ -2,14 +2,19 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageWrapper from '../../components/common/PageWrapper';
 
+const POWDER_BLUE = '#ADD8E6';
+const POWDER_BLUE_DARK = '#5BA4CF';
+const POWDER_BLUE_BG = '#EBF5FF';
+const BANNER_BG = '#0f2318';
+
 const FAQ = () => {
-  const [openItems, setOpenItems] = useState(new Set([0])); // First item open by default
+  const [activeCategory, setActiveCategory] = useState(0);
+  const [openItems, setOpenItems] = useState(new Set(['0-0']));
 
   const faqCategories = [
     {
       title: 'Payment & Billing',
       icon: '💳',
-      color: 'from-neon-purple to-neon-blue',
       questions: [
         {
           question: 'What payment methods do you accept?',
@@ -32,7 +37,6 @@ const FAQ = () => {
     {
       title: 'Delivery & Processing',
       icon: '⚡',
-      color: 'from-neon-blue to-neon-cyan',
       questions: [
         {
           question: 'How long does delivery take?',
@@ -55,7 +59,6 @@ const FAQ = () => {
     {
       title: 'Account & Membership',
       icon: '👤',
-      color: 'from-neon-cyan to-neon-pink',
       questions: [
         {
           question: 'Do I need to create an account to make a purchase?',
@@ -78,7 +81,6 @@ const FAQ = () => {
     {
       title: 'Games & Support',
       icon: '🎮',
-      color: 'from-neon-pink to-neon-purple',
       questions: [
         {
           question: 'Which games do you support?',
@@ -103,100 +105,144 @@ const FAQ = () => {
   const toggleItem = (categoryIndex, questionIndex) => {
     const itemId = `${categoryIndex}-${questionIndex}`;
     const newOpenItems = new Set(openItems);
-    
     if (newOpenItems.has(itemId)) {
       newOpenItems.delete(itemId);
     } else {
       newOpenItems.add(itemId);
     }
-    
     setOpenItems(newOpenItems);
   };
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
   };
 
-  const categoryVariants = {
+  const itemVariants = {
     hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        duration: 0.5
-      }
-    }
+    visible: { y: 0, opacity: 1, transition: { duration: 0.5, ease: 'easeOut' } }
   };
 
   return (
     <PageWrapper>
-      <div className="container mx-auto px-4">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
-        >
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
-            <span className="bg-gradient-to-r from-neon-purple to-neon-blue bg-clip-text text-transparent">
-              Frequently Asked Questions
-            </span>
-          </h1>
-          <p className="text-gray-300 text-lg md:text-xl max-w-3xl mx-auto">
-            Find answers to common questions about PixieKat's services, payments, and support
-          </p>
-        </motion.div>
+      <div className="text-gray-900">
 
-        {/* FAQ Categories */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="max-w-4xl mx-auto space-y-8"
-        >
-          {faqCategories.map((category, categoryIndex) => (
-            <motion.div
-              key={categoryIndex}
-              variants={categoryVariants}
-              className="bg-dark-600 rounded-2xl overflow-hidden shadow-xl"
-            >
-              {/* Category Header */}
-              <div className={`bg-gradient-to-r ${category.color} p-6`}>
-                <div className="flex items-center">
-                  <span className="text-3xl mr-4">{category.icon}</span>
-                  <h2 className="text-2xl font-bold text-white">{category.title}</h2>
+        <div className="container mx-auto px-4">
+
+          {/* ── Header ── */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-12"
+          >
+            <div className="relative inline-block">
+              <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
+                Frequently Asked{' '}
+                <span style={{ color: POWDER_BLUE }}>Questions</span>
+              </h1>
+              <span className="absolute -top-5 left-0 text-xl" style={{ color: POWDER_BLUE }}>✦</span>
+              <span className="absolute -top-3 right-0 text-sm" style={{ color: POWDER_BLUE }}>✦</span>
+              <span className="absolute bottom-4 -left-6 text-xs text-gray-400">✦</span>
+              <span className="absolute -bottom-1 -right-7 text-base" style={{ color: POWDER_BLUE }}>✦</span>
+            </div>
+            <p className="text-gray-600 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
+              Find answers to common questions about PixieKat&apos;s{' '}
+              <span className="font-semibold" style={{ color: POWDER_BLUE_DARK }}>services</span>,{' '}
+              <span className="font-semibold" style={{ color: POWDER_BLUE_DARK }}>payments</span>, and support
+            </p>
+          </motion.div>
+
+          {/* ── Category Tab Navigation ── */}
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="max-w-3xl mx-auto mb-8"
+          >
+            <div className="flex flex-wrap justify-center gap-3">
+              {faqCategories.map((category, index) => (
+                <motion.button
+                  key={index}
+                  variants={itemVariants}
+                  onClick={() => setActiveCategory(index)}
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="px-5 py-2 rounded-full border text-sm font-medium transition-all duration-200"
+                  style={
+                    activeCategory === index
+                      ? { borderColor: POWDER_BLUE, color: POWDER_BLUE_DARK, backgroundColor: POWDER_BLUE_BG }
+                      : { borderColor: '#d1d5db', color: '#4b5563', backgroundColor: '#ffffff' }
+                  }
+                >
+                  {category.icon} {category.title}
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* ── Active Category Accordion Panel ── */}
+          <motion.div
+            key={activeCategory}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="max-w-4xl mx-auto mb-16"
+          >
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
+
+              {/* Category header row */}
+              <div className="px-8 py-6 border-b border-gray-100 flex items-center gap-4">
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-2xl border-2 flex-shrink-0"
+                  style={{ backgroundColor: POWDER_BLUE_BG, borderColor: POWDER_BLUE }}
+                >
+                  {faqCategories[activeCategory].icon}
                 </div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {faqCategories[activeCategory].title}
+                </h2>
               </div>
 
               {/* Questions */}
-              <div className="p-6 space-y-4">
-                {category.questions.map((item, questionIndex) => {
-                  const itemId = `${categoryIndex}-${questionIndex}`;
+              <div className="px-8 py-2">
+                {faqCategories[activeCategory].questions.map((item, questionIndex) => {
+                  const itemId = `${activeCategory}-${questionIndex}`;
                   const isOpen = openItems.has(itemId);
 
                   return (
-                    <div key={questionIndex} className="border-b border-gray-700 last:border-b-0">
+                    <div key={questionIndex} className="border-b border-gray-100 last:border-b-0">
                       <button
-                        onClick={() => toggleItem(categoryIndex, questionIndex)}
-                        className="w-full text-left py-4 flex items-center justify-between hover:text-neon-purple transition-colors duration-200"
+                        onClick={() => toggleItem(activeCategory, questionIndex)}
+                        className="w-full text-left py-5 flex items-center justify-between group"
                       >
-                        <span className="text-white font-medium pr-4">{item.question}</span>
-                        <motion.span
+                        <span
+                          className="text-gray-900 font-medium pr-4 transition-colors duration-200 group-hover:text-[#5BA4CF]"
+                        >
+                          {item.question}
+                        </span>
+                        <motion.div
                           animate={{ rotate: isOpen ? 180 : 0 }}
                           transition={{ duration: 0.2 }}
-                          className="text-neon-purple text-xl flex-shrink-0"
+                          className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center border"
+                          style={
+                            isOpen
+                              ? { borderColor: POWDER_BLUE, backgroundColor: POWDER_BLUE_BG }
+                              : { borderColor: '#d1d5db', backgroundColor: '#f9fafb' }
+                          }
                         >
-                          ▼
-                        </motion.span>
+                          <svg
+                            className="w-3 h-3"
+                            fill="none"
+                            stroke={isOpen ? POWDER_BLUE_DARK : '#6b7280'}
+                            strokeWidth="2.5"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </motion.div>
                       </button>
-                      
+
                       <AnimatePresence>
                         {isOpen && (
                           <motion.div
@@ -206,8 +252,14 @@ const FAQ = () => {
                             transition={{ duration: 0.3, ease: 'easeInOut' }}
                             className="overflow-hidden"
                           >
-                            <div className="pb-4 text-gray-300 leading-relaxed">
-                              {item.answer}
+                            <div className="pb-5 text-gray-600 leading-relaxed flex gap-3">
+                              <span
+                                className="mt-0.5 font-bold flex-shrink-0"
+                                style={{ color: POWDER_BLUE }}
+                              >
+                                ✓
+                              </span>
+                              <span>{item.answer}</span>
                             </div>
                           </motion.div>
                         )}
@@ -216,40 +268,108 @@ const FAQ = () => {
                   );
                 })}
               </div>
-            </motion.div>
-          ))}
-        </motion.div>
 
-        {/* Contact Support Section */}
+            </div>
+          </motion.div>
+
+        </div>
+
+        {/* ── "Still have questions?" Dark Banner ── */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.8 }}
-          className="mt-16 text-center"
+          transition={{ duration: 0.7, delay: 0.45 }}
+          className="w-full mb-16 px-4"
         >
-          <div className="bg-gradient-to-r from-neon-purple to-neon-blue rounded-2xl p-8 max-w-2xl mx-auto">
-            <h3 className="text-2xl font-bold text-white mb-4">Still have questions?</h3>
-            <p className="text-gray-200 mb-6">
-              Our support team is available 24/7 to help you with any questions or concerns.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-white text-neon-purple font-bold py-3 px-6 rounded-xl hover:bg-gray-100 transition-colors duration-200"
-              >
-                Contact Support
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="border-2 border-white text-white font-bold py-3 px-6 rounded-xl hover:bg-white hover:text-neon-purple transition-colors duration-200"
-              >
-                WhatsApp Us
-              </motion.button>
+          <div
+            className="max-w-6xl mx-auto rounded-2xl overflow-hidden"
+            style={{ backgroundColor: BANNER_BG }}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 min-h-[280px]">
+
+              {/* Left — message */}
+              <div className="p-10 md:p-12 flex flex-col justify-center">
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+                  Still have{' '}
+                  <span style={{ color: POWDER_BLUE }}>questions?</span>
+                </h2>
+                <p className="text-gray-300 text-sm md:text-base leading-relaxed max-w-sm">
+                  Our support team is{' '}
+                  <span className="font-semibold" style={{ color: POWDER_BLUE }}>available 24/7</span>{' '}
+                  to help you with any questions or concerns. Whether it&apos;s about payments,
+                  deliveries, or your account — we&apos;re here for you.
+                </p>
+              </div>
+
+              {/* Right — actions */}
+              <div className="p-10 md:p-12 flex flex-col items-center justify-center gap-4 border-t border-white/10 md:border-t-0 md:border-l md:border-white/10 relative">
+                <span className="absolute top-6 right-10 text-xl" style={{ color: POWDER_BLUE }}>✦</span>
+                <span className="absolute top-10 left-8 text-xs text-white/40">✦</span>
+                <span className="absolute bottom-8 right-16 text-sm text-orange-400">✦</span>
+                <span className="absolute bottom-12 left-12 text-base text-white/30">✦</span>
+
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="font-bold py-3 px-6 rounded-xl transition-opacity duration-200 hover:opacity-90"
+                    style={{ backgroundColor: POWDER_BLUE, color: BANNER_BG }}
+                  >
+                    Contact Support
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="border-2 border-white/50 text-white font-bold py-3 px-6 rounded-xl hover:bg-white/10 transition-colors duration-200"
+                  >
+                    WhatsApp Us
+                  </motion.button>
+                </div>
+              </div>
+
             </div>
           </div>
         </motion.div>
+
+        <div className="container mx-auto px-4">
+
+          {/* ── Pre-footer CTA Card ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.85 }}
+            className="mt-4 mb-0 px-2"
+          >
+            <div
+              className="rounded-3xl px-8 py-16 md:py-20 text-center shadow-sm max-w-4xl mx-auto"
+              style={{
+                background: 'linear-gradient(165deg, #f8fafc 0%, #dce8f5 50%, #c5d8ef 100%)'
+              }}
+            >
+              <h2 className="text-3xl md:text-5xl font-bold text-gray-900 leading-tight mb-5">
+                Get answers.<br className="hidden sm:block" />
+                Play faster.
+              </h2>
+              <p className="text-gray-500 text-base md:text-lg mb-10 max-w-md mx-auto leading-relaxed">
+                Browse our FAQ or reach out anytime — our team is ready to help you top up without any{' '}
+                <span className="font-medium text-gray-700">hassle</span>.
+              </p>
+              <motion.button
+                whileHover={{ scale: 1.04, backgroundColor: '#111827', color: '#ffffff' }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ duration: 0.18 }}
+                className="inline-flex items-center gap-2 px-7 py-3 rounded-full border-2 border-gray-800 text-gray-800 font-semibold text-sm"
+                style={{ backgroundColor: 'transparent' }}
+              >
+                Browse Games
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </motion.button>
+            </div>
+          </motion.div>
+
+        </div>
       </div>
     </PageWrapper>
   );
