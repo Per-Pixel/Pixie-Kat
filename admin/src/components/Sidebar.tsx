@@ -13,7 +13,10 @@ import {
   Shield,
   ChevronDown,
   ChevronRight,
-  X
+  X,
+  Zap,
+  Package,
+  Users
 } from 'lucide-react';
 
 interface SubMenuItem {
@@ -41,6 +44,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const menuItems: MenuItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/dashboard' },
+    {
+      id: 'quick-actions',
+      label: 'Quick Actions',
+      icon: Zap,
+      subItems: [
+        { label: 'Add Product', path: '/quick/add-product' },
+        { label: 'Manage Users', path: '/quick/manage-users' }
+      ]
+    },
     {
       id: 'pages',
       label: 'Pages',

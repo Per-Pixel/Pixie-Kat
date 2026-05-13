@@ -85,6 +85,18 @@ export const findUserById = async (id) => {
   }
 };
 
+export const getAllUsers = async () => {
+  try {
+    const result = await pool.query(
+      'SELECT id, name, email, created_at FROM users ORDER BY created_at DESC'
+    );
+    return result.rows;
+  } catch (error) {
+    console.error('Error fetching all users:', error);
+    throw error;
+  }
+};
+
 export const closePool = async () => {
   await pool.end();
 };

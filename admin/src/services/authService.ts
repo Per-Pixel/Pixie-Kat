@@ -18,7 +18,7 @@ export const authService = {
 
         return {
           user: mockUser,
-          token: 'mock-jwt-token',
+          token: import.meta.env.VITE_ADMIN_API_KEY || 'pixiekat-admin-dev-key',
           refreshToken: 'mock-refresh-token',
         };
       }
@@ -51,7 +51,8 @@ export const authService = {
   async validateToken(token: string): Promise<User> {
     try {
       // Mock token validation for demo
-      if (token === 'mock-jwt-token') {
+      const validToken = import.meta.env.VITE_ADMIN_API_KEY || 'pixiekat-admin-dev-key';
+      if (token === validToken) {
         return {
           id: '1',
           email: 'admin@pixiekat.com',

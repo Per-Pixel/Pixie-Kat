@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   TrendingUp,
@@ -68,6 +69,8 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, change, changeType, i
 );
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
+
   const stats = [
     {
       title: 'Total Revenue',
@@ -327,22 +330,22 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="p-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
+              <button onClick={() => navigate('/quick/add-product')} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
                 <Package className="w-8 h-8 text-primary-600 mb-2" />
                 <p className="font-medium text-gray-900">Add Product</p>
                 <p className="text-sm text-gray-500">Create new product</p>
               </button>
-              <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
+              <button onClick={() => navigate('/quick/manage-users')} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
                 <Users className="w-8 h-8 text-primary-600 mb-2" />
                 <p className="font-medium text-gray-900">Manage Users</p>
                 <p className="text-sm text-gray-500">View all customers</p>
               </button>
-              <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
+              <button onClick={() => navigate('/orders')} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
                 <ShoppingCart className="w-8 h-8 text-primary-600 mb-2" />
                 <p className="font-medium text-gray-900">View Orders</p>
                 <p className="text-sm text-gray-500">Check recent orders</p>
               </button>
-              <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
+              <button onClick={() => navigate('/analytics')} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
                 <Eye className="w-8 h-8 text-primary-600 mb-2" />
                 <p className="font-medium text-gray-900">Analytics</p>
                 <p className="text-sm text-gray-500">View detailed stats</p>

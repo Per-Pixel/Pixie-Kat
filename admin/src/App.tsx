@@ -24,6 +24,8 @@ import Brokers from './pages/revenue/Brokers';
 import Referral from './pages/revenue/Referral';
 import Compose from './pages/messages/Compose';
 import Clients from './pages/auth/Clients';
+import AddProduct from './pages/AddProduct';
+import ManageUsers from './pages/ManageUsers';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -85,6 +87,9 @@ const AppRoutes: React.FC = () => {
         <Route path="pages/products" element={<Pages />} />
         <Route path="pages/about" element={<Pages />} />
         <Route path="pages/contact" element={<Pages />} />
+        {/* Quick Action Routes */}
+        <Route path="quick/add-product" element={<AddProduct />} />
+        <Route path="quick/manage-users" element={<ManageUsers />} />
       </Route>
     </Routes>
   );

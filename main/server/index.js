@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { initDb, findUserByEmail, createUser, findUserById } from './database-postgres.js';
+import { initDb, findUserByEmail, createUser, findUserById, getAllUsers } from './database-postgres.js';
 import { authMiddleware } from './middleware/auth.js';
 import { validateSignup, validateEmail } from './utils/validation.js';
 
@@ -19,7 +19,7 @@ app.use(helmet());
 
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? [process.env.CORS_ORIGIN]
-  : ['http://localhost:5173', 'http://localhost:5174'];
+  : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'];
 
 app.use(
   cors({
@@ -168,6 +168,39 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Get user error:', error);
     res.status(500).json({ message: 'An error occurred' });
+  }
+});
+
+const adminKeyMiddleware = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  const adminKey = process.env.ADMIN_API_KEY;
+
+  if (!adminKey) {
+    return res.status(500).json({ message: 'Admin API key not configured on server' });
+  }
+
+  if (!authHeader || authHeader !== `Bearer ${adminKey}`) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
+  next();
+};
+
+app.get('/api/admin/users', adminKeyMiddleware, async (req, res) => {
+  try {
+    const users = await getAllUsers();
+    res.json({
+      success: true,
+      users: users.map(u => ({
+        id: String(u.id),
+        name: u.name,
+        email: u.email,
+        joinedAt: u.created_at,
+      })),
+    });
+  } catch (error) {
+    console.error('Admin get users error:', error);
+    res.status(500).json({ message: 'Failed to fetch users' });
   }
 });
 
