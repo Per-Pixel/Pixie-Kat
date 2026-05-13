@@ -10,6 +10,7 @@ import {
   PencilLine,
   Search,
   UserPlus,
+  Settings,
 } from "lucide-react";
 import {
   FaFacebookF,
@@ -80,25 +81,6 @@ const socialIcons = [FaFacebookF, FaYoutube, FaInstagram, FaTwitter, FaTiktok, F
 
 const getPathnameSuffix = (pathname) => pathname.replace(/^\/account\/?/, "");
 
-const FloatingButtons = () => (
-  <div className="pointer-events-none fixed right-3 top-[68%] z-30 flex -translate-y-1/2 flex-col gap-3">
-    <button
-      type="button"
-      className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-md bg-[#5724ff] text-white shadow-[0_12px_20px_rgba(87,36,255,0.28)]"
-      aria-label="Support"
-    >
-      <Headset className="h-6 w-6" />
-    </button>
-    <button
-      type="button"
-      className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-md bg-[#5724ff] text-white shadow-[0_12px_20px_rgba(87,36,255,0.28)]"
-      aria-label="Download"
-    >
-      <Download className="h-6 w-6" />
-    </button>
-  </div>
-);
-
 const ProfileHero = ({ profile }) => (
   <div className="mt-4 rounded-[18px] bg-gradient-to-r from-[#5724ff] to-[#4FB7DD] px-4 py-4 text-white shadow-[0_16px_30px_rgba(87,36,255,0.2)]">
     <div className="flex items-center justify-between gap-3">
@@ -112,13 +94,16 @@ const ProfileHero = ({ profile }) => (
         </div>
       </div>
 
-      <div className="flex items-center gap-4 text-white">
+      <div className="flex items-center gap-2 text-white">
         <button type="button" className="rounded-md p-1.5" aria-label="Invite friend">
           <UserPlus className="h-6 w-6" />
         </button>
-        <button type="button" className="rounded-md p-1.5" aria-label="Edit profile">
+        <Link to="/account/edit-profile" className="rounded-md p-1.5" aria-label="Edit profile">
           <PencilLine className="h-6 w-6" />
-        </button>
+        </Link>
+        <Link to="/account/settings" className="rounded-md p-1.5" aria-label="Manage settings">
+          <Settings className="h-6 w-6" />
+        </Link>
       </div>
     </div>
   </div>
@@ -413,7 +398,6 @@ const DashboardPanel = ({ navigate }) => {
 const MobilePageScaffold = ({ children }) => (
   <div className="min-h-screen px-0 pb-24 pt-24 text-white" style={pageBackground}>
     <div className="px-3">{children}</div>
-    <FloatingButtons />
   </div>
 );
 

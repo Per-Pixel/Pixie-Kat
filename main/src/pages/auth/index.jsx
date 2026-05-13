@@ -50,6 +50,36 @@ const Auth = () => {
 
     try {
       if (isRegisterRoute) {
+        if (formData.password.length < 8) {
+          setError('Password must be at least 8 characters long');
+          setIsLoading(false);
+          return;
+        }
+
+        if (!/[a-z]/.test(formData.password)) {
+          setError('Password must contain at least one lowercase letter');
+          setIsLoading(false);
+          return;
+        }
+
+        if (!/[A-Z]/.test(formData.password)) {
+          setError('Password must contain at least one uppercase letter');
+          setIsLoading(false);
+          return;
+        }
+
+        if (!/[0-9]/.test(formData.password)) {
+          setError('Password must contain at least one number');
+          setIsLoading(false);
+          return;
+        }
+
+        if (!/[!@#$%^&*(),.?":{}|<>\-_]/.test(formData.password)) {
+          setError('Password must contain at least one special character');
+          setIsLoading(false);
+          return;
+        }
+
         if (formData.password !== formData.confirmPassword) {
           setError('Passwords do not match');
           setIsLoading(false);

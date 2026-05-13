@@ -1,9 +1,11 @@
 import { useMemo } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate, Routes, Route } from "react-router-dom";
 
 import { useAuth } from "../../contexts/AuthContext";
 import DesktopAccountView from "./DesktopAccountView";
 import MobileAccountView from "./MobileAccountView";
+import EditProfilePage from "./EditProfilePage";
+import SettingsPage from "./SettingsPage";
 import { getAccountProfile, pageBackground } from "./accountShared";
 
 const AccountPage = () => {
@@ -30,6 +32,17 @@ const AccountPage = () => {
     logout();
     navigate("/", { replace: true });
   };
+
+  const isEditProfile = location.pathname.endsWith("/edit-profile");
+  const isSettings = location.pathname.endsWith("/settings");
+
+  if (isEditProfile) {
+    return <EditProfilePage profile={profile} />;
+  }
+
+  if (isSettings) {
+    return <SettingsPage />;
+  }
 
   return (
     <>
