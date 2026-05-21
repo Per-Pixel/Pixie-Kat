@@ -114,11 +114,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const token = localStorage.getItem('admin_token');
       if (!token) return;
 
+      // Only JWTs (header.payload.signature) carry an exp claim we can read.
+      // Opaque/dev tokens are validated server-side; skip silently here.
+      const parts = token.split('.');
+      if (parts.length !== 3) return;
+
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const payload = JSON.parse(atob(parts[1]));
+        if (typeof payload?.exp !== 'number') return;
+
         const expiryTime = payload.exp * 1000;
-        const currentTime = Date.now();
-        const timeUntilExpiry = expiryTime - currentTime;
+        const timeUntilExpiry = expiryTime - Date.now();
 
         // Refresh token 5 minutes before expiry
         if (timeUntilExpiry < 5 * 60 * 1000 && timeUntilExpiry > 0) {
@@ -126,9 +132,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
             // Silent fail - user will be logged out on next API call
           });
         }
-      } catch (error) {
-        // Invalid token format
-        logout();
+      } catch {
+        // Unparseable token: don't force logout here.
+        // The next authenticated API call will 401 if it's truly invalid.
       }
     };
 
