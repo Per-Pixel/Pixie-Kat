@@ -65,7 +65,7 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     // Send error to external service in production
-    if (process.env.NODE_ENV === 'production') {
+    if (import.meta.env.PROD) {
       this.reportErrorToService(error, errorInfo);
     }
   }
@@ -110,7 +110,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private renderErrorDetails = () => {
     const { error, errorInfo, errorId } = this.state;
-    const { showDetails = process.env.NODE_ENV === 'development' } = this.props;
+    const { showDetails = import.meta.env.DEV } = this.props;
 
     if (!showDetails || !error) return null;
 
@@ -240,7 +240,7 @@ export const useErrorHandler = () => {
     const appError = errorHandler.handleError(error, context);
     
     // In development, throw the error to trigger error boundary
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       throwError(new Error(appError.message));
     }
     

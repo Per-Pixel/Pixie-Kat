@@ -8,7 +8,6 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Overview from './pages/Overview';
 import Products from './pages/Products';
-import Users from './pages/Users';
 import Orders from './pages/Orders';
 import Games from './pages/Games';
 import Messages from './pages/Messages';
@@ -59,7 +58,7 @@ const AppRoutes: React.FC = () => {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="overview" element={<Overview />} />
         <Route path="products" element={<Products />} />
-        <Route path="users" element={<Users />} />
+        <Route path="users" element={<ManageUsers />} />
         <Route path="orders" element={<Orders />} />
         <Route path="games" element={<Games />} />
         <Route path="messages" element={<Messages />} />
@@ -80,8 +79,9 @@ const AppRoutes: React.FC = () => {
         <Route path="messages/history" element={<Messages />} />
         {/* Auth Routes */}
         <Route path="auth/clients" element={<Clients />} />
-        <Route path="auth/broker" element={<Users />} />
-        <Route path="auth/admin" element={<Users />} />
+        <Route path="auth/users" element={<ManageUsers />} />
+        <Route path="auth/broker" element={<ManageUsers />} />
+        <Route path="auth/admin" element={<ManageUsers />} />
         {/* Page Management Routes */}
         <Route path="pages/homepage" element={<Pages />} />
         <Route path="pages/products" element={<Pages />} />

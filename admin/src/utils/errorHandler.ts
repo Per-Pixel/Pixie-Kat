@@ -218,7 +218,7 @@ export class ErrorHandler {
     }
 
     // Send to external logging service in production
-    if (process.env.NODE_ENV === 'production') {
+    if (import.meta.env.PROD) {
       this.sendToLoggingService(error);
     }
   }
@@ -268,7 +268,7 @@ export class ErrorHandler {
   }
 
   // Send error to external logging service
-  private sendToLoggingService(error: AppError): void {
+  private sendToLoggingService(_error: AppError): void {
     // Implement external logging service integration
     // e.g., Sentry, LogRocket, etc.
     try {

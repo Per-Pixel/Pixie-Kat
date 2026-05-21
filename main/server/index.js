@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { initDb, findUserByEmail, createUser, findUserById, getAllUsers } from './database-postgres.js';
+import { initDb, findUserByEmail, createUser, findUserById, getAllUsers, updateUserById, softDeleteUserById } from './database-postgres.js';
 import { authMiddleware } from './middleware/auth.js';
 import { validateSignup, validateEmail } from './utils/validation.js';
 
@@ -195,12 +195,117 @@ app.get('/api/admin/users', adminKeyMiddleware, async (req, res) => {
         id: String(u.id),
         name: u.name,
         email: u.email,
+        phone: u.phone,
+        role: u.role,
+        status: u.status,
         joinedAt: u.created_at,
+        updatedAt: u.updated_at,
       })),
     });
   } catch (error) {
     console.error('Admin get users error:', error);
     res.status(500).json({ message: 'Failed to fetch users' });
+  }
+});
+
+app.patch('/api/admin/users/:id', adminKeyMiddleware, async (req, res) => {
+  try {
+    if (!/^\d+$/.test(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
+
+    const { name, email, phone, role, status } = req.body;
+    const allowedRoles = new Set(['user', 'admin', 'reseller', 'support']);
+    const allowedStatuses = new Set(['active', 'inactive', 'suspended']);
+    const updates = {};
+
+    if (name !== undefined) {
+      const trimmedName = String(name).trim();
+      if (!trimmedName) {
+        return res.status(400).json({ message: 'Name is required' });
+      }
+      if (trimmedName.length > 100) {
+        return res.status(400).json({ message: 'Name must be 100 characters or less' });
+      }
+      updates.name = trimmedName;
+    }
+
+    if (email !== undefined) {
+      const normalizedEmail = String(email).trim().toLowerCase();
+      if (!validateEmail(normalizedEmail)) {
+        return res.status(400).json({ message: 'Valid email is required' });
+      }
+      updates.email = normalizedEmail;
+    }
+
+    if (phone !== undefined) {
+      const normalizedPhone = String(phone).trim();
+      updates.phone = normalizedPhone || null;
+    }
+
+    if (role !== undefined) {
+      if (!allowedRoles.has(role)) {
+        return res.status(400).json({ message: 'Invalid role' });
+      }
+      updates.role = role;
+    }
+
+    if (status !== undefined) {
+      if (!allowedStatuses.has(status)) {
+        return res.status(400).json({ message: 'Invalid status' });
+      }
+      updates.status = status;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'No valid user fields provided' });
+    }
+
+    const updatedUser = await updateUserById(req.params.id, updates);
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: String(updatedUser.id),
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        role: updatedUser.role,
+        status: updatedUser.status,
+        joinedAt: updatedUser.created_at,
+        updatedAt: updatedUser.updated_at,
+      },
+    });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ message: 'Email already registered' });
+    }
+
+    console.error('Admin update user error:', error);
+    res.status(500).json({ message: 'Failed to update user' });
+  }
+});
+
+app.delete('/api/admin/users/:id', adminKeyMiddleware, async (req, res) => {
+  try {
+    if (!/^\d+$/.test(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
+
+    const deletedUser = await softDeleteUserById(req.params.id);
+
+    if (!deletedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Admin delete user error:', error);
+    res.status(500).json({ message: 'Failed to delete user' });
   }
 });
 

@@ -32,6 +32,43 @@ export const initDb = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    await client.query(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS phone VARCHAR(32),
+        ADD COLUMN IF NOT EXISTS role VARCHAR(32) NOT NULL DEFAULT 'user',
+        ADD COLUMN IF NOT EXISTS status VARCHAR(32) NOT NULL DEFAULT 'active',
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP
+    `);
+
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'users_role_check'
+            AND conrelid = 'users'::regclass
+        ) THEN
+          ALTER TABLE users
+            ADD CONSTRAINT users_role_check
+            CHECK (role IN ('user', 'admin', 'reseller', 'support'));
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'users_status_check'
+            AND conrelid = 'users'::regclass
+        ) THEN
+          ALTER TABLE users
+            ADD CONSTRAINT users_status_check
+            CHECK (status IN ('active', 'inactive', 'suspended'));
+        END IF;
+      END
+      $$;
+    `);
     
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)
@@ -49,7 +86,7 @@ export const initDb = async () => {
 export const findUserByEmail = async (email) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
+      'SELECT * FROM users WHERE email = $1 AND deleted_at IS NULL',
       [email.toLowerCase()]
     );
     return result.rows[0] || null;
@@ -75,7 +112,7 @@ export const createUser = async (name, email, passwordHash) => {
 export const findUserById = async (id) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, email, created_at FROM users WHERE id = $1',
+      'SELECT id, name, email, phone, role, status, created_at, updated_at FROM users WHERE id = $1 AND deleted_at IS NULL',
       [id]
     );
     return result.rows[0] || null;
@@ -88,11 +125,67 @@ export const findUserById = async (id) => {
 export const getAllUsers = async () => {
   try {
     const result = await pool.query(
-      'SELECT id, name, email, created_at FROM users ORDER BY created_at DESC'
+      'SELECT id, name, email, phone, role, status, created_at, updated_at FROM users WHERE deleted_at IS NULL ORDER BY created_at DESC'
     );
     return result.rows;
   } catch (error) {
     console.error('Error fetching all users:', error);
+    throw error;
+  }
+};
+
+export const updateUserById = async (id, updates) => {
+  try {
+    const result = await pool.query(
+      `
+        UPDATE users
+        SET
+          name = COALESCE($2, name),
+          email = COALESCE($3, email),
+          phone = CASE WHEN $7 THEN $4 ELSE phone END,
+          role = COALESCE($5, role),
+          status = COALESCE($6, status),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+          AND deleted_at IS NULL
+        RETURNING id, name, email, phone, role, status, created_at, updated_at
+      `,
+      [
+        id,
+        updates.name,
+        updates.email,
+        updates.phone,
+        updates.role,
+        updates.status,
+        Object.prototype.hasOwnProperty.call(updates, 'phone'),
+      ]
+    );
+
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('Error updating user by ID:', error);
+    throw error;
+  }
+};
+
+export const softDeleteUserById = async (id) => {
+  try {
+    const result = await pool.query(
+      `
+        UPDATE users
+        SET
+          deleted_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+          AND deleted_at IS NULL
+        RETURNING id
+      `,
+      [id]
+    );
+
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('Error soft deleting user by ID:', error);
     throw error;
   }
 };
