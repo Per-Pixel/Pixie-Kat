@@ -5,7 +5,6 @@ import {
   Search,
   Filter,
   Eye,
-  Edit,
   Trash2,
   RefreshCw,
   AlertCircle,
@@ -20,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { api } from '../services/api';
+import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 
 interface RegisteredUser {
@@ -68,16 +68,27 @@ const ManageUsers: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.get<{ success: boolean; users: RegisteredUser[] }>('/admin/users');
-      const enrichedUsers = response.data.users.map((u) => ({
-        ...u,
-        status: u.status || 'active' as const,
+      const { data: rows, error: sbError } = await supabase
+        .from('profiles')
+        .select('id, email, name, phone, role, status, created_at, updated_at')
+        .order('created_at', { ascending: false });
+
+      if (sbError) throw sbError;
+
+      const enrichedUsers = (rows ?? []).map((u: any) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        phone: u.phone,
         role: u.role || 'user',
+        status: u.status || 'active',
+        joinedAt: u.created_at,
+        updatedAt: u.updated_at,
       }));
       setUsers(enrichedUsers);
       setFilteredUsers(enrichedUsers);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load users');
+      setError(err.message || 'Failed to load users');
     } finally {
       setLoading(false);
     }
@@ -135,23 +146,27 @@ const ManageUsers: React.FC = () => {
   ) => {
     try {
       setProcessingAction(`${userId}:${status}`);
-      await api.patch(`/admin/users/${userId}`, { status });
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+      if (error) throw error;
       toast.success(successMessage);
       await fetchUsers();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to update user');
+      toast.error(err.message || 'Failed to update user');
     } finally {
       setProcessingAction(null);
     }
   };
 
   const deleteUser = async (userId: string) => {
-    if (!confirm('Delete this user?')) return;
+    if (!confirm('Permanently delete this user? This cannot be undone.')) return;
 
     try {
       setProcessingAction(`${userId}:delete`);
-      await api.delete(`/admin/users/${userId}`);
-      toast.success('User deleted');
+      await api.delete(`/admin/users/${userId}`, { data: { confirmation: 'DELETE' } });
+      toast.success('User permanently deleted');
       await fetchUsers();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to delete user');
@@ -172,17 +187,21 @@ const ManageUsers: React.FC = () => {
       setProcessingAction(`bulk:${action}`);
 
       switch (action) {
-        case 'activate':
-          await Promise.all(userIds.map((id) => api.patch(`/admin/users/${id}`, { status: 'active' })));
+        case 'activate': {
+          const { error } = await supabase.from('profiles').update({ status: 'active', updated_at: new Date().toISOString() }).in('id', userIds);
+          if (error) throw error;
           toast.success(`Activated ${count} user(s)`);
           break;
-        case 'deactivate':
-          await Promise.all(userIds.map((id) => api.patch(`/admin/users/${id}`, { status: 'inactive' })));
+        }
+        case 'deactivate': {
+          const { error } = await supabase.from('profiles').update({ status: 'inactive', updated_at: new Date().toISOString() }).in('id', userIds);
+          if (error) throw error;
           toast.success(`Deactivated ${count} user(s)`);
           break;
+        }
         case 'delete':
-          if (!confirm(`Are you sure you want to delete ${count} user(s)?`)) return;
-          await Promise.all(userIds.map((id) => api.delete(`/admin/users/${id}`)));
+          if (!confirm(`Permanently delete ${count} user(s)? This cannot be undone.`)) return;
+          await Promise.all(userIds.map((id) => api.delete(`/admin/users/${id}`, { data: { confirmation: 'DELETE' } })));
           toast.success(`Deleted ${count} user(s)`);
           break;
       }
@@ -196,22 +215,6 @@ const ManageUsers: React.FC = () => {
     }
   };
 
-  const openEditModal = (userId: string) => {
-    const user = users.find((item) => item.id === userId);
-    if (!user) {
-      toast.error('User not found');
-      return;
-    }
-
-    setEditingUser(user);
-    setEditForm({
-      name: user.name,
-      email: user.email,
-      phone: user.phone || '',
-      role: user.role || 'user',
-      status: user.status || 'active',
-    });
-  };
 
   const handleEditFormChange = <K extends keyof EditUserForm>(
     field: K,
@@ -243,13 +246,18 @@ const ManageUsers: React.FC = () => {
 
     try {
       setSavingUser(true);
-      await api.patch(`/admin/users/${editingUser.id}`, {
-        name,
-        email,
-        phone: editForm.phone.trim(),
-        role: editForm.role,
-        status: editForm.status,
-      });
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          name,
+          phone: editForm.phone.trim() || null,
+          role: editForm.role,
+          status: editForm.status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', editingUser.id);
+
+      if (updateError) throw updateError;
 
       toast.success('User updated');
       setEditingUser(null);
@@ -265,10 +273,8 @@ const ManageUsers: React.FC = () => {
     setActionMenuOpen(null);
     switch (action) {
       case 'view':
-        toast('User view coming soon');
-        break;
       case 'edit':
-        openEditModal(userId);
+        navigate(`/users/${userId}`);
         break;
       case 'email':
         toast('Email user coming soon');
@@ -587,18 +593,11 @@ const ManageUsers: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2 relative">
                         <button
-                          onClick={() => handleUserAction(user.id, 'view')}
+                          onClick={() => navigate(`/users/${user.id}`)}
                           className="text-primary-600 hover:text-primary-900 p-1"
-                          title="View"
+                          title="View / Edit"
                         >
                           <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => openEditModal(user.id)}
-                          className="text-primary-600 hover:text-primary-900 p-1"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleUserAction(user.id, 'email')}

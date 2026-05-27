@@ -25,6 +25,7 @@ import Compose from './pages/messages/Compose';
 import Clients from './pages/auth/Clients';
 import AddProduct from './pages/AddProduct';
 import ManageUsers from './pages/ManageUsers';
+import UserDetail from './pages/users/UserDetail';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -59,6 +60,7 @@ const AppRoutes: React.FC = () => {
         <Route path="overview" element={<Overview />} />
         <Route path="products" element={<Products />} />
         <Route path="users" element={<ManageUsers />} />
+        <Route path="users/:id" element={<UserDetail />} />
         <Route path="orders" element={<Orders />} />
         <Route path="games" element={<Games />} />
         <Route path="messages" element={<Messages />} />

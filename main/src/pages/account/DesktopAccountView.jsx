@@ -1,6 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useAuth } from "../../contexts/AuthContext";
+import { supabase } from "../../lib/supabase";
 import {
   ArrowRight,
   CheckCircle2,
@@ -189,31 +191,45 @@ const ProfilePanel = ({ profile }) => (
     <SectionCard>
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-          <div className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#e8dcff] via-white to-[#9a82ff] p-[5px] shadow-[0_14px_26px_rgba(122,97,255,0.2)]">
-            <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[#7a5bff] to-[#b097ff] text-2xl font-black text-white">
-              {profile.initials}
+          <Link to="/account/edit-profile" className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#e8dcff] via-white to-[#9a82ff] p-[5px] shadow-[0_14px_26px_rgba(122,97,255,0.2)] hover:opacity-90 transition-opacity">
+            <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[#7a5bff] to-[#b097ff] text-2xl font-black text-white overflow-hidden">
+              {profile.avatarUrl
+                ? <img src={profile.avatarUrl} alt={profile.displayName} className="h-full w-full object-cover rounded-full" />
+                : profile.initials
+              }
             </div>
             <span className="absolute -bottom-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-md">
               Update
             </span>
-          </div>
+          </Link>
 
           <div>
             <h2 className="text-2xl font-bold text-slate-950">{profile.displayName}</h2>
+            {profile.username && (
+              <p className="text-sm text-slate-400 mt-0.5">@{profile.username}</p>
+            )}
             <div className="mt-3 space-y-2 text-slate-600">
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-[#6c49ff]" />
                 <span className="text-base">{profile.email}</span>
+                {profile.emailVerified && (
+                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">Verified</span>
+                )}
               </div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Primary saved number</p>
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-emerald-500" />
-                <span className="text-base">{profile.phone}</span>
-              </div>
+              {profile.phone ? (
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-emerald-500" />
+                  <span className="text-base">{profile.phone}</span>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-400 italic">No phone number on file.
+                  <Link to="/account/edit-profile" className="ml-1 text-[#6c49ff] font-medium hover:underline">Add one</Link>
+                </p>
+              )}
             </div>
-            <p className="mt-4 max-w-xl text-sm text-slate-500">
-              Profile picture will use a default image if no photo is set. Your account details are available after login and follow the wallet dashboard styling from the provided references.
-            </p>
+            {profile.bio && (
+              <p className="mt-3 max-w-xl text-sm text-slate-500">{profile.bio}</p>
+            )}
           </div>
         </div>
 
@@ -315,67 +331,118 @@ const OrdersPanel = () => (
   </div>
 );
 
-const WalletPanel = ({ profile }) => (
-  <div className="space-y-7">
-    <div>
-      <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500">Account</p>
-      <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-[2.55rem]">My Wallet</h1>
-    </div>
+const txTypeLabel = {
+  credit: "Credit", debit: "Debit", purchase: "Purchase",
+  refund: "Refund", referral_bonus: "Referral Bonus", reward_redemption: "Reward",
+};
 
-    <SectionCard>
-      <div className="rounded-[24px] bg-gradient-to-r from-[#6c49ff] via-[#7b58ff] to-[#9f84ff] p-5 text-white shadow-[0_16px_30px_rgba(108,73,255,0.28)] sm:p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-sm text-white/80">Wallet balance - Pixie Coins</p>
-            <div className="mt-2 flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-200 text-xs font-black text-amber-900">
-                PKS
-              </span>
-              <p className="text-5xl font-black tracking-tight">{profile.walletBalance}</p>
+const WalletPanel = ({ profile }) => {
+  const { user } = useAuth();
+  const [transactions, setTransactions] = useState([]);
+  const [txLoading, setTxLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from("wallet_transactions")
+      .select("id, type, amount, balance_after, reference, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        setTransactions(data ?? []);
+        setTxLoading(false);
+      });
+  }, [user?.id]);
+
+  const formatTs = (ts) => new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  return (
+    <div className="space-y-7">
+      <div>
+        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500">Account</p>
+        <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-[2.55rem]">My Wallet</h1>
+      </div>
+
+      <SectionCard>
+        <div className="rounded-[24px] bg-gradient-to-r from-[#6c49ff] via-[#7b58ff] to-[#9f84ff] p-5 text-white shadow-[0_16px_30px_rgba(108,73,255,0.28)] sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm text-white/80">Wallet balance — Pixie Coins</p>
+              <div className="mt-2 flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-200 text-xs font-black text-amber-900">PKS</span>
+                <p className="text-5xl font-black tracking-tight">{Number(profile.walletBalance).toFixed(2)}</p>
+              </div>
             </div>
-          </div>
-
-          <Link
-            to="/games/mobile-legends/add-money"
-            className="inline-flex h-14 items-center justify-center rounded-full bg-white px-7 text-lg font-bold text-[#6c49ff] shadow-[0_12px_24px_rgba(0,0,0,0.12)] transition hover:scale-[1.01]"
-          >
-            + Add wallet balance
-          </Link>
-        </div>
-      </div>
-
-      <div className="mt-7 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div>
-          <h2 className="text-2xl font-extrabold tracking-tight text-slate-950">Wallet transactions</h2>
-          <div className="mt-5 flex flex-wrap gap-3">
-            {walletFilters.map((filter) => (
-              <FilterPill key={filter.label} {...filter} />
-            ))}
+            <Link
+              to="/games"
+              className="inline-flex h-14 items-center justify-center rounded-full bg-white px-7 text-lg font-bold text-[#6c49ff] shadow-[0_12px_24px_rgba(0,0,0,0.12)] transition hover:scale-[1.01]"
+            >
+              + Top Up
+            </Link>
           </div>
         </div>
 
-        <input
-          type="text"
-          placeholder="Search by Order ID"
-          className="h-12 w-full rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-[#8b6dff] xl:mt-10 xl:w-64"
-        />
-      </div>
+        <div className="mt-7">
+          <h2 className="text-2xl font-extrabold tracking-tight text-slate-950 mb-5">Transaction History</h2>
 
-      <div className="mt-7 min-h-40 rounded-[22px] border border-dashed border-slate-200 bg-slate-50/80 p-6">
-        <p className="text-2xl font-medium text-slate-500">No transactions found.</p>
-        <p className="mt-10 text-sm text-slate-400">No wallet transactions to display</p>
-      </div>
-
-      <div className="mt-6 flex justify-end">
-        <div className="inline-flex items-center gap-4 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm text-slate-500">
-          <span>&lsaquo;</span>
-          <span className="rounded-full bg-slate-100 px-4 py-1 font-semibold text-slate-600">Page 1 / 1</span>
-          <span>&rsaquo;</span>
+          {txLoading ? (
+            <div className="flex items-center justify-center py-10 text-slate-400 text-sm gap-2">
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+              Loading transactions…
+            </div>
+          ) : transactions.length === 0 ? (
+            <div className="min-h-40 rounded-[22px] border border-dashed border-slate-200 bg-slate-50/80 p-8 text-center">
+              <p className="text-lg font-medium text-slate-500">No transactions yet.</p>
+              <p className="mt-2 text-sm text-slate-400">Your wallet history will appear here after your first top-up.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-[22px] border border-slate-200 bg-white">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/80">
+                    <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">Type</th>
+                    <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">Amount</th>
+                    <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">Balance After</th>
+                    <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">Reference</th>
+                    <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {transactions.map((tx) => {
+                    const isPos = tx.amount > 0;
+                    return (
+                      <tr key={tx.id} className="hover:bg-[#f5f3ff] transition">
+                        <td className="whitespace-nowrap px-5 py-4">
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            isPos ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
+                          }`}>
+                            {txTypeLabel[tx.type] ?? tx.type}
+                          </span>
+                        </td>
+                        <td className={`whitespace-nowrap px-5 py-4 font-bold ${
+                          isPos ? "text-emerald-600" : "text-red-500"
+                        }`}>
+                          {isPos ? "+" : ""}PKS {Math.abs(tx.amount).toFixed(2)}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4 text-slate-600">PKS {Number(tx.balance_after).toFixed(2)}</td>
+                        <td className="px-5 py-4 text-slate-500 max-w-[200px] truncate">{tx.reference ?? "—"}</td>
+                        <td className="whitespace-nowrap px-5 py-4 text-slate-400">{formatTs(tx.created_at)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      </div>
-    </SectionCard>
-  </div>
-);
+      </SectionCard>
+    </div>
+  );
+};
 
 const RewardsPanel = () => (
   <div className="space-y-7">

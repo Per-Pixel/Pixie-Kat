@@ -1,14 +1,26 @@
+﻿/**
+ * Pixie-Kat Admin Proxy Server
+ *
+ * Handles ONLY privileged operations requiring the Supabase service role key.
+ * All regular data ops (user list, profile reads/writes, settings) now go
+ * through the Supabase client directly with RLS enforcement.
+ *
+ * Endpoints:
+ *   POST   /api/admin/users/:id/force-logout    Revoke all sessions
+ *   POST   /api/admin/users/:id/disable-2fa     Unenroll all MFA factors
+ *   POST   /api/admin/users/:id/reset-password  Send password reset email
+ *   POST   /api/admin/users/:id/change-email    Override email in auth.users
+ *   POST   /api/admin/users/:id/status          Update status + audit log
+ *   DELETE /api/admin/users/:id                 Hard-delete from auth.users
+ *   POST   /api/admin/wallet/adjust             Atomic wallet credit/debit
+ */
+
 import express from 'express';
-import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { initDb, findUserByEmail, createUser, findUserById, getAllUsers, updateUserById, softDeleteUserById } from './database-postgres.js';
-import { authMiddleware } from './middleware/auth.js';
-import { validateSignup, validateEmail } from './utils/validation.js';
+import { supabaseAdmin, verifyAdminRequest } from './supabase-admin.js';
 
 dotenv.config();
 
@@ -16,316 +28,275 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(helmet());
+app.use(express.json());
 
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? [process.env.CORS_ORIGIN]
   : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'];
 
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-  })
-);
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 
-app.use(express.json());
-app.use(cookieParser());
-
-const globalLimiter = rateLimit({
+const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Too many requests from this IP, please try again later',
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
 });
+app.use('/api/', limiter);
 
-app.use('/api/', globalLimiter);
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: 'Too many attempts, please try again after 15 minutes',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-app.post('/api/auth/signup', authLimiter, async (req, res) => {
-  try {
-    const { name, email, password, confirmPassword } = req.body;
-
-    const validation = validateSignup(name, email, password, confirmPassword);
-    if (!validation.valid) {
-      return res.status(400).json({ message: validation.error });
-    }
-
-    const existingUser = await findUserByEmail(email);
-    if (existingUser) {
-      return res.status(400).json({ message: 'Email already registered' });
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    const userId = await createUser(name.trim(), email, passwordHash);
-
-    const token = jwt.sign(
-      { userId, email: email.toLowerCase(), name: name.trim() },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 1000 * 60 * 60 * 24 * 7,
-    });
-
-    res.status(201).json({
-      success: true,
-      user: {
-        id: userId,
-        name: name.trim(),
-        email: email.toLowerCase(),
-      },
-    });
-  } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({ message: 'An error occurred during signup' });
-  }
-});
-
-app.post('/api/auth/login', authLimiter, async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !validateEmail(email)) {
-      return res.status(400).json({ message: 'Invalid email or password' });
-    }
-
-    const user = await findUserByEmail(email);
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid email or password' });
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    if (!isPasswordValid) {
-      return res.status(400).json({ message: 'Invalid email or password' });
-    }
-
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, name: user.name },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 1000 * 60 * 60 * 24 * 7,
-    });
-
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-      },
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'An error occurred during login' });
-  }
-});
-
-app.post('/api/auth/logout', (req, res) => {
-  res.clearCookie('token', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-  });
-
-  res.json({ success: true, message: 'Logged out successfully' });
-});
-
-app.get('/api/auth/me', authMiddleware, async (req, res) => {
-  try {
-    const user = await findUserById(req.user.userId);
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-      },
-    });
-  } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({ message: 'An error occurred' });
-  }
-});
-
-const adminKeyMiddleware = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  const adminKey = process.env.ADMIN_API_KEY;
-
-  if (!adminKey) {
-    return res.status(500).json({ message: 'Admin API key not configured on server' });
-  }
-
-  if (!authHeader || authHeader !== `Bearer ${adminKey}`) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
-
+// Auth middleware — verifies Supabase JWT and checks admin/support role
+const requireAdmin = async (req, res, next) => {
+  const { error, profile } = await verifyAdminRequest(req.headers.authorization);
+  if (error) return res.status(401).json({ success: false, message: error });
+  req.adminProfile = profile;
   next();
 };
 
-app.get('/api/admin/users', adminKeyMiddleware, async (req, res) => {
-  try {
-    const users = await getAllUsers();
-    res.json({
-      success: true,
-      users: users.map(u => ({
-        id: String(u.id),
-        name: u.name,
-        email: u.email,
-        phone: u.phone,
-        role: u.role,
-        status: u.status,
-        joinedAt: u.created_at,
-        updatedAt: u.updated_at,
-      })),
-    });
-  } catch (error) {
-    console.error('Admin get users error:', error);
-    res.status(500).json({ message: 'Failed to fetch users' });
+const requireSuperAdmin = async (req, res, next) => {
+  const { error, profile } = await verifyAdminRequest(req.headers.authorization);
+  if (error) return res.status(401).json({ success: false, message: error });
+  if (profile.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Requires admin role' });
   }
-});
-
-app.patch('/api/admin/users/:id', adminKeyMiddleware, async (req, res) => {
-  try {
-    if (!/^\d+$/.test(req.params.id)) {
-      return res.status(400).json({ message: 'Invalid user ID' });
-    }
-
-    const { name, email, phone, role, status } = req.body;
-    const allowedRoles = new Set(['user', 'admin', 'reseller', 'support']);
-    const allowedStatuses = new Set(['active', 'inactive', 'suspended']);
-    const updates = {};
-
-    if (name !== undefined) {
-      const trimmedName = String(name).trim();
-      if (!trimmedName) {
-        return res.status(400).json({ message: 'Name is required' });
-      }
-      if (trimmedName.length > 100) {
-        return res.status(400).json({ message: 'Name must be 100 characters or less' });
-      }
-      updates.name = trimmedName;
-    }
-
-    if (email !== undefined) {
-      const normalizedEmail = String(email).trim().toLowerCase();
-      if (!validateEmail(normalizedEmail)) {
-        return res.status(400).json({ message: 'Valid email is required' });
-      }
-      updates.email = normalizedEmail;
-    }
-
-    if (phone !== undefined) {
-      const normalizedPhone = String(phone).trim();
-      updates.phone = normalizedPhone || null;
-    }
-
-    if (role !== undefined) {
-      if (!allowedRoles.has(role)) {
-        return res.status(400).json({ message: 'Invalid role' });
-      }
-      updates.role = role;
-    }
-
-    if (status !== undefined) {
-      if (!allowedStatuses.has(status)) {
-        return res.status(400).json({ message: 'Invalid status' });
-      }
-      updates.status = status;
-    }
-
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ message: 'No valid user fields provided' });
-    }
-
-    const updatedUser = await updateUserById(req.params.id, updates);
-
-    if (!updatedUser) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    res.json({
-      success: true,
-      user: {
-        id: String(updatedUser.id),
-        name: updatedUser.name,
-        email: updatedUser.email,
-        phone: updatedUser.phone,
-        role: updatedUser.role,
-        status: updatedUser.status,
-        joinedAt: updatedUser.created_at,
-        updatedAt: updatedUser.updated_at,
-      },
-    });
-  } catch (error) {
-    if (error.code === '23505') {
-      return res.status(409).json({ message: 'Email already registered' });
-    }
-
-    console.error('Admin update user error:', error);
-    res.status(500).json({ message: 'Failed to update user' });
-  }
-});
-
-app.delete('/api/admin/users/:id', adminKeyMiddleware, async (req, res) => {
-  try {
-    if (!/^\d+$/.test(req.params.id)) {
-      return res.status(400).json({ message: 'Invalid user ID' });
-    }
-
-    const deletedUser = await softDeleteUserById(req.params.id);
-
-    if (!deletedUser) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Admin delete user error:', error);
-    res.status(500).json({ message: 'Failed to delete user' });
-  }
-});
-
-app.get('/api/protected', authMiddleware, (req, res) => {
-  res.json({ ok: true, message: 'This is a protected route', user: req.user });
-});
-
-const startServer = async () => {
-  try {
-    await initDb();
-    console.log('✓ Database initialized');
-    
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
+  req.adminProfile = profile;
+  next();
 };
 
-startServer();
+// Health check
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, service: 'pixiekat-admin-proxy', timestamp: new Date().toISOString() });
+});
+
+// Force logout all sessions for a user
+app.post('/api/admin/users/:id/force-logout', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabaseAdmin.auth.admin.signOut(id, 'global');
+    if (error) throw error;
+
+    await supabaseAdmin.rpc('log_activity', {
+      p_user_id: id,
+      p_action: 'session_revoked',
+      p_description: 'All sessions revoked by admin',
+      p_actor_id: req.adminProfile.id,
+      p_metadata: { reason: 'admin_force_logout' },
+    });
+
+    res.json({ success: true, message: 'All sessions revoked' });
+  } catch (err) {
+    console.error('force-logout error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to revoke sessions' });
+  }
+});
+
+// Disable 2FA for a user
+app.post('/api/admin/users/:id/disable-2fa', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason || String(reason).trim().length < 5) {
+      return res.status(400).json({ success: false, message: 'Reason is required (min 5 chars)' });
+    }
+
+    const { data: factors, error: listError } = await supabaseAdmin.auth.admin.mfa.listFactors({ userId: id });
+    if (listError) throw listError;
+
+    for (const factor of factors?.all ?? []) {
+      await supabaseAdmin.auth.admin.mfa.deleteFactor({ userId: id, id: factor.id });
+    }
+
+    await supabaseAdmin
+      .from('user_2fa_config')
+      .update({
+        is_enabled: false,
+        disabled_at: new Date().toISOString(),
+        disabled_by: req.adminProfile.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', id);
+
+    await supabaseAdmin.rpc('log_activity', {
+      p_user_id: id,
+      p_action: '2fa_disabled',
+      p_description: reason,
+      p_actor_id: req.adminProfile.id,
+    });
+
+    res.json({ success: true, message: '2FA disabled for user' });
+  } catch (err) {
+    console.error('disable-2fa error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to disable 2FA' });
+  }
+});
+
+// Send password reset email
+app.post('/api/admin/users/:id/reset-password', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data: authUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(id);
+    if (getUserError || !authUser?.user) {
+      return res.status(404).json({ success: false, message: 'User not found in auth' });
+    }
+
+    const { error } = await supabaseAdmin.auth.resetPasswordForEmail(
+      authUser.user.email,
+      { redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/account/security/change-password` }
+    );
+    if (error) throw error;
+
+    await supabaseAdmin.rpc('log_activity', {
+      p_user_id: id,
+      p_action: 'password_reset_requested',
+      p_description: 'Password reset email sent by admin',
+      p_actor_id: req.adminProfile.id,
+    });
+
+    res.json({ success: true, message: 'Password reset email sent' });
+  } catch (err) {
+    console.error('reset-password error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to send reset email' });
+  }
+});
+
+// Admin override email change (super admin only)
+app.post('/api/admin/users/:id/change-email', requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newEmail } = req.body;
+
+    if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim())) {
+      return res.status(400).json({ success: false, message: 'Valid new email is required' });
+    }
+
+    const email = newEmail.trim().toLowerCase();
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(id, { email });
+    if (authError) {
+      if (authError.message.includes('already registered')) {
+        return res.status(409).json({ success: false, message: 'Email already in use' });
+      }
+      throw authError;
+    }
+
+    await supabaseAdmin.from('profiles').update({ email, updated_at: new Date().toISOString() }).eq('id', id);
+
+    await supabaseAdmin.rpc('log_activity', {
+      p_user_id: id,
+      p_action: 'email_changed',
+      p_description: `Email changed to ${email} by admin`,
+      p_actor_id: req.adminProfile.id,
+      p_metadata: { new_email: email },
+    });
+
+    res.json({ success: true, message: 'Email updated' });
+  } catch (err) {
+    console.error('change-email error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to change email' });
+  }
+});
+
+// Update user status with audit log
+app.post('/api/admin/users/:id/status', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, reason } = req.body;
+
+    const allowed = ['active', 'inactive', 'suspended', 'banned'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ success: false, message: `status must be one of: ${allowed.join(', ')}` });
+    }
+    if (!reason || String(reason).trim().length < 3) {
+      return res.status(400).json({ success: false, message: 'reason is required (min 3 chars)' });
+    }
+
+    const { data, error } = await supabaseAdmin.rpc('update_user_status', {
+      p_user_id: id,
+      p_new_status: status,
+      p_reason: reason.trim(),
+      p_actor_id: req.adminProfile.id,
+    });
+    if (error) throw error;
+
+    if (status === 'banned' || status === 'suspended') {
+      await supabaseAdmin.auth.admin.signOut(id, 'global');
+    }
+
+    res.json({ success: true, profile: data });
+  } catch (err) {
+    console.error('status update error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to update status' });
+  }
+});
+
+// Hard delete user (super admin only — removes from auth.users + cascade)
+app.delete('/api/admin/users/:id', requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { confirmation } = req.body;
+
+    if (confirmation !== 'DELETE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Body must include { "confirmation": "DELETE" } to proceed',
+      });
+    }
+
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(id);
+    if (error) throw error;
+
+    res.json({ success: true, message: 'User permanently deleted' });
+  } catch (err) {
+    console.error('delete user error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to delete user' });
+  }
+});
+
+// Wallet adjustment — atomic, via Postgres function
+app.post('/api/admin/wallet/adjust', requireAdmin, async (req, res) => {
+  try {
+    const { userId, amount, type, reference } = req.body;
+
+    if (!userId || typeof amount !== 'number' || !type || !reference) {
+      return res.status(400).json({
+        success: false,
+        message: 'userId, amount (number), type, and reference are all required',
+      });
+    }
+
+    const allowedTypes = ['credit', 'debit', 'refund'];
+    if (!allowedTypes.includes(type)) {
+      return res.status(400).json({ success: false, message: `type must be one of: ${allowedTypes.join(', ')}` });
+    }
+
+    if (Math.abs(amount) > 1_000_000) {
+      return res.status(400).json({ success: false, message: 'Amount exceeds maximum (1,000,000)' });
+    }
+
+    const adjustedAmount = type === 'debit' ? -Math.abs(amount) : Math.abs(amount);
+
+    const { data, error } = await supabaseAdmin.rpc('adjust_wallet_balance', {
+      p_user_id: userId,
+      p_amount: adjustedAmount,
+      p_type: type,
+      p_reference: reference.trim(),
+      p_actor_id: req.adminProfile.id,
+    });
+
+    if (error) {
+      if (error.message.includes('Insufficient wallet balance')) {
+        return res.status(422).json({ success: false, message: error.message, code: 'INSUFFICIENT_BALANCE' });
+      }
+      throw error;
+    }
+
+    res.json({ success: true, transaction: data });
+  } catch (err) {
+    console.error('wallet adjust error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Wallet adjustment failed' });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Pixie-Kat Admin Proxy running on http://localhost:${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+});

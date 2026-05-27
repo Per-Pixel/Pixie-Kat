@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosResponse, AxiosRequestConfig } from 'axios';
 import { ApiResponse, PaginatedResponse } from '@/types/api';
+import { supabase } from '../lib/supabase';
 
 // API Configuration
 export const API_CONFIG = {
@@ -20,10 +21,10 @@ export const api = axios.create({
 
 // Request interceptor to add auth token and request metadata
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('admin_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  async (config) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
     }
     
     // Add request ID for tracking

@@ -1,104 +1,125 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import axios from 'axios';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext();
-const API_BASE_URL = 'http://localhost:3001/api';
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+async function fetchProfile(userId) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, name, username, phone, avatar_url, bio, role, status, wallet_balance, referral_code, email_verified, last_login_at, created_at')
+    .eq('id', userId)
+    .single();
+
+  if (error || !data) return null;
+  return data;
+}
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = useState(null);
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await api.get('/auth/me');
-        if (response.data.success) {
-          setUser(response.data.user);
-        }
-      } catch (error) {
-        setUser(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const handleSession = useCallback(async (newSession) => {
+    if (!newSession) {
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      setIsLoading(false);
+      return;
+    }
 
-    checkAuth();
+    const p = await fetchProfile(newSession.user.id);
+    setUser(newSession.user);
+    setProfile(p);
+    setSession(newSession);
+    setIsLoading(false);
   }, []);
 
-  const login = async (email, password) => {
-    try {
-      const response = await api.post('/auth/login', {
-        email: email.trim(),
-        password,
-      });
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      handleSession(s);
+    });
 
-      if (response.data.success) {
-        setUser(response.data.user);
-        return { success: true, user: response.data.user };
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      handleSession(s);
+    });
 
-      return { success: false, error: response.data.message };
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Invalid email or password';
-      return { success: false, error: errorMessage };
+    return () => subscription.unsubscribe();
+  }, [handleSession]);
+
+  const login = useCallback(async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (error) {
+      const msg = error.message === 'Invalid login credentials'
+        ? 'Invalid email or password'
+        : error.message;
+      return { success: false, error: msg };
     }
-  };
 
-  const register = async ({ name, email, password, confirmPassword }) => {
-    try {
-      const response = await api.post('/auth/signup', {
-        name: name.trim(),
-        email: email.trim(),
-        password,
-        confirmPassword,
-      });
+    return { success: true, user: data.user };
+  }, []);
 
-      if (response.data.success) {
-        setUser(response.data.user);
-        return { success: true, user: response.data.user };
-      }
+  const register = useCallback(async ({ name, email, password }) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: { name: name.trim() },
+      },
+    });
 
-      return { success: false, error: response.data.message };
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Registration failed';
-      return { success: false, error: errorMessage };
+    if (error) {
+      return { success: false, error: error.message };
     }
-  };
 
-  const logout = async () => {
-    try {
-      await api.post('/auth/logout');
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      setUser(null);
+    if (data.user && !data.session) {
+      return {
+        success: true,
+        requiresEmailVerification: true,
+        user: data.user,
+      };
     }
-  };
 
-  const value = {
-    user,
-    isLoading,
-    login,
-    register,
-    logout,
-    isAuthenticated: !!user,
-  };
+    return { success: true, user: data.user };
+  }, []);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
+    setSession(null);
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    if (!user) return;
+    const p = await fetchProfile(user.id);
+    setProfile(p);
+  }, [user]);
+
+  return (
+    <AuthContext.Provider value={{
+      user,
+      profile,
+      session,
+      isLoading,
+      isAuthenticated: !!user && !!session,
+      login,
+      register,
+      logout,
+      refreshProfile,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };

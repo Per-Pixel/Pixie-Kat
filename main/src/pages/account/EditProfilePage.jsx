@@ -1,48 +1,91 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Camera, User, Phone, AtSign, Save, FileText } from "lucide-react";
+import { ArrowLeft, Camera, User, Phone, AtSign, Save, FileText, Loader2, CheckCircle2 } from "lucide-react";
 import { pageBackground } from "./accountShared";
+import { useAuth } from "../../contexts/AuthContext";
+import { supabase } from "../../lib/supabase";
 
 const EditProfilePage = ({ profile }) => {
   const navigate = useNavigate();
+  const { user, refreshProfile } = useAuth();
   const fileInputRef = useRef(null);
-  
+
   const [formData, setFormData] = useState({
     name: profile?.displayName || "",
-    username: "",
+    username: profile?.username || "",
     mobile: profile?.phone || "",
     bio: profile?.bio || "",
   });
-  
-  const [profileImagePreview, setProfileImagePreview] = useState(null);
+
+  const [profileImagePreview, setProfileImagePreview] = useState(profile?.avatarUrl || null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saved, setSaved] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setSaveError("");
+    setSaved(false);
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Create a local URL for the selected image to show a preview
       const imageUrl = URL.createObjectURL(file);
       setProfileImagePreview(imageUrl);
-      
-      // We can also save the file object in state to upload it later
       setFormData((prev) => ({ ...prev, profilePicture: file }));
     }
   };
 
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
-  };
+  const triggerFileInput = () => fileInputRef.current?.click();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Simulate save - Here you will send formData to your backend (PostgreSQL)
-    console.log("Form data to submit:", formData);
-    navigate("/account");
+    if (!formData.name.trim()) { setSaveError("Full name is required."); return; }
+    if (!user?.id) { setSaveError("Not authenticated."); return; }
+
+    setIsSaving(true);
+    setSaveError("");
+
+    try {
+      let avatarUrl = profile?.avatarUrl || null;
+
+      if (formData.profilePicture) {
+        const ext = formData.profilePicture.name.split(".").pop();
+        const path = `avatars/${user.id}.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("avatars")
+          .upload(path, formData.profilePicture, { upsert: true });
+        if (!uploadErr) {
+          const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+          avatarUrl = urlData?.publicUrl || avatarUrl;
+        }
+      }
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          name: formData.name.trim(),
+          username: formData.username.trim() || null,
+          phone: formData.mobile.trim() || null,
+          bio: formData.bio.trim() || null,
+          avatar_url: avatarUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      await refreshProfile();
+      setSaved(true);
+      setTimeout(() => navigate("/account"), 1200);
+    } catch (err) {
+      setSaveError(err.message || "Failed to save profile. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -79,7 +122,7 @@ const EditProfilePage = ({ profile }) => {
                 <div className="relative flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#e8dcff] via-white to-[#9a82ff] p-[6px] shadow-[0_14px_26px_rgba(122,97,255,0.2)]">
                   <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[#7a5bff] to-[#b097ff] text-4xl font-black text-white overflow-hidden">
                     {profileImagePreview ? (
-                      <img src={profileImagePreview} alt="Profile Preview" className="h-full w-full object-cover" />
+                      <img src={profileImagePreview} alt="Profile" className="h-full w-full object-cover" />
                     ) : (
                       profile?.initials || "PK"
                     )}
@@ -181,14 +224,27 @@ const EditProfilePage = ({ profile }) => {
                 </div>
               </div>
 
+              {/* Error */}
+              {saveError && (
+                <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600 border border-red-200">
+                  {saveError}
+                </p>
+              )}
+
               {/* Actions */}
               <div className="pt-4">
                 <button
                   type="submit"
-                  className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#6c49ff] to-[#8b6dff] text-lg font-bold text-white shadow-[0_14px_28px_rgba(108,73,255,0.3)] transition hover:scale-[1.02]"
+                  disabled={isSaving || saved}
+                  className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#6c49ff] to-[#8b6dff] text-lg font-bold text-white shadow-[0_14px_28px_rgba(108,73,255,0.3)] transition hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
-                  <Save className="h-5 w-5" />
-                  Save Changes
+                  {isSaving ? (
+                    <><Loader2 className="h-5 w-5 animate-spin" /> Saving…</>
+                  ) : saved ? (
+                    <><CheckCircle2 className="h-5 w-5" /> Saved!</>
+                  ) : (
+                    <><Save className="h-5 w-5" /> Save Changes</>
+                  )}
                 </button>
               </div>
             </form>

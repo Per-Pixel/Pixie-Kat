@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Bell, Shield, Monitor, Smartphone, X } from "lucide-react";
+import { ArrowLeft, Bell, Shield, Monitor, ChevronRight, X, Loader2 } from "lucide-react";
 import { pageBackground } from "./accountShared";
+import { useAuth } from "../../contexts/AuthContext";
+import { supabase } from "../../lib/supabase";
 
 const ToggleSwitch = ({ label, description, enabled, onChange }) => (
   <div className="flex items-center justify-between py-4">
@@ -43,35 +45,43 @@ const SettingsSection = ({ title, icon: Icon, children }) => (
 
 const SettingsPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const [settings, setSettings] = useState({
-    notifications: {
-      emailUpdates: true,
-      smsAlerts: false,
-      marketing: true,
-      orderStatus: true,
-    },
-    security: {
-      twoFactor: false,
-      loginAlerts: true,
-    },
-    display: {
-      darkMode: false,
-      compactView: false,
-    },
+  const [notifications, setNotifications] = useState({
+    email_notifications: true,
+    sms_notifications: false,
+    marketing_emails: true,
+    order_notifications: true,
+    login_alerts: true,
   });
+  const [loadingPrefs, setLoadingPrefs] = useState(true);
+  const [saving, setSaving] = useState(null);
 
   const [showComingSoon, setShowComingSoon] = useState(false);
   const [comingSoonFeature, setComingSoonFeature] = useState("");
 
-  const toggleSetting = (category, key) => {
-    setSettings((prev) => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [key]: !prev[category][key],
-      },
-    }));
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from("user_settings")
+      .select("email_notifications, sms_notifications, marketing_emails, order_notifications, login_alerts")
+      .eq("user_id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) setNotifications(data);
+        setLoadingPrefs(false);
+      });
+  }, [user?.id]);
+
+  const toggleNotification = async (key) => {
+    const newVal = !notifications[key];
+    setNotifications((prev) => ({ ...prev, [key]: newVal }));
+    setSaving(key);
+    await supabase
+      .from("user_settings")
+      .update({ [key]: newVal, updated_at: new Date().toISOString() })
+      .eq("user_id", user.id);
+    setSaving(null);
   };
 
   const handleComingSoon = (featureName) => {
@@ -99,78 +109,101 @@ const SettingsPage = () => {
           </div>
 
           <section className="rounded-[28px] border border-white/70 bg-white/80 p-6 shadow-[0_18px_50px_rgba(91,79,118,0.14)] backdrop-blur-xl sm:p-10">
-            <SettingsSection title="Notifications" icon={Bell}>
-              <ToggleSwitch
-                label="Email Updates"
-                description="Receive emails about updates and new features."
-                enabled={settings.notifications.emailUpdates}
-                onChange={() => toggleSetting("notifications", "emailUpdates")}
-              />
-              <ToggleSwitch
-                label="SMS Alerts"
-                description="Get important account alerts via SMS."
-                enabled={settings.notifications.smsAlerts}
-                onChange={() => toggleSetting("notifications", "smsAlerts")}
-              />
-              <ToggleSwitch
-                label="Marketing Communications"
-                description="Receive promotional offers and news."
-                enabled={settings.notifications.marketing}
-                onChange={() => toggleSetting("notifications", "marketing")}
-              />
-              <ToggleSwitch
-                label="Order Status"
-                description="Get notified when your order status changes."
-                enabled={settings.notifications.orderStatus}
-                onChange={() => toggleSetting("notifications", "orderStatus")}
-              />
-            </SettingsSection>
-
-            <SettingsSection title="Security" icon={Shield}>
-              <ToggleSwitch
-                label="Two-Factor Authentication (2FA)"
-                description="Add an extra layer of security to your account."
-                enabled={settings.security.twoFactor}
-                onChange={() => handleComingSoon("Two-Factor Authentication")}
-              />
-              <ToggleSwitch
-                label="Login Alerts"
-                description="Get notified of logins from new devices."
-                enabled={settings.security.loginAlerts}
-                onChange={() => handleComingSoon("Login Alerts")}
-              />
-              <div className="py-4">
-                <button type="button" onClick={() => handleComingSoon("Change Password")} className="text-sm font-bold text-[#6c49ff] hover:underline">
-                  Change Password
-                </button>
+            {loadingPrefs ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-7 w-7 animate-spin text-[#6c49ff]" />
               </div>
-            </SettingsSection>
+            ) : (
+              <>
+                <SettingsSection title="Notifications" icon={Bell}>
+                  <ToggleSwitch
+                    label="Email Updates"
+                    description="Receive emails about account updates and new features."
+                    enabled={notifications.email_notifications}
+                    onChange={() => toggleNotification("email_notifications")}
+                  />
+                  <ToggleSwitch
+                    label="SMS Alerts"
+                    description="Get important account alerts via SMS."
+                    enabled={notifications.sms_notifications}
+                    onChange={() => toggleNotification("sms_notifications")}
+                  />
+                  <ToggleSwitch
+                    label="Marketing Communications"
+                    description="Receive promotional offers and news."
+                    enabled={notifications.marketing_emails}
+                    onChange={() => toggleNotification("marketing_emails")}
+                  />
+                  <ToggleSwitch
+                    label="Order Status"
+                    description="Get notified when your order status changes."
+                    enabled={notifications.order_notifications}
+                    onChange={() => toggleNotification("order_notifications")}
+                  />
+                  <ToggleSwitch
+                    label="Login Alerts"
+                    description="Get notified when your account is accessed from a new device."
+                    enabled={notifications.login_alerts}
+                    onChange={() => toggleNotification("login_alerts")}
+                  />
+                  {saving && (
+                    <p className="text-xs text-[#6c49ff] font-medium pt-1 flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Saving…
+                    </p>
+                  )}
+                </SettingsSection>
 
-            <SettingsSection title="Display Preferences" icon={Monitor}>
-              <ToggleSwitch
-                label="Dark Mode"
-                description="Toggle dark mode appearance (currently relies on system settings if disabled)."
-                enabled={settings.display.darkMode}
-                onChange={() => handleComingSoon("Dark Mode")}
-              />
-              <ToggleSwitch
-                label="Compact View"
-                description="Decrease spacing to see more content on screen."
-                enabled={settings.display.compactView}
-                onChange={() => handleComingSoon("Compact View")}
-              />
-            </SettingsSection>
+                <SettingsSection title="Security" icon={Shield}>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/account/security/change-password")}
+                    className="flex w-full items-center justify-between py-4 text-left group"
+                  >
+                    <div>
+                      <p className="text-base font-bold text-slate-800 group-hover:text-[#6c49ff] transition-colors">Change Password</p>
+                      <p className="mt-1 text-sm text-slate-500">Update your login password.</p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-[#6c49ff] transition-colors" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/account/security")}
+                    className="flex w-full items-center justify-between py-4 text-left group border-t border-slate-100"
+                  >
+                    <div>
+                      <p className="text-base font-bold text-slate-800 group-hover:text-[#6c49ff] transition-colors">Security Center</p>
+                      <p className="mt-1 text-sm text-slate-500">Manage 2FA, active sessions, and more.</p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-[#6c49ff] transition-colors" />
+                  </button>
+                </SettingsSection>
 
-            {/* Save Button */}
-            <div className="pt-6">
-              <button
-                type="button"
-                onClick={() => navigate("/account")}
-                className="flex h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#6c49ff] to-[#8b6dff] text-lg font-bold text-white shadow-[0_14px_28px_rgba(108,73,255,0.3)] transition hover:scale-[1.02]"
-              >
-                Save Preferences
-              </button>
-            </div>
+                <SettingsSection title="Display Preferences" icon={Monitor}>
+                  <ToggleSwitch
+                    label="Dark Mode"
+                    description="Toggle dark mode appearance."
+                    enabled={false}
+                    onChange={() => handleComingSoon("Dark Mode")}
+                  />
+                  <ToggleSwitch
+                    label="Compact View"
+                    description="Decrease spacing to see more content on screen."
+                    enabled={false}
+                    onChange={() => handleComingSoon("Compact View")}
+                  />
+                </SettingsSection>
+
+                <div className="pt-6">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/account")}
+                    className="flex h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#6c49ff] to-[#8b6dff] text-lg font-bold text-white shadow-[0_14px_28px_rgba(108,73,255,0.3)] transition hover:scale-[1.02]"
+                  >
+                    Back to Account
+                  </button>
+                </div>
+              </>
+            )}
           </section>
         </motion.div>
       </div>

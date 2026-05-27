@@ -1,245 +1,191 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode, useCallback } from 'react';
-import { User, AuthState, LoginCredentials, UserRole, ROLE_PERMISSIONS } from '../types/auth';
-import { authService } from '../services/authService';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from 'react';
+import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+import { UserRole, ROLE_PERMISSIONS } from '../types/auth';
+import type { User, LoginCredentials } from '../types/auth';
 import { toast } from 'react-hot-toast';
 
-interface AuthContextType extends AuthState {
+interface AuthContextType {
+  user: User | null;
+  session: Session | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+  lastActivity: Date | null;
   login: (credentials: LoginCredentials) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   hasPermission: (resource: string, action: string) => boolean;
-  refreshToken: () => Promise<void>;
   clearError: () => void;
   updateLastActivity: () => void;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-type AuthAction =
-  | { type: 'LOGIN_START' }
-  | { type: 'LOGIN_SUCCESS'; payload: User }
-  | { type: 'LOGIN_FAILURE'; payload: string }
-  | { type: 'LOGOUT' }
-  | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'CLEAR_ERROR' }
-  | { type: 'UPDATE_ACTIVITY' }
-  | { type: 'TOKEN_REFRESH_SUCCESS'; payload: User }
-  | { type: 'TOKEN_REFRESH_FAILURE' };
+async function fetchProfile(userId: string): Promise<User | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, name, phone, role, status, avatar_url, bio, timezone, language, last_login_at, created_at, updated_at')
+    .eq('id', userId)
+    .single();
 
-const initialState: AuthState = {
-  user: null,
-  isAuthenticated: false,
-  isLoading: true,
-  error: null,
-  lastActivity: null,
-};
+  if (error || !data) return null;
 
-function authReducer(state: AuthState, action: AuthAction): AuthState {
-  switch (action.type) {
-    case 'LOGIN_START':
-      return {
-        ...state,
-        isLoading: true,
-        error: null,
-      };
-    case 'LOGIN_SUCCESS':
-      return {
-        ...state,
-        user: action.payload,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
-      };
-    case 'LOGIN_FAILURE':
-      return {
-        ...state,
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-        error: action.payload,
-      };
-    case 'LOGOUT':
-      return {
-        ...state,
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-        error: null,
-      };
-    case 'SET_LOADING':
-      return {
-        ...state,
-        isLoading: action.payload,
-      };
-    case 'CLEAR_ERROR':
-      return {
-        ...state,
-        error: null,
-      };
-    case 'UPDATE_ACTIVITY':
-      return {
-        ...state,
-        lastActivity: new Date(),
-      };
-    case 'TOKEN_REFRESH_SUCCESS':
-      return {
-        ...state,
-        user: action.payload,
-        isAuthenticated: true,
-        error: null,
-      };
-    case 'TOKEN_REFRESH_FAILURE':
-      return {
-        ...state,
-        user: null,
-        isAuthenticated: false,
-        error: 'Session expired',
-      };
-    default:
-      return state;
-  }
+  return {
+    id: data.id,
+    email: data.email,
+    name: data.name,
+    phone: data.phone ?? undefined,
+    role: data.role as UserRole,
+    avatar: data.avatar_url ?? undefined,
+    bio: data.bio ?? undefined,
+    timezone: data.timezone,
+    language: data.language,
+    isActive: data.status === 'active',
+    lastActiveAt: data.last_login_at ?? undefined,
+    metadata: {},
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
 }
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastActivity, setLastActivity] = useState<Date | null>(null);
 
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [state, dispatch] = useReducer(authReducer, initialState);
+  const handleSession = useCallback(async (newSession: Session | null) => {
+    if (!newSession) {
+      setUser(null);
+      setSession(null);
+      setIsLoading(false);
+      return;
+    }
 
-  // Auto-refresh token before expiry
-  useEffect(() => {
-    if (!state.isAuthenticated) return;
+    const profile = await fetchProfile(newSession.user.id);
 
-    const checkTokenExpiry = () => {
-      const token = localStorage.getItem('admin_token');
-      if (!token) return;
+    if (!profile) {
+      setError('Account profile not found. Contact support.');
+      setUser(null);
+      setSession(null);
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      return;
+    }
 
-      // Only JWTs (header.payload.signature) carry an exp claim we can read.
-      // Opaque/dev tokens are validated server-side; skip silently here.
-      const parts = token.split('.');
-      if (parts.length !== 3) return;
+    if (!['admin', 'support'].includes(profile.role)) {
+      setError('Access denied. This panel is for admins and support only.');
+      setUser(null);
+      setSession(null);
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      return;
+    }
 
-      try {
-        const payload = JSON.parse(atob(parts[1]));
-        if (typeof payload?.exp !== 'number') return;
+    if (!profile.isActive) {
+      setError('Your account has been suspended. Contact a super admin.');
+      setUser(null);
+      setSession(null);
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      return;
+    }
 
-        const expiryTime = payload.exp * 1000;
-        const timeUntilExpiry = expiryTime - Date.now();
-
-        // Refresh token 5 minutes before expiry
-        if (timeUntilExpiry < 5 * 60 * 1000 && timeUntilExpiry > 0) {
-          refreshToken().catch(() => {
-            // Silent fail - user will be logged out on next API call
-          });
-        }
-      } catch {
-        // Unparseable token: don't force logout here.
-        // The next authenticated API call will 401 if it's truly invalid.
-      }
-    };
-
-    const interval = setInterval(checkTokenExpiry, 60000); // Check every minute
-    return () => clearInterval(interval);
-  }, [state.isAuthenticated]);
-
-  useEffect(() => {
-    // Check for existing token on app load
-    const initializeAuth = async () => {
-      try {
-        const token = localStorage.getItem('admin_token');
-        if (token) {
-          const user = await authService.validateToken(token);
-          dispatch({ type: 'LOGIN_SUCCESS', payload: user });
-        }
-      } catch (error) {
-        localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_refresh_token');
-        console.warn('Token validation failed:', error);
-      } finally {
-        dispatch({ type: 'SET_LOADING', payload: false });
-      }
-    };
-
-    initializeAuth();
+    setUser(profile);
+    setSession(newSession);
+    setLastActivity(new Date());
+    setIsLoading(false);
   }, []);
 
-  const login = async (credentials: LoginCredentials) => {
-    try {
-      dispatch({ type: 'LOGIN_START' });
-      const response = await authService.login(credentials);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      handleSession(s ?? null);
+    });
 
-      localStorage.setItem('admin_token', response.token);
-      localStorage.setItem('admin_refresh_token', response.refreshToken);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event: AuthChangeEvent, newSession: Session | null) => {
+        handleSession(newSession);
+      }
+    );
 
-      dispatch({ type: 'LOGIN_SUCCESS', payload: response.user });
-      dispatch({ type: 'UPDATE_ACTIVITY' });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Login failed';
-      dispatch({ type: 'LOGIN_FAILURE', payload: message });
-      throw error;
+    return () => subscription.unsubscribe();
+  }, [handleSession]);
+
+  const login = useCallback(async (credentials: LoginCredentials) => {
+    setIsLoading(true);
+    setError(null);
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password,
+    });
+
+    if (signInError) {
+      const msg = signInError.message === 'Invalid login credentials'
+        ? 'Invalid email or password'
+        : signInError.message;
+      setError(msg);
+      setIsLoading(false);
+      throw new Error(msg);
     }
-  };
+    // onAuthStateChange fires and calls handleSession — no manual state needed here
+  }, []);
 
   const logout = useCallback(async () => {
-    try {
-      await authService.logout();
-    } catch (error) {
-      console.warn('Logout API call failed:', error);
-    } finally {
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_refresh_token');
-      dispatch({ type: 'LOGOUT' });
-    }
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setLastActivity(null);
   }, []);
 
-  const hasPermission = (resource: string, action: string): boolean => {
-    if (!state.user) return false;
-    
-    const permissions = ROLE_PERMISSIONS[state.user.role];
-    const resourcePermission = permissions.find(p => p.resource === resource);
-    
-    return resourcePermission?.actions.includes(action) || false;
-  };
+  const hasPermission = useCallback((resource: string, action: string): boolean => {
+    if (!user) return false;
+    const permissions = ROLE_PERMISSIONS[user.role];
+    if (!permissions) return false;
+    return permissions.find(p => p.resource === resource)?.actions.includes(action) ?? false;
+  }, [user]);
 
-  const refreshToken = useCallback(async () => {
-    try {
-      const refreshTokenValue = localStorage.getItem('admin_refresh_token');
-      if (!refreshTokenValue) throw new Error('No refresh token');
+  const clearError = useCallback(() => setError(null), []);
 
-      const response = await authService.refreshToken(refreshTokenValue);
-      localStorage.setItem('admin_token', response.token);
+  const updateLastActivity = useCallback(() => setLastActivity(new Date()), []);
 
-      dispatch({ type: 'TOKEN_REFRESH_SUCCESS', payload: response.user });
-      dispatch({ type: 'UPDATE_ACTIVITY' });
-    } catch (error) {
-      dispatch({ type: 'TOKEN_REFRESH_FAILURE' });
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_refresh_token');
+  const refreshSession = useCallback(async () => {
+    const { data, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) {
       toast.error('Session expired. Please log in again.');
-      throw error;
+      await logout();
+      throw refreshError;
     }
-  }, []);
-
-  const clearError = useCallback(() => {
-    dispatch({ type: 'CLEAR_ERROR' });
-  }, []);
-
-  const updateLastActivity = useCallback(() => {
-    dispatch({ type: 'UPDATE_ACTIVITY' });
-  }, []);
-
-  const value: AuthContextType = {
-    ...state,
-    login,
-    logout,
-    hasPermission,
-    refreshToken,
-    clearError,
-    updateLastActivity,
-  };
+    if (data.session) {
+      setSession(data.session);
+      setLastActivity(new Date());
+    }
+  }, [logout]);
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{
+      user,
+      session,
+      isAuthenticated: !!user && !!session,
+      isLoading,
+      error,
+      lastActivity,
+      login,
+      logout,
+      hasPermission,
+      clearError,
+      updateLastActivity,
+      refreshSession,
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -247,8 +193,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }

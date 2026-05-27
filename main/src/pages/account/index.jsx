@@ -1,18 +1,20 @@
 import { useMemo } from "react";
-import { Navigate, useLocation, useNavigate, Routes, Route } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../contexts/AuthContext";
 import DesktopAccountView from "./DesktopAccountView";
 import MobileAccountView from "./MobileAccountView";
 import EditProfilePage from "./EditProfilePage";
 import SettingsPage from "./SettingsPage";
+import SecurityPage from "./SecurityPage";
+import ChangePasswordPage from "./ChangePasswordPage";
 import { getAccountProfile, pageBackground } from "./accountShared";
 
 const AccountPage = () => {
-  const { isAuthenticated, isLoading, logout, user } = useAuth();
+  const { isAuthenticated, isLoading, logout, profile: rawProfile } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const profile = useMemo(() => getAccountProfile(user), [user]);
+  const profile = useMemo(() => getAccountProfile(rawProfile), [rawProfile]);
 
   if (isLoading) {
     return (
@@ -33,16 +35,16 @@ const AccountPage = () => {
     navigate("/", { replace: true });
   };
 
-  const isEditProfile = location.pathname.endsWith("/edit-profile");
-  const isSettings = location.pathname.endsWith("/settings");
+  const path = location.pathname;
+  const isEditProfile          = path.endsWith("/edit-profile");
+  const isSettings             = path.endsWith("/settings");
+  const isChangePassword       = path.includes("/security/change-password");
+  const isSecurity             = path.includes("/security");
 
-  if (isEditProfile) {
-    return <EditProfilePage profile={profile} />;
-  }
-
-  if (isSettings) {
-    return <SettingsPage />;
-  }
+  if (isEditProfile)    return <EditProfilePage profile={profile} />;
+  if (isSettings)       return <SettingsPage />;
+  if (isChangePassword) return <ChangePasswordPage />;
+  if (isSecurity)       return <SecurityPage />;
 
   return (
     <>
