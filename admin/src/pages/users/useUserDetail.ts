@@ -77,6 +77,13 @@ export function useUserDetail(userId: string | undefined) {
         return;
       }
 
+      if (settingsRes.error && settingsRes.error.code !== 'PGRST116')
+        console.warn('[useUserDetail] settings:', settingsRes.error.message);
+      if (twoFaRes.error && twoFaRes.error.code !== 'PGRST116')
+        console.warn('[useUserDetail] 2fa:', twoFaRes.error.message);
+      if (kycRes.error && kycRes.error.code !== 'PGRST116')
+        console.warn('[useUserDetail] kyc:', kycRes.error.message);
+
       setData({
         profile: profileRes.data as UserProfile,
         settings: (settingsRes.data as UserSettings) ?? null,

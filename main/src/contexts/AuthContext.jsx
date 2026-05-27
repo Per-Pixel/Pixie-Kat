@@ -47,12 +47,37 @@ export const AuthProvider = ({ children }) => {
       handleSession(s);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === 'INITIAL_SESSION') return;
       handleSession(s);
     });
 
     return () => subscription.unsubscribe();
   }, [handleSession]);
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+
+    const channel = supabase
+      .channel(`profile:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        ({ new: updatedProfile }) => {
+          setProfile(updatedProfile);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   const login = useCallback(async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({

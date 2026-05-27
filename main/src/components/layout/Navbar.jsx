@@ -21,7 +21,7 @@ const navItems = [
 const darkTextTopRoutes = ["/games", "/pricing", "/how-it-works", "/faq", "/support"];
 
 const NavBar = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, profile } = useAuth();
   const [isAudioPlaying, setIsAudioPlaying] = useState(true);
   const [isIndicatorActive, setIsIndicatorActive] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -44,6 +44,7 @@ const NavBar = () => {
   const authPanelClass = useDarkTextAtTop
     ? "bg-white/95 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.12)]"
     : "bg-white/90 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.22)]";
+  const walletBalance = Number(profile?.wallet_balance ?? 0);
 
   const toggleAudioIndicator = () => {
     setIsAudioPlaying((prev) => !prev);
@@ -215,7 +216,7 @@ const NavBar = () => {
                     PKS
                   </span>
                   <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-violet-100 px-2 text-xs font-semibold text-violet-700">
-                    0
+                    {walletBalance.toFixed(2)}
                   </span>
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white">
                     <Plus className="h-3.5 w-3.5" />

@@ -22,9 +22,13 @@ export const api = axios.create({
 // Request interceptor to add auth token and request metadata
 api.interceptors.request.use(
   async (config) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      config.headers.Authorization = `Bearer ${session.access_token}`;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        config.headers.Authorization = `Bearer ${session.access_token}`;
+      }
+    } catch (sessionError) {
+      console.warn('Failed to get session for request:', sessionError);
     }
     
     // Add request ID for tracking
@@ -61,27 +65,20 @@ api.interceptors.response.use(
       console.error(`❌ ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url}`, error.response?.data || error.message);
     }
 
-    // Handle 401 Unauthorized - Token refresh
+    // Handle 401 Unauthorized — refresh Supabase session and retry once
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('admin_refresh_token');
-        if (refreshToken) {
-          const response = await api.post('/auth/refresh', { refreshToken });
-          const { token } = response.data;
-          localStorage.setItem('admin_token', token);
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-          }
-          return api(originalRequest);
+        const { data, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !data.session) throw refreshError ?? new Error('Session refresh failed');
+        if (originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${data.session.access_token}`;
         }
-      } catch (refreshError) {
-        // Refresh failed, redirect to login
-        localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_refresh_token');
+        return api(originalRequest);
+      } catch {
         window.location.href = '/login';
-        return Promise.reject(refreshError);
+        return Promise.reject(error);
       }
     }
 

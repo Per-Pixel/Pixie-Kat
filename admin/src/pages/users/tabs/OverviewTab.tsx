@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, RefreshCw, ShoppingBag, Wallet, Clock, AlertTriangle, X } from 'lucide-react';
+import { Camera, Save, RefreshCw, ShoppingBag, Wallet, Clock, AlertTriangle, Trash2, X } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import { useAuth } from '../../../contexts/AuthContext';
 import { api } from '../../../services/api';
 import { toast } from 'react-hot-toast';
 import type { UserDetailData } from '../useUserDetail';
@@ -11,6 +12,8 @@ interface Props { data: UserDetailData; refetch: () => void; }
 const ROLES    = ['user', 'admin', 'reseller', 'support'] as const;
 const LANGS    = ['en', 'ur', 'ar', 'fr', 'de', 'es'] as const;
 const STATUSES = ['active', 'inactive', 'suspended', 'banned'] as const;
+const AVATAR_BUCKET = 'avatars';
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
 
 const statusColors: Record<string, string> = {
   active:    'bg-green-100 text-green-700 border-green-200',
@@ -40,8 +43,40 @@ function formatDate(ts?: string | null) {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function initialsForName(name: string) {
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function getAvatarPathFromUrl(url?: string | null) {
+  if (!url) return null;
+
+  try {
+    const marker = `/storage/v1/object/public/${AVATAR_BUCKET}/`;
+    const index = url.indexOf(marker);
+    if (index === -1) return null;
+    return decodeURIComponent(url.slice(index + marker.length).split('?')[0]);
+  } catch {
+    return null;
+  }
+}
+
+function getAvatarErrorMessage(err: unknown) {
+  const message = err instanceof Error ? err.message : '';
+  if (message.toLowerCase().includes('bucket not found')) {
+    return 'Profile picture storage is not set up yet. Run supabase/migrations/003_avatar_storage.sql in Supabase.';
+  }
+  return message || 'Failed to update profile picture';
+}
+
 export default function OverviewTab({ data, refetch }: Props) {
   const { profile } = data;
+  const { user: adminUser } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState({
     name:     profile.name,
@@ -53,6 +88,10 @@ export default function OverviewTab({ data, refetch }: Props) {
     timezone: profile.timezone,
   });
   const [saving, setSaving] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState(profile.avatar_url ?? '');
+  const [savingAvatar, setSavingAvatar] = useState(false);
+  const [removingAvatar, setRemovingAvatar] = useState(false);
 
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [pendingStatus, setPendingStatus]     = useState<typeof STATUSES[number] | null>(null);
@@ -62,6 +101,110 @@ export default function OverviewTab({ data, refetch }: Props) {
   const field = (key: keyof typeof form) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => setForm(f => ({ ...f, [key]: e.target.value }));
+
+  useEffect(() => {
+    setAvatarPreview(profile.avatar_url ?? '');
+    setAvatarFile(null);
+  }, [profile.avatar_url]);
+
+  const handleAvatarSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file');
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > MAX_AVATAR_SIZE) {
+      toast.error('Profile picture must be 5MB or smaller');
+      event.target.value = '';
+      return;
+    }
+
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+  };
+
+  const saveAvatar = async () => {
+    if (!avatarFile) return;
+
+    setSavingAvatar(true);
+    try {
+      const ext = avatarFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = `${profile.id}/admin-${Date.now()}.${ext}`;
+      const oldAvatarPath = getAvatarPathFromUrl(profile.avatar_url);
+
+      const { error: uploadError } = await supabase.storage
+        .from(AVATAR_BUCKET)
+        .upload(path, avatarFile, {
+          cacheControl: '3600',
+          contentType: avatarFile.type,
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          avatar_url: urlData.publicUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', profile.id);
+
+      if (updateError) throw updateError;
+
+      if (oldAvatarPath && oldAvatarPath !== path) {
+        await supabase.storage.from(AVATAR_BUCKET).remove([oldAvatarPath]);
+      }
+
+      toast.success('Profile picture updated');
+      setAvatarFile(null);
+      refetch();
+    } catch (err: any) {
+      toast.error(getAvatarErrorMessage(err));
+    } finally {
+      setSavingAvatar(false);
+    }
+  };
+
+  const removeAvatar = async () => {
+    if (!profile.avatar_url && !avatarFile) return;
+    if (profile.avatar_url && !confirm('Remove this user profile picture?')) return;
+
+    setRemovingAvatar(true);
+    try {
+      const oldAvatarPath = getAvatarPathFromUrl(profile.avatar_url);
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          avatar_url: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', profile.id);
+
+      if (updateError) throw updateError;
+
+      if (oldAvatarPath) {
+        await supabase.storage.from(AVATAR_BUCKET).remove([oldAvatarPath]);
+      }
+
+      setAvatarFile(null);
+      setAvatarPreview('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      toast.success('Profile picture removed');
+      refetch();
+    } catch (err: any) {
+      toast.error(getAvatarErrorMessage(err));
+    } finally {
+      setRemovingAvatar(false);
+    }
+  };
 
   const saveProfile = async () => {
     if (!form.name.trim()) { toast.error('Name is required'); return; }
@@ -84,6 +227,17 @@ export default function OverviewTab({ data, refetch }: Props) {
       toast.error(error.message || 'Failed to save profile');
     } else {
       toast.success('Profile saved');
+      if (form.role !== profile.role) {
+        supabase.rpc('log_activity', {
+          p_user_id: profile.id,
+          p_action: 'profile_update',
+          p_description: `Role changed from ${profile.role} to ${form.role}`,
+          p_actor_id: adminUser?.id ?? null,
+          p_metadata: { old_role: profile.role, new_role: form.role },
+        }).then(({ error: logErr }) => {
+          if (logErr) console.warn('[log_activity] role change log failed:', logErr.message);
+        });
+      }
       refetch();
     }
     setSaving(false);
@@ -204,6 +358,76 @@ export default function OverviewTab({ data, refetch }: Props) {
 
         {/* Account status card — 1/3 width */}
         <div className="space-y-4">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">Profile Picture</h3>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarSelect}
+            />
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-20 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0 text-primary-600 font-bold text-xl overflow-hidden">
+                {avatarPreview ? (
+                  <img src={avatarPreview} className="w-full h-full object-cover" alt={profile.name} />
+                ) : (
+                  initialsForName(profile.name)
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={savingAvatar || removingAvatar}
+                  className="btn btn-outline btn-sm w-full mb-2"
+                >
+                  <Camera className="w-4 h-4 mr-1.5" />
+                  Choose Image
+                </button>
+                {(profile.avatar_url || avatarFile) && (
+                  <button
+                    type="button"
+                    onClick={removeAvatar}
+                    disabled={savingAvatar || removingAvatar}
+                    className="btn btn-outline btn-sm w-full text-red-600 hover:text-red-700"
+                  >
+                    {removingAvatar ? (
+                      <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4 mr-1.5" />
+                    )}
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+            {avatarFile && (
+              <div className="mt-4 flex items-center justify-end gap-2 border-t border-gray-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAvatarFile(null);
+                    setAvatarPreview(profile.avatar_url ?? '');
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                  }}
+                  disabled={savingAvatar}
+                  className="btn btn-outline btn-sm"
+                >
+                  Cancel
+                </button>
+                <button type="button" onClick={saveAvatar} disabled={savingAvatar} className="btn btn-primary btn-sm">
+                  {savingAvatar ? (
+                    <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-1.5" />
+                  )}
+                  Save Picture
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <h3 className="text-base font-semibold text-gray-900 mb-4">Account Status</h3>
             <div className="flex items-center justify-between mb-4">

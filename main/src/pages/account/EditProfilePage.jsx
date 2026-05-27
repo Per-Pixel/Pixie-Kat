@@ -6,6 +6,29 @@ import { pageBackground } from "./accountShared";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 
+const AVATAR_BUCKET = "avatars";
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+
+const getAvatarPathFromUrl = (url) => {
+  if (!url) return null;
+  try {
+    const marker = `/storage/v1/object/public/${AVATAR_BUCKET}/`;
+    const index = url.indexOf(marker);
+    if (index === -1) return null;
+    return decodeURIComponent(url.slice(index + marker.length).split("?")[0]);
+  } catch {
+    return null;
+  }
+};
+
+const getAvatarErrorMessage = (err) => {
+  const message = err?.message || "";
+  if (message.toLowerCase().includes("bucket not found")) {
+    return "Profile picture storage is not set up yet. Please run supabase/migrations/003_avatar_storage.sql in Supabase.";
+  }
+  return message || "Failed to save profile. Please try again.";
+};
+
 const EditProfilePage = ({ profile }) => {
   const navigate = useNavigate();
   const { user, refreshProfile } = useAuth();
@@ -33,9 +56,21 @@ const EditProfilePage = ({ profile }) => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (!file.type.startsWith("image/")) {
+        setSaveError("Please choose an image file.");
+        return;
+      }
+
+      if (file.size > MAX_AVATAR_SIZE) {
+        setSaveError("Profile picture must be 5MB or smaller.");
+        return;
+      }
+
       const imageUrl = URL.createObjectURL(file);
       setProfileImagePreview(imageUrl);
       setFormData((prev) => ({ ...prev, profilePicture: file }));
+      setSaveError("");
+      setSaved(false);
     }
   };
 
@@ -53,14 +88,25 @@ const EditProfilePage = ({ profile }) => {
       let avatarUrl = profile?.avatarUrl || null;
 
       if (formData.profilePicture) {
-        const ext = formData.profilePicture.name.split(".").pop();
-        const path = `avatars/${user.id}.${ext}`;
+        const ext = formData.profilePicture.name.split(".").pop()?.toLowerCase() || "jpg";
+        const path = `${user.id}/profile-${Date.now()}.${ext}`;
+        const oldAvatarPath = getAvatarPathFromUrl(profile?.avatarUrl);
+
         const { error: uploadErr } = await supabase.storage
-          .from("avatars")
-          .upload(path, formData.profilePicture, { upsert: true });
-        if (!uploadErr) {
-          const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-          avatarUrl = urlData?.publicUrl || avatarUrl;
+          .from(AVATAR_BUCKET)
+          .upload(path, formData.profilePicture, {
+            cacheControl: "3600",
+            contentType: formData.profilePicture.type,
+            upsert: false,
+          });
+
+        if (uploadErr) throw uploadErr;
+
+        const { data: urlData } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
+        avatarUrl = urlData?.publicUrl || avatarUrl;
+
+        if (oldAvatarPath && oldAvatarPath !== path) {
+          await supabase.storage.from(AVATAR_BUCKET).remove([oldAvatarPath]);
         }
       }
 
@@ -82,7 +128,7 @@ const EditProfilePage = ({ profile }) => {
       setSaved(true);
       setTimeout(() => navigate("/account"), 1200);
     } catch (err) {
-      setSaveError(err.message || "Failed to save profile. Please try again.");
+      setSaveError(getAvatarErrorMessage(err));
     } finally {
       setIsSaving(false);
     }

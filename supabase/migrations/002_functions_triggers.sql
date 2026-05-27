@@ -59,6 +59,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Trigger: fire after every new Supabase Auth signup
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -78,6 +79,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
+DROP TRIGGER IF EXISTS on_profile_created ON public.profiles;
 CREATE TRIGGER on_profile_created
   AFTER INSERT ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_profile();
@@ -99,6 +101,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
+DROP TRIGGER IF EXISTS on_email_confirmed ON auth.users;
 CREATE TRIGGER on_email_confirmed
   AFTER UPDATE ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_email_confirmed();
@@ -115,26 +118,32 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS set_profiles_updated_at ON public.profiles;
 CREATE TRIGGER set_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
+DROP TRIGGER IF EXISTS set_user_settings_updated_at ON public.user_settings;
 CREATE TRIGGER set_user_settings_updated_at
   BEFORE UPDATE ON public.user_settings
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
+DROP TRIGGER IF EXISTS set_user_kyc_updated_at ON public.user_kyc;
 CREATE TRIGGER set_user_kyc_updated_at
   BEFORE UPDATE ON public.user_kyc
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
+DROP TRIGGER IF EXISTS set_user_2fa_updated_at ON public.user_2fa_config;
 CREATE TRIGGER set_user_2fa_updated_at
   BEFORE UPDATE ON public.user_2fa_config
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
+DROP TRIGGER IF EXISTS set_orders_updated_at ON public.orders;
 CREATE TRIGGER set_orders_updated_at
   BEFORE UPDATE ON public.orders
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
+DROP TRIGGER IF EXISTS set_notes_updated_at ON public.admin_user_notes;
 CREATE TRIGGER set_notes_updated_at
   BEFORE UPDATE ON public.admin_user_notes
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
@@ -208,7 +217,7 @@ BEGIN
   INSERT INTO public.user_activity_log (user_id, action, description, actor_id, metadata)
   VALUES (
     p_user_id,
-    CASE WHEN p_amount > 0 THEN 'wallet_credit' ELSE 'wallet_debit' END,
+    (CASE WHEN p_amount > 0 THEN 'wallet_credit' ELSE 'wallet_debit' END)::activity_action,
     p_reference,
     p_actor_id,
     jsonb_build_object(
@@ -252,12 +261,12 @@ BEGIN
   END IF;
 
   -- Determine activity action
-  v_action := CASE p_new_status
+  v_action := (CASE p_new_status
     WHEN 'suspended' THEN 'account_suspended'
     WHEN 'banned'    THEN 'account_banned'
     WHEN 'active'    THEN 'account_reactivated'
     ELSE 'account_reactivated'
-  END;
+  END)::activity_action;
 
   UPDATE public.profiles
   SET status = p_new_status, updated_at = NOW()
@@ -307,8 +316,40 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 -- REALTIME: Enable publication for live-sync tables
 -- These tables push changes to subscribed frontend clients.
 -- ============================================================
-ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.user_settings;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.wallet_transactions;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.user_2fa_config;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.user_kyc;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'profiles'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'user_settings'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.user_settings;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'wallet_transactions'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.wallet_transactions;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'user_2fa_config'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.user_2fa_config;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'user_kyc'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.user_kyc;
+  END IF;
+END $$;

@@ -62,6 +62,13 @@ const requireSuperAdmin = async (req, res, next) => {
   next();
 };
 
+// Fire-and-forget audit log — failures must never abort a successful primary operation
+function fireLog(params) {
+  supabaseAdmin.rpc('log_activity', params).then(({ error }) => {
+    if (error) console.error('[log_activity]', error.message);
+  });
+}
+
 // Health check
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'pixiekat-admin-proxy', timestamp: new Date().toISOString() });
@@ -74,7 +81,7 @@ app.post('/api/admin/users/:id/force-logout', requireAdmin, async (req, res) => 
     const { error } = await supabaseAdmin.auth.admin.signOut(id, 'global');
     if (error) throw error;
 
-    await supabaseAdmin.rpc('log_activity', {
+    fireLog({
       p_user_id: id,
       p_action: 'session_revoked',
       p_description: 'All sessions revoked by admin',
@@ -103,7 +110,8 @@ app.post('/api/admin/users/:id/disable-2fa', requireAdmin, async (req, res) => {
     if (listError) throw listError;
 
     for (const factor of factors?.all ?? []) {
-      await supabaseAdmin.auth.admin.mfa.deleteFactor({ userId: id, id: factor.id });
+      const { error: delError } = await supabaseAdmin.auth.admin.mfa.deleteFactor({ userId: id, id: factor.id });
+      if (delError) throw delError;
     }
 
     await supabaseAdmin
@@ -116,7 +124,7 @@ app.post('/api/admin/users/:id/disable-2fa', requireAdmin, async (req, res) => {
       })
       .eq('user_id', id);
 
-    await supabaseAdmin.rpc('log_activity', {
+    fireLog({
       p_user_id: id,
       p_action: '2fa_disabled',
       p_description: reason,
@@ -145,7 +153,7 @@ app.post('/api/admin/users/:id/reset-password', requireAdmin, async (req, res) =
     );
     if (error) throw error;
 
-    await supabaseAdmin.rpc('log_activity', {
+    fireLog({
       p_user_id: id,
       p_action: 'password_reset_requested',
       p_description: 'Password reset email sent by admin',
@@ -180,7 +188,7 @@ app.post('/api/admin/users/:id/change-email', requireSuperAdmin, async (req, res
 
     await supabaseAdmin.from('profiles').update({ email, updated_at: new Date().toISOString() }).eq('id', id);
 
-    await supabaseAdmin.rpc('log_activity', {
+    fireLog({
       p_user_id: id,
       p_action: 'email_changed',
       p_description: `Email changed to ${email} by admin`,

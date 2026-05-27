@@ -16,7 +16,6 @@ import {
   Mail,
   Shield,
   ChevronDown,
-  X,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { supabase } from '../lib/supabase';
@@ -29,17 +28,10 @@ interface RegisteredUser {
   phone?: string | null;
   joinedAt: string;
   updatedAt?: string;
-  status?: 'active' | 'inactive' | 'suspended';
+  status?: 'active' | 'inactive' | 'suspended' | 'banned';
   role?: 'user' | 'admin' | 'reseller' | 'support';
 }
 
-interface EditUserForm {
-  name: string;
-  email: string;
-  phone: string;
-  role: 'user' | 'admin' | 'reseller' | 'support';
-  status: 'active' | 'inactive' | 'suspended';
-}
 
 const ManageUsers: React.FC = () => {
   const navigate = useNavigate();
@@ -53,15 +45,6 @@ const ManageUsers: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
-  const [editingUser, setEditingUser] = useState<RegisteredUser | null>(null);
-  const [editForm, setEditForm] = useState<EditUserForm>({
-    name: '',
-    email: '',
-    phone: '',
-    role: 'user',
-    status: 'active',
-  });
-  const [savingUser, setSavingUser] = useState(false);
   const [processingAction, setProcessingAction] = useState<string | null>(null);
 
   const fetchUsers = async () => {
@@ -141,20 +124,17 @@ const ManageUsers: React.FC = () => {
 
   const updateUserStatus = async (
     userId: string,
-    status: RegisteredUser['status'],
-    successMessage: string
+    status: 'active' | 'inactive' | 'suspended' | 'banned',
+    successMessage: string,
+    reason: string = successMessage
   ) => {
     try {
       setProcessingAction(`${userId}:${status}`);
-      const { error } = await supabase
-        .from('profiles')
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', userId);
-      if (error) throw error;
+      await api.post(`/admin/users/${userId}/status`, { status, reason });
       toast.success(successMessage);
       await fetchUsers();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update user');
+      toast.error(err.response?.data?.message || 'Failed to update user');
     } finally {
       setProcessingAction(null);
     }
@@ -188,14 +168,12 @@ const ManageUsers: React.FC = () => {
 
       switch (action) {
         case 'activate': {
-          const { error } = await supabase.from('profiles').update({ status: 'active', updated_at: new Date().toISOString() }).in('id', userIds);
-          if (error) throw error;
+          await Promise.all(userIds.map(id => api.post(`/admin/users/${id}/status`, { status: 'active', reason: 'Bulk activated by admin' })));
           toast.success(`Activated ${count} user(s)`);
           break;
         }
         case 'deactivate': {
-          const { error } = await supabase.from('profiles').update({ status: 'inactive', updated_at: new Date().toISOString() }).in('id', userIds);
-          if (error) throw error;
+          await Promise.all(userIds.map(id => api.post(`/admin/users/${id}/status`, { status: 'inactive', reason: 'Bulk deactivated by admin' })));
           toast.success(`Deactivated ${count} user(s)`);
           break;
         }
@@ -215,60 +193,6 @@ const ManageUsers: React.FC = () => {
     }
   };
 
-
-  const handleEditFormChange = <K extends keyof EditUserForm>(
-    field: K,
-    value: EditUserForm[K]
-  ) => {
-    setEditForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  };
-
-  const handleSaveUser = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!editingUser) return;
-
-    const name = editForm.name.trim();
-    const email = editForm.email.trim().toLowerCase();
-
-    if (!name) {
-      toast.error('Name is required');
-      return;
-    }
-
-    if (!email) {
-      toast.error('Email is required');
-      return;
-    }
-
-    try {
-      setSavingUser(true);
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          name,
-          phone: editForm.phone.trim() || null,
-          role: editForm.role,
-          status: editForm.status,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', editingUser.id);
-
-      if (updateError) throw updateError;
-
-      toast.success('User updated');
-      setEditingUser(null);
-      await fetchUsers();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to update user');
-    } finally {
-      setSavingUser(false);
-    }
-  };
-
   const handleUserAction = async (userId: string, action: string) => {
     setActionMenuOpen(null);
     switch (action) {
@@ -280,7 +204,7 @@ const ManageUsers: React.FC = () => {
         toast('Email user coming soon');
         break;
       case 'suspend':
-        await updateUserStatus(userId, 'suspended', 'User suspended');
+        await updateUserStatus(userId, 'suspended', 'User suspended', 'Suspended by admin');
         break;
       case 'delete':
         await deleteUser(userId);
@@ -295,6 +219,8 @@ const ManageUsers: React.FC = () => {
       case 'inactive':
         return 'bg-gray-100 text-gray-800';
       case 'suspended':
+        return 'bg-orange-100 text-orange-800';
+      case 'banned':
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -654,121 +580,6 @@ const ManageUsers: React.FC = () => {
         )}
       </motion.div>
 
-      <AnimatePresence>
-        {editingUser && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 16, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 16, scale: 0.98 }}
-              className="w-full max-w-xl rounded-lg bg-white shadow-xl"
-            >
-              <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Edit User</h2>
-                  <p className="mt-1 text-sm text-gray-500">Update account details stored in PostgreSQL.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEditingUser(null)}
-                  className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-                  disabled={savingUser}
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSaveUser} className="space-y-5 px-6 py-5">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="label mb-1.5 block">Name</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={editForm.name}
-                      onChange={(event) => handleEditFormChange('name', event.target.value)}
-                      maxLength={100}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="label mb-1.5 block">Email</label>
-                    <input
-                      type="email"
-                      className="input"
-                      value={editForm.email}
-                      onChange={(event) => handleEditFormChange('email', event.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="label mb-1.5 block">Phone</label>
-                    <input
-                      type="tel"
-                      className="input"
-                      value={editForm.phone}
-                      onChange={(event) => handleEditFormChange('phone', event.target.value)}
-                      placeholder="Optional"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="label mb-1.5 block">Role</label>
-                    <select
-                      className="input"
-                      value={editForm.role}
-                      onChange={(event) =>
-                        handleEditFormChange('role', event.target.value as EditUserForm['role'])
-                      }
-                    >
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                      <option value="reseller">Reseller</option>
-                      <option value="support">Support</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="label mb-1.5 block">Status</label>
-                    <select
-                      className="input"
-                      value={editForm.status}
-                      onChange={(event) =>
-                        handleEditFormChange('status', event.target.value as EditUserForm['status'])
-                      }
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                      <option value="suspended">Suspended</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-5">
-                  <button
-                    type="button"
-                    onClick={() => setEditingUser(null)}
-                    className="btn btn-outline btn-md"
-                    disabled={savingUser}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary btn-md" disabled={savingUser}>
-                    {savingUser ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

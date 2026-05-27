@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, Plus, Minus, RefreshCw, ArrowUpRight, ArrowDownLeft, X, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
-import { api } from '../../../services/api';
+import { useAuth } from '../../../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import type { UserDetailData } from '../useUserDetail';
 
@@ -35,6 +35,7 @@ function formatTs(ts: string) {
 
 export default function WalletTab({ data, refetch }: Props) {
   const { profile } = data;
+  const { user: adminUser } = useAuth();
 
   const [transactions, setTransactions] = useState<TxRow[]>([]);
   const [txLoading, setTxLoading]       = useState(true);
@@ -66,12 +67,17 @@ export default function WalletTab({ data, refetch }: Props) {
 
     setSubmitting(true);
     try {
-      await api.post('/admin/wallet/adjust', {
-        userId: profile.id,
-        amount: parsed,
-        type: adjustType,
-        reference: reference.trim(),
+      const adjustedAmount = adjustType === 'debit' ? -Math.abs(parsed) : Math.abs(parsed);
+      const { error } = await supabase.rpc('adjust_wallet_balance', {
+        p_user_id: profile.id,
+        p_amount: adjustedAmount,
+        p_type: adjustType,
+        p_reference: reference.trim(),
+        p_actor_id: adminUser?.id ?? null,
       });
+
+      if (error) throw error;
+
       toast.success('Wallet adjusted successfully');
       setAmount('');
       setReference('');
@@ -79,9 +85,13 @@ export default function WalletTab({ data, refetch }: Props) {
       await fetchTx();
       refetch();
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Wallet adjustment failed';
-      if (err.response?.data?.code === 'INSUFFICIENT_BALANCE') {
+      const msg = err.message || 'Wallet adjustment failed';
+      if (msg.includes('Insufficient wallet balance')) {
         toast.error(`Insufficient balance. ${msg}`);
+      } else if (msg.includes('Could not find the function') || msg.includes('adjust_wallet_balance')) {
+        toast.error('Wallet adjustment is not set up yet. Run supabase/migrations/002_functions_triggers.sql in Supabase.');
+      } else if (msg.includes('Permission denied')) {
+        toast.error('Only active admin or support accounts can adjust wallets.');
       } else {
         toast.error(msg);
       }

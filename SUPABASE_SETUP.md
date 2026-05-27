@@ -26,6 +26,7 @@ In your Supabase project:
 1. Go to **SQL Editor**
 2. Open `supabase/migrations/001_initial_schema.sql` and paste + run it
 3. Open `supabase/migrations/002_functions_triggers.sql` and paste + run it
+4. Open `supabase/migrations/003_avatar_storage.sql` and paste + run it
 
 Both should complete with no errors.
 
