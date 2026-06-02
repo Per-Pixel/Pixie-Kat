@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { recordLoginSession } from '../utils/sessionTelemetry';
 
 const AuthContext = createContext();
 
@@ -40,6 +41,7 @@ export const AuthProvider = ({ children }) => {
     setProfile(p);
     setSession(newSession);
     setIsLoading(false);
+    recordLoginSession(newSession);
   }, []);
 
   useEffect(() => {
@@ -91,6 +93,8 @@ export const AuthProvider = ({ children }) => {
         : error.message;
       return { success: false, error: msg };
     }
+
+    await recordLoginSession(data.session);
 
     return { success: true, user: data.user };
   }, []);

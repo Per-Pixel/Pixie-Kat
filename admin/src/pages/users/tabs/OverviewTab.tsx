@@ -97,6 +97,7 @@ export default function OverviewTab({ data, refetch }: Props) {
   const [pendingStatus, setPendingStatus]     = useState<typeof STATUSES[number] | null>(null);
   const [statusReason, setStatusReason]       = useState('');
   const [changingStatus, setChangingStatus]   = useState(false);
+  const [orderStats, setOrderStats] = useState({ count: 0, completedSpend: 0 });
 
   const field = (key: keyof typeof form) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -106,6 +107,40 @@ export default function OverviewTab({ data, refetch }: Props) {
     setAvatarPreview(profile.avatar_url ?? '');
     setAvatarFile(null);
   }, [profile.avatar_url]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchOrderStats = async () => {
+      const [{ count }, { data: completedOrders }] = await Promise.all([
+        supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', profile.id),
+        supabase
+          .from('orders')
+          .select('total_amount')
+          .eq('user_id', profile.id)
+          .eq('status', 'completed'),
+      ]);
+
+      if (cancelled) return;
+
+      setOrderStats({
+        count: count ?? 0,
+        completedSpend: (completedOrders ?? []).reduce(
+          (sum, order) => sum + Number(order.total_amount || 0),
+          0,
+        ),
+      });
+    };
+
+    fetchOrderStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profile.id]);
 
   const handleAvatarSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -284,7 +319,7 @@ export default function OverviewTab({ data, refetch }: Props) {
         <StatCard
           icon={ShoppingBag}
           label="Total Orders"
-          value="—"
+          value={`${orderStats.count} / PKS ${orderStats.completedSpend.toFixed(2)}`}
           color="bg-blue-50 text-blue-500"
         />
         <StatCard

@@ -16,7 +16,8 @@ import {
   X,
   Zap,
   Package,
-  Users
+  Users,
+  LayoutGrid
 } from 'lucide-react';
 
 interface SubMenuItem {
@@ -45,12 +46,36 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const menuItems: MenuItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/dashboard' },
     {
+      id: 'products',
+      label: 'Products',
+      icon: Package,
+      subItems: [
+        { label: 'All Games', path: '/products/games' },
+        { label: 'Add Game', path: '/products/games/new' },
+        { label: 'All Products', path: '/products' },
+        { label: 'Active Products', path: '/products/active' },
+        { label: 'Drafts', path: '/products/drafts' }
+      ]
+    },
+    {
+      id: 'content',
+      label: 'Content',
+      icon: LayoutGrid,
+      subItems: [
+        { label: 'Trending Games', path: '/content/trending' },
+        { label: 'Add Trending Item', path: '/content/trending/new' },
+        { label: 'Exclusive Offers', path: '/content/exclusive-offers' },
+        { label: 'Add Offer', path: '/content/exclusive-offers/new' }
+      ]
+    },
+    {
       id: 'quick-actions',
       label: 'Quick Actions',
       icon: Zap,
       subItems: [
         { label: 'Add Product', path: '/quick/add-product' },
-        { label: 'Manage Users', path: '/quick/manage-users' }
+        { label: 'Manage Users', path: '/quick/manage-users' },
+        { label: 'Orders', path: '/quick/orders' }
       ]
     },
     {
@@ -70,6 +95,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       subItems: [
         { label: 'Sales Overview', path: '/revenue/sales-overview' },
         { label: 'Products', path: '/revenue/products' },
+        { label: 'Orders', path: '/revenue/orders' },
         { label: 'Brokers', path: '/revenue/brokers' },
         { label: 'Referral', path: '/revenue/referral' }
       ]

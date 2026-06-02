@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase';
 import { UserRole, ROLE_PERMISSIONS } from '../types/auth';
 import type { User, LoginCredentials } from '../types/auth';
 import { toast } from 'react-hot-toast';
+import { recordLoginSession } from '../utils/sessionTelemetry';
 
 interface AuthContextType {
   user: User | null;
@@ -104,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(newSession);
     setLastActivity(new Date());
     setIsLoading(false);
+    recordLoginSession(newSession);
   }, []);
 
   useEffect(() => {
@@ -125,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
       email: credentials.email,
       password: credentials.password,
     });
@@ -138,6 +140,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       throw new Error(msg);
     }
+
+    await recordLoginSession(data.session);
     // onAuthStateChange fires and calls handleSession — no manual state needed here
   }, []);
 

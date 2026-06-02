@@ -32,6 +32,8 @@ const legacyMenuItems = [
   { id: 'messages', label: 'Messages', icon: MessageSquare, path: '/messages' },
   { id: 'users', label: 'Users', icon: Users, path: '/users' },
   { id: 'orders', label: 'Orders', icon: ShoppingCart, path: '/orders' },
+  { id: 'revenue-orders', label: 'Orders', icon: ShoppingCart, path: '/revenue/orders' },
+  { id: 'quick-orders', label: 'Orders', icon: ShoppingCart, path: '/quick/orders' },
   { id: 'games', label: 'Games', icon: Gamepad2, path: '/games' },
   { id: 'resellers', label: 'Resellers', icon: UserCheck, path: '/resellers' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },

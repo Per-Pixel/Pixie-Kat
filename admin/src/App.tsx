@@ -26,6 +26,11 @@ import Clients from './pages/auth/Clients';
 import AddProduct from './pages/AddProduct';
 import ManageUsers from './pages/ManageUsers';
 import UserDetail from './pages/users/UserDetail';
+import GamesList from './pages/products/GamesList';
+import GameEditor from './pages/products/GameEditor';
+import ProductsList from './pages/products/ProductsList';
+import PromoList from './pages/content/PromoList';
+import PromoEditor from './pages/content/PromoEditor';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -58,7 +63,19 @@ const AppRoutes: React.FC = () => {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="overview" element={<Overview />} />
-        <Route path="products" element={<Products />} />
+        <Route path="products" element={<ProductsList title="All Products" />} />
+        <Route path="products/active" element={<ProductsList statusFilter="active" title="Active Products" />} />
+        <Route path="products/drafts" element={<ProductsList statusFilter="draft" title="Draft Products" />} />
+        <Route path="products/legacy" element={<Products />} />
+        <Route path="products/games" element={<GamesList title="All Games" />} />
+        <Route path="content/trending" element={<PromoList section="trending" title="Trending Games" description="Manage cards shown in the homepage carousel" />} />
+        <Route path="content/trending/new" element={<PromoEditor section="trending" backPath="/content/trending" sectionLabel="Trending Games" />} />
+        <Route path="content/trending/:id" element={<PromoEditor section="trending" backPath="/content/trending" sectionLabel="Trending Games" />} />
+        <Route path="content/exclusive-offers" element={<PromoList section="exclusive_offers" title="Exclusive Offers" description="Manage promotional offer cards on the homepage" />} />
+        <Route path="content/exclusive-offers/new" element={<PromoEditor section="exclusive_offers" backPath="/content/exclusive-offers" sectionLabel="Exclusive Offers" />} />
+        <Route path="content/exclusive-offers/:id" element={<PromoEditor section="exclusive_offers" backPath="/content/exclusive-offers" sectionLabel="Exclusive Offers" />} />
+        <Route path="products/games/new" element={<GameEditor />} />
+        <Route path="products/games/:id" element={<GameEditor />} />
         <Route path="users" element={<ManageUsers />} />
         <Route path="users/:id" element={<UserDetail />} />
         <Route path="orders" element={<Orders />} />
@@ -73,6 +90,7 @@ const AppRoutes: React.FC = () => {
         {/* Revenue Routes */}
         <Route path="revenue/sales-overview" element={<SalesOverview />} />
         <Route path="revenue/products" element={<RevenueProducts />} />
+        <Route path="revenue/orders" element={<Orders />} />
         <Route path="revenue/brokers" element={<Brokers />} />
         <Route path="revenue/referral" element={<Referral />} />
         {/* Message Routes */}
@@ -92,6 +110,7 @@ const AppRoutes: React.FC = () => {
         {/* Quick Action Routes */}
         <Route path="quick/add-product" element={<AddProduct />} />
         <Route path="quick/manage-users" element={<ManageUsers />} />
+        <Route path="quick/orders" element={<Orders />} />
       </Route>
     </Routes>
   );

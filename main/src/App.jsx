@@ -40,7 +40,7 @@ const AddMoneyPage = lazy(() => import("./pages/wallet/AddMoneyPage"));
 
 const AccountPage = lazy(() => import("./pages/account"));
 
-const GameInfoPage = lazy(() => import("./pages/games/GameInfoPage"));
+const GameInfoPage = lazy(() => import("./pages/games/GamePage"));
 
 
 

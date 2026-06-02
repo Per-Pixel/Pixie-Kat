@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 
-const exclusiveOffers = [
+import { usePromoSection } from "../../../hooks/usePromoSection";
+
+const fallbackExclusiveOffers = [
   {
     title: "Mobile Legend Bang Bang",
     image: "/img/hero/game-mlbb-card.webp",
@@ -76,12 +78,12 @@ const exclusiveOffers = [
   },
 ];
 
-const ExclusiveOfferCard = ({ title, image, flag }) => {
+const ExclusiveOfferCard = ({ title, image, flag, link }) => {
   const navigate = useNavigate();
 
   return (
     <div
-      onClick={() => navigate("/games")}
+      onClick={() => navigate(link ?? "/games")}
       className="group relative cursor-pointer overflow-hidden rounded-xl"
       style={{ aspectRatio: "15 / 16" }}
     >
@@ -111,26 +113,40 @@ const ExclusiveOfferCard = ({ title, image, flag }) => {
   );
 };
 
-const ExclusiveOffers = () => (
-  <section className="bg-[#dfdff0] px-2 py-12 md:px-8 md:py-16">
-    <div className="mb-6">
-      <h2
-        className="text-2xl font-bold uppercase text-black md:text-3xl"
-        style={{ fontFamily: "zentry, sans-serif" }}
-      >
-        Exclusive Offers
-      </h2>
-      <p className="mt-1 font-general text-sm text-lime-600">
-        Limited time deals on featured products — grab them before they&apos;re gone!
-      </p>
-    </div>
+const ExclusiveOffers = () => {
+  const { items: promoItems } = usePromoSection("exclusive_offers");
 
-    <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4 lg:grid-cols-6 md:gap-4">
-      {exclusiveOffers.map((offer) => (
-        <ExclusiveOfferCard key={offer.title} {...offer} />
-      ))}
-    </div>
-  </section>
-);
+  const exclusiveOffers =
+    promoItems.length > 0
+      ? promoItems.map((item) => ({
+          title: item.title,
+          image: item.image_url ?? "/img/games/mobile-legends.webp",
+          flag: item.flag ?? undefined,
+          link: item.link_url || (item.game_id ? `/games/${item.game_id}` : "/games"),
+        }))
+      : fallbackExclusiveOffers;
+
+  return (
+    <section className="bg-[#dfdff0] px-2 py-12 md:px-8 md:py-16">
+      <div className="mb-6">
+        <h2
+          className="text-2xl font-bold uppercase text-black md:text-3xl"
+          style={{ fontFamily: "zentry, sans-serif" }}
+        >
+          Exclusive Offers
+        </h2>
+        <p className="mt-1 font-general text-sm text-lime-600">
+          Limited time deals on featured products — grab them before they&apos;re gone!
+        </p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4 lg:grid-cols-6 md:gap-4">
+        {exclusiveOffers.map((offer) => (
+          <ExclusiveOfferCard key={offer.title} {...offer} />
+        ))}
+      </div>
+    </section>
+  );
+};
 
 export default ExclusiveOffers;
