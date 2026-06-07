@@ -10,6 +10,7 @@ import {
   createGame, updateGame, getGameWithRelations, replaceGameFields, replaceProducts,
   Game, GameField, Product, GameFieldType, GameStatus, GameProvider, HowToStep,
 } from '../../services/catalogService';
+import ImageSourceField from '../../components/common/ImageSourceField';
 
 type FieldDraft = Partial<GameField> & { _key: string };
 type ProductDraft = Partial<Product> & { _key: string };
@@ -302,15 +303,22 @@ const GameEditor: React.FC = () => {
                 <label className="label mb-1.5 block">Description</label>
                 <textarea rows={3} className="input h-auto resize-none" value={form.description} onChange={(e) => change('description', e.target.value)} />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="label mb-1.5 block">Card Image URL</label>
-                  <input className="input" placeholder="/img/games/..." value={form.image_url} onChange={(e) => change('image_url', e.target.value)} />
-                </div>
-                <div>
-                  <label className="label mb-1.5 block">Banner Image URL</label>
-                  <input className="input" placeholder="/img/hero/..." value={form.banner_url} onChange={(e) => change('banner_url', e.target.value)} />
-                </div>
+              <div className="grid grid-cols-1 gap-4">
+                <ImageSourceField
+                  label="Card Image"
+                  value={form.image_url}
+                  onChange={(url) => change('image_url', url)}
+                  placeholder="/img/games/mobile-legends.webp or https://..."
+                  folder="games/cards"
+                />
+                <ImageSourceField
+                  label="Banner Image"
+                  value={form.banner_url}
+                  onChange={(url) => change('banner_url', url)}
+                  placeholder="/img/hero/game-mlbb-card.webp or https://..."
+                  folder="games/banners"
+                  previewClassName="h-32 w-full max-w-md"
+                />
               </div>
             </div>
           </section>
@@ -484,6 +492,16 @@ const GameEditor: React.FC = () => {
                           <input className="input font-mono text-sm" placeholder="Smile.one denomination id" value={p.provider_product_id ?? ''} onChange={(e) => updateProductDraft(p._key, { provider_product_id: e.target.value })} />
                         </div>
                       )}
+                    </div>
+                    <div className="mt-4">
+                      <ImageSourceField
+                        label="Package Image"
+                        value={p.image_url ?? ''}
+                        onChange={(url) => updateProductDraft(p._key, { image_url: url })}
+                        placeholder="/img/promotion/starlight.webp or https://..."
+                        folder="products"
+                        previewClassName="h-20 w-32"
+                      />
                     </div>
                   </div>
                 ))}

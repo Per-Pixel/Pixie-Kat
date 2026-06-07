@@ -10,6 +10,8 @@ import {
 
 import { fallbackGameImage } from "./gamesData";
 import { useGameCatalog } from "./useGameCatalog";
+import { useAuth } from "../../contexts/AuthContext";
+import { supabase } from "../../lib/supabase";
 
 const defaultBanner = "/img/hero/game-mlbb-card.webp";
 
@@ -107,7 +109,22 @@ const InstructionsAlert = ({ title, body }) => (
   </section>
 );
 
-const MembershipOffer = () => (
+const getMemberPrice = (price, percent) => {
+  const value = Number(price);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  const discount = Math.max(1, Math.round(value * percent));
+  return Math.max(0, value - discount);
+};
+
+const MembershipOffer = ({ selectedPackage }) => {
+  const silverPrice = getMemberPrice(selectedPackage?.price, 0.03);
+  const goldPrice = getMemberPrice(selectedPackage?.price, 0.05);
+  const silverLabel = silverPrice == null ? "Select a pack" : formatPrice(silverPrice, selectedPackage.currency);
+  const goldLabel = goldPrice == null ? "Select a pack" : formatPrice(goldPrice, selectedPackage.currency);
+  const silverSavings = silverPrice == null ? "" : `Save ${formatPrice(Number(selectedPackage.price) - silverPrice, selectedPackage.currency)} vs ${selectedPackage.priceLabel}`;
+  const goldSavings = goldPrice == null ? "" : `Save ${formatPrice(Number(selectedPackage.price) - goldPrice, selectedPackage.currency)} vs ${selectedPackage.priceLabel}`;
+
+  return (
   <section className="rounded-xl bg-[#070b16] p-4 text-white shadow-[0_16px_36px_rgba(5,8,16,0.22)]">
     <div className="flex items-start justify-between gap-4">
       <div className="flex gap-3">
@@ -119,13 +136,26 @@ const MembershipOffer = () => (
       </div>
       <span className="rounded border border-[#6b5d19] px-3 py-1 text-xs font-bold text-[#f5cf21]">RECOMMENDED</span>
     </div>
-    <button type="button" className="mt-4 h-11 w-full rounded-lg bg-[#ffda24] text-sm font-black text-black">
+    <div className="mt-4 grid gap-3 md:grid-cols-2">
+      <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+        <p className="text-xs font-bold text-white/65">SILVER MEMBERS</p>
+        <p className="mt-1 text-2xl font-black">{silverLabel}</p>
+        {silverSavings ? <p className="text-xs text-white/65">{silverSavings}</p> : null}
+      </div>
+      <div className="rounded-lg border border-[#7f6b16] bg-[#282205]/70 p-3">
+        <p className="text-xs font-bold text-[#f5cf21]">GOLD MEMBERS</p>
+        <p className="mt-1 text-2xl font-black text-[#ffe75b]">{goldLabel}</p>
+        {goldSavings ? <p className="text-xs text-[#ffe75b]">{goldSavings}</p> : null}
+      </div>
+    </div>
+    <button type="button" className="mt-3 h-11 w-full rounded-lg bg-[#ffda24] text-sm font-black text-black">
       Buy Membership &amp; Save  -&gt;
     </button>
   </section>
-);
+  );
+};
 
-const MobileCheckoutBar = ({ selectedPackage, selectedPayment }) => (
+const MobileCheckoutBar = ({ selectedPackage, selectedPayment, onPay, isSubmitting }) => (
   <div className="fixed inset-x-0 bottom-24 z-[90] mx-auto block max-w-md px-4 md:hidden">
     <div className="flex h-[72px] items-center gap-3 rounded-t-xl border border-[#e9edf3] bg-white/95 px-3 shadow-[0_-12px_30px_rgba(15,23,42,0.12)] backdrop-blur">
       <div className="min-w-0 flex-1">
@@ -136,8 +166,8 @@ const MobileCheckoutBar = ({ selectedPackage, selectedPayment }) => (
         <p className="text-[10px] font-bold text-[#9aa2ad]">TOTAL</p>
         <p className="text-lg font-black text-[#6d4cff]">{selectedPackage?.priceLabel ?? "—"}</p>
       </div>
-      <button type="button" className="h-10 rounded-lg bg-[#aaa] px-4 text-sm font-bold text-white">
-        Pay {selectedPayment.pay}
+      <button type="button" onClick={onPay} disabled={isSubmitting || !selectedPackage} className="h-10 rounded-lg bg-[#aaa] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-70">
+        {isSubmitting ? "..." : `Pay ${selectedPackage?.priceLabel ?? selectedPayment.name}`}
       </button>
     </div>
   </div>
@@ -185,10 +215,15 @@ const DynamicField = ({ field, value, onChange }) => {
 const GamePage = () => {
   const { gameId: slug } = useParams();
   const { loading, notFound, game, fields, products } = useGameCatalog(slug);
+  const { user, isAuthenticated } = useAuth();
 
   const [selectedPackageId, setSelectedPackageId] = useState(null);
   const [selectedPaymentId, setSelectedPaymentId] = useState(paymentMethods[0].id);
   const [fieldValues, setFieldValues] = useState({});
+  const [contact, setContact] = useState({ email: "", whatsapp: "" });
+  const [checkoutError, setCheckoutError] = useState("");
+  const [checkoutSuccess, setCheckoutSuccess] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Map DB products to the package shape used by the UI.
   const packages = useMemo(
@@ -200,6 +235,8 @@ const GamePage = () => {
         image: p.image_url,
         popular: p.is_popular,
         currency: p.currency,
+        price: Number(p.price),
+        comparePrice: p.compare_price ? Number(p.compare_price) : null,
         priceLabel: formatPrice(p.price, p.currency),
         oldPriceLabel: p.compare_price ? formatPrice(p.compare_price, p.currency) : null,
       })),
@@ -243,9 +280,65 @@ const GamePage = () => {
   const bannerImage = game.banner_url || game.image_url || defaultBanner;
   const selectedPackage = packages.find((item) => item.id === selectedPackageId) ?? packages[0] ?? null;
   const selectedPayment = paymentMethods.find((item) => item.id === selectedPaymentId) ?? paymentMethods[0];
+  const paymentTotalLabel = selectedPackage?.priceLabel ?? "—";
 
   const updateField = (key, value) =>
     setFieldValues((prev) => ({ ...prev, [key]: value }));
+
+  const updateContact = (key, value) =>
+    setContact((prev) => ({ ...prev, [key]: value }));
+
+  const handlePay = async () => {
+    setCheckoutError("");
+    setCheckoutSuccess("");
+
+    if (!selectedPackage) {
+      setCheckoutError("Please select a package before checkout.");
+      return;
+    }
+
+    const missingField = fields.find((field) => field.is_required && !String(fieldValues[field.field_key] ?? "").trim());
+    if (missingField) {
+      setCheckoutError(`Please enter ${missingField.label}.`);
+      return;
+    }
+
+    if (!contact.email.trim() || !contact.whatsapp.trim()) {
+      setCheckoutError("Please enter your email address and WhatsApp number.");
+      return;
+    }
+
+    if (!isAuthenticated || !user?.id) {
+      setCheckoutError("Please log in before placing this order.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const { error } = await supabase.from("orders").insert({
+      user_id: user.id,
+      product_id: selectedPackage.id,
+      product_name: selectedPackage.name,
+      total_amount: selectedPackage.price,
+      currency: selectedPackage.currency,
+      status: "pending",
+      payment_method: selectedPayment.id,
+      metadata: {
+        game_id: game.id,
+        game_slug: game.slug,
+        game_name: game.name,
+        account_fields: fieldValues,
+        contact,
+      },
+    });
+    setIsSubmitting(false);
+
+    if (error) {
+      setCheckoutError(error.message || "Could not place this order. Please try again.");
+      return;
+    }
+
+    setCheckoutSuccess("Order created. Complete payment to start processing.");
+  };
 
   return (
     <div className="min-h-screen bg-[linear-gradient(115deg,#fbfaf5_0%,#eef8f7_48%,#faf8f2_100%)] pb-28 pt-24 text-[#10141f] md:pb-16">
@@ -341,7 +434,7 @@ const GamePage = () => {
         <main className="rounded-[28px] bg-white/75 px-4 py-7 shadow-[0_24px_70px_rgba(15,23,42,0.12)] backdrop-blur md:col-start-2 md:px-8 lg:px-9">
           <section className="mt-7">
             <SectionTitle number="3">Choose the Payment Method</SectionTitle>
-            <MembershipOffer />
+            <MembershipOffer selectedPackage={selectedPackage} />
 
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               {paymentMethods.map((method) => {
@@ -364,7 +457,7 @@ const GamePage = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-bold text-[#8a92a0]">YOU PAY</p>
-                        <p className={`text-xl font-black ${selected || method.selectedAccent ? "text-[#6d4cff]" : "text-[#10141f]"}`}>{method.pay}</p>
+                        <p className={`text-xl font-black ${selected || method.selectedAccent ? "text-[#6d4cff]" : "text-[#10141f]"}`}>{paymentTotalLabel}</p>
                         {method.note ? <p className="text-[10px] text-[#6d7480]">{method.note}</p> : null}
                       </div>
                     </div>
@@ -384,7 +477,7 @@ const GamePage = () => {
             <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
               <label className="block">
                 <span className="text-xs font-bold text-[#6d7480]">EMAIL ADDRESS</span>
-                <input className="mt-2 h-14 w-full rounded-xl border border-[#dfe4ec] bg-white px-4 text-base font-bold text-[#141923] outline-none" placeholder="you@example.com" />
+                <input className="mt-2 h-14 w-full rounded-xl border border-[#dfe4ec] bg-white px-4 text-base font-bold text-[#141923] outline-none" placeholder="you@example.com" value={contact.email} onChange={(event) => updateContact("email", event.target.value)} />
               </label>
               <div>
                 <span className="text-xs font-bold text-[#6d7480]">WHATSAPP NUMBER</span>
@@ -394,10 +487,17 @@ const GamePage = () => {
                     <span className="text-center text-sm font-bold text-[#141923]">India<br /><span className="text-xs font-medium text-[#6d7480]">+91</span></span>
                     <ChevronDown className="h-4 w-4 text-[#6d7480]" />
                   </button>
-                  <input className="h-14 rounded-xl border border-[#dfe4ec] bg-white px-4 text-base font-bold text-[#9aa2ad] outline-none" placeholder="98765 43210" />
+                  <input className="h-14 rounded-xl border border-[#dfe4ec] bg-white px-4 text-base font-bold text-[#141923] outline-none placeholder:text-[#9aa2ad]" placeholder="98765 43210" value={contact.whatsapp} onChange={(event) => updateContact("whatsapp", event.target.value)} />
                 </div>
               </div>
             </div>
+
+            {checkoutError ? (
+              <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{checkoutError}</p>
+            ) : null}
+            {checkoutSuccess ? (
+              <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{checkoutSuccess}</p>
+            ) : null}
 
             <div className="mt-6 border-t border-[#dfe4ec] pt-6">
               <div className="rounded-xl bg-[#f1f3f5] p-6">
@@ -409,12 +509,13 @@ const GamePage = () => {
                   <span className="text-xl font-black text-[#10141f]">Total Pay</span>
                   <span className="text-right">
                     <span className="block text-3xl font-black text-[#6d4cff]">{selectedPackage?.priceLabel ?? "—"}</span>
+                    {selectedPayment.note ? <span className="text-xs text-[#6d7480]">{selectedPayment.note}</span> : null}
                   </span>
                 </div>
               </div>
 
-              <button type="button" className="mt-6 h-16 w-full rounded-xl bg-[#aaa] text-lg font-black text-white">
-                Pay {selectedPackage?.priceLabel ?? ""}
+              <button type="button" onClick={handlePay} disabled={isSubmitting || !selectedPackage} className="mt-6 h-16 w-full rounded-xl bg-[#aaa] text-lg font-black text-white disabled:cursor-not-allowed disabled:opacity-70">
+                {isSubmitting ? "Creating order..." : `Pay ${selectedPackage?.priceLabel ?? ""}`}
               </button>
               <p className="mt-5 text-center text-xs text-[#6d7480]">
                 By clicking Pay Now, you agree to our <span className="underline">Terms of Service</span>.
@@ -427,7 +528,7 @@ const GamePage = () => {
       <button type="button" className="fixed bottom-28 right-4 z-[130] flex h-12 w-12 items-center justify-center rounded-full bg-[#7b55ff] text-white shadow-[0_14px_30px_rgba(103,75,255,0.35)] md:bottom-8 md:right-8">
         <MessageCircle className="h-5 w-5" />
       </button>
-      <MobileCheckoutBar selectedPackage={selectedPackage} selectedPayment={selectedPayment} />
+      <MobileCheckoutBar selectedPackage={selectedPackage} selectedPayment={selectedPayment} onPay={handlePay} isSubmitting={isSubmitting} />
     </div>
   );
 };

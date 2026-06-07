@@ -15,9 +15,11 @@ import {
   ChevronRight,
   X,
   Zap,
-  Package,
-  Users,
-  LayoutGrid
+  HardDrive,
+  Settings,
+  BookOpen,
+  Puzzle,
+  ClipboardList
 } from 'lucide-react';
 
 interface SubMenuItem {
@@ -46,29 +48,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const menuItems: MenuItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/dashboard' },
     {
-      id: 'products',
-      label: 'Products',
-      icon: Package,
-      subItems: [
-        { label: 'All Games', path: '/products/games' },
-        { label: 'Add Game', path: '/products/games/new' },
-        { label: 'All Products', path: '/products' },
-        { label: 'Active Products', path: '/products/active' },
-        { label: 'Drafts', path: '/products/drafts' }
-      ]
-    },
-    {
-      id: 'content',
-      label: 'Content',
-      icon: LayoutGrid,
-      subItems: [
-        { label: 'Trending Games', path: '/content/trending' },
-        { label: 'Add Trending Item', path: '/content/trending/new' },
-        { label: 'Exclusive Offers', path: '/content/exclusive-offers' },
-        { label: 'Add Offer', path: '/content/exclusive-offers/new' }
-      ]
-    },
-    {
       id: 'quick-actions',
       label: 'Quick Actions',
       icon: Zap,
@@ -78,14 +57,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { label: 'Orders', path: '/quick/orders' }
       ]
     },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics' },
     {
       id: 'pages',
       label: 'Pages',
       icon: FileText,
       subItems: [
         { label: 'All Pages', path: '/pages' },
-        { label: 'Create Page', path: '/pages/create' },
-        { label: 'Page Settings', path: '/pages/settings' }
+        { label: 'Homepage', path: '/pages/homepage' },
+        { label: 'Products Page', path: '/pages/products' },
+        { label: 'About Page', path: '/pages/about' },
+        { label: 'Contact Page', path: '/pages/contact' },
+        { label: 'Trending Games', path: '/pages/homepage/trending-games' },
+        { label: 'Exclusive Offers', path: '/pages/homepage/exclusive-offers' }
       ]
     },
     {
@@ -111,7 +95,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       ]
     },
     { id: 'notifications', label: 'Notifications', icon: Bell, path: '/notifications' },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics' },
     { id: 'wallets', label: 'Wallets', icon: Wallet, path: '/wallets' },
     {
       id: 'auth',
@@ -122,7 +105,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { label: 'Clients', path: '/auth/clients' },
         { label: 'Permissions', path: '/auth/permissions' }
       ]
-    }
+    },
+    {
+      id: 'components',
+      label: 'Components',
+      icon: Puzzle,
+      subItems: [
+        { label: 'Tasks', path: '/components/tasks' },
+        { label: 'Events', path: '/components/events' }
+      ]
+    },
+    { id: 'storage', label: 'Storage', icon: HardDrive, path: '/storage' },
+    { id: 'activity-logs', label: 'Activity Logs', icon: ClipboardList, path: '/activity-logs' },
+    { id: 'documentation', label: 'Documentation', icon: BookOpen, path: '/documentation' },
+    { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' }
   ];
 
   const toggleExpanded = (itemId: string) => {

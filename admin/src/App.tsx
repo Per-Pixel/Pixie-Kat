@@ -31,6 +31,9 @@ import GameEditor from './pages/products/GameEditor';
 import ProductsList from './pages/products/ProductsList';
 import PromoList from './pages/content/PromoList';
 import PromoEditor from './pages/content/PromoEditor';
+import StoragePage from './pages/storage/StoragePage';
+import PlaceholderPage from './pages/PlaceholderPage';
+import ActivityLogs from './pages/ActivityLogs';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -68,12 +71,13 @@ const AppRoutes: React.FC = () => {
         <Route path="products/drafts" element={<ProductsList statusFilter="draft" title="Draft Products" />} />
         <Route path="products/legacy" element={<Products />} />
         <Route path="products/games" element={<GamesList title="All Games" />} />
-        <Route path="content/trending" element={<PromoList section="trending" title="Trending Games" description="Manage cards shown in the homepage carousel" />} />
-        <Route path="content/trending/new" element={<PromoEditor section="trending" backPath="/content/trending" sectionLabel="Trending Games" />} />
-        <Route path="content/trending/:id" element={<PromoEditor section="trending" backPath="/content/trending" sectionLabel="Trending Games" />} />
-        <Route path="content/exclusive-offers" element={<PromoList section="exclusive_offers" title="Exclusive Offers" description="Manage promotional offer cards on the homepage" />} />
-        <Route path="content/exclusive-offers/new" element={<PromoEditor section="exclusive_offers" backPath="/content/exclusive-offers" sectionLabel="Exclusive Offers" />} />
-        <Route path="content/exclusive-offers/:id" element={<PromoEditor section="exclusive_offers" backPath="/content/exclusive-offers" sectionLabel="Exclusive Offers" />} />
+        <Route path="storage" element={<StoragePage />} />
+        <Route path="content/trending" element={<Navigate to="/pages/homepage/trending-games" replace />} />
+        <Route path="content/trending/new" element={<PromoEditor section="trending" backPath="/pages/homepage/trending-games" sectionLabel="Trending Games" />} />
+        <Route path="content/trending/:id" element={<PromoEditor section="trending" backPath="/pages/homepage/trending-games" sectionLabel="Trending Games" />} />
+        <Route path="content/exclusive-offers" element={<Navigate to="/pages/homepage/exclusive-offers" replace />} />
+        <Route path="content/exclusive-offers/new" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
+        <Route path="content/exclusive-offers/:id" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="products/games/new" element={<GameEditor />} />
         <Route path="products/games/:id" element={<GameEditor />} />
         <Route path="users" element={<ManageUsers />} />
@@ -86,6 +90,7 @@ const AppRoutes: React.FC = () => {
         <Route path="pages" element={<Pages />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="analytics" element={<Analytics />} />
+        <Route path="activity-logs" element={<ActivityLogs />} />
         <Route path="wallets" element={<Wallets />} />
         {/* Revenue Routes */}
         <Route path="revenue/sales-overview" element={<SalesOverview />} />
@@ -96,14 +101,26 @@ const AppRoutes: React.FC = () => {
         {/* Message Routes */}
         <Route path="messages/compose" element={<Compose />} />
         <Route path="messages/received" element={<Messages />} />
+        <Route path="messages/sent" element={<Messages />} />
         <Route path="messages/history" element={<Messages />} />
         {/* Auth Routes */}
         <Route path="auth/clients" element={<Clients />} />
         <Route path="auth/users" element={<ManageUsers />} />
         <Route path="auth/broker" element={<ManageUsers />} />
         <Route path="auth/admin" element={<ManageUsers />} />
+        <Route path="auth/permissions" element={<PlaceholderPage title="Permissions" description="Manage admin roles, access rules, and permission groups." items={['Admin access', 'Support access', 'Reseller access']} />} />
+        {/* Component Routes */}
+        <Route path="components/tasks" element={<PlaceholderPage title="Tasks" description="Track internal admin tasks and operational follow-ups." items={['Open tasks', 'Assigned work', 'Completed tasks']} />} />
+        <Route path="components/events" element={<PlaceholderPage title="Events" description="Review operational events and scheduled admin activity." items={['Upcoming events', 'Recent events', 'Event history']} />} />
+        <Route path="documentation" element={<PlaceholderPage title="Documentation" description="Keep admin guides, internal process notes, and setup references in one place." items={['Admin guide', 'Supabase setup', 'Release notes']} />} />
         {/* Page Management Routes */}
         <Route path="pages/homepage" element={<Pages />} />
+        <Route path="pages/homepage/trending-games" element={<PromoList section="trending" title="Trending Games" description="Manage cards shown in the homepage carousel" basePath="/pages/homepage/trending-games" />} />
+        <Route path="pages/homepage/trending-games/new" element={<PromoEditor section="trending" backPath="/pages/homepage/trending-games" sectionLabel="Trending Games" />} />
+        <Route path="pages/homepage/trending-games/:id" element={<PromoEditor section="trending" backPath="/pages/homepage/trending-games" sectionLabel="Trending Games" />} />
+        <Route path="pages/homepage/exclusive-offers" element={<PromoList section="exclusive_offers" title="Exclusive Offers" description="Manage promotional offer cards on the homepage" basePath="/pages/homepage/exclusive-offers" />} />
+        <Route path="pages/homepage/exclusive-offers/new" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
+        <Route path="pages/homepage/exclusive-offers/:id" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="pages/products" element={<Pages />} />
         <Route path="pages/about" element={<Pages />} />
         <Route path="pages/contact" element={<Pages />} />

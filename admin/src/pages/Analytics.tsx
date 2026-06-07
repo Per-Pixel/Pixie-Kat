@@ -1,248 +1,364 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, TrendingUp, Users, Eye, Clock, DollarSign } from 'lucide-react';
 import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
+  BarChart3, TrendingUp, TrendingDown, DollarSign,
+  ShoppingCart, Users, Percent, Crown, Target, Zap,
+} from 'lucide-react';
+import {
+  AreaChart, Area, BarChart, Bar, LineChart, Line,
+  PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
+import { useState as useModalState } from 'react';
+import ComingSoonModal from '../components/common/ComingSoonModal';
+import clsx from 'clsx';
 
-interface AnalyticsCard {
+type Period = '7d' | '30d' | '90d';
+
+const revenueData: Record<Period, Array<{ label: string; revenue: number; orders: number }>> = {
+  '7d': [
+    { label: 'Mon', revenue: 1820, orders: 47 },
+    { label: 'Tue', revenue: 2340, orders: 61 },
+    { label: 'Wed', revenue: 1990, orders: 52 },
+    { label: 'Thu', revenue: 2780, orders: 73 },
+    { label: 'Fri', revenue: 3210, orders: 84 },
+    { label: 'Sat', revenue: 3870, orders: 101 },
+    { label: 'Sun', revenue: 3540, orders: 92 },
+  ],
+  '30d': [
+    { label: 'W1', revenue: 12400, orders: 324 },
+    { label: 'W2', revenue: 15800, orders: 412 },
+    { label: 'W3', revenue: 13900, orders: 361 },
+    { label: 'W4', revenue: 18200, orders: 476 },
+  ],
+  '90d': [
+    { label: 'Jan', revenue: 42000, orders: 1098 },
+    { label: 'Feb', revenue: 38500, orders: 1002 },
+    { label: 'Mar', revenue: 51000, orders: 1334 },
+  ],
+};
+
+const topGames = [
+  { name: 'PUBG Mobile UC', revenue: 12840, orders: 334, growth: 18.2, color: '#3b82f6' },
+  { name: 'Free Fire Diamonds', revenue: 9210, orders: 241, growth: 12.4, color: '#10b981' },
+  { name: 'Mobile Legends', revenue: 8490, orders: 221, growth: 7.8, color: '#f59e0b' },
+  { name: 'Genshin Impact', revenue: 7320, orders: 189, growth: -3.2, color: '#8b5cf6' },
+  { name: 'Valorant Points', revenue: 5610, orders: 147, growth: 22.1, color: '#ef4444' },
+  { name: 'Honkai Star Rail', revenue: 4280, orders: 112, growth: 31.4, color: '#06b6d4' },
+];
+
+const gameShareData = topGames.map((g) => ({ name: g.name.split(' ')[0] + ' ' + (g.name.split(' ')[1] || ''), value: g.orders, color: g.color }));
+
+const conversionData = [
+  { step: 'Store Visits', users: 18400 },
+  { step: 'Game Page', users: 12200 },
+  { step: 'Product Select', users: 7800 },
+  { step: 'Checkout Start', users: 4100 },
+  { step: 'Payment Done', users: 2940 },
+];
+
+const StatCard: React.FC<{
   title: string;
   value: string;
   change: string;
   changeType: 'increase' | 'decrease';
   icon: React.ComponentType<{ className?: string }>;
-}
-
-const analyticsData: AnalyticsCard[] = [
-  {
-    title: 'Page Views',
-    value: '24,567',
-    change: '+12.5%',
-    changeType: 'increase',
-    icon: Eye,
-  },
-  {
-    title: 'Unique Visitors',
-    value: '8,234',
-    change: '+8.2%',
-    changeType: 'increase',
-    icon: Users,
-  },
-  {
-    title: 'Avg. Session Duration',
-    value: '4m 32s',
-    change: '+15.3%',
-    changeType: 'increase',
-    icon: Clock,
-  },
-  {
-    title: 'Conversion Rate',
-    value: '3.24%',
-    change: '-2.1%',
-    changeType: 'decrease',
-    icon: TrendingUp,
-  },
-];
+  accent: string;
+}> = ({ title, value, change, changeType, icon: Icon, accent }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 16 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center gap-4"
+  >
+    <div className={clsx('w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0', accent)}>
+      <Icon className="w-6 h-6" />
+    </div>
+    <div className="flex-1 min-w-0">
+      <p className="text-xs font-medium text-gray-500 mb-0.5">{title}</p>
+      <p className="text-xl font-bold text-gray-900">{value}</p>
+    </div>
+    <div className={clsx('flex items-center gap-1 text-sm font-semibold', changeType === 'increase' ? 'text-emerald-600' : 'text-red-600')}>
+      {changeType === 'increase' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+      {change}
+    </div>
+  </motion.div>
+);
 
 const Analytics: React.FC = () => {
-  // Chart data
-  const trafficData = [
-    { month: 'Jan', organic: 4000, direct: 2400, social: 1200, referral: 800 },
-    { month: 'Feb', organic: 3000, direct: 1398, social: 1100, referral: 900 },
-    { month: 'Mar', organic: 5000, direct: 2800, social: 1300, referral: 1000 },
-    { month: 'Apr', organic: 4500, direct: 2780, social: 1400, referral: 1100 },
-    { month: 'May', organic: 6000, direct: 3890, social: 1500, referral: 1200 },
-    { month: 'Jun', organic: 5500, direct: 3490, social: 1600, referral: 1300 },
+  const [period, setPeriod] = useState<Period>('7d');
+  const [comingSoon, setComingSoon] = useState<{ open: boolean; feature: string }>({ open: false, feature: '' });
+
+  const openComingSoon = (feature: string) => setComingSoon({ open: true, feature });
+
+  const stats = [
+    { title: 'Total Revenue', value: 'PKS 60,300', change: '+18.4%', changeType: 'increase' as const, icon: DollarSign, accent: 'bg-blue-50 text-blue-600' },
+    { title: 'Total Orders', value: '1,572', change: '+15.3%', changeType: 'increase' as const, icon: ShoppingCart, accent: 'bg-emerald-50 text-emerald-600' },
+    { title: 'Active Customers', value: '892', change: '+8.2%', changeType: 'increase' as const, icon: Users, accent: 'bg-purple-50 text-purple-600' },
+    { title: 'Conversion Rate', value: '15.97%', change: '-1.2%', changeType: 'decrease' as const, icon: Percent, accent: 'bg-amber-50 text-amber-600' },
   ];
 
-  const deviceData = [
-    { name: 'Desktop', value: 45, color: '#3b82f6' },
-    { name: 'Mobile', value: 40, color: '#10b981' },
-    { name: 'Tablet', value: 15, color: '#f59e0b' },
-  ];
-
-  const conversionData = [
-    { step: 'Landing', users: 10000, rate: 100 },
-    { step: 'Product View', users: 7500, rate: 75 },
-    { step: 'Add to Cart', users: 3000, rate: 30 },
-    { step: 'Checkout', users: 1500, rate: 15 },
-    { step: 'Purchase', users: 450, rate: 4.5 },
-  ];
+  const data = revenueData[period];
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-      >
-        <div className="flex items-center">
-          <BarChart3 className="w-8 h-8 text-primary-600 mr-3" />
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center">
+            <BarChart3 className="w-5 h-5 text-primary-600" />
+          </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-            <p className="text-gray-600">Track your website performance and user behavior</p>
+            <p className="text-sm text-gray-500">Store performance & insights</p>
           </div>
+        </div>
+        {/* Period Selector */}
+        <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-1">
+          {(['7d', '30d', '90d'] as Period[]).map((p) => (
+            <button key={p} onClick={() => setPeriod(p)}
+              className={clsx('px-4 py-1.5 rounded-lg text-sm font-medium transition-all',
+                period === p ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
+              {p === '7d' ? 'Last 7 Days' : p === '30d' ? 'Last 30 Days' : 'Last 90 Days'}
+            </button>
+          ))}
         </div>
       </motion.div>
 
-      {/* Analytics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {analyticsData.map((item, index) => (
-          <motion.div
-            key={item.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">{item.title}</p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">{item.value}</p>
-                <div className="flex items-center mt-2">
-                  <TrendingUp className={`w-4 h-4 mr-1 ${
-                    item.changeType === 'increase' ? 'text-green-500' : 'text-red-500'
-                  }`} />
-                  <span className={`text-sm font-medium ${
-                    item.changeType === 'increase' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {item.change}
-                  </span>
-                  <span className="text-sm text-gray-500 ml-1">vs last month</span>
-                </div>
-              </div>
-              <div className="w-12 h-12 bg-primary-50 rounded-lg flex items-center justify-center">
-                <item.icon className="w-6 h-6 text-primary-600" />
-              </div>
-            </div>
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((s, i) => (
+          <motion.div key={s.title} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+            <StatCard {...s} />
           </motion.div>
         ))}
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Traffic Overview */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Traffic Overview</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={trafficData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Area type="monotone" dataKey="organic" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
-              <Area type="monotone" dataKey="direct" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} />
-              <Area type="monotone" dataKey="social" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} />
-              <Area type="monotone" dataKey="referral" stackId="1" stroke="#ef4444" fill="#ef4444" fillOpacity={0.6} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </motion.div>
-
-        {/* User Demographics */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.5 }}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Device Usage</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={deviceData}
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-              >
-                {deviceData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => [`${value}%`, 'Usage']} />
-            </PieChart>
-          </ResponsiveContainer>
-        </motion.div>
-      </div>
-
-      {/* Conversion Funnel */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-        className="bg-white rounded-lg shadow-sm border border-gray-200"
-      >
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Conversion Funnel</h3>
-          <p className="text-sm text-gray-500">User journey from landing to purchase</p>
+      {/* Revenue & Orders Chart */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+        className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-gray-900">Revenue Overview</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Revenue and order count trend</p>
+          </div>
         </div>
-        <div className="p-6">
+        <div className="p-5">
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={conversionData} layout="horizontal">
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis dataKey="step" type="category" width={100} />
-              <Tooltip formatter={(value, name) => [value, name === 'users' ? 'Users' : 'Rate %']} />
-              <Bar dataKey="users" fill="#3b82f6" />
-            </BarChart>
+            <AreaChart data={data}>
+              <defs>
+                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="ordGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#94a3b8' }} />
+              <YAxis yAxisId="rev" tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={(v) => `PKS${(v / 1000).toFixed(0)}k`} />
+              <YAxis yAxisId="ord" orientation="right" tick={{ fontSize: 12, fill: '#94a3b8' }} />
+              <Tooltip formatter={(value, name) => [name === 'revenue' ? `PKS ${value}` : value, name === 'revenue' ? 'Revenue' : 'Orders']} />
+              <Legend />
+              <Area yAxisId="rev" type="monotone" dataKey="revenue" stroke="#3b82f6" fill="url(#revGrad)" strokeWidth={2} name="Revenue" />
+              <Line yAxisId="ord" type="monotone" dataKey="orders" stroke="#10b981" strokeWidth={2} dot={false} name="Orders" />
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       </motion.div>
 
-      {/* Top Pages */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-        className="bg-white rounded-lg shadow-sm border border-gray-200"
-      >
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Top Pages</h3>
-        </div>
-        <div className="p-6">
-          <div className="space-y-4">
-            {[
-              { page: '/dashboard', views: '5,234', percentage: '23.4%' },
-              { page: '/products', views: '3,891', percentage: '17.2%' },
-              { page: '/about', views: '2,567', percentage: '11.8%' },
-              { page: '/contact', views: '1,892', percentage: '8.9%' },
-            ].map((item, index) => (
-              <div key={item.page} className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{item.page}</p>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm text-gray-600">{item.views} views</span>
-                  <span className="text-sm font-medium text-primary-600">{item.percentage}</span>
+      {/* Top Games + Sales Share */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Selling Games */}
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
+          className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="p-5 border-b border-gray-100 flex items-center gap-2">
+            <Crown className="w-5 h-5 text-amber-500" />
+            <h3 className="font-semibold text-gray-900">Top Selling Games</h3>
+          </div>
+          <div className="p-5 space-y-3">
+            {topGames.map((g, i) => (
+              <div key={g.name} className="flex items-center gap-3">
+                <span className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                  {i + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">{g.name}</p>
+                    <span className={clsx('text-xs font-semibold', g.growth >= 0 ? 'text-emerald-600' : 'text-red-500')}>
+                      {g.growth >= 0 ? '+' : ''}{g.growth}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${(g.orders / topGames[0].orders) * 100}%`, background: g.color }} />
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs text-gray-400">{g.orders} orders</span>
+                    <span className="text-xs font-semibold text-gray-700">PKS {g.revenue.toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
+        </motion.div>
+
+        {/* Game Sales Share Pie */}
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }}
+          className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="p-5 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900">Sales Distribution by Game</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Share of total orders</p>
+          </div>
+          <div className="p-5">
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie data={gameShareData} cx="50%" cy="50%" outerRadius={90} innerRadius={45} dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                  {gameShareData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [`${value} orders`, 'Orders']} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              {gameShareData.map((g) => (
+                <div key={g.name} className="flex items-center gap-2 text-xs text-gray-600">
+                  <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: g.color }} />
+                  <span className="truncate">{g.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Conversion Funnel */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+        className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="p-5 border-b border-gray-100 flex items-center gap-2">
+          <Target className="w-5 h-5 text-primary-600" />
+          <div>
+            <h3 className="font-semibold text-gray-900">Conversion Funnel</h3>
+            <p className="text-xs text-gray-500">User journey from visit to payment</p>
+          </div>
+        </div>
+        <div className="p-5">
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={conversionData} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)} />
+              <YAxis dataKey="step" type="category" width={120} tick={{ fontSize: 12, fill: '#6b7280' }} />
+              <Tooltip formatter={(value) => [`${Number(value).toLocaleString()} users`, 'Users']} />
+              <Bar dataKey="users" fill="#3b82f6" radius={[0, 4, 4, 0]}>
+                {conversionData.map((_, i) => (
+                  <Cell key={i} fill={`hsl(${217 - i * 12}, ${90 - i * 8}%, ${55 + i * 5}%)`} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="flex items-center gap-6 mt-3 flex-wrap">
+            <div className="text-center">
+              <p className="text-xs text-gray-500">Overall Conversion</p>
+              <p className="text-lg font-bold text-primary-700">15.97%</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-500">Avg. Order Value</p>
+              <p className="text-lg font-bold text-gray-900">PKS 38.35</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-500">Cart Abandon Rate</p>
+              <p className="text-lg font-bold text-red-600">28.3%</p>
+            </div>
+          </div>
         </div>
       </motion.div>
+
+      {/* Product Performance Table */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
+        className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="p-5 border-b border-gray-100">
+          <h3 className="font-semibold text-gray-900">Product Performance</h3>
+          <p className="text-xs text-gray-500 mt-0.5">Revenue breakdown by game and package</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                {['Game', 'Orders', 'Revenue', 'Avg. Value', 'Growth', 'Share'].map((h) => (
+                  <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {topGames.map((g, i) => {
+                const totalRev = topGames.reduce((s, x) => s + x.revenue, 0);
+                return (
+                  <tr key={g.name} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: g.color }} />
+                        <span className="text-sm font-medium text-gray-900">{g.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5 text-sm text-gray-700">{g.orders.toLocaleString()}</td>
+                    <td className="px-5 py-3.5 text-sm font-semibold text-gray-900">PKS {g.revenue.toLocaleString()}</td>
+                    <td className="px-5 py-3.5 text-sm text-gray-700">PKS {(g.revenue / g.orders).toFixed(2)}</td>
+                    <td className="px-5 py-3.5">
+                      <span className={clsx('inline-flex items-center gap-1 text-xs font-semibold', g.growth >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+                        {g.growth >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                        {Math.abs(g.growth)}%
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 flex-1 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${(g.revenue / totalRev) * 100}%`, background: g.color }} />
+                        </div>
+                        <span className="text-xs text-gray-500 w-10 text-right">{((g.revenue / totalRev) * 100).toFixed(1)}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </motion.div>
+
+      {/* Advanced Analytics Placeholders */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[
+          { title: 'Customer Cohort Analysis', desc: 'Retention rates by signup month', icon: Users },
+          { title: 'Geographic Revenue Map', desc: 'Revenue breakdown by country/region', icon: Target },
+          { title: 'Predictive Revenue', desc: 'AI-powered revenue forecasting', icon: Zap },
+        ].map((p) => {
+          const Icon = p.icon;
+          return (
+            <motion.button
+              key={p.title}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              onClick={() => openComingSoon(p.title)}
+              className="bg-white rounded-xl border-2 border-dashed border-gray-200 p-6 text-left hover:border-primary-300 hover:bg-primary-50/30 transition-all group"
+            >
+              <Icon className="w-8 h-8 text-gray-300 group-hover:text-primary-400 transition-colors mb-3" />
+              <p className="font-semibold text-gray-700 mb-1">{p.title}</p>
+              <p className="text-xs text-gray-400">{p.desc}</p>
+              <span className="inline-block mt-3 text-xs font-medium text-primary-600 bg-primary-50 px-2.5 py-1 rounded-full">Coming Soon</span>
+            </motion.button>
+          );
+        })}
+      </div>
+
+      <ComingSoonModal
+        isOpen={comingSoon.open}
+        onClose={() => setComingSoon({ open: false, feature: '' })}
+        featureName={comingSoon.feature}
+        description="This advanced analytics feature is being developed to give you deeper insights into your store's performance."
+      />
     </div>
   );
 };

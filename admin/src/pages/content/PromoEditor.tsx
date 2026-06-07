@@ -12,6 +12,7 @@ import {
   PromoItem,
   PromoSection,
 } from '../../services/catalogService';
+import ImageSourceField from '../../components/common/ImageSourceField';
 
 interface PromoEditorProps {
   section: PromoSection;
@@ -233,20 +234,13 @@ const PromoEditor: React.FC<PromoEditorProps> = ({ section, backPath, sectionLab
               <h2 className="text-lg font-semibold text-gray-900">Image</h2>
             </div>
             <div className="space-y-4">
-              <div>
-                <label className="label mb-1.5 block">Image URL</label>
-                <input
-                  className="input"
-                  placeholder="/img/games/my-game.webp"
-                  value={form.image_url}
-                  onChange={(e) => change('image_url', e.target.value)}
-                />
-              </div>
-              {form.image_url && (
-                <div className="w-40 h-28 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
-                  <img src={form.image_url} alt="preview" className="w-full h-full object-cover" />
-                </div>
-              )}
+              <ImageSourceField
+                label="Image"
+                value={form.image_url}
+                onChange={(url) => change('image_url', url)}
+                placeholder="/img/games/my-game.webp or https://..."
+                folder={`homepage/${section}`}
+              />
             </div>
           </section>
 

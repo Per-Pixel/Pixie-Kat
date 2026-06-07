@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   ArrowLeft, RefreshCw, AlertCircle,
   LayoutDashboard, Wallet, Shield, BadgeCheck,
-  Activity, Monitor, StickyNote, Users,
+  Activity, Monitor, StickyNote, Users, TrendingUp,
 } from 'lucide-react';
 import { useUserDetail } from './useUserDetail';
 import OverviewTab    from './tabs/OverviewTab';
@@ -15,9 +15,11 @@ import ActivityTab    from './tabs/ActivityTab';
 import SessionsTab    from './tabs/SessionsTab';
 import NotesTab       from './tabs/NotesTab';
 import ReferralsTab   from './tabs/ReferralsTab';
+import SpendingTab    from './tabs/SpendingTab';
 
 const TABS = [
   { id: 'overview',  label: 'Overview',  icon: LayoutDashboard },
+  { id: 'spending',  label: 'Spending',  icon: TrendingUp },
   { id: 'wallet',    label: 'Wallet',    icon: Wallet },
   { id: 'security',  label: 'Security',  icon: Shield },
   { id: 'kyc',       label: 'KYC',       icon: BadgeCheck },
@@ -231,6 +233,7 @@ export default function UserDetail() {
         transition={{ duration: 0.15 }}
       >
         {activeTab === 'overview'  && <OverviewTab  {...tabProps} />}
+        {activeTab === 'spending'  && <SpendingTab  {...tabProps} />}
         {activeTab === 'wallet'    && <WalletTab    {...tabProps} />}
         {activeTab === 'security'  && <SecurityTab  {...tabProps} />}
         {activeTab === 'kyc'       && <KycTab       {...tabProps} />}

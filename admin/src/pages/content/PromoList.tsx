@@ -16,16 +16,18 @@ interface PromoListProps {
   section: PromoSection;
   title: string;
   description: string;
+  basePath?: string;
 }
 
-const PromoList: React.FC<PromoListProps> = ({ section, title, description }) => {
+const PromoList: React.FC<PromoListProps> = ({ section, title, description, basePath }) => {
   const navigate = useNavigate();
   const [items, setItems] = useState<PromoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dragging, setDragging] = useState<string | null>(null);
 
-  const editPath = (id: string) => `/content/${section.replace('_', '-')}/${id}`;
-  const newPath = () => `/content/${section.replace('_', '-')}/new`;
+  const sectionPath = basePath ?? `/content/${section.replace('_', '-')}`;
+  const editPath = (id: string) => `${sectionPath}/${id}`;
+  const newPath = () => `${sectionPath}/new`;
 
   const load = useCallback(async () => {
     setLoading(true);
