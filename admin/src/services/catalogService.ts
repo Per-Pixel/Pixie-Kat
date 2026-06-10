@@ -189,10 +189,10 @@ export async function listProducts(filters?: {
   status?: ProductStatus;
   gameId?: string;
   search?: string;
-}): Promise<Array<Product & { game?: { name: string; slug: string } }>> {
+}): Promise<Array<Product & { game?: { name: string; slug: string; provider: GameProvider } }>> {
   let query = supabase
     .from('products')
-    .select('*, game:games(name, slug)')
+    .select('*, game:games(name, slug, provider)')
     .order('created_at', { ascending: false });
 
   if (filters?.status) query = query.eq('status', filters.status);
@@ -201,7 +201,7 @@ export async function listProducts(filters?: {
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as Array<Product & { game?: { name: string; slug: string } }>;
+  return (data ?? []) as Array<Product & { game?: { name: string; slug: string; provider: GameProvider } }>;
 }
 
 export async function replaceProducts(

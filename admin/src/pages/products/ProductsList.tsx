@@ -4,13 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search, Package, Edit, Trash2, Star, StarOff,
   RefreshCw, Filter, ChevronDown, Plus, ExternalLink,
-  AlertCircle, CheckCircle, Zap, Eye, EyeOff, Download,
+  AlertCircle, CheckCircle, Zap, EyeOff, Download,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
   listProducts, updateProduct, deleteProduct,
-  Product, ProductStatus,
+  Product, ProductStatus, GameProvider,
 } from '../../services/catalogService';
+import { supabase } from '../../lib/supabase';
 import clsx from 'clsx';
 
 interface ProductsListProps {
@@ -18,7 +19,7 @@ interface ProductsListProps {
   title?: string;
 }
 
-type Row = Product & { game?: { name: string; slug: string } };
+type Row = Product & { game?: { name: string; slug: string; provider: GameProvider } };
 type SortField = 'name' | 'price' | 'status' | 'created_at';
 type SortDir = 'asc' | 'desc';
 
@@ -76,6 +77,15 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
   }, [statusFilter]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`products-list-${statusFilter ?? 'all'}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => void load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, () => void load())
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [load, statusFilter]);
 
   const gameOptions = useMemo(() => {
     const names = [...new Set(rows.map((r) => r.game?.name).filter(Boolean))];
@@ -300,7 +310,7 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
                 <tbody className="divide-y divide-gray-100">
                   {filtered.map((product) => {
                     const sCfg = statusConfig[product.status];
-                    const provKey = product.provider_product_id ? 'smile_one' : 'manual';
+                    const provKey = product.game?.provider ?? (product.provider_product_id ? 'other' : 'manual');
                     const pCfg = providerConfig[provKey];
                     const isToggling = togglingId === product.id;
                     const isDeleting = deletingId === product.id;

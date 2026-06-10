@@ -24,11 +24,18 @@ In your Supabase project dashboard:
 
 In your Supabase project:
 1. Go to **SQL Editor**
-2. Open `supabase/migrations/001_initial_schema.sql` and paste + run it
-3. Open `supabase/migrations/002_functions_triggers.sql` and paste + run it
-4. Open `supabase/migrations/003_avatar_storage.sql` and paste + run it
+2. Run each file in `supabase/migrations/` in numeric order:
+   - `001_initial_schema.sql`
+   - `002_functions_triggers.sql`
+   - `003_avatar_storage.sql`
+   - `003_security_hardening.sql`
+   - `004_login_session_tracking.sql`
+   - `005_games_products.sql`
+   - `006_promotional_items.sql`
+   - `007_media_storage.sql`
+   - `008_admin_operations.sql`
 
-Both should complete with no errors.
+All migrations should complete with no errors.
 
 ---
 

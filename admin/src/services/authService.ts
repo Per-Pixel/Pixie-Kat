@@ -1,35 +1,42 @@
 import { LoginCredentials, AuthResponse, User, UserRole } from '../types/auth';
 import { ApiResponse } from '@/types/api';
 import { api } from './api';
+import { supabase } from '../lib/supabase';
+
+async function getProfileUser(userId: string): Promise<User> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, name, phone, role, status, avatar_url, bio, timezone, language, last_login_at, created_at, updated_at')
+    .eq('id', userId)
+    .single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    email: data.email,
+    name: data.name,
+    phone: data.phone ?? undefined,
+    role: data.role as UserRole,
+    avatar: data.avatar_url ?? undefined,
+    bio: data.bio ?? undefined,
+    timezone: data.timezone,
+    language: data.language,
+    isActive: data.status === 'active',
+    lastActiveAt: data.last_login_at ?? undefined,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      // For demo purposes, keep mock authentication but also prepare for real API
-      if (credentials.email === 'admin@pixiekat.com' && credentials.password === 'admin123') {
-        const mockUser: User = {
-          id: '1',
-          email: 'admin@pixiekat.com',
-          name: 'Admin User',
-          role: UserRole.ADMIN,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        return {
-          user: mockUser,
-          token: import.meta.env.VITE_ADMIN_API_KEY || 'pixiekat-admin-dev-key',
-          refreshToken: 'mock-refresh-token',
-        };
-      }
-
-      // Real API call (uncomment when backend is ready)
-      // const response = await api.post<ApiResponse<AuthResponse>>('/auth/login', credentials);
-      // return response.data;
-
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      throw new Error('Invalid credentials');
+      const { data, error } = await supabase.auth.signInWithPassword(credentials);
+      if (error || !data.session) throw error ?? new Error('Login did not return a session');
+      return {
+        user: await getProfileUser(data.user.id),
+        token: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+      };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || error.message || 'Login failed');
     }
@@ -37,7 +44,7 @@ export const authService = {
 
   async logout(): Promise<void> {
     try {
-      await api.post('/auth/logout');
+      await supabase.auth.signOut();
     } catch (error) {
       // Ignore logout errors - user should be logged out locally regardless
       console.warn('Logout API call failed:', error);
@@ -50,26 +57,9 @@ export const authService = {
 
   async validateToken(token: string): Promise<User> {
     try {
-      // Mock token validation for demo
-      const validToken = import.meta.env.VITE_ADMIN_API_KEY || 'pixiekat-admin-dev-key';
-      if (token === validToken) {
-        return {
-          id: '1',
-          email: 'admin@pixiekat.com',
-          name: 'Admin User',
-          role: UserRole.ADMIN,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-      }
-
-      // Real API call (uncomment when backend is ready)
-      // const response = await api.get<ApiResponse<User>>('/auth/validate', {
-      //   headers: { Authorization: `Bearer ${token}` }
-      // });
-      // return response.data;
-
-      throw new Error('Invalid token');
+      const { data, error } = await supabase.auth.getUser(token);
+      if (error || !data.user) throw error ?? new Error('Invalid token');
+      return getProfileUser(data.user.id);
     } catch (error: any) {
       throw new Error(error.response?.data?.message || error.message || 'Token validation failed');
     }
@@ -77,8 +67,13 @@ export const authService = {
 
   async refreshToken(refreshToken: string): Promise<AuthResponse> {
     try {
-      const response = await api.post<ApiResponse<AuthResponse>>('/auth/refresh', { refreshToken });
-      return response.data;
+      const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken });
+      if (error || !data.session || !data.user) throw error ?? new Error('Session refresh failed');
+      return {
+        user: await getProfileUser(data.user.id),
+        token: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+      };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || error.message || 'Token refresh failed');
     }
@@ -86,7 +81,10 @@ export const authService = {
 
   async forgotPassword(email: string): Promise<void> {
     try {
-      await api.post<ApiResponse<void>>('/auth/forgot-password', { email });
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login`,
+      });
+      if (error) throw error;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || error.message || 'Failed to send reset email');
     }
@@ -94,7 +92,13 @@ export const authService = {
 
   async resetPassword(token: string, password: string): Promise<void> {
     try {
-      await api.post<ApiResponse<void>>('/auth/reset-password', { token, password });
+      const { error: sessionError } = await supabase.auth.verifyOtp({
+        token_hash: token,
+        type: 'recovery',
+      });
+      if (sessionError) throw sessionError;
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || error.message || 'Failed to reset password');
     }
@@ -102,10 +106,9 @@ export const authService = {
 
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
     try {
-      await api.post<ApiResponse<void>>('/auth/change-password', {
-        currentPassword,
-        newPassword
-      });
+      void currentPassword;
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || error.message || 'Failed to change password');
     }

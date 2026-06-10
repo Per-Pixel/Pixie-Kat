@@ -1,364 +1,120 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  BarChart3, TrendingUp, TrendingDown, DollarSign,
-  ShoppingCart, Users, Percent, Crown, Target, Zap,
+  AlertCircle, BarChart3, DollarSign, Percent, RefreshCw,
+  ShoppingCart, TrendingUp, Users,
 } from 'lucide-react';
 import {
-  AreaChart, Area, BarChart, Bar, LineChart, Line,
-  PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
-import { useState as useModalState } from 'react';
-import ComingSoonModal from '../components/common/ComingSoonModal';
+import { useAdminReport } from '../hooks/useAdminReport';
 import clsx from 'clsx';
 
-type Period = '7d' | '30d' | '90d';
-
-const revenueData: Record<Period, Array<{ label: string; revenue: number; orders: number }>> = {
-  '7d': [
-    { label: 'Mon', revenue: 1820, orders: 47 },
-    { label: 'Tue', revenue: 2340, orders: 61 },
-    { label: 'Wed', revenue: 1990, orders: 52 },
-    { label: 'Thu', revenue: 2780, orders: 73 },
-    { label: 'Fri', revenue: 3210, orders: 84 },
-    { label: 'Sat', revenue: 3870, orders: 101 },
-    { label: 'Sun', revenue: 3540, orders: 92 },
-  ],
-  '30d': [
-    { label: 'W1', revenue: 12400, orders: 324 },
-    { label: 'W2', revenue: 15800, orders: 412 },
-    { label: 'W3', revenue: 13900, orders: 361 },
-    { label: 'W4', revenue: 18200, orders: 476 },
-  ],
-  '90d': [
-    { label: 'Jan', revenue: 42000, orders: 1098 },
-    { label: 'Feb', revenue: 38500, orders: 1002 },
-    { label: 'Mar', revenue: 51000, orders: 1334 },
-  ],
-};
-
-const topGames = [
-  { name: 'PUBG Mobile UC', revenue: 12840, orders: 334, growth: 18.2, color: '#3b82f6' },
-  { name: 'Free Fire Diamonds', revenue: 9210, orders: 241, growth: 12.4, color: '#10b981' },
-  { name: 'Mobile Legends', revenue: 8490, orders: 221, growth: 7.8, color: '#f59e0b' },
-  { name: 'Genshin Impact', revenue: 7320, orders: 189, growth: -3.2, color: '#8b5cf6' },
-  { name: 'Valorant Points', revenue: 5610, orders: 147, growth: 22.1, color: '#ef4444' },
-  { name: 'Honkai Star Rail', revenue: 4280, orders: 112, growth: 31.4, color: '#06b6d4' },
-];
-
-const gameShareData = topGames.map((g) => ({ name: g.name.split(' ')[0] + ' ' + (g.name.split(' ')[1] || ''), value: g.orders, color: g.color }));
-
-const conversionData = [
-  { step: 'Store Visits', users: 18400 },
-  { step: 'Game Page', users: 12200 },
-  { step: 'Product Select', users: 7800 },
-  { step: 'Checkout Start', users: 4100 },
-  { step: 'Payment Done', users: 2940 },
-];
-
-const StatCard: React.FC<{
-  title: string;
-  value: string;
-  change: string;
-  changeType: 'increase' | 'decrease';
-  icon: React.ComponentType<{ className?: string }>;
-  accent: string;
-}> = ({ title, value, change, changeType, icon: Icon, accent }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 16 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center gap-4"
-  >
-    <div className={clsx('w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0', accent)}>
-      <Icon className="w-6 h-6" />
-    </div>
-    <div className="flex-1 min-w-0">
-      <p className="text-xs font-medium text-gray-500 mb-0.5">{title}</p>
-      <p className="text-xl font-bold text-gray-900">{value}</p>
-    </div>
-    <div className={clsx('flex items-center gap-1 text-sm font-semibold', changeType === 'increase' ? 'text-emerald-600' : 'text-red-600')}>
-      {changeType === 'increase' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-      {change}
-    </div>
-  </motion.div>
-);
+type Period = 7 | 30 | 90;
+const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'];
+const money = (value: number, currency = 'PKS') => `${currency} ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
 const Analytics: React.FC = () => {
-  const [period, setPeriod] = useState<Period>('7d');
-  const [comingSoon, setComingSoon] = useState<{ open: boolean; feature: string }>({ open: false, feature: '' });
+  const [period, setPeriod] = useState<Period>(30);
+  const { data, loading, error, refresh } = useAdminReport();
 
-  const openComingSoon = (feature: string) => setComingSoon({ open: true, feature });
+  const report = useMemo(() => {
+    if (!data) return null;
+    const start = new Date();
+    start.setDate(start.getDate() - (period - 1));
+    start.setHours(0, 0, 0, 0);
+    const orders = data.orders.filter((order) => new Date(order.created_at) >= start);
+    const completed = orders.filter((order) => order.status === 'completed');
+    const revenue = completed.reduce((sum, order) => sum + Number(order.total_amount || 0), 0);
+    const customers = new Set(orders.map((order) => order.user_id)).size;
+    const conversion = data.profiles.length ? (customers / data.profiles.length) * 100 : 0;
+
+    const buckets = new Map<string, { label: string; revenue: number; orders: number }>();
+    orders.forEach((order) => {
+      const created = new Date(order.created_at);
+      const key = period === 7
+        ? created.toISOString().slice(0, 10)
+        : `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}`;
+      const label = period === 7
+        ? created.toLocaleDateString('en-US', { weekday: 'short' })
+        : created.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      const item = buckets.get(key) ?? { label, revenue: 0, orders: 0 };
+      item.orders += 1;
+      if (order.status === 'completed') item.revenue += Number(order.total_amount || 0);
+      buckets.set(key, item);
+    });
+
+    const productMap = new Map<string, { name: string; revenue: number; orders: number }>();
+    completed.forEach((order) => {
+      const current = productMap.get(order.product_name) ?? { name: order.product_name, revenue: 0, orders: 0 };
+      current.revenue += Number(order.total_amount || 0);
+      current.orders += order.quantity || 1;
+      productMap.set(order.product_name, current);
+    });
+    const products = [...productMap.values()].sort((a, b) => b.revenue - a.revenue);
+
+    const paymentMap = new Map<string, number>();
+    completed.forEach((order) => {
+      const method = order.payment_method || 'Unspecified';
+      paymentMap.set(method, (paymentMap.get(method) ?? 0) + 1);
+    });
+
+    return {
+      orders,
+      revenue,
+      customers,
+      conversion,
+      averageOrder: completed.length ? revenue / completed.length : 0,
+      trend: [...buckets.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, value]) => value),
+      products,
+      payments: [...paymentMap].map(([name, value], index) => ({ name, value, color: colors[index % colors.length] })),
+    };
+  }, [data, period]);
+
+  if (loading && !report) return <div className="py-24 text-center text-gray-400"><RefreshCw className="w-7 h-7 animate-spin mx-auto mb-3" />Loading analytics...</div>;
+  if (error || !report) return <div className="p-6 rounded-xl bg-red-50 border border-red-200 text-red-700"><AlertCircle className="w-5 h-5 mb-2" />{error}<button onClick={refresh} className="btn btn-outline btn-sm ml-4">Retry</button></div>;
 
   const stats = [
-    { title: 'Total Revenue', value: 'PKS 60,300', change: '+18.4%', changeType: 'increase' as const, icon: DollarSign, accent: 'bg-blue-50 text-blue-600' },
-    { title: 'Total Orders', value: '1,572', change: '+15.3%', changeType: 'increase' as const, icon: ShoppingCart, accent: 'bg-emerald-50 text-emerald-600' },
-    { title: 'Active Customers', value: '892', change: '+8.2%', changeType: 'increase' as const, icon: Users, accent: 'bg-purple-50 text-purple-600' },
-    { title: 'Conversion Rate', value: '15.97%', change: '-1.2%', changeType: 'decrease' as const, icon: Percent, accent: 'bg-amber-50 text-amber-600' },
+    { label: 'Revenue', value: money(report.revenue), icon: DollarSign, tone: 'bg-blue-50 text-blue-600' },
+    { label: 'Orders', value: report.orders.length.toLocaleString(), icon: ShoppingCart, tone: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Ordering Customers', value: report.customers.toLocaleString(), icon: Users, tone: 'bg-purple-50 text-purple-600' },
+    { label: 'Customer Conversion', value: `${report.conversion.toFixed(1)}%`, icon: Percent, tone: 'bg-amber-50 text-amber-600' },
   ];
-
-  const data = revenueData[period];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center">
-            <BarChart3 className="w-5 h-5 text-primary-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-            <p className="text-sm text-gray-500">Store performance & insights</p>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center"><BarChart3 className="w-5 h-5 text-primary-600" /></div><div><h1 className="text-2xl font-bold">Analytics</h1><p className="text-sm text-gray-500">Live order and customer performance</p></div></div>
+        <div className="flex items-center gap-2">
+          <div className="flex bg-gray-100 rounded-xl p-1">{([7, 30, 90] as Period[]).map((value) => <button key={value} onClick={() => setPeriod(value)} className={clsx('px-3 py-1.5 rounded-lg text-sm', period === value ? 'bg-white shadow-sm text-primary-700' : 'text-gray-500')}>{value} days</button>)}</div>
+          <button onClick={refresh} className="btn btn-outline btn-sm"><RefreshCw className={clsx('w-4 h-4', loading && 'animate-spin')} /></button>
         </div>
-        {/* Period Selector */}
-        <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-1">
-          {(['7d', '30d', '90d'] as Period[]).map((p) => (
-            <button key={p} onClick={() => setPeriod(p)}
-              className={clsx('px-4 py-1.5 rounded-lg text-sm font-medium transition-all',
-                period === p ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
-              {p === '7d' ? 'Last 7 Days' : p === '30d' ? 'Last 30 Days' : 'Last 90 Days'}
-            </button>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((s, i) => (
-          <motion.div key={s.title} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-            <StatCard {...s} />
-          </motion.div>
-        ))}
       </div>
 
-      {/* Revenue & Orders Chart */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-        className="bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold text-gray-900">Revenue Overview</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Revenue and order count trend</p>
-          </div>
-        </div>
-        <div className="p-5">
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={data}>
-              <defs>
-                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="ordGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#94a3b8' }} />
-              <YAxis yAxisId="rev" tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={(v) => `PKS${(v / 1000).toFixed(0)}k`} />
-              <YAxis yAxisId="ord" orientation="right" tick={{ fontSize: 12, fill: '#94a3b8' }} />
-              <Tooltip formatter={(value, name) => [name === 'revenue' ? `PKS ${value}` : value, name === 'revenue' ? 'Revenue' : 'Orders']} />
-              <Legend />
-              <Area yAxisId="rev" type="monotone" dataKey="revenue" stroke="#3b82f6" fill="url(#revGrad)" strokeWidth={2} name="Revenue" />
-              <Line yAxisId="ord" type="monotone" dataKey="orders" stroke="#10b981" strokeWidth={2} dot={false} name="Orders" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </motion.div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">{stats.map(({ label, value, icon: Icon, tone }) => <motion.div key={label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white border rounded-xl p-5 flex items-center gap-4"><div className={clsx('w-11 h-11 rounded-xl flex items-center justify-center', tone)}><Icon className="w-5 h-5" /></div><div><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-bold">{value}</p></div></motion.div>)}</div>
 
-      {/* Top Games + Sales Share */}
+      <div className="bg-white border rounded-xl p-5">
+        <h2 className="font-semibold mb-4">Revenue and Orders</h2>
+        {report.trend.length ? <ResponsiveContainer width="100%" height={300}><AreaChart data={report.trend}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" /><YAxis /><Tooltip formatter={(value, name) => [name === 'revenue' ? money(Number(value)) : value, name]} /><Area dataKey="revenue" stroke="#3b82f6" fill="#dbeafe" /><Area dataKey="orders" stroke="#10b981" fill="#d1fae5" /></AreaChart></ResponsiveContainer> : <p className="py-20 text-center text-sm text-gray-400">No orders in this period.</p>}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Selling Games */}
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl border border-gray-200 shadow-sm">
-          <div className="p-5 border-b border-gray-100 flex items-center gap-2">
-            <Crown className="w-5 h-5 text-amber-500" />
-            <h3 className="font-semibold text-gray-900">Top Selling Games</h3>
-          </div>
-          <div className="p-5 space-y-3">
-            {topGames.map((g, i) => (
-              <div key={g.name} className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs font-bold flex items-center justify-center flex-shrink-0">
-                  {i + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-gray-900 truncate">{g.name}</p>
-                    <span className={clsx('text-xs font-semibold', g.growth >= 0 ? 'text-emerald-600' : 'text-red-500')}>
-                      {g.growth >= 0 ? '+' : ''}{g.growth}%
-                    </span>
-                  </div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${(g.orders / topGames[0].orders) * 100}%`, background: g.color }} />
-                  </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-xs text-gray-400">{g.orders} orders</span>
-                    <span className="text-xs font-semibold text-gray-700">PKS {g.revenue.toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Game Sales Share Pie */}
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }}
-          className="bg-white rounded-xl border border-gray-200 shadow-sm">
-          <div className="p-5 border-b border-gray-100">
-            <h3 className="font-semibold text-gray-900">Sales Distribution by Game</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Share of total orders</p>
-          </div>
-          <div className="p-5">
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie data={gameShareData} cx="50%" cy="50%" outerRadius={90} innerRadius={45} dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-                  {gameShareData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => [`${value} orders`, 'Orders']} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              {gameShareData.map((g) => (
-                <div key={g.name} className="flex items-center gap-2 text-xs text-gray-600">
-                  <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: g.color }} />
-                  <span className="truncate">{g.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
+        <div className="bg-white border rounded-xl p-5">
+          <h2 className="font-semibold mb-4">Product Performance</h2>
+          {report.products.length ? <ResponsiveContainer width="100%" height={280}><BarChart data={report.products.slice(0, 8)} layout="vertical"><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" /><YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11 }} /><Tooltip formatter={(value) => money(Number(value))} /><Bar dataKey="revenue" fill="#3b82f6" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer> : <p className="py-20 text-center text-sm text-gray-400">No completed product sales yet.</p>}
+        </div>
+        <div className="bg-white border rounded-xl p-5">
+          <h2 className="font-semibold mb-1">Payment Methods</h2><p className="text-xs text-gray-500 mb-4">Completed orders by payment method</p>
+          {report.payments.length ? <ResponsiveContainer width="100%" height={280}><PieChart><Pie data={report.payments} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} label>{report.payments.map((entry) => <Cell key={entry.name} fill={entry.color} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer> : <p className="py-20 text-center text-sm text-gray-400">No payment data yet.</p>}
+        </div>
       </div>
 
-      {/* Conversion Funnel */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-        className="bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div className="p-5 border-b border-gray-100 flex items-center gap-2">
-          <Target className="w-5 h-5 text-primary-600" />
-          <div>
-            <h3 className="font-semibold text-gray-900">Conversion Funnel</h3>
-            <p className="text-xs text-gray-500">User journey from visit to payment</p>
-          </div>
-        </div>
-        <div className="p-5">
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={conversionData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-              <XAxis type="number" tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)} />
-              <YAxis dataKey="step" type="category" width={120} tick={{ fontSize: 12, fill: '#6b7280' }} />
-              <Tooltip formatter={(value) => [`${Number(value).toLocaleString()} users`, 'Users']} />
-              <Bar dataKey="users" fill="#3b82f6" radius={[0, 4, 4, 0]}>
-                {conversionData.map((_, i) => (
-                  <Cell key={i} fill={`hsl(${217 - i * 12}, ${90 - i * 8}%, ${55 + i * 5}%)`} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-          <div className="flex items-center gap-6 mt-3 flex-wrap">
-            <div className="text-center">
-              <p className="text-xs text-gray-500">Overall Conversion</p>
-              <p className="text-lg font-bold text-primary-700">15.97%</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-gray-500">Avg. Order Value</p>
-              <p className="text-lg font-bold text-gray-900">PKS 38.35</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-gray-500">Cart Abandon Rate</p>
-              <p className="text-lg font-bold text-red-600">28.3%</p>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Product Performance Table */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-        className="bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div className="p-5 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-900">Product Performance</h3>
-          <p className="text-xs text-gray-500 mt-0.5">Revenue breakdown by game and package</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                {['Game', 'Orders', 'Revenue', 'Avg. Value', 'Growth', 'Share'].map((h) => (
-                  <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {topGames.map((g, i) => {
-                const totalRev = topGames.reduce((s, x) => s + x.revenue, 0);
-                return (
-                  <tr key={g.name} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: g.color }} />
-                        <span className="text-sm font-medium text-gray-900">{g.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-gray-700">{g.orders.toLocaleString()}</td>
-                    <td className="px-5 py-3.5 text-sm font-semibold text-gray-900">PKS {g.revenue.toLocaleString()}</td>
-                    <td className="px-5 py-3.5 text-sm text-gray-700">PKS {(g.revenue / g.orders).toFixed(2)}</td>
-                    <td className="px-5 py-3.5">
-                      <span className={clsx('inline-flex items-center gap-1 text-xs font-semibold', g.growth >= 0 ? 'text-emerald-600' : 'text-red-600')}>
-                        {g.growth >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                        {Math.abs(g.growth)}%
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2">
-                        <div className="h-1.5 flex-1 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${(g.revenue / totalRev) * 100}%`, background: g.color }} />
-                        </div>
-                        <span className="text-xs text-gray-500 w-10 text-right">{((g.revenue / totalRev) * 100).toFixed(1)}%</span>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
-
-      {/* Advanced Analytics Placeholders */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[
-          { title: 'Customer Cohort Analysis', desc: 'Retention rates by signup month', icon: Users },
-          { title: 'Geographic Revenue Map', desc: 'Revenue breakdown by country/region', icon: Target },
-          { title: 'Predictive Revenue', desc: 'AI-powered revenue forecasting', icon: Zap },
-        ].map((p) => {
-          const Icon = p.icon;
-          return (
-            <motion.button
-              key={p.title}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              onClick={() => openComingSoon(p.title)}
-              className="bg-white rounded-xl border-2 border-dashed border-gray-200 p-6 text-left hover:border-primary-300 hover:bg-primary-50/30 transition-all group"
-            >
-              <Icon className="w-8 h-8 text-gray-300 group-hover:text-primary-400 transition-colors mb-3" />
-              <p className="font-semibold text-gray-700 mb-1">{p.title}</p>
-              <p className="text-xs text-gray-400">{p.desc}</p>
-              <span className="inline-block mt-3 text-xs font-medium text-primary-600 bg-primary-50 px-2.5 py-1 rounded-full">Coming Soon</span>
-            </motion.button>
-          );
-        })}
+      <div className="bg-white border rounded-xl p-5 flex flex-wrap gap-8">
+        <div><p className="text-xs text-gray-500">Average Order Value</p><p className="text-xl font-bold">{money(report.averageOrder)}</p></div>
+        <div><p className="text-xs text-gray-500">Completed Orders</p><p className="text-xl font-bold">{report.orders.filter((order) => order.status === 'completed').length}</p></div>
+        <div><p className="text-xs text-gray-500">Completion Rate</p><p className="text-xl font-bold flex items-center gap-1"><TrendingUp className="w-5 h-5 text-emerald-600" />{report.orders.length ? ((report.orders.filter((order) => order.status === 'completed').length / report.orders.length) * 100).toFixed(1) : '0.0'}%</p></div>
       </div>
-
-      <ComingSoonModal
-        isOpen={comingSoon.open}
-        onClose={() => setComingSoon({ open: false, feature: '' })}
-        featureName={comingSoon.feature}
-        description="This advanced analytics feature is being developed to give you deeper insights into your store's performance."
-      />
     </div>
   );
 };

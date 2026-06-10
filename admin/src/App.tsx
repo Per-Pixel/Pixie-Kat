@@ -6,10 +6,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminLayout from './layouts/AdminLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Overview from './pages/Overview';
 import Products from './pages/Products';
 import Orders from './pages/Orders';
-import Games from './pages/Games';
 import Messages from './pages/Messages';
 import Resellers from './pages/Resellers';
 import Settings from './pages/Settings';
@@ -17,9 +15,7 @@ import Pages from './pages/Pages';
 import Notifications from './pages/Notifications';
 import Analytics from './pages/Analytics';
 import Wallets from './pages/Wallets';
-import SalesOverview from './pages/revenue/SalesOverview';
 import RevenueProducts from './pages/revenue/RevenueProducts';
-import Brokers from './pages/revenue/Brokers';
 import Referral from './pages/revenue/Referral';
 import Compose from './pages/messages/Compose';
 import Clients from './pages/auth/Clients';
@@ -65,7 +61,7 @@ const AppRoutes: React.FC = () => {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="overview" element={<Overview />} />
+        <Route path="overview" element={<Analytics />} />
         <Route path="products" element={<ProductsList title="All Products" />} />
         <Route path="products/active" element={<ProductsList statusFilter="active" title="Active Products" />} />
         <Route path="products/drafts" element={<ProductsList statusFilter="draft" title="Draft Products" />} />
@@ -83,7 +79,7 @@ const AppRoutes: React.FC = () => {
         <Route path="users" element={<ManageUsers />} />
         <Route path="users/:id" element={<UserDetail />} />
         <Route path="orders" element={<Orders />} />
-        <Route path="games" element={<Games />} />
+        <Route path="games" element={<GamesList title="All Games" />} />
         <Route path="messages" element={<Messages />} />
         <Route path="resellers" element={<Resellers />} />
         <Route path="settings" element={<Settings />} />
@@ -93,10 +89,10 @@ const AppRoutes: React.FC = () => {
         <Route path="activity-logs" element={<ActivityLogs />} />
         <Route path="wallets" element={<Wallets />} />
         {/* Revenue Routes */}
-        <Route path="revenue/sales-overview" element={<SalesOverview />} />
+        <Route path="revenue/sales-overview" element={<Analytics />} />
         <Route path="revenue/products" element={<RevenueProducts />} />
         <Route path="revenue/orders" element={<Orders />} />
-        <Route path="revenue/brokers" element={<Brokers />} />
+        <Route path="revenue/brokers" element={<Resellers />} />
         <Route path="revenue/referral" element={<Referral />} />
         {/* Message Routes */}
         <Route path="messages/compose" element={<Compose />} />

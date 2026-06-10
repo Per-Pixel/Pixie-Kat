@@ -1,107 +1,35 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Plus, Search, Filter, Edit, Trash2, Eye } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { AlertCircle, RefreshCw, Search, UserCheck, Users, Wallet } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAdminReport } from '../hooks/useAdminReport';
 
 const Resellers: React.FC = () => {
-  const resellers = [
-    { id: '1', name: 'GameHub Store', email: 'contact@gamehub.com', commission: '15%', sales: '$12,500', status: 'Active' },
-    { id: '2', name: 'Digital Games Pro', email: 'info@digitalgames.com', commission: '12%', sales: '$8,750', status: 'Active' },
-    { id: '3', name: 'Mobile Credits Plus', email: 'support@mobilecredits.com', commission: '18%', sales: '$15,200', status: 'Pending' },
-  ];
+  const navigate = useNavigate();
+  const { data, loading, error, refresh } = useAdminReport();
+  const [search, setSearch] = useState('');
 
-  return (
-    <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row sm:items-center sm:justify-between"
-      >
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Resellers</h1>
-          <p className="text-gray-600 mt-1">Manage partner resellers and commissions</p>
-        </div>
-        <button className="mt-4 sm:mt-0 btn btn-primary btn-md">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Reseller
-        </button>
-      </motion.div>
+  const rows = useMemo(() => {
+    if (!data) return [];
+    const term = search.trim().toLowerCase();
+    return data.profiles
+      .filter((profile) => profile.role === 'reseller')
+      .map((profile) => ({
+        ...profile,
+        referrals: data.referrals.filter((item) => item.referrer_id === profile.id).length,
+        commission: data.referrals.filter((item) => item.referrer_id === profile.id).reduce((sum, item) => sum + Number(item.commission || 0), 0),
+      }))
+      .filter((profile) => !term || [profile.name, profile.email, profile.status].some((value) => value.toLowerCase().includes(term)));
+  }, [data, search]);
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-      >
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="text" placeholder="Search resellers..." className="input pl-10" />
-            </div>
-          </div>
-          <button className="btn btn-outline btn-md">
-            <Filter className="w-4 h-4 mr-2" />
-            Filter
-          </button>
-        </div>
-      </motion.div>
+  if (loading && !data) return <div className="py-24 text-center text-gray-400"><RefreshCw className="w-7 h-7 animate-spin mx-auto mb-3" />Loading resellers...</div>;
+  if (error || !data) return <div className="p-6 rounded-xl bg-red-50 border border-red-200 text-red-700"><AlertCircle className="w-5 h-5 mb-2" />{error}<button onClick={refresh} className="btn btn-outline btn-sm ml-4">Retry</button></div>;
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reseller</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commission</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Sales</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {resellers.map((reseller) => (
-                <tr key={reseller.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{reseller.name}</div>
-                      <div className="text-sm text-gray-500">{reseller.email}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{reseller.commission}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{reseller.sales}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      reseller.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {reseller.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <button className="text-primary-600 hover:text-primary-900">
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button className="text-primary-600 hover:text-primary-900">
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button className="text-red-600 hover:text-red-900">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
-    </div>
-  );
+  return <div className="space-y-6">
+    <div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold">Resellers</h1><p className="text-sm text-gray-500">Accounts whose Supabase profile role is reseller</p></div><button onClick={refresh} className="btn btn-outline btn-sm"><RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />Refresh</button></div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">{[{ label: 'Resellers', value: data.profiles.filter((p) => p.role === 'reseller').length, icon: UserCheck }, { label: 'Active', value: data.profiles.filter((p) => p.role === 'reseller' && p.status === 'active').length, icon: Users }, { label: 'Combined Wallet Balance', value: `PKS ${data.profiles.filter((p) => p.role === 'reseller').reduce((sum, p) => sum + Number(p.wallet_balance || 0), 0).toFixed(2)}`, icon: Wallet }].map(({ label, value, icon: Icon }) => <div key={label} className="bg-white border rounded-xl p-5"><Icon className="w-5 h-5 text-primary-600 mb-3" /><p className="text-xs text-gray-500">{label}</p><p className="text-2xl font-bold">{value}</p></div>)}</div>
+    <div className="bg-white border rounded-xl p-4"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="input pl-10 w-full" placeholder="Search resellers..." /></div></div>
+    <div className="bg-white border rounded-xl overflow-hidden">{rows.length === 0 ? <p className="p-12 text-center text-sm text-gray-400">No reseller profiles found.</p> : <table className="w-full"><thead className="bg-gray-50"><tr>{['Reseller', 'Status', 'Wallet', 'Referrals', 'Commission', 'Joined'].map((heading) => <th key={heading} className="px-5 py-3 text-left text-xs uppercase text-gray-500">{heading}</th>)}</tr></thead><tbody className="divide-y">{rows.map((row) => <tr key={row.id} onClick={() => navigate(`/users/${row.id}`)} className="cursor-pointer hover:bg-gray-50"><td className="px-5 py-4"><p className="text-sm font-medium">{row.name}</p><p className="text-xs text-gray-500">{row.email}</p></td><td className="px-5 py-4"><span className={`px-2 py-1 rounded-full text-xs capitalize ${row.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{row.status}</span></td><td className="px-5 py-4 text-sm">PKS {Number(row.wallet_balance || 0).toFixed(2)}</td><td className="px-5 py-4 text-sm">{row.referrals}</td><td className="px-5 py-4 text-sm">PKS {row.commission.toFixed(2)}</td><td className="px-5 py-4 text-sm text-gray-500">{new Date(row.created_at).toLocaleDateString()}</td></tr>)}</tbody></table>}</div>
+  </div>;
 };
 
 export default Resellers;

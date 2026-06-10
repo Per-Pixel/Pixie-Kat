@@ -6,10 +6,11 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis,
+  AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import clsx from 'clsx';
+import { toast } from 'react-hot-toast';
 import type { UserDetailData } from '../useUserDetail';
 
 interface Props { data: UserDetailData; refetch: () => void; }
@@ -38,16 +39,30 @@ export default function SpendingTab({ data }: Props) {
   useEffect(() => {
     const fetchOrders = async () => {
       setLoading(true);
-      const { data: rows } = await supabase
+      const { data: rows, error } = await supabase
         .from('orders')
         .select('id, product_name, total_amount, currency, status, created_at')
         .eq('user_id', data.profile.id)
         .order('created_at', { ascending: false })
         .limit(100);
-      setOrders((rows as OrderRecord[]) ?? []);
+      if (error) {
+        setOrders([]);
+        toast.error(`Failed to load spending: ${error.message}`);
+      } else {
+        setOrders((rows as OrderRecord[]) ?? []);
+      }
       setLoading(false);
     };
-    fetchOrders();
+    void fetchOrders();
+    const channel = supabase
+      .channel(`customer-spending-${data.profile.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${data.profile.id}` },
+        () => void fetchOrders(),
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
   }, [data.profile.id]);
 
   // Compute analytics
@@ -62,12 +77,23 @@ export default function SpendingTab({ data }: Props) {
 
   // Monthly chart data (last 6 months)
   const monthlyData = (() => {
-    const map: Record<string, number> = {};
-    completed.forEach((o) => {
-      const month = new Date(o.created_at).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-      map[month] = (map[month] || 0) + Number(o.total_amount || 0);
+    const now = new Date();
+    const months = Array.from({ length: 6 }, (_, index) => {
+      const date = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+      return {
+        key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+        label: date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        revenue: 0,
+      };
     });
-    return Object.entries(map).slice(-6).map(([label, revenue]) => ({ label, revenue }));
+    const map = new Map(months.map((month) => [month.key, month]));
+    completed.forEach((o) => {
+      const date = new Date(o.created_at);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const month = map.get(key);
+      if (month) month.revenue += Number(o.total_amount || 0);
+    });
+    return months;
   })();
 
   // Top products
