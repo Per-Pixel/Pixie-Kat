@@ -1,107 +1,198 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Filter, Edit, Trash2, Eye, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { TrendingUp, Zap, Plus, ArrowRight, Eye, EyeOff, Code2, Info } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { listPromoItems, PromoItem } from '../services/catalogService';
+
+interface SectionStats {
+  items: PromoItem[];
+  loading: boolean;
+}
 
 const Pages: React.FC = () => {
-  const pages = [
-    { id: '1', title: 'Home Page', slug: '/', status: 'Published', lastModified: '2024-06-17', author: 'Admin' },
-    { id: '2', title: 'About Us', slug: '/about', status: 'Published', lastModified: '2024-06-15', author: 'Admin' },
-    { id: '3', title: 'Privacy Policy', slug: '/privacy', status: 'Draft', lastModified: '2024-06-14', author: 'Admin' },
-    { id: '4', title: 'Terms of Service', slug: '/terms', status: 'Published', lastModified: '2024-06-10', author: 'Admin' },
+  const navigate = useNavigate();
+  const [trending, setTrending] = useState<SectionStats>({ items: [], loading: true });
+  const [exclusive, setExclusive] = useState<SectionStats>({ items: [], loading: true });
+
+  useEffect(() => {
+    listPromoItems('trending')
+      .then(items => setTrending({ items, loading: false }))
+      .catch(() => { toast.error('Failed to load trending items'); setTrending(p => ({ ...p, loading: false })); });
+
+    listPromoItems('exclusive_offers')
+      .then(items => setExclusive({ items, loading: false }))
+      .catch(() => { toast.error('Failed to load exclusive offers'); setExclusive(p => ({ ...p, loading: false })); });
+  }, []);
+
+  const dynamicSections = [
+    {
+      id: 'trending',
+      title: 'Trending Games',
+      description: 'Featured game cards shown in the homepage carousel.',
+      icon: TrendingUp,
+      iconBg: 'bg-blue-50',
+      iconColor: 'text-blue-600',
+      accentColor: 'border-blue-500',
+      stats: trending,
+      listPath: '/pages/homepage/trending-games',
+      newPath: '/pages/homepage/trending-games/new',
+    },
+    {
+      id: 'exclusive',
+      title: 'Exclusive Offers',
+      description: 'Promotional offer cards displayed in the homepage banner.',
+      icon: Zap,
+      iconBg: 'bg-purple-50',
+      iconColor: 'text-purple-600',
+      accentColor: 'border-purple-500',
+      stats: exclusive,
+      listPath: '/pages/homepage/exclusive-offers',
+      newPath: '/pages/homepage/exclusive-offers/new',
+    },
+  ];
+
+  const staticPages = [
+    { name: 'Homepage Layout', path: '/', note: 'React component — main/src/pages/index' },
+    { name: 'Products Page', path: '/products', note: 'Dynamic — fetched from games table' },
+    { name: 'About Page', path: '/about', note: 'Static page — managed in code' },
+    { name: 'Contact Page', path: '/contact', note: 'Static page — managed in code' },
   ];
 
   return (
     <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row sm:items-center sm:justify-between"
-      >
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pages</h1>
-          <p className="text-gray-600 mt-1">Manage website content and pages</p>
-        </div>
-        <button className="mt-4 sm:mt-0 btn btn-primary btn-md">
-          <Plus className="w-4 h-4 mr-2" />
-          Create Page
-        </button>
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+        <h1 className="text-2xl font-bold text-gray-900">Content Management</h1>
+        <p className="text-gray-500 mt-1 text-sm">Manage homepage sections and dynamic content areas.</p>
       </motion.div>
 
+      {/* Dynamic content sections */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="grid grid-cols-1 md:grid-cols-2 gap-5"
+      >
+        {dynamicSections.map((section) => {
+          const Icon = section.icon;
+          const { items, loading } = section.stats;
+          const activeCount = items.filter(i => i.is_active).length;
+          const recentItems = items.slice(0, 3);
+
+          return (
+            <div
+              key={section.id}
+              className={`bg-white rounded-xl border-l-4 ${section.accentColor} border border-gray-200 shadow-sm overflow-hidden`}
+            >
+              <div className="p-5">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg ${section.iconBg} flex items-center justify-center`}>
+                      <Icon className={`w-5 h-5 ${section.iconColor}`} />
+                    </div>
+                    <div>
+                      <h2 className="font-semibold text-gray-900">{section.title}</h2>
+                      <p className="text-xs text-gray-500 mt-0.5">{section.description}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="flex items-center gap-5 mb-4">
+                  {loading ? (
+                    <div className="h-8 w-24 bg-gray-100 rounded animate-pulse" />
+                  ) : (
+                    <>
+                      <div>
+                        <p className="text-2xl font-bold text-gray-900">{items.length}</p>
+                        <p className="text-xs text-gray-500">Total items</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-green-600">{activeCount}</p>
+                        <p className="text-xs text-gray-500">Active / visible</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-gray-400">{items.length - activeCount}</p>
+                        <p className="text-xs text-gray-500">Hidden</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Recent items preview */}
+                {!loading && recentItems.length > 0 && (
+                  <div className="mb-4 space-y-1.5">
+                    {recentItems.map(item => (
+                      <div key={item.id} className="flex items-center gap-2 text-sm">
+                        <span className="text-gray-400">
+                          {item.is_active
+                            ? <Eye className="w-3.5 h-3.5 text-green-500" />
+                            : <EyeOff className="w-3.5 h-3.5 text-gray-400" />
+                          }
+                        </span>
+                        <span className="text-gray-700 truncate flex-1">{item.title}</span>
+                        {item.flag && <span className="text-base">{item.flag}</span>}
+                      </div>
+                    ))}
+                    {items.length > 3 && (
+                      <p className="text-xs text-gray-400 pl-5">+{items.length - 3} more</p>
+                    )}
+                  </div>
+                )}
+
+                {!loading && items.length === 0 && (
+                  <p className="text-sm text-gray-400 mb-4">No items yet — add your first one.</p>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => navigate(section.listPath)}
+                    className="flex-1 btn btn-outline btn-sm flex items-center justify-center gap-1.5"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5" />
+                    Manage
+                  </button>
+                  <button
+                    onClick={() => navigate(section.newPath)}
+                    className="btn btn-primary btn-sm flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </motion.div>
+
+      {/* Static pages */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+        className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
       >
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="text" placeholder="Search pages..." className="input pl-10" />
-            </div>
-          </div>
-          <button className="btn btn-outline btn-md">
-            <Filter className="w-4 h-4 mr-2" />
-            Filter
-          </button>
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
+          <Code2 className="w-4 h-4 text-gray-400" />
+          <h2 className="font-semibold text-gray-800 text-sm">Static Pages</h2>
+          <span className="ml-auto flex items-center gap-1 text-xs text-gray-400">
+            <Info className="w-3.5 h-3.5" />
+            Managed via code — not editable from admin
+          </span>
         </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Page</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Slug</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Author</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Modified</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {pages.map((page) => (
-                <tr key={page.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <FileText className="w-5 h-5 text-gray-400 mr-3" />
-                      <div className="text-sm font-medium text-gray-900">{page.title}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{page.slug}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      page.status === 'Published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {page.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{page.author}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{page.lastModified}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <button className="text-primary-600 hover:text-primary-900">
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button className="text-primary-600 hover:text-primary-900">
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button className="text-red-600 hover:text-red-900">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ul className="divide-y divide-gray-100">
+          {staticPages.map(page => (
+            <li key={page.name} className="flex items-center justify-between px-5 py-3.5">
+              <div>
+                <p className="text-sm font-medium text-gray-900">{page.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5 font-mono">{page.note}</p>
+              </div>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Static</span>
+            </li>
+          ))}
+        </ul>
       </motion.div>
     </div>
   );

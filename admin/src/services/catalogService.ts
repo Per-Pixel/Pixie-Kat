@@ -46,6 +46,7 @@ export interface Product {
   image_url?: string | null;
   sku?: string | null;
   provider_product_id?: string | null;
+  cost_price?: number | null;
   stock?: number | null;
   is_popular: boolean;
   status: ProductStatus;
@@ -67,6 +68,7 @@ export interface Game {
   currency_label: string;
   provider: GameProvider;
   provider_game_code?: string | null;
+  region?: string | null;
   status: GameStatus;
   is_featured: boolean;
   sort_order: number;
@@ -222,6 +224,7 @@ export async function replaceProducts(
     description: p.description ?? null,
     amount: p.amount ?? null,
     price: Number(p.price ?? 0),
+    cost_price: p.cost_price != null ? Number(p.cost_price) : null,
     compare_price: p.compare_price != null ? Number(p.compare_price) : null,
     currency: p.currency ?? 'INR',
     image_url: p.image_url ?? null,

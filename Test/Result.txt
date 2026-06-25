@@ -1,0 +1,126 @@
+C:\Users\Anakin\Documents\Tes>node server.js
+
+  SmileCode Discovery http://localhost:3000
+
+
+===== STEP 1: API productList =====
+[API] Got 50. Unique: 50
+
+===== STEP 2: Scrape smile.one (MLBB focused) =====
+[SCRAPE] Trying 507 pages...
+[SCRAPE] merchant/mobilelegends => NO pay_channel, productid=25 skus=16 title="Mobile Legends (Brazil) | Recarregar Diamantes - Smile.One"
+[SCRAPE] ru/merchant/mobilelegends => NO pay_channel, productid=25297 skus=10 title="Mobile Legends (Россия)  | Пополнение Алмазов - Smile One"
+[SCRAPE] br/merchant/mobilelegends => NO pay_channel, productid=25 skus=16 title="Mobile Legends (Brazil) | Recarregar Diamantes - Smile.One"
+[SCRAPE] sa/merchant/mobilelegends => NO pay_channel, productid=798 skus=2 title="Mobile legends (المملكة العربية السعودية)  | شحن الماس - Smile.One"
+[SCRAPE] co/merchant/mobilelegends => NO pay_channel, productid=1050 skus=19 title="Mobile Legends (Colombia) | Recargar Diamantes – Smile One"
+[SCRAPE] Found 5 pages with product data
+
+===== STEP 3: Verify with skuList =====
+[VERIFY] "smileonecode" => 5 SKUs VERIFIED
+[VERIFY] "smilecoinbr" => 5 SKUs VERIFIED
+[VERIFY] "smilecoinph" => 8 SKUs VERIFIED
+[VERIFY] "smilecodeph" => 4 SKUs VERIFIED
+[VERIFY] "smilecoderu" => 4 SKUs VERIFIED
+[VERIFY] "smilecoinru" => 8 SKUs VERIFIED
+[VERIFY] "smilecointh" => 8 SKUs VERIFIED
+[VERIFY] "smilecodeth" => 4 SKUs VERIFIED
+[VERIFY] "pubgmobile" => 6 SKUs VERIFIED
+[VERIFY] "bigo" => 9 SKUs VERIFIED
+[VERIFY] "bigous" => 8 SKUs VERIFIED
+[VERIFY] "supersusmy" => 11 SKUs VERIFIED
+[VERIFY] "supersusph" => 11 SKUs VERIFIED
+[VERIFY] "supersusru" => 11 SKUs VERIFIED
+[VERIFY] "supersusid" => 11 SKUs VERIFIED
+[VERIFY] "watcherofrealmsbr" => 8 SKUs VERIFIED
+[VERIFY] "watcherofrealmspe" => 8 SKUs VERIFIED
+[VERIFY] "watcherofrealmsco" => 8 SKUs VERIFIED
+[VERIFY] "watcherofrealmsus" => 8 SKUs VERIFIED
+[VERIFY] "mobilelegendsadventurekr" => 8 SKUs VERIFIED
+[VERIFY] "watcherofrealmsid" => 8 SKUs VERIFIED
+[VERIFY] "watcherofrealmsru" => 8 SKUs VERIFIED
+[VERIFY] "bigocode" => 4 SKUs VERIFIED
+[VERIFY] "loveanddeepspaceth" => 9 SKUs VERIFIED
+[VERIFY] "loveanddeepspaceru" => 9 SKUs VERIFIED
+[VERIFY] "shiningnikkiru" => 15 SKUs VERIFIED
+[VERIFY] "pathtonowhereru" => 19 SKUs VERIFIED
+[VERIFY] "lovenikkiru" => 17 SKUs VERIFIED
+[VERIFY] "mobilelegendsph" => 14 SKUs VERIFIED
+[VERIFY] "mobilelegendsru" => 10 SKUs VERIFIED
+[VERIFY] "ragnarokmclassicus" => 6 SKUs VERIFIED
+[VERIFY] "ragnarokmclassicth" => 6 SKUs VERIFIED
+[VERIFY] "tindercodekr" => 15 SKUs VERIFIED
+[VERIFY] "tindercodebr" => 15 SKUs VERIFIED
+[VERIFY] "tindercodeco" => 15 SKUs VERIFIED
+[VERIFY] "tindercodeth" => 15 SKUs VERIFIED
+[VERIFY] "tindercodemx" => 2 SKUs VERIFIED
+[VERIFY] "wherewindsmeetus" => 9 SKUs VERIFIED
+[VERIFY] "magicchessgogoru" => 15 SKUs VERIFIED
+[VERIFY] "magicchessgogoid" => 22 SKUs VERIFIED
+[VERIFY] "magicchessgogoph" => 18 SKUs VERIFIED
+[VERIFY] "conquerbr" => 7 SKUs VERIFIED
+[VERIFY] "hokbr" => 10 SKUs VERIFIED
+[VERIFY] "doomsdaylastsurvivorsbr" => 1 SKUs VERIFIED
+[VERIFY] "lordsmobilekingdomwarsbr" => 5 SKUs VERIFIED
+[VERIFY] "vikingrisebr" => 2 SKUs VERIFIED
+[VERIFY] 46 products verified
+
+===== STEP 4: Try productid as apiGame =====
+
+===== COMPLETE: 55 products =====
+  API: 50 | Scraped: 0 | Website: 5 | Verified: 46
+  [0] "Smile One Code (Brazil)" apiGame="smileonecode" VERIFIED
+  [1] "Smilecoin TopUp (Brazil)" apiGame="smilecoinbr" VERIFIED
+  [2] "Smilecoin TopUp (Philippines)" apiGame="smilecoinph" VERIFIED
+  [3] "Smile One Code (Philippines)" apiGame="smilecodeph" VERIFIED
+  [4] "Smile One Code (Russia)" apiGame="smilecoderu" VERIFIED
+  [5] "Smilecoin TopUp (Russia)" apiGame="smilecoinru" VERIFIED
+  [6] "Smilecoin TopUp (Thailand)" apiGame="smilecointh" VERIFIED
+  [7] "Smile One Code (Thailand)" apiGame="smilecodeth" VERIFIED
+  [8] "PUBG Mobile Code" apiGame="pubgmobile" VERIFIED
+  [9] "Bigo Top Up" apiGame="bigo" VERIFIED
+  [10] "Bigo Top Up (Only USA)" apiGame="bigous" VERIFIED
+  [11] "Super Sus MY TopUp" apiGame="supersusmy" VERIFIED
+  [12] "Super Sus PH TopUp" apiGame="supersusph" VERIFIED
+  [13] "Super Sus RU TopUp" apiGame="supersusru" VERIFIED
+  [14] "Super Sus ID TopUp" apiGame="supersusid" VERIFIED
+  [15] "Watcher of Realms BR TopUp" apiGame="watcherofrealmsbr" VERIFIED
+  [16] "Watcher of Realms PE TopUp" apiGame="watcherofrealmspe" VERIFIED
+  [17] "Watcher of Realms CO TopUp" apiGame="watcherofrealmsco" VERIFIED
+  [18] "Watcher of Realms US TopUp" apiGame="watcherofrealmsus" VERIFIED
+  [19] "Mobile Legends Adventurekr KR TopUp" apiGame="mobilelegendsadventurekr" VERIFIED
+  [20] "Watcher of Realms ID TopUp" apiGame="watcherofrealmsid" VERIFIED
+  [21] "Watcher of Realms RU TopUp" apiGame="watcherofrealmsru" VERIFIED
+  [22] "Bigo Voucher" apiGame="bigocode" VERIFIED
+  [23] "Love and Deepspace TopUp" apiGame="loveanddeepspaceth" VERIFIED
+  [24] "Love and Deepspace RU TopUp" apiGame="loveanddeepspaceru" VERIFIED
+  [25] "Arena Breakout Code" apiGame="arenabreakoutbr"
+  [26] "Genshin Impact RU TopUp" apiGame="genshinimpactru"
+  [27] "Honkai: Star Rail RU TopUp" apiGame="honkaistarrailru"
+  [28] "Shining Nikki RU TopUp" apiGame="shiningnikkiru" VERIFIED
+  [29] "Path to Nowhere RU TopUp" apiGame="pathtonowhereru" VERIFIED
+  [30] "Love Nikki RU TopUp" apiGame="lovenikkiru" VERIFIED
+  [31] "Mobile Legends Mobile Legends: Bang Bang PH" apiGame="mobilelegendsph" VERIFIED
+  [32] "Mobile Legends Mobile Legends: Bang Bang RU" apiGame="mobilelegendsru" VERIFIED
+  [33] "Arena Breakout Promotion Code" apiGame="arenabreakouteu"
+  [34] "Ragnarok M Classic Global TopUp" apiGame="ragnarokmclassicus" VERIFIED
+  [35] "Ragnarok M Classic TH TopUp" apiGame="ragnarokmclassicth" VERIFIED
+  [36] "Tinder Code (Korea)" apiGame="tindercodekr" VERIFIED
+  [37] "Tinder Code (Brazil)" apiGame="tindercodebr" VERIFIED
+  [38] "Tinder Code (Colombia)" apiGame="tindercodeco" VERIFIED
+  [39] "Tinder Code (Thailand)" apiGame="tindercodeth" VERIFIED
+  [40] "Tinder Code (Mexico)" apiGame="tindercodemx" VERIFIED
+  [41] "Where Winds Meet TopUp" apiGame="wherewindsmeetus" VERIFIED
+  [42] "MAGIC CHESS: GO GO TopUp (Only Russia)" apiGame="magicchessgogoru" VERIFIED
+  [43] "MAGIC CHESS: GO GO TopUp (Indonesia)" apiGame="magicchessgogoid" VERIFIED
+  [44] "MAGIC CHESS: GO GO TopUp (Philippines)" apiGame="magicchessgogoph" VERIFIED
+  [45] "Conquer Code" apiGame="conquerbr" VERIFIED
+  [46] "Honor of Kings Code" apiGame="hokbr" VERIFIED
+  [47] "Doomsday: Last Survivors Code" apiGame="doomsdaylastsurvivorsbr" VERIFIED
+  [48] "Lords Mobile: Guerra de Reinos Code" apiGame="lordsmobilekingdomwarsbr" VERIFIED
+  [49] "Viking Rise Code" apiGame="vikingrisebr" VERIFIED
+  [50] "Mobile Legends (Brazil) | Recarregar Diamantes - Smile.One" apiGame="" WEBSITE pid=25
+  [51] "Mobile Legends (Россия)  | Пополнение Алмазов - Smile One" apiGame="" WEBSITE pid=25297
+  [52] "Mobile Legends (Brazil) | Recarregar Diamantes - Smile.One" apiGame="" WEBSITE pid=25
+  [53] "Mobile legends (المملكة العربية السعودية)  | شحن الماس - Smile.One" apiGame="" WEBSITE pid=798
+  [54] "Mobile Legends (Colombia) | Recargar Diamantes – Smile One" apiGame="" WEBSITE pid=1050
+^C

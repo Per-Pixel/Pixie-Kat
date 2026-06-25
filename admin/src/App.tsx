@@ -30,6 +30,8 @@ import PromoEditor from './pages/content/PromoEditor';
 import StoragePage from './pages/storage/StoragePage';
 import PlaceholderPage from './pages/PlaceholderPage';
 import ActivityLogs from './pages/ActivityLogs';
+import ProvidersPage from './pages/providers/ProvidersPage';
+import SmileOneDetailPage from './pages/providers/SmileOneDetailPage';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -87,6 +89,8 @@ const AppRoutes: React.FC = () => {
         <Route path="notifications" element={<Notifications />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="activity-logs" element={<ActivityLogs />} />
+        <Route path="providers" element={<ProvidersPage />} />
+        <Route path="providers/smile-one" element={<SmileOneDetailPage />} />
         <Route path="wallets" element={<Wallets />} />
         {/* Revenue Routes */}
         <Route path="revenue/sales-overview" element={<Analytics />} />

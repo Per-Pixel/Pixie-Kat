@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Save, Gamepad2, ListChecks, Package, Plus, Trash2,
-  GripVertical, Info,
+  GripVertical, Info, ExternalLink,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
@@ -42,15 +42,29 @@ interface GameForm {
   currency_label: string;
   provider: GameProvider;
   provider_game_code: string;
+  region: string;
   status: GameStatus;
   is_featured: boolean;
   instructions: string;
 }
 
+const REGIONS = [
+  { code: '', label: '— Not region-specific —' },
+  { code: 'ph', label: 'Philippines (PH)' },
+  { code: 'id', label: 'Indonesia (ID)' },
+  { code: 'my', label: 'Malaysia (MY)' },
+  { code: 'sg', label: 'Singapore (SG)' },
+  { code: 'br', label: 'Brazil (BR)' },
+  { code: 'th', label: 'Thailand (TH)' },
+  { code: 'vn', label: 'Vietnam (VN)' },
+  { code: 'tw', label: 'Taiwan (TW)' },
+  { code: 'global', label: 'Global' },
+];
+
 const emptyForm: GameForm = {
   slug: '', name: '', subtitle: '', description: '', image_url: '', banner_url: '',
   category: '', currency_label: 'Diamonds', provider: 'manual', provider_game_code: '',
-  status: 'draft', is_featured: false, instructions: '',
+  region: '', status: 'draft', is_featured: false, instructions: '',
 };
 
 const GameEditor: React.FC = () => {
@@ -80,8 +94,8 @@ const GameEditor: React.FC = () => {
         description: game.description ?? '', image_url: game.image_url ?? '',
         banner_url: game.banner_url ?? '', category: game.category ?? '',
         currency_label: game.currency_label, provider: game.provider,
-        provider_game_code: game.provider_game_code ?? '', status: game.status,
-        is_featured: game.is_featured, instructions: game.instructions ?? '',
+        provider_game_code: game.provider_game_code ?? '', region: game.region ?? '',
+        status: game.status, is_featured: game.is_featured, instructions: game.instructions ?? '',
       });
       setSteps(game.how_to_steps ?? []);
       setFields((game.game_fields ?? []).map((f) => ({ ...f, _key: uid() })));
@@ -173,6 +187,7 @@ const GameEditor: React.FC = () => {
         currency_label: form.currency_label || 'Diamonds',
         provider: form.provider,
         provider_game_code: form.provider_game_code || null,
+        region: form.region || null,
         status: form.status,
         is_featured: form.is_featured,
         instructions: form.instructions || null,
@@ -584,10 +599,29 @@ const GameEditor: React.FC = () => {
                 </select>
               </div>
               {form.provider !== 'manual' && (
-                <div>
-                  <label className="label mb-1.5 block">Provider Game Code</label>
-                  <input className="input font-mono text-sm" placeholder="e.g., mobilelegends" value={form.provider_game_code} onChange={(e) => change('provider_game_code', e.target.value)} />
-                </div>
+                <>
+                  <div>
+                    <label className="label mb-1.5 block">Provider Game Code</label>
+                    <input className="input font-mono text-sm" placeholder="e.g., mobilelegends" value={form.provider_game_code} onChange={(e) => change('provider_game_code', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="label mb-1.5 block">Region / Server</label>
+                    <select className="input" value={form.region} onChange={(e) => change('region', e.target.value)}>
+                      {REGIONS.map((r) => <option key={r.code} value={r.code}>{r.label}</option>)}
+                    </select>
+                  </div>
+                  {form.provider === 'smile_one' && (
+                    <a
+                      href="/providers/smile-one"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-800 bg-primary-50 rounded-lg px-3 py-2"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Browse & sync products in Provider Hub
+                    </a>
+                  )}
+                </>
               )}
             </div>
           </section>

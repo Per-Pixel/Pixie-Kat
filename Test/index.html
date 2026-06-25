@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmileCode Product Discovery</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config={theme:{extend:{colors:{bg:'#0b0b12','bg-s':'#0f0f1a',card:'#141420',gold:'#f0b429',emerald:'#00d68f',crimson:'#ff4757',fg:'#e8e8f0',muted:'#6c6c82',bdr:'#1e1e30',sky:'#38bdf8',orange:'#fb923c',lime:'#a3e635',violet:'#a78bfa'},fontFamily:{heading:['Outfit','sans-serif'],body:['Source Sans 3','sans-serif']}}}}
+  </script>
+  <style>
+    *{box-sizing:border-box}body{background:#0b0b12;color:#e8e8f0;font-family:'Source Sans 3',sans-serif;overflow-x:hidden}
+    h1,h2,h3,h4{font-family:'Outfit',sans-serif}
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#0b0b12}::-webkit-scrollbar-thumb{background:#2a2a40;border-radius:3px}
+    .blob{position:fixed;border-radius:50%;filter:blur(120px);opacity:.08;pointer-events:none;z-index:0}
+    .b1{width:500px;height:500px;background:#f0b429;top:-150px;left:-80px;animation:f1 20s ease-in-out infinite}
+    .b2{width:400px;height:400px;background:#00d68f;bottom:-100px;right:-80px;animation:f2 25s ease-in-out infinite}
+    @keyframes f1{0%,100%{transform:translate(0,0)}50%{transform:translate(60px,40px)}}
+    @keyframes f2{0%,100%{transform:translate(0,0)}50%{transform:translate(-40px,-30px)}}
+    .pc{transition:transform .3s,box-shadow .3s;opacity:0;animation:ci .5s ease forwards}
+    .pc:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    @keyframes ci{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+    .ft{position:relative;transition:color .3s;cursor:pointer}.ft::after{content:'';position:absolute;bottom:-2px;left:50%;right:50%;height:2px;background:#f0b429;transition:left .3s,right .3s}.ft.on::after{left:0;right:0}.ft.on{color:#f0b429}
+    .bv{background:rgba(240,180,41,.15);color:#f0b429;border:1px solid rgba(240,180,41,.3)}
+    .bt{background:rgba(0,214,143,.15);color:#00d68f;border:1px solid rgba(0,214,143,.3)}
+    .bl{background:rgba(163,230,53,.15);color:#a3e635;border:1px solid rgba(163,230,53,.3)}
+    .bo{background:rgba(251,146,60,.15);color:#fb923c;border:1px solid rgba(251,146,60,.3)}
+    .bw{background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3)}
+    .spin{border:3px solid #1e1e30;border-top-color:#f0b429;border-radius:50%;width:32px;height:32px;animation:sp .8s linear infinite}
+    @keyframes sp{to{transform:rotate(360deg)}}
+    .pd{width:7px;height:7px;border-radius:50%;animation:pd 2s ease-in-out infinite}
+    @keyframes pd{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,214,143,.4)}50%{opacity:.7;box-shadow:0 0 0 6px rgba(0,214,143,0)}}
+    .tt{animation:ti .4s ease,to .4s ease 3.6s forwards}
+    @keyframes ti{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+    @keyframes to{from{opacity:1}to{opacity:0;transform:translateX(100%)}}
+    .st th{font-family:'Outfit',sans-serif;font-weight:600;text-transform:uppercase;font-size:.65rem;letter-spacing:.07em;color:#6c6c82}
+    .st tr{transition:background .2s}.st tbody tr:hover{background:rgba(255,255,255,.03)}
+    .mo .ma{opacity:1}.mo .mp{transform:translateX(0);opacity:1}
+    body::before{content:'';position:fixed;inset:0;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");pointer-events:none;z-index:1}
+    body>*:not(.blob){position:relative;z-index:2}
+    @media(prefers-reduced-motion:reduce){.blob,.pc,.tt,.mp,.pd,.spin{animation:none!important}.pc{opacity:1}}
+  </style>
+</head>
+<body class="min-h-screen">
+  <div class="blob b1"></div><div class="blob b2"></div>
+
+  <header class="sticky top-0 z-50 backdrop-blur-xl bg-bg/80 border-b border-bdr">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-gold to-amber-600 flex items-center justify-center"><i class="fas fa-bolt text-bg text-sm"></i></div>
+        <div><h1 class="font-heading font-bold text-sm leading-tight">SmileCode</h1><p class="text-muted text-[9px]">Discovery</p></div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div id="status" class="flex items-center gap-1.5 text-[10px] text-muted"><div class="pd bg-muted"></div><span class="hidden sm:inline">Waiting</span></div>
+        <div id="balW" class="hidden items-center gap-1.5 px-2 py-1 rounded-lg bg-card border border-bdr text-[10px]"><i class="fas fa-wallet text-gold text-[8px]"></i><span class="text-muted">Bal:</span><span id="balV" class="font-heading font-semibold text-fg">--</span></div>
+        <button onclick="doRefresh()" class="px-2 py-1 rounded-lg bg-card border border-bdr text-[10px] text-muted hover:text-fg transition-all"><i class="fas fa-sync-alt text-[8px] mr-0.5"></i>Refresh</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-3 sm:px-6 py-5">
+    <section class="mb-5 text-center">
+      <h2 class="font-heading font-black text-3xl sm:text-4xl mb-1.5 tracking-tight">Game <span class="text-gold">Top-Up</span> Catalog</h2>
+      <p class="text-muted text-xs sm:text-sm max-w-xl mx-auto">59 products discovered. Purple = website-only (has SKU pricing from page). Green = API verified.</p>
+    </section>
+
+    <!-- Quick Scrape -->
+    <section class="mb-5 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+      <div class="p-2.5 rounded-xl bg-card border border-bdr">
+        <label class="text-[9px] text-muted font-heading font-semibold uppercase tracking-wider block mb-1">Probe apiGame</label>
+        <div class="flex gap-1.5">
+          <input id="probeIn" type="text" placeholder="e.g. mobilelegentsbr" class="flex-1 px-2 py-1.5 rounded-lg bg-bg border border-bdr text-[11px] text-fg placeholder-muted focus:outline-none focus:border-gold/50 transition-colors">
+          <button onclick="doProbe()" class="px-2.5 py-1.5 rounded-lg bg-gold text-bg font-heading font-semibold text-[11px] hover:bg-amber-400 transition-colors whitespace-nowrap"><i class="fas fa-search mr-0.5"></i>Probe</button>
+        </div>
+        <div id="probeR" class="text-[10px] text-muted mt-1 min-h-[14px]"></div>
+      </div>
+      <div class="p-2.5 rounded-xl bg-card border border-bdr">
+        <label class="text-[9px] text-muted font-heading font-semibold uppercase tracking-wider block mb-1">Scrape smile.one page</label>
+        <div class="flex gap-1.5">
+          <input id="scrapeIn" type="text" placeholder="e.g. merchant/mobilelegents or ph/merchant/mobilelegents" class="flex-1 px-2 py-1.5 rounded-lg bg-bg border border-bdr text-[11px] text-fg placeholder-muted focus:outline-none focus:border-emerald/50 transition-colors">
+          <button onclick="doScrape()" class="px-2.5 py-1.5 rounded-lg bg-emerald text-bg font-heading font-semibold text-[11px] hover:brightness-110 transition whitespace-nowrap"><i class="fas fa-globe mr-0.5"></i>Scrape</button>
+        </div>
+        <div id="scrapeR" class="text-[10px] text-muted mt-1 min-h-[14px]"></div>
+      </div>
+    </section>
+
+    <!-- Filters -->
+    <section class="mb-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+      <div class="flex flex-wrap items-center gap-0.5 p-0.5 rounded-xl bg-card border border-bdr">
+        <button class="ft on px-2 py-1.5 rounded-lg text-[11px] font-heading font-semibold" data-f="all">All</button>
+        <button class="ft px-2 py-1.5 rounded-lg text-[11px] font-heading font-semibold text-muted" data-f="mlbb"><i class="fas fa-shield-halved mr-0.5 text-gold text-[9px]"></i>MLBB</button>
+        <button class="ft px-2 py-1.5 rounded-lg text-[11px] font-heading font-semibold text-muted" data-f="hok"><i class="fas fa-crown mr-0.5 text-emerald text-[9px]"></i>HoK</button>
+        <button class="ft px-2 py-1.5 rounded-lg text-[11px] font-heading font-semibold text-muted" data-f="verified"><i class="fas fa-check-circle mr-0.5 text-lime text-[9px]"></i>API</button>
+        <button class="ft px-2 py-1.5 rounded-lg text-[11px] font-heading font-semibold text-muted" data-f="website"><i class="fas fa-globe mr-0.5 text-violet text-[9px]"></i>Website</button>
+      </div>
+      <div class="relative w-full sm:w-56">
+        <i class="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-muted text-[10px]"></i>
+        <input id="searchIn" type="text" placeholder="Search..." class="w-full pl-7 pr-3 py-2 rounded-xl bg-card border border-bdr text-[11px] text-fg placeholder-muted focus:outline-none focus:border-gold/50 transition-colors">
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-5">
+      <div class="px-2 py-2 rounded-xl bg-card border border-bdr text-center"><div class="font-heading font-bold text-base sm:text-lg text-fg" id="sT">0</div><div class="text-muted text-[8px]">Total</div></div>
+      <div class="px-2 py-2 rounded-xl bg-card border border-bdr text-center"><div class="font-heading font-bold text-base sm:text-lg text-lime" id="sV">0</div><div class="text-muted text-[8px]">API Verified</div></div>
+      <div class="px-2 py-2 rounded-xl bg-card border border-bdr text-center"><div class="font-heading font-bold text-base sm:text-lg text-orange" id="sS">0</div><div class="text-muted text-[8px]">Scraped</div></div>
+      <div class="px-2 py-2 rounded-xl bg-card border border-bdr text-center"><div class="font-heading font-bold text-base sm:text-lg text-violet" id="sW">0</div><div class="text-muted text-[8px]">Website</div></div>
+      <div class="px-2 py-2 rounded-xl bg-card border border-bdr text-center col-span-3 sm:col-span-1"><div class="font-heading font-bold text-base sm:text-lg text-gold" id="sM">0</div><div class="text-muted text-[8px]">MLBB+HoK</div></div>
+    </section>
+
+    <section id="loadS" class="py-14 flex flex-col items-center gap-2.5"><div class="spin"></div><p class="text-muted text-xs">Discovering products...</p><div id="loadLog" class="w-full max-w-2xl mt-3 max-h-28 overflow-y-auto text-[9px] font-mono text-muted/50 px-2"></div></section>
+    <section id="errS" class="hidden py-14 flex flex-col items-center gap-2 text-center"><i class="fas fa-exclamation-triangle text-crimson text-xl"></i><p id="errMsg" class="text-muted text-xs max-w-md"></p><button onclick="initApp()" class="mt-1 px-4 py-1.5 rounded-lg bg-gold text-bg font-heading font-semibold text-xs hover:bg-amber-400 transition-colors">Retry</button></section>
+    <section id="gridS" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></section>
+    <section id="emptyS" class="hidden py-14 flex flex-col items-center gap-2 text-center"><i class="fas fa-search text-muted text-xl"></i><p class="text-muted text-xs">No products match.</p></section>
+  </main>
+
+  <!-- Modal -->
+  <div id="skuM" class="fixed inset-0 z-[100] hidden" role="dialog" aria-modal="true">
+    <div class="ma absolute inset-0 bg-black/60 backdrop-blur-sm opacity-0" onclick="closeM()"></div>
+    <div class="mp absolute right-0 top-0 bottom-0 w-full max-w-lg bg-bg-s border-l border-bdr opacity-0 translate-x-full overflow-y-auto">
+      <div class="sticky top-0 z-10 backdrop-blur-xl bg-bg-s/90 border-b border-bdr px-4 py-3 flex items-center justify-between">
+        <div class="min-w-0 mr-2"><h3 id="mT" class="font-heading font-bold text-sm truncate">SKUs</h3><p id="mS" class="text-muted text-[9px] mt-0.5"></p></div>
+        <button onclick="closeM()" class="w-7 h-7 rounded-lg bg-card flex items-center justify-center text-muted hover:text-fg transition-colors flex-shrink-0" aria-label="Close"><i class="fas fa-times text-xs"></i></button>
+      </div>
+      <div id="mB" class="px-4 py-3"></div>
+    </div>
+  </div>
+  <div id="tC" class="fixed bottom-3 right-3 z-[200] flex flex-col gap-1.5 max-w-xs"></div>
+  <footer class="text-center py-5 text-muted text-[9px] border-t border-bdr mt-6">SmileCode Discovery</footer>
+
+  <script>
+  var allP=[],aF='all',sQ='';
+
+  function gT(p){var n=(p.name||'').toLowerCase(),g=(p.apiGame||'').toLowerCase(),s=(p._gameSlug||'').toLowerCase();
+    if(n.indexOf('honor of kings')!==-1||g==='hok'||(g.indexOf('hok')===0&&g.length<=6))return'hok';
+    if(n.indexOf('mobile legends')!==-1||g.indexOf('mobilelegends')!==-1||s.indexOf('mobilelegends')!==-1||s.indexOf('mlbb')!==-1){if(n.indexOf('adventure')!==-1||g.indexOf('adventure')!==-1||n.indexOf('magic chess')!==-1||g.indexOf('magicchess')!==-1)return'mlr';return'mlbb'}
+    if(n.indexOf('magic chess')!==-1||g.indexOf('magicchess')!==-1)return'mlr';return'other'}
+
+  function gR(n,g){var d=n.match(/[-\u2013\u2014]\s*(.+)$/);if(d)return d[1].trim();var p=n.match(/\(([^)]+)\)/);if(p)return p[1].trim();var cs={ph:'Philippines',ru:'Russia',id:'Indonesia',my:'Malaysia',vn:'Vietnam',th:'Thailand',sg:'Singapore',br:'Brazil',kr:'Korea',us:'United States',mm:'Myanmar',pk:'Pakistan',bd:'Bangladesh',np:'Nepal',tr:'Turkey',ae:'UAE',sa:'Saudi Arabia',mx:'Mexico',co:'Colombia',pe:'Peru',ar:'Argentina',cl:'Chile'};if(g){var a=g.toLowerCase();for(var s in cs){if(a.endsWith(s)&&s.length>=2)return cs[s]}}return'Global'}
+
+  function toast(m,t){t=t||'info';var c=document.getElementById('tC'),d=document.createElement('div');var co={info:'border-gold/40 bg-gold/10 text-gold',success:'border-emerald/40 bg-emerald/10 text-emerald',error:'border-crimson/40 bg-crimson/10 text-crimson'};d.className='tt flex items-center gap-1.5 px-3 py-2 rounded-xl border backdrop-blur-lg text-[11px] '+(co[t]||co.info);d.innerHTML='<i class="fas '+(t==='success'?'fa-check-circle':t==='error'?'fa-times-circle':'fa-info-circle')+'"></i><span>'+m+'</span>';c.appendChild(d);setTimeout(function(){d.remove()},4000)}
+
+  // PROBE
+  async function doProbe(){var i=document.getElementById('probeIn'),r=document.getElementById('probeR'),v=i.value.trim();if(!v){r.innerHTML='<span class="text-crimson">Enter a value</span>';return}r.innerHTML='<i class="fas fa-spinner fa-spin mr-1"></i>...';try{var res=await fetch('/api/probe/'+encodeURIComponent(v));var d=await res.json();if(d.found){r.innerHTML='<span class="text-emerald"><i class="fas fa-check-circle mr-1"></i>Found! '+d.skuCount+' SKUs</span>';if(!allP.some(function(p){return p.apiGame===v})){allP.push({name:v,apiGame:v,type:'topup',subType:2,_discovered:true,_verified:true,_skuCount:d.skuCount});render();toast('Added "'+v+'"','success')}}else{r.innerHTML='<span class="text-crimson"><i class="fas fa-times-circle mr-1"></i>Not found</span>';if(d.error)r.innerHTML+='<span class="text-muted ml-1 text-[9px]">'+d.error+'</span>'}}catch(e){r.innerHTML='<span class="text-crimson">Error</span>'}}
+
+  // SCRAPE
+  async function doScrape(){var i=document.getElementById('scrapeIn'),r=document.getElementById('scrapeR'),v=i.value.trim();if(!v){r.innerHTML='<span class="text-crimson">Enter a path</span>';return}r.innerHTML='<i class="fas fa-spinner fa-spin mr-1"></i>Scraping...';try{var res=await fetch('/api/webscrape/'+encodeURIComponent(v));var d=await res.json();if(d.error){r.innerHTML='<span class="text-crimson">'+d.error+'</span>';return}var h='';if(d.payChannel)h+='<span class="text-gold">pay_channel='+d.payChannel+'</span> ';if(d.productId)h+='<span class="text-emerald">pid='+d.productId+'</span> ';if(d.skuIds)h+='<span class="text-sky">'+d.skuIds.length+' SKUs</span>';if(!h)h='<span class="text-crimson">No product data</span>';r.innerHTML=h;
+    // Auto-add to catalog
+    if(d.payChannel&&!allP.some(function(p){return p.apiGame===d.payChannel})){allP.push({name:d.title||d.payChannel,apiGame:d.payChannel,type:'topup',subType:2,_discovered:true,_source:'scrape',_productId:d.productId,_websiteSkus:d.websiteSkus,_needsUserId:d.needsUserId,_needsServer:d.needsServer});render();toast('Found: '+d.payChannel,'success')}
+    else if(d.productId&&!d.payChannel){var wk='_web_'+v.replace(/[\/\?]/g,'_');if(!allP.some(function(p){return p._gameSlug===v})){allP.push({name:d.title||v,apiGame:'',type:'topup',subType:2,_discovered:true,_source:'website',_productId:d.productId,_websiteSkus:d.websiteSkus,_gameSlug:v,_needsUserId:d.needsUserId,_needsServer:d.needsServer});render();toast('Website product: '+(d.title||v),'success')}}}catch(e){r.innerHTML='<span class="text-crimson">Error</span>'}}
+
+  // VIEW SKUS - the fix: check source and use appropriate method
+  async function viewSku(ag,pn){
+    var m=document.getElementById('skuM'),b=document.getElementById('mB');
+    document.getElementById('mT').textContent=pn;document.getElementById('mS').textContent='apiGame: '+ag;
+    b.innerHTML='<div class="flex items-center justify-center py-8 gap-2"><div class="spin" style="width:22px;height:22px;border-width:2px"></div><span class="text-muted text-[10px]">Loading API SKUs...</span></div>';
+    m.classList.remove('hidden');requestAnimationFrame(function(){m.classList.add('mo')});
+    try{var res=await fetch('/api/sku/'+encodeURIComponent(ag));var d=await res.json();if(d.error)throw new Error(d.error);
+      var skus=d.skuList||[],srvs=d.serverList||[],im=d.isMultiPurchase;var h='';
+      if(skus.length>0){h+='<div class="mb-3"><h4 class="font-heading font-semibold text-fg text-[11px] mb-1.5"><i class="fas fa-tags text-gold mr-1"></i>API SKUs ('+skus.length+')</h4>'+(im?'<span class="bl text-[8px] px-1.5 py-0.5 rounded font-semibold mb-1.5 inline-block">Multi-purchase</span>':'')+'<div class="rounded-lg border border-bdr overflow-x-auto"><table class="st w-full text-[10px]"><thead><tr class="bg-card"><th class="text-left px-2 py-1">Description</th><th class="text-right px-2 py-1">Price</th><th class="text-center px-2 py-1">Stock</th><th class="text-center px-2 py-1">PID</th></tr></thead><tbody class="divide-y divide-bdr">';
+        for(var i=0;i<skus.length;i++){var s=skus[i];h+='<tr><td class="px-2 py-1.5"><div class="text-fg text-[10px]">'+(s.description||'N/A')+'</div><div class="text-muted text-[8px]">SKU: '+s.sku+'</div></td><td class="text-right px-2 py-1.5"><span class="font-heading font-semibold">'+parseFloat(s.price||0).toFixed(2)+'</span> <span class="text-muted text-[8px]">'+(s.currency||'USD')+'</span></td><td class="text-center px-2 py-1.5">'+(s.inventory&&s.inventory!=='0'?'<span class="text-emerald">'+s.inventory+'</span>':'<span class="text-muted">--</span>')+'</td><td class="text-center px-2 py-1.5"><span class="text-muted font-mono text-[8px]">'+(s.pid||'--')+'</span></td></tr>'}
+        h+='</tbody></table></div></div>';}else{h+='<div class="text-center py-4 text-muted text-[10px]">No API SKUs returned.</div>'}
+      if(srvs&&(Array.isArray(srvs)?srvs.length:Object.keys(srvs).length)>0){var sv=Array.isArray(srvs)?srvs:Object.entries(srvs).map(function(e){return{id:e[0],name:e[1]}});h+='<div class="mt-3"><h4 class="font-heading font-semibold text-fg text-[11px] mb-1.5"><i class="fas fa-server text-emerald mr-1"></i>Servers ('+sv.length+')</h4><div class="max-h-40 overflow-y-auto rounded-lg border border-bdr"><table class="st w-full text-[10px]"><thead class="sticky top-0 bg-card"><tr><th class="text-left px-2 py-1">ID</th><th class="text-left px-2 py-1">Name</th></tr></thead><tbody class="divide-y divide-bdr">';for(var j=0;j<Math.min(sv.length,200);j++){var v=sv[j];h+='<tr><td class="px-2 py-1 text-muted text-[9px]">'+(v.id||v.key||'')+'</td><td class="px-2 py-1 text-fg text-[9px]">'+(v.name||v.value||'')+'</td></tr>'}h+='</tbody></table></div></div>'}
+      b.innerHTML=h;
+    }catch(e){b.innerHTML='<div class="text-center py-4"><i class="fas fa-exclamation-circle text-crimson text-sm mb-1"></i><p class="text-fg text-[10px] font-semibold">API Error</p><p class="text-muted text-[9px]">'+e.message+'</p></div>'}}
+
+  // VIEW WEBSITE SKUS - shows data scraped from the page
+  function viewWebSku(slug,pn){
+    var m=document.getElementById('skuM'),b=document.getElementById('mB');
+    document.getElementById('mT').textContent=pn;document.getElementById('mS').textContent='Source: smile.one website';
+    m.classList.remove('hidden');requestAnimationFrame(function(){m.classList.add('mo')});
+    // Find product
+    var prod=allP.find(function(p){return p._gameSlug===slug||p.apiGame==='_web_'+slug});
+    if(prod&&prod._websiteSkus&&prod._websiteSkus.length>0){
+      renderWebSkus(prod,b);
+    }else{
+      // Fetch fresh data from server
+      b.innerHTML='<div class="flex items-center justify-center py-8 gap-2"><div class="spin" style="width:22px;height:22px;border-width:2px"></div><span class="text-muted text-[10px]">Scraping page...</span></div>';
+      fetch('/api/webscrape/'+encodeURIComponent(slug)).then(function(r){return r.json()}).then(function(d){
+        if(d.error){b.innerHTML='<div class="text-center py-4 text-muted text-[10px]">Failed: '+d.error+'</div>';return}
+        if(d.websiteSkus&&d.websiteSkus.length>0){
+          b.innerHTML='';renderWebSkusFromData(d,b);
+        }else if(d.skuIds&&d.skuIds.length>0){
+          b.innerHTML='<div class="text-center py-4 text-muted text-[10px]">Found '+d.skuIds.length+' SKU IDs but no pricing data.</div>';
+        }else{
+          b.innerHTML='<div class="text-center py-4 text-muted text-[10px]"><i class="fas fa-box-open text-lg mb-1"></i>No SKU data found on this page.</div>';
+        }
+      }).catch(function(e){b.innerHTML='<div class="text-center py-4 text-crimson text-[10px]">Error: '+e.message+'</div>'});
+    }
+  }
+
+  function renderWebSkus(prod,b){
+    var skus=prod._websiteSkus;var pid=prod._productId||'';
+    var h='<div class="mb-3"><h4 class="font-heading font-semibold text-fg text-[11px] mb-1.5"><i class="fas fa-globe text-violet mr-1"></i>Website SKUs ('+skus.length+')</h4>';
+    h+='<p class="text-muted text-[9px] mb-2">Pricing from smile.one page. productid='+pid+'</p>';
+    h+=buildWebSkuTable(skus);h+='</div>';
+    h+='<div class="mt-3 p-2.5 rounded-lg bg-violet/5 border border-violet/10 text-[9px] text-muted"><i class="fas fa-info-circle text-violet mr-1"></i>These SKUs are from the smile.one website, not the SmileCode API. To purchase via API, contact SmileOne support to authorize this product for your account.</div>';
+    b.innerHTML=h;
+  }
+
+  function renderWebSkusFromData(d,b){
+    var skus=d.websiteSkus||[];var pid=d.productId||'';
+    var h='<div class="mb-3"><h4 class="font-heading font-semibold text-fg text-[11px] mb-1.5"><i class="fas fa-globe text-violet mr-1"></i>Website SKUs ('+skus.length+')</h4>';
+    h+='<p class="text-muted text-[9px] mb-2">pay_channel='+(d.payChannel||'none')+' productid='+pid+'</p>';
+    h+=buildWebSkuTable(skus);h+='</div>';
+    if(d.payChannel){h+='<div class="mt-3 p-2.5 rounded-lg bg-orange/5 border border-orange/10 text-[9px] text-muted"><i class="fas fa-plug text-orange mr-1"></i>This product has pay_channel="<span class="text-fg">'+d.payChannel+'</span>" — try probing this value with the API.</div>'}
+    h+='<div class="mt-2 p-2.5 rounded-lg bg-violet/5 border border-violet/10 text-[9px] text-muted"><i class="fas fa-info-circle text-violet mr-1"></i>To purchase via SmileCode API, contact SmileOne support to authorize this product.</div>';
+    b.innerHTML=h;
+  }
+
+  function buildWebSkuTable(skus){
+    var h='<div class="rounded-lg border border-bdr overflow-x-auto"><table class="st w-full text-[10px]"><thead><tr class="bg-card"><th class="text-left px-2 py-1">SKU ID</th><th class="text-right px-2 py-1">Smilecoin</th><th class="text-right px-2 py-1">Display Price</th></tr></thead><tbody class="divide-y divide-bdr">';
+    for(var i=0;i<skus.length;i++){var s=skus[i];h+='<tr><td class="px-2 py-1.5"><span class="text-fg font-mono text-[9px]">'+s.id+'</span></td><td class="text-right px-2 py-1.5"><span class="text-gold font-heading font-semibold">'+(s.smilecoin||'--')+'</span>'+(s.smilecoinAmount?' <span class="text-muted text-[8px]">('+s.smilecoinAmount+')</span>':'')+'</td><td class="text-right px-2 py-1.5"><span class="text-fg">'+(s.displayPrice||'--')+'</span>'+(s.displayAmount?' <span class="text-muted text-[8px]">('+s.displayAmount+')</span>':'')+'</td></tr>'}
+    h+='</tbody></table></div>';return h;
+  }
+
+  function closeM(){var m=document.getElementById('skuM');m.classList.remove('mo');setTimeout(function(){m.classList.add('hidden')},300)}
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeM()});
+
+  function render(){
+    var g=document.getElementById('gridS');
+    var fp=allP.filter(function(p){var t=gT(p);if(aF==='mlbb'&&t!=='mlbb')return false;if(aF==='hok'&&t!=='hok')return false;if(aF==='verified'&&!p._verified)return false;if(aF==='website'&&p._source!=='website'&&p._source!=='scrape')return false;if(sQ){var q=sQ.toLowerCase();if((p.name||'').toLowerCase().indexOf(q)===-1&&(p.apiGame||'').toLowerCase().indexOf(q)===-1&&(p._gameSlug||'').toLowerCase().indexOf(q)===-1)return false}return true});
+    var c={mlbb:0,hok:0,mlr:0,other:0},ver=0,scr=0,web=0,mlbbHok=0;
+    allP.forEach(function(p){var t=gT(p);c[t]=(c[t]||0)+1;if(p._verified)ver++;if(p._source==='scrape')scr++;if(p._source==='website')web++;if(t==='mlbb'||t==='hok'||t==='mlr')mlbbHok++});
+    document.getElementById('sT').textContent=allP.length;document.getElementById('sV').textContent=ver;document.getElementById('sS').textContent=scr;document.getElementById('sW').textContent=web;document.getElementById('sM').textContent=mlbbHok;
+    if(fp.length===0){g.classList.add('hidden');document.getElementById('emptyS').classList.remove('hidden');return}
+    document.getElementById('emptyS').classList.add('hidden');g.classList.remove('hidden');
+    g.innerHTML=fp.map(function(p,i){
+      var t=gT(p),reg=gR(p.name,p.apiGame);
+      var isWeb=p._source==='website';var isScraped=p._source==='scrape';var isVerified=!!p._verified;
+      var hasWebSkus=p._websiteSkus&&p._websiteSkus.length>0;
+      // Determine card style
+      var borderC,iconC,iconBg,icon;
+      if(t==='mlbb'){borderC='border-gold/20';iconC='text-gold';iconBg='bg-gold/10';icon='fa-shield-halved'}
+      else if(t==='hok'){borderC='border-emerald/20';iconC='text-emerald';iconBg='bg-emerald/10';icon='fa-crown'}
+      else if(t==='mlr'){borderC='border-orange/20';iconC='text-orange';iconBg='bg-orange/10';icon='fa-chess-knight'}
+      else{borderC='border-bdr';iconC='text-sky';iconBg='bg-sky/10';icon='fa-puzzle-piece'}
+      // Badge
+      var badge='';
+      if(isVerified)badge='<span class="bl text-[8px] px-1.5 py-0.5 rounded font-semibold"><i class="fas fa-check-circle mr-0.5"></i>API</span>';
+      else if(isScraped)badge='<span class="bo text-[8px] px-1.5 py-0.5 rounded font-semibold"><i class="fas fa-spider mr-0.5"></i>SCRAPED</span>';
+      else if(isWeb)badge='<span class="bw text-[8px] px-1.5 py-0.5 rounded font-semibold"><i class="fas fa-globe mr-0.5"></i>WEB</span>';
+      var skuBadge='';
+      if(p._skuCount)skuBadge='<span class="text-[8px] px-1.5 py-0.5 rounded bg-lime/10 text-lime border border-lime/20">'+p._skuCount+' API</span>';
+      else if(hasWebSkus)skuBadge='<span class="text-[8px] px-1.5 py-0.5 rounded bg-violet/10 text-violet border border-violet/20">'+p._websiteSkus.length+' web</span>';
+      if(p._productId)skuBadge+='<span class="text-[8px] px-1.5 py-0.5 rounded bg-white/5 text-muted border border-white/5 ml-0.5">pid='+p._productId+'</span>';
+      // Button: use viewWebSku for website products OR scraped products without API verification
+      var useWebBtn=isWeb||(isScraped&&!isVerified);
+      var sn=(p.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;');
+      var sa=(p.apiGame||'').replace(/'/g,"\\'");
+      var slug=(p._gameSlug||'').replace(/'/g,"\\'");
+      var btnAction=useWebBtn
+        ?'viewWebSku(\''+(slug||sa)+'\',\''+sn+'\')'
+        :'viewSku(\''+sa+'\',\''+sn+'\')';
+      var btnLabel=useWebBtn?'View Web SKUs':'View SKUs';
+      var btnBg=useWebBtn?'bg-violet/10 text-violet':iconBg+' '+iconC;
+
+      return '<div class="pc rounded-xl bg-card border '+borderC+' p-3.5 flex flex-col gap-2" style="animation-delay:'+i*20+'ms">'
+        +'<div class="flex items-start justify-between gap-1.5">'
+        +'<div class="flex items-center gap-2.5 min-w-0">'
+        +'<div class="w-8 h-8 rounded-lg '+iconBg+' flex items-center justify-center flex-shrink-0"><i class="fas '+icon+' '+iconC+' text-xs"></i></div>'
+        +'<div class="min-w-0"><h4 class="font-heading font-semibold text-fg text-[11px] leading-tight truncate" title="'+sn+'">'+(p.name||'Unnamed')+'</h4>'
+        +'<div class="flex items-center gap-1 mt-0.5 flex-wrap"><span class="text-muted text-[9px]">'+reg+'</span>'
+        +(p.apiGame?'<span class="text-muted text-[7px]">•</span><span class="text-muted text-[8px] font-mono">'+p.apiGame+'</span>':'')
+        +'</div></div></div>'
+        +'<div class="flex flex-col items-end gap-0.5 flex-shrink-0">'+badge+skuBadge+'</div></div>'
+        +'<button onclick="'+btnAction+'" class="mt-auto w-full py-1.5 rounded-lg '+btnBg+' font-heading font-semibold text-[10px] hover:brightness-125 transition-all flex items-center justify-center gap-1">'
+        +'<i class="fas '+(useWebBtn?'fa-globe':'fa-boxes-stacked')+' text-[8px]"></i>'+btnLabel+'</button></div>';
+    }).join('');
+  }
+
+  async function doRefresh(){toast('Refreshing...','info');try{var res=await fetch('/api/refresh');var d=await res.json();if(d.error)throw new Error(d.error);allP=d.productList||[];toast('Found '+allP.length+' products','success');render()}catch(e){toast('Failed: '+e.message,'error')}}
+
+  var logIv;
+  async function pollLog(){try{var r=await fetch('/api/log');var d=await r.json();var el=document.getElementById('loadLog');if(d.log&&d.log.length>0){el.textContent=d.log.slice(-20).join('\n');el.scrollTop=el.scrollHeight}if(!d.running)clearInterval(logIv)}catch(e){}}
+
+  async function initApp(){
+    document.getElementById('errS').classList.add('hidden');document.getElementById('emptyS').classList.add('hidden');document.getElementById('gridS').classList.add('hidden');document.getElementById('loadS').classList.remove('hidden');
+    document.getElementById('status').innerHTML='<div class="pd bg-muted"></div><span class="text-muted text-[10px] hidden sm:inline">Loading...</span>';
+    logIv=setInterval(pollLog,2000);
+    try{
+      var products=await(await fetch('/api/products')).json();if(products.error)throw new Error(products.error);
+      allP=products.productList||[];
+      document.getElementById('status').innerHTML='<div class="pd bg-emerald"></div><span class="text-emerald text-[10px] hidden sm:inline">Connected</span>';
+      var ver=allP.filter(function(p){return p._verified}).length;var web=allP.filter(function(p){return p._source==='website'}).length;
+      toast('Discovered '+allP.length+' products ('+ver+' API, '+web+' website)','success');
+      try{var bl=await(await fetch('/api/balance')).json();if(bl.usd_balance!==undefined){document.getElementById('balV').textContent='$'+parseFloat(bl.usd_balance).toFixed(2);var bw=document.getElementById('balW');bw.classList.remove('hidden');bw.classList.add('flex')}}catch(e){}
+      document.getElementById('loadS').classList.add('hidden');clearInterval(logIv);render();
+    }catch(e){document.getElementById('loadS').classList.add('hidden');document.getElementById('errS').classList.remove('hidden');document.getElementById('errMsg').textContent=e.message;toast('Failed: '+e.message,'error');clearInterval(logIv)}
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){
+    initApp();
+    document.querySelectorAll('.ft').forEach(function(t){t.addEventListener('click',function(){document.querySelectorAll('.ft').forEach(function(x){x.classList.remove('on');x.classList.add('text-muted')});t.classList.add('on');t.classList.remove('text-muted');aF=t.dataset.f;render()})});
+    var sTO;document.getElementById('searchIn').addEventListener('input',function(e){clearTimeout(sTO);sTO=setTimeout(function(){sQ=e.target.value.trim();render()},200)});
+    document.getElementById('probeIn').addEventListener('keydown',function(e){if(e.key==='Enter')doProbe()});
+    document.getElementById('scrapeIn').addEventListener('keydown',function(e){if(e.key==='Enter')doScrape()});
+  });
+  </script>
+</body>
+</html>

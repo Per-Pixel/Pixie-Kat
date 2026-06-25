@@ -21,6 +21,7 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { supabaseAdmin, verifyAdminRequest } from './supabase-admin.js';
+import * as smileOne from './smileone.js';
 
 dotenv.config();
 
@@ -301,6 +302,106 @@ app.post('/api/admin/wallet/adjust', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('wallet adjust error:', err);
     res.status(500).json({ success: false, message: err.message || 'Wallet adjustment failed' });
+  }
+});
+
+// ── SmileCode API routes ──────────────────────────────────────────────────────
+
+// Provider status — GET /api/smileone/status
+app.get('/api/smileone/status', async (req, res) => {
+  if (!smileOne.isConfigured()) {
+    return res.json({
+      configured: false,
+      connected:  false,
+      message: 'Missing SMILECODE_API_KEY or SMILECODE_SECRET in server .env',
+    });
+  }
+  try {
+    const data      = await smileOne.balance();
+    const connected = data.result?.code === 100000;
+    res.json({
+      configured:  true,
+      connected,
+      usd_balance: data.result?.usd_balance ?? null,
+      message:     connected ? 'Connected' : (data.error?.message ?? 'Unknown error'),
+    });
+  } catch (err) {
+    res.json({ configured: true, connected: false, message: err.message });
+  }
+});
+
+// All products on the account — GET /api/smileone/product-list
+app.get('/api/smileone/product-list', async (req, res) => {
+  try {
+    const data = await smileOne.productList();
+    res.json({ success: true, productList: data.result?.productList ?? [] });
+  } catch (err) {
+    console.error('[smileone/product-list]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// SKU list for a product — GET /api/smileone/sku-list?apiGame=mobilelegends
+app.get('/api/smileone/sku-list', async (req, res) => {
+  try {
+    const { apiGame } = req.query;
+    if (!apiGame) return res.status(400).json({ success: false, message: 'apiGame is required' });
+    const data = await smileOne.skuList(apiGame);
+    const rawSkus = data.result?.skuList ?? [];
+    res.json({
+      success:         true,
+      skuList:         rawSkus.map(s => ({ ...s, description: s.description || s.code || s.sku })),
+      serverList:      data.result?.serverList      ?? [],
+      isMultiPurchase: data.result?.isMultiPurchase ?? true,
+    });
+  } catch (err) {
+    console.error('[smileone/sku-list]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Validate user account — POST /api/smileone/validate
+// Body: { apiGame, userAccount: { user_id, server_id? } }
+app.post('/api/smileone/validate', async (req, res) => {
+  try {
+    const { apiGame, userAccount } = req.body;
+    if (!apiGame || !userAccount) {
+      return res.status(400).json({ success: false, message: 'apiGame and userAccount are required' });
+    }
+    const data = await smileOne.validate(apiGame, userAccount);
+    res.json({ success: true, result: data.result });
+  } catch (err) {
+    console.error('[smileone/validate]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Place order — POST /api/smileone/send-order
+// Body: { apiGame, items: [{ sku, qty, pid }], userAccount }
+app.post('/api/smileone/send-order', async (req, res) => {
+  try {
+    const { apiGame, items, userAccount } = req.body;
+    if (!apiGame || !items?.length || !userAccount) {
+      return res.status(400).json({ success: false, message: 'apiGame, items, and userAccount are required' });
+    }
+    const data = await smileOne.sendOrder(apiGame, items, userAccount);
+    res.json({ success: true, result: data.result });
+  } catch (err) {
+    console.error('[smileone/send-order]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Order detail — GET /api/smileone/order-detail?orderId=SC...
+app.get('/api/smileone/order-detail', async (req, res) => {
+  try {
+    const { orderId } = req.query;
+    if (!orderId) return res.status(400).json({ success: false, message: 'orderId is required' });
+    const data = await smileOne.orderDetail(orderId);
+    res.json({ success: true, result: data.result });
+  } catch (err) {
+    console.error('[smileone/order-detail]', err.message);
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
