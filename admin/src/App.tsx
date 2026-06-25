@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import LoadingScreen from './components/LoadingScreen';
 import AdminLayout from './layouts/AdminLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -32,19 +33,14 @@ import PlaceholderPage from './pages/PlaceholderPage';
 import ActivityLogs from './pages/ActivityLogs';
 import ProvidersPage from './pages/providers/ProvidersPage';
 import SmileOneDetailPage from './pages/providers/SmileOneDetailPage';
+import SmileCoinDetailPage from './pages/providers/SmileCoinDetailPage';
+import SmileCoinApiConsolePage from './pages/providers/SmileCoinApiConsolePage';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (
@@ -91,6 +87,8 @@ const AppRoutes: React.FC = () => {
         <Route path="activity-logs" element={<ActivityLogs />} />
         <Route path="providers" element={<ProvidersPage />} />
         <Route path="providers/smile-one" element={<SmileOneDetailPage />} />
+        <Route path="providers/smile-coin" element={<SmileCoinDetailPage />} />
+        <Route path="providers/smile-coin/api-console" element={<SmileCoinApiConsolePage />} />
         <Route path="wallets" element={<Wallets />} />
         {/* Revenue Routes */}
         <Route path="revenue/sales-overview" element={<Analytics />} />

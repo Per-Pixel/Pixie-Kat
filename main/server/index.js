@@ -22,6 +22,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { supabaseAdmin, verifyAdminRequest } from './supabase-admin.js';
 import * as smileOne from './smileone.js';
+import * as smileCoin from './smilecoin.js';
 
 dotenv.config();
 
@@ -403,6 +404,117 @@ app.get('/api/smileone/order-detail', async (req, res) => {
     console.error('[smileone/order-detail]', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
+});
+
+// ── Smilecoin (smile.one Smilecoin API) routes ──────────────────────────────
+// All routes require admin JWT. Credentials stay server-side (SC_* env vars).
+
+app.get('/api/smilecoin/health', requireAdmin, (_req, res) => {
+  res.json({
+    ok:         smileCoin.isConfigured(),
+    configured: smileCoin.isConfigured(),
+    testOrders: smileCoin.ALLOW_TEST_ORDER,
+    time:       Date.now(),
+  });
+});
+
+app.get('/api/smilecoin/products', requireAdmin, async (_req, res) => {
+  try {
+    const body = await smileCoin.callSmileCoin('product', { product: 'mobilelegends' });
+    res.json({ ok: true, products: Array.isArray(body) ? body : [] });
+  } catch (err) {
+    console.error('[smilecoin/products]', err.message);
+    res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/api/smilecoin/productlist', requireAdmin, async (req, res) => {
+  const product = String(req.query.product || '').trim();
+  if (!product) return res.status(400).json({ ok: false, error: 'Missing ?product=' });
+  try {
+    const body = await smileCoin.callSmileCoin('productlist', { product });
+    res.json({ ok: true, product, ...body });
+  } catch (err) {
+    console.error('[smilecoin/productlist]', err.message);
+    res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/api/smilecoin/servers', requireAdmin, async (req, res) => {
+  const product = String(req.query.product || '').trim();
+  if (!product) return res.status(400).json({ ok: false, error: 'Missing ?product=' });
+  try {
+    const body = await smileCoin.callSmileCoin('getserver', { product });
+    res.json({ ok: true, product, ...body });
+  } catch (err) {
+    console.error('[smilecoin/servers]', err.message);
+    res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/api/smilecoin/points', requireAdmin, async (_req, res) => {
+  try {
+    const body = await smileCoin.callSmileCoin('querypoints', { product: 'mobilelegends' });
+    res.json({ ok: true, ...body });
+  } catch (err) {
+    console.error('[smilecoin/points]', err.message);
+    res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/smilecoin/rolecheck', requireAdmin, async (req, res) => {
+  const { userid, zoneid, product, productid } = req.body || {};
+  if (!userid || !product || !productid) {
+    return res.status(400).json({ ok: false, error: 'Missing userid, product, or productid' });
+  }
+  try {
+    const body = await smileCoin.callSmileCoin('getrole', {
+      userid,
+      zoneid: zoneid || userid,
+      product,
+      productid,
+    });
+    res.json({ ok: body.status === 200, ...body });
+  } catch (err) {
+    console.error('[smilecoin/rolecheck]', err.message);
+    res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/smilecoin/order', requireAdmin, async (req, res) => {
+  if (!smileCoin.ALLOW_TEST_ORDER) {
+    return res.status(403).json({
+      ok:     false,
+      dryRun: true,
+      error:  'Test orders disabled (SC_ALLOW_TEST_ORDER=false). Set to true in main/server/.env to enable.',
+    });
+  }
+  const { userid, zoneid, product, productid } = req.body || {};
+  if (!userid || !product || !productid) {
+    return res.status(400).json({ ok: false, error: 'Missing userid, product, or productid' });
+  }
+  try {
+    const body = await smileCoin.callSmileCoin('createorder', {
+      userid,
+      zoneid: zoneid || userid,
+      product,
+      productid,
+    });
+    res.json({ ok: body.status === 200, ...body });
+  } catch (err) {
+    console.error('[smilecoin/order]', err.message);
+    res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/smilecoin/order/dry-run', requireAdmin, (req, res) => {
+  const { userid, zoneid, product, productid } = req.body || {};
+  if (!userid || !product || !productid) {
+    return res.status(400).json({ ok: false, error: 'Missing userid / product / productid' });
+  }
+  const payload = smileCoin.buildPayload({ userid, zoneid: zoneid || userid, product, productid });
+  delete payload.sign; // never send the actual sign in dry-run
+  res.json({ ok: true, dryRun: true, wouldSend: payload, testOrdersEnabled: smileCoin.ALLOW_TEST_ORDER });
 });
 
 app.listen(PORT, () => {

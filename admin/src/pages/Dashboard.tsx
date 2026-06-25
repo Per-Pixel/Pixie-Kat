@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Activity, AlertCircle, ArrowUpRight, Crown, DollarSign,
-  Package, RefreshCw, ShoppingCart, UserPlus, Users, Wallet,
+  Package, RefreshCw, ShoppingCart, Users,
 } from 'lucide-react';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer,
@@ -114,7 +114,16 @@ const Dashboard: React.FC = () => {
   }, [data]);
 
   if (loading && !report) {
-    return <div className="py-24 text-center text-gray-400"><RefreshCw className="w-7 h-7 animate-spin mx-auto mb-3" />Loading live dashboard...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center py-32 gap-4">
+        <div className="relative">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{background:'linear-gradient(135deg,#7c3aed,#5b21b6)'}}>
+            <RefreshCw className="w-7 h-7 text-white animate-spin" />
+          </div>
+        </div>
+        <p className="text-sm font-medium text-gray-400">Loading dashboard data…</p>
+      </div>
+    );
   }
 
   if (error || !report || !data) {
@@ -135,22 +144,58 @@ const Dashboard: React.FC = () => {
     { label: 'Active Products', value: report.activeProducts.toLocaleString(), detail: `${data.products.length} total products`, icon: Package },
   ];
 
+  const todayCards = [
+    { label: "Today's Revenue", value: money(report.todayRevenue), emoji: '💰', grad: 'from-violet-500/15 to-purple-500/5', border: 'border-violet-500/25', text: 'text-violet-600' },
+    { label: "Today's Orders",  value: report.todayOrders,          emoji: '📦', grad: 'from-blue-500/15 to-blue-500/5',   border: 'border-blue-500/25',   text: 'text-blue-600' },
+    { label: 'New Signups',     value: report.todaySignups,         emoji: '🎮', grad: 'from-emerald-500/15 to-green-500/5', border: 'border-emerald-500/25', text: 'text-emerald-600' },
+    { label: 'Wallet Credits',  value: money(report.todayDeposits), emoji: '💎', grad: 'from-amber-500/15 to-orange-500/5', border: 'border-amber-500/25', text: 'text-amber-600' },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 p-6 text-white">
-        <div><h1 className="text-2xl font-bold">Live Store Dashboard</h1><p className="text-primary-100 mt-1">Synced with Supabase and refreshed on database changes.</p></div>
-        <button onClick={refresh} disabled={loading} className="rounded-lg bg-white/15 p-2 hover:bg-white/25"><RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /></button>
+
+      {/* ── Gaming hero banner ── */}
+      <div
+        className="relative overflow-hidden rounded-2xl"
+        style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 60%, #6d28d9 100%)' }}
+      >
+        <div className="absolute inset-0 opacity-15"
+          style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)', backgroundSize: '28px 28px' }}
+        />
+        <div className="absolute -right-2 top-0 bottom-0 flex items-center pr-8 text-7xl opacity-10 select-none pointer-events-none">
+          🎮
+        </div>
+        <div className="absolute right-20 bottom-2 text-3xl opacity-10 select-none pointer-events-none">⚡</div>
+
+        <div className="relative px-6 py-6 flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#4ade80' }}>Live</span>
+            </div>
+            <h1 className="text-2xl font-black text-white tracking-tight">Store Dashboard</h1>
+            <p className="text-sm mt-0.5" style={{ color: '#9ca3af' }}>Real-time sync via Supabase · updates on every change</p>
+          </div>
+          <button
+            onClick={refresh}
+            disabled={loading}
+            className="p-2.5 rounded-xl text-white transition-colors"
+            style={{ background: 'rgba(255,255,255,0.08)' }}
+            onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
+            onMouseOut={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+          >
+            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
+      {/* ── Today's at-a-glance cards ── */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {[
-          { label: "Today's Revenue", value: money(report.todayRevenue), icon: DollarSign },
-          { label: "Today's Orders", value: report.todayOrders, icon: ShoppingCart },
-          { label: 'New Signups', value: report.todaySignups, icon: UserPlus },
-          { label: 'Wallet Credits', value: money(report.todayDeposits), icon: Wallet },
-        ].map(({ label, value, icon: Icon }) => (
-          <div key={label} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <Icon className="w-5 h-5 text-primary-600 mb-3" /><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-bold text-gray-900">{value}</p>
+        {todayCards.map(({ label, value, emoji, grad, border, text }) => (
+          <div key={label} className={`rounded-xl border bg-gradient-to-br ${grad} ${border} p-4 shadow-sm`}>
+            <span className="text-2xl mb-2 block">{emoji}</span>
+            <p className="text-xs text-gray-500 font-medium">{label}</p>
+            <p className={`text-xl font-black mt-1 ${text}`}>{value}</p>
           </div>
         ))}
       </div>
