@@ -13,18 +13,17 @@ export const API_CONFIG = {
 export const api = axios.create({
   baseURL: API_CONFIG.baseURL,
   timeout: API_CONFIG.timeout,
+  withCredentials: true, // Enable cookies for authentication
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor to add auth token and request metadata
+// Request interceptor to add request metadata
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('admin_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // Cookie-based auth - no need to add Authorization header
+    // Cookies are sent automatically with withCredentials: true
     
     // Add request ID for tracking
     config.headers['X-Request-ID'] = generateRequestId();
@@ -60,28 +59,12 @@ api.interceptors.response.use(
       console.error(`❌ ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url}`, error.response?.data || error.message);
     }
 
-    // Handle 401 Unauthorized - Token refresh
+    // Handle 401 Unauthorized - Redirect to login
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-
-      try {
-        const refreshToken = localStorage.getItem('admin_refresh_token');
-        if (refreshToken) {
-          const response = await api.post('/auth/refresh', { refreshToken });
-          const { token } = response.data;
-          localStorage.setItem('admin_token', token);
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-          }
-          return api(originalRequest);
-        }
-      } catch (refreshError) {
-        // Refresh failed, redirect to login
-        localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_refresh_token');
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
-      }
+      // Cookie expired or invalid, redirect to login
+      window.location.href = '/login';
+      return Promise.reject(error);
     }
 
     // Handle network errors with retry logic

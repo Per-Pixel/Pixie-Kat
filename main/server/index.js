@@ -7,8 +7,11 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { initDb, findUserByEmail, createUser, findUserById } from './database-postgres.js';
+import { initCmsTables } from './database/cms-db.js';
 import { authMiddleware } from './middleware/auth.js';
 import { validateSignup, validateEmail } from './utils/validation.js';
+import pagesRouter from './routes/pages.js';
+import mediaRouter from './routes/media.js';
 
 dotenv.config();
 
@@ -30,6 +33,9 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
+
+// Serve uploaded files
+app.use('/uploads', express.static('public/uploads'));
 
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -175,14 +181,23 @@ app.get('/api/protected', authMiddleware, (req, res) => {
   res.json({ ok: true, message: 'This is a protected route', user: req.user });
 });
 
+// CMS Routes (protected)
+app.use('/api/admin/pages', authMiddleware, pagesRouter);
+app.use('/api/admin/media', authMiddleware, mediaRouter);
+
 const startServer = async () => {
   try {
     await initDb();
     console.log('✓ Database initialized');
     
+    await initCmsTables();
+    console.log('✓ CMS tables initialized');
+    
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV}`);
+      console.log(`📁 CMS API: http://localhost:${PORT}/api/admin/pages`);
+      console.log(`🖼️  Media API: http://localhost:${PORT}/api/admin/media`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

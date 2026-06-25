@@ -5,31 +5,26 @@ import { api } from './api';
 export const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      // For demo purposes, keep mock authentication but also prepare for real API
-      if (credentials.email === 'admin@pixiekat.com' && credentials.password === 'admin123') {
-        const mockUser: User = {
-          id: '1',
-          email: 'admin@pixiekat.com',
-          name: 'Admin User',
-          role: UserRole.ADMIN,
+      // Real API call - backend sets HTTP-only cookie
+      const response = await api.post('/auth/login', credentials);
+      
+      // Backend returns user data, cookie is set automatically
+      const { user } = response.data;
+      
+      // Return auth response (no tokens needed, using cookies)
+      return {
+        user: {
+          id: user.id.toString(),
+          email: user.email,
+          name: user.name,
+          role: UserRole.ADMIN, // Default to admin for now
+          isActive: true,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-        };
-
-        return {
-          user: mockUser,
-          token: 'mock-jwt-token',
-          refreshToken: 'mock-refresh-token',
-        };
-      }
-
-      // Real API call (uncomment when backend is ready)
-      // const response = await api.post<ApiResponse<AuthResponse>>('/auth/login', credentials);
-      // return response.data;
-
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      throw new Error('Invalid credentials');
+        },
+        token: 'cookie-based', // Placeholder
+        refreshToken: 'cookie-based', // Placeholder
+      };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || error.message || 'Login failed');
     }
@@ -38,37 +33,28 @@ export const authService = {
   async logout(): Promise<void> {
     try {
       await api.post('/auth/logout');
+      // Cookie is cleared by backend
     } catch (error) {
       // Ignore logout errors - user should be logged out locally regardless
       console.warn('Logout API call failed:', error);
-    } finally {
-      // Always clear local storage
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_refresh_token');
     }
   },
 
-  async validateToken(token: string): Promise<User> {
+  async validateToken(): Promise<User> {
     try {
-      // Mock token validation for demo
-      if (token === 'mock-jwt-token') {
-        return {
-          id: '1',
-          email: 'admin@pixiekat.com',
-          name: 'Admin User',
-          role: UserRole.ADMIN,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-      }
-
-      // Real API call (uncomment when backend is ready)
-      // const response = await api.get<ApiResponse<User>>('/auth/validate', {
-      //   headers: { Authorization: `Bearer ${token}` }
-      // });
-      // return response.data;
-
-      throw new Error('Invalid token');
+      // Real API call - validates cookie automatically
+      const response = await api.get('/auth/me');
+      const { user } = response.data;
+      
+      return {
+        id: user.id.toString(),
+        email: user.email,
+        name: user.name,
+        role: UserRole.ADMIN, // Default to admin for now
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || error.message || 'Token validation failed');
     }
