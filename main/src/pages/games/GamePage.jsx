@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import {
+  AlertCircle,
+  CheckCircle2,
   ChevronDown,
   FileText,
   Info,
@@ -225,6 +227,11 @@ const GamePage = () => {
   const [checkoutSuccess, setCheckoutSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [playerName, setPlayerName] = useState(null);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState("");
+  const verifyTimer = useRef(null);
+
   // Map DB products to the package shape used by the UI.
   const packages = useMemo(
     () =>
@@ -260,6 +267,53 @@ const GamePage = () => {
       });
     }
   }, [fields]);
+
+  // Player name verification for Smile.one games
+  useEffect(() => {
+    if (!game || !game.provider_game_code) return;
+
+    setPlayerName(null);
+    setVerifyError("");
+
+    const userIdKey = fields.find((f) => f.field_key === "user_id")?.field_key;
+    const serverIdKey = fields.find((f) => f.field_key === "zone_id" || f.field_key === "server_id")?.field_key;
+    const userId = String(fieldValues[userIdKey] ?? "").trim();
+    const zoneId = String(fieldValues[serverIdKey] ?? "").trim();
+
+    if (!userId) return;
+
+    if (verifyTimer.current) clearTimeout(verifyTimer.current);
+
+    verifyTimer.current = setTimeout(async () => {
+      setVerifying(true);
+      try {
+        const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/api\/?$/, "");
+        const res = await fetch(`${apiBaseUrl}/api/verify-player`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: userId,
+            zone_id: zoneId || undefined,
+            api_game: game.provider_game_code,
+            product: game.provider_game_code,
+            product_id: "1",
+          }),
+        });
+        const json = await res.json();
+        if (json.success && json.username) {
+          setPlayerName(json.username);
+        } else {
+          setVerifyError(json.message || "Player not found. Check your User ID" + (serverIdKey ? " and Zone ID." : "."));
+        }
+      } catch {
+        setVerifyError("Could not verify — make sure the game server is running.");
+      } finally {
+        setVerifying(false);
+      }
+    }, 800);
+
+    return () => clearTimeout(verifyTimer.current);
+  }, [fieldValues, game?.provider_game_code, fields]);
 
   if (loading) {
     return (
@@ -372,16 +426,48 @@ const GamePage = () => {
             {fields.length === 0 ? (
               <p className="text-sm text-[#6d7480]">No account fields configured for this game.</p>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                {fields.map((field) => (
-                  <DynamicField
-                    key={field.id}
-                    field={field}
-                    value={fieldValues[field.field_key] ?? ""}
-                    onChange={(value) => updateField(field.field_key, value)}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {fields.map((field) => (
+                    <DynamicField
+                      key={field.id}
+                      field={field}
+                      value={fieldValues[field.field_key] ?? ""}
+                      onChange={(value) => updateField(field.field_key, value)}
+                    />
+                  ))}
+                </div>
+
+                {/* Player verification badge — shows for any game with provider_game_code */}
+                {game.provider_game_code && (verifying || playerName || verifyError) && (
+                  <div
+                    className={`mt-4 flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+                      verifying
+                        ? "bg-[#f0edff] text-[#6d4cff]"
+                        : playerName
+                        ? "bg-[#e8f9f0] text-[#1a7f4b]"
+                        : "bg-[#fff3f3] text-[#c0392b]"
+                    }`}
+                  >
+                    {verifying ? (
+                      <>
+                        <div className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#6d4cff] border-t-transparent" />
+                        Verifying account…
+                      </>
+                    ) : playerName ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                        Verified: <span className="ml-0.5 font-bold">{playerName}</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        {verifyError}
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </section>
 

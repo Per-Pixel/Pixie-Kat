@@ -32,8 +32,13 @@ const PORT = process.env.PORT || 3001;
 app.use(helmet());
 app.use(express.json());
 
+const productionOrigins = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? [process.env.CORS_ORIGIN]
+  ? productionOrigins
   : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'];
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
@@ -515,6 +520,67 @@ app.post('/api/smilecoin/order/dry-run', requireAdmin, (req, res) => {
   const payload = smileCoin.buildPayload({ userid, zoneid: zoneid || userid, product, productid });
   delete payload.sign; // never send the actual sign in dry-run
   res.json({ ok: true, dryRun: true, wouldSend: payload, testOrdersEnabled: smileCoin.ALLOW_TEST_ORDER });
+});
+
+// Public player verification — POST /api/verify-player
+// No admin auth required (used by customer-facing game page).
+// Body: { user_id, zone_id?, api_game?, product?, product_id? }
+// Tries SmileCode validate first, falls back to SmileCoin getrole.
+app.post('/api/verify-player', async (req, res) => {
+  const { user_id, zone_id, api_game, product, product_id } = req.body || {};
+  if (!user_id) {
+    return res.status(400).json({ success: false, message: 'user_id is required' });
+  }
+
+  // Try SmileCode API first (newer JSON-RPC validate)
+  if (smileOne.isConfigured() && api_game) {
+    try {
+      const userAccount = { user_id: String(user_id) };
+      if (zone_id) userAccount.server_id = String(zone_id);
+      const data = await smileOne.validate(api_game, userAccount);
+      const result = data.result;
+      if (result) {
+        const name = result.username || result.user_name || result.name || result.roleName;
+        if (name) {
+          return res.json({ success: true, username: name, source: 'smilecode' });
+        }
+      }
+      // SmileCode returned no error but no username — fall through to SmileCoin
+    } catch (err) {
+      console.error('[verify-player] SmileCode failed:', err.message);
+      // Fall through to SmileCoin
+    }
+  }
+
+  // Fall back to SmileCoin getrole API (older form-based API)
+  if (smileCoin.isConfigured() && product) {
+    try {
+      const body = await smileCoin.callSmileCoin('getrole', {
+        userid: String(user_id),
+        zoneid: String(zone_id || user_id),
+        product,
+        productid: String(product_id || '1'),
+      });
+      if (body.status === 200 && body.data) {
+        const name = body.data.username || body.data.user_name || body.data.name || body.data.roleName;
+        if (name) {
+          return res.json({ success: true, username: name, source: 'smilecoin' });
+        }
+      }
+      return res.json({
+        success: false,
+        message: body.message || body.msg || 'Player not found. Check your User ID and Zone ID.',
+      });
+    } catch (err) {
+      console.error('[verify-player] SmileCoin failed:', err.message);
+      return res.status(502).json({ success: false, message: err.message });
+    }
+  }
+
+  res.status(500).json({
+    success: false,
+    message: 'No verification provider configured. Set either SMILECODE_* or SC_* credentials in server/.env',
+  });
 });
 
 app.listen(PORT, () => {

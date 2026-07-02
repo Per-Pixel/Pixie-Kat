@@ -234,6 +234,7 @@ export async function replaceProducts(
     is_popular: p.is_popular ?? false,
     status: p.status ?? 'active',
     sort_order: idx + 1,
+    metadata: p.metadata ?? {},
   }));
 
   const { error } = await supabase.from('products').insert(rows);
@@ -291,6 +292,15 @@ export interface PromoItem {
 }
 
 export type NewPromoItem = Omit<PromoItem, 'id' | 'created_at' | 'updated_at'>;
+
+export async function listPromoItemsByGame(gameId: string): Promise<PromoItem[]> {
+  const { data, error } = await supabase
+    .from('promotional_items')
+    .select('*')
+    .eq('game_id', gameId);
+  if (error) throw error;
+  return (data ?? []) as PromoItem[];
+}
 
 export async function listPromoItems(section: PromoSection): Promise<PromoItem[]> {
   const { data, error } = await supabase
