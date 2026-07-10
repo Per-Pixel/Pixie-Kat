@@ -20,6 +20,7 @@ import {
   HardDrive,
   Settings,
   ClipboardList,
+  Crown,
   Plug,
 } from 'lucide-react';
 
@@ -69,6 +70,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { id: 'orders', label: 'Orders', icon: ShoppingCart, path: '/orders' },
     { id: 'users', label: 'Users', icon: Users, path: '/users' },
     { id: 'wallets', label: 'Wallets', icon: Wallet, path: '/wallets' },
+    { id: 'memberships', label: 'Memberships', icon: Crown, path: '/memberships' },
     { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics' },
     {
       id: 'content',

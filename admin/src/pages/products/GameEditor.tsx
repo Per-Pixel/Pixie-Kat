@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Save, Gamepad2, ListChecks, Package, Plus, Trash2,
   GripVertical, Info, ExternalLink, ChevronUp, ChevronDown,
-  Eye, Globe, TrendingUp, Star, X, Monitor, Tablet, Smartphone, Layers,
+  Eye, Globe, TrendingUp, Star, X, Monitor, Tablet, Smartphone, Layers, ListFilter, Link2,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
@@ -24,7 +24,9 @@ interface ProductDraft {
   _key: string; id?: string;
   name: string; amount: string; description: string;
   compare_price: string; image_url: string; sku: string;
-  provider_product_id: string; stock: string;
+  provider_product_id: string;
+  secondary_provider_product_id: string;
+  stock: string;
   is_popular: boolean; status: ProductStatus;
   currency_prices: CurrencyPrices;
 }
@@ -68,6 +70,7 @@ interface GameForm {
   currency_label: string;
   provider: GameProvider;
   provider_game_code: string;
+  smile_coin_product: string;
   region: string;
   status: GameStatus;
   is_featured: boolean;
@@ -90,7 +93,7 @@ const REGIONS = [
 const emptyForm: GameForm = {
   slug: '', name: '', subtitle: '', description: '', image_url: '', banner_url: '',
   category: '', currency_label: 'Diamonds', provider: 'manual', provider_game_code: '',
-  region: '', status: 'draft', is_featured: false, instructions: '',
+  smile_coin_product: '', region: '', status: 'draft', is_featured: false, instructions: '',
 };
 
 const defaultCurrencyPrices = (price?: number, costPrice?: number | null, currency?: string): CurrencyPrices => {
@@ -126,7 +129,9 @@ const productFromDB = (p: Product): ProductDraft => ({
   name: p.name ?? '', amount: p.amount ?? '', description: p.description ?? '',
   compare_price: p.compare_price ? String(p.compare_price) : '',
   image_url: p.image_url ?? '', sku: p.sku ?? '',
-  provider_product_id: p.provider_product_id ?? '', stock: p.stock ? String(p.stock) : '',
+  provider_product_id: p.provider_product_id ?? '',
+  secondary_provider_product_id: String((p.metadata as Record<string, unknown>)?.secondary_provider_product_id ?? ''),
+  stock: p.stock ? String(p.stock) : '',
   is_popular: p.is_popular ?? false, status: p.status ?? 'active',
   currency_prices: hydrateCurrencyPrices(defaultCurrencyPrices(p.price, p.cost_price, p.currency), p.metadata),
 });
@@ -134,7 +139,8 @@ const productFromDB = (p: Product): ProductDraft => ({
 const emptyProductDraft = (): ProductDraft => ({
   _key: Math.random().toString(36).slice(2, 10),
   name: '', amount: '', description: '', compare_price: '', image_url: '',
-  sku: '', provider_product_id: '', stock: '', is_popular: false, status: 'active',
+  sku: '', provider_product_id: '', secondary_provider_product_id: '', stock: '',
+  is_popular: false, status: 'active',
   currency_prices: defaultCurrencyPrices(),
 });
 
@@ -156,6 +162,8 @@ const GameEditor: React.FC = () => {
   const [fields, setFields] = useState<FieldDraft[]>([]);
   const [products, setProducts] = useState<ProductDraft[]>([]);
   const [pageSections, setPageSections] = useState<PageSections>(defaultPageSections);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkFilter, setBulkFilter] = useState('');
 
   const change = <K extends keyof GameForm>(key: K, value: GameForm[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -173,7 +181,9 @@ const GameEditor: React.FC = () => {
         description: game.description ?? '', image_url: game.image_url ?? '',
         banner_url: game.banner_url ?? '', category: game.category ?? '',
         currency_label: game.currency_label, provider: game.provider,
-        provider_game_code: game.provider_game_code ?? '', region: game.region ?? '',
+        provider_game_code: game.provider_game_code ?? '',
+        smile_coin_product: String((game.metadata as Record<string, unknown>)?.smile_coin_product ?? ''),
+        region: game.region ?? '',
         status: game.status, is_featured: game.is_featured, instructions: game.instructions ?? '',
       });
       setSteps(game.how_to_steps ?? []);
@@ -279,6 +289,7 @@ const GameEditor: React.FC = () => {
         provider: form.provider, provider_game_code: form.provider_game_code || null,
         region: form.region || null, status: form.status, is_featured: form.is_featured,
         instructions: form.instructions || null, how_to_steps: steps.filter((s) => s.title.trim()),
+        metadata: form.smile_coin_product ? { smile_coin_product: form.smile_coin_product } : {},
       };
       const game = isEdit && id ? await updateGame(id, payload) : await createGame(payload);
 
@@ -312,7 +323,10 @@ const GameEditor: React.FC = () => {
           provider_product_id: p.provider_product_id || null,
           stock: p.stock ? Number(p.stock) : null,
           is_popular: p.is_popular, status: p.status,
-          metadata: Object.keys(extraCurrencies).length > 0 ? { currencies: extraCurrencies } : {},
+          metadata: {
+            ...(Object.keys(extraCurrencies).length > 0 ? { currencies: extraCurrencies } : {}),
+            ...(p.secondary_provider_product_id ? { secondary_provider_product_id: p.secondary_provider_product_id } : {}),
+          },
         };
       }));
 
@@ -569,9 +583,18 @@ const GameEditor: React.FC = () => {
                 <Package className="w-5 h-5 text-primary-600" />
                 <h2 className="text-lg font-semibold text-gray-900">Packages / Denominations</h2>
               </div>
-              <button onClick={addProduct} type="button" className="btn btn-outline btn-sm">
-                <Plus className="w-4 h-4 mr-1" />Add Package
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBulkEditOpen((v) => !v)}
+                  className={`btn btn-sm flex items-center gap-1.5 ${bulkEditOpen ? 'btn-primary' : 'btn-outline'}`}
+                >
+                  <ListFilter className="w-3.5 h-3.5" />Bulk Edit
+                </button>
+                <button onClick={addProduct} type="button" className="btn btn-outline btn-sm">
+                  <Plus className="w-4 h-4 mr-1" />Add Package
+                </button>
+              </div>
             </div>
             <div className="flex items-start gap-2 text-xs text-gray-500 bg-amber-50 rounded-lg p-3 mb-4">
               <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
@@ -708,9 +731,29 @@ const GameEditor: React.FC = () => {
                       </div>
 
                       {form.provider !== 'manual' && (
-                        <div>
-                          <label className="label mb-1.5 block text-xs">Provider Product ID <span className="text-gray-400 font-normal">(Smile.one / API denomination ID)</span></label>
-                          <input className="input font-mono text-sm" placeholder="e.g., mobilelegends_100" value={p.provider_product_id} onChange={(e) => updateProduct(p._key, { provider_product_id: e.target.value })} />
+                        <div className="space-y-3">
+                          <div>
+                            <label className="label mb-1.5 block text-xs">Provider Product ID <span className="text-gray-400 font-normal">(Smile.one / API denomination ID)</span></label>
+                            <input className="input font-mono text-sm" placeholder="e.g., mobilelegends_100" value={p.provider_product_id} onChange={(e) => updateProduct(p._key, { provider_product_id: e.target.value })} />
+                          </div>
+                          <div className="rounded-lg border border-dashed border-primary-300 bg-primary-50/40 p-3 space-y-2">
+                            <div className="flex items-center gap-1.5">
+                              <Link2 className="w-3.5 h-3.5 text-primary-600" />
+                              <span className="text-xs font-semibold text-primary-700">Combined SKU — optional</span>
+                              <span className="text-xs text-gray-500">Add a second SKU to bundle two provider items into one purchase</span>
+                            </div>
+                            <input
+                              className="input font-mono text-sm"
+                              placeholder="e.g., mobilelegends_weekly (2nd SKU to run alongside)"
+                              value={p.secondary_provider_product_id}
+                              onChange={(e) => updateProduct(p._key, { secondary_provider_product_id: e.target.value })}
+                            />
+                            {p.secondary_provider_product_id && (
+                              <p className="text-xs text-primary-600">
+                                When a customer orders this package, both <code className="bg-primary-100 px-1 rounded">{p.provider_product_id || '…'}</code> and <code className="bg-primary-100 px-1 rounded">{p.secondary_provider_product_id}</code> will be fulfilled.
+                              </p>
+                            )}
+                          </div>
                         </div>
                       )}
 
@@ -718,6 +761,144 @@ const GameEditor: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* ── Bulk Edit Panel ── */}
+            {bulkEditOpen && products.length > 0 && (
+              <div className="mt-6 rounded-xl border border-primary-200 bg-primary-50/30 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-primary-50 border-b border-primary-200">
+                  <div className="flex items-center gap-2">
+                    <ListFilter className="w-4 h-4 text-primary-600" />
+                    <span className="text-sm font-semibold text-primary-700">Bulk Edit</span>
+                    <span className="text-xs text-gray-500">Edit multiple packages at once. Changes apply live.</span>
+                  </div>
+                  <input
+                    className="input py-1 px-3 text-sm w-52"
+                    placeholder="Filter by name…"
+                    value={bulkFilter}
+                    onChange={(e) => setBulkFilter(e.target.value)}
+                  />
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-white border-b border-gray-200">
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 min-w-[160px]">#&nbsp;Name</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 min-w-[110px]">INR Sell ₹</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 min-w-[110px]">INR Cost ₹</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 min-w-[110px]">Compare ₹</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 min-w-[120px]">SKU</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 min-w-[160px]">Provider ID</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 min-w-[100px]">Status</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 w-12">Pop.</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {/* Bulk-apply row */}
+                      <tr className="bg-amber-50 border-b border-amber-200">
+                        <td className="px-3 py-1.5">
+                          <span className="text-xs text-amber-700 font-semibold">Apply to all visible →</span>
+                        </td>
+                        {[
+                          { placeholder: '₹ sell all', field: 'inr_sell' },
+                          { placeholder: '₹ cost all', field: 'inr_cost' },
+                          { placeholder: '₹ compare all', field: 'compare' },
+                          { placeholder: 'SKU all', field: 'sku_all' },
+                          { placeholder: 'Provider ID all', field: 'pid_all' },
+                        ].map(({ placeholder, field }) => (
+                          <td key={field} className="px-3 py-1.5">
+                            <input
+                              className="input py-1 text-xs w-full"
+                              placeholder={placeholder}
+                              onBlur={(e) => {
+                                const val = e.target.value.trim();
+                                if (!val) return;
+                                const visible = products.filter((p) =>
+                                  !bulkFilter || p.name.toLowerCase().includes(bulkFilter.toLowerCase())
+                                );
+                                visible.forEach((p) => {
+                                  if (field === 'inr_sell') updateCurrencyPrice(p._key, 'INR', { selling_price: val });
+                                  else if (field === 'inr_cost') updateCurrencyPrice(p._key, 'INR', { cost_price: val });
+                                  else if (field === 'compare') updateProduct(p._key, { compare_price: val });
+                                  else if (field === 'sku_all') updateProduct(p._key, { sku: val });
+                                  else if (field === 'pid_all') updateProduct(p._key, { provider_product_id: val });
+                                });
+                                e.target.value = '';
+                              }}
+                            />
+                          </td>
+                        ))}
+                        <td className="px-3 py-1.5">
+                          <select
+                            className="input py-1 text-xs"
+                            defaultValue=""
+                            onChange={(e) => {
+                              const val = e.target.value as ProductStatus;
+                              if (!val) return;
+                              const visible = products.filter((p) =>
+                                !bulkFilter || p.name.toLowerCase().includes(bulkFilter.toLowerCase())
+                              );
+                              visible.forEach((p) => updateProduct(p._key, { status: val }));
+                              e.target.value = '';
+                            }}
+                          >
+                            <option value="">— status all —</option>
+                            <option value="active">Active</option>
+                            <option value="draft">Draft</option>
+                            <option value="inactive">Inactive</option>
+                          </select>
+                        </td>
+                        <td />
+                      </tr>
+
+                      {products
+                        .filter((p) => !bulkFilter || p.name.toLowerCase().includes(bulkFilter.toLowerCase()))
+                        .map((p, idx) => {
+                          const inr = p.currency_prices.INR;
+                          return (
+                            <tr key={p._key} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-3 py-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs text-gray-400 shrink-0 w-5">{idx + 1}</span>
+                                  <input
+                                    className="input py-1 text-xs w-full min-w-[120px]"
+                                    value={p.name}
+                                    onChange={(e) => updateProduct(p._key, { name: e.target.value })}
+                                  />
+                                </div>
+                              </td>
+                              <td className="px-3 py-1.5">
+                                <input type="number" step="0.01" min="0" className="input py-1 text-xs w-full" value={inr.selling_price} onChange={(e) => updateCurrencyPrice(p._key, 'INR', { selling_price: e.target.value })} />
+                              </td>
+                              <td className="px-3 py-1.5">
+                                <input type="number" step="0.01" min="0" className="input py-1 text-xs w-full" value={inr.cost_price} onChange={(e) => updateCurrencyPrice(p._key, 'INR', { cost_price: e.target.value })} />
+                              </td>
+                              <td className="px-3 py-1.5">
+                                <input type="number" step="0.01" min="0" className="input py-1 text-xs w-full" value={p.compare_price} onChange={(e) => updateProduct(p._key, { compare_price: e.target.value })} />
+                              </td>
+                              <td className="px-3 py-1.5">
+                                <input className="input py-1 font-mono text-xs w-full" value={p.sku} onChange={(e) => updateProduct(p._key, { sku: e.target.value })} />
+                              </td>
+                              <td className="px-3 py-1.5">
+                                <input className="input py-1 font-mono text-xs w-full" value={p.provider_product_id} onChange={(e) => updateProduct(p._key, { provider_product_id: e.target.value })} />
+                              </td>
+                              <td className="px-3 py-1.5">
+                                <select className="input py-1 text-xs" value={p.status} onChange={(e) => updateProduct(p._key, { status: e.target.value as ProductStatus })}>
+                                  <option value="active">Active</option>
+                                  <option value="draft">Draft</option>
+                                  <option value="inactive">Inactive</option>
+                                </select>
+                              </td>
+                              <td className="px-3 py-1.5 text-center">
+                                <input type="checkbox" checked={p.is_popular} onChange={(e) => updateProduct(p._key, { is_popular: e.target.checked })} className="rounded border-gray-300" />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </section>
@@ -810,6 +991,21 @@ const GameEditor: React.FC = () => {
                     <select className="input" value={form.region} onChange={(e) => change('region', e.target.value)}>
                       {REGIONS.map((r) => <option key={r.code} value={r.code}>{r.label}</option>)}
                     </select>
+                  </div>
+                  <div>
+                    <label className="label mb-1.5 block">
+                      SmileCoin Product Code
+                      <span className="ml-1 text-xs text-gray-400 font-normal">(player verification)</span>
+                    </label>
+                    <input
+                      className="input font-mono text-sm"
+                      placeholder="e.g., Mobile Legends (exact SmileCoin product name)"
+                      value={form.smile_coin_product}
+                      onChange={(e) => change('smile_coin_product', e.target.value)}
+                    />
+                    <p className="mt-1 text-xs text-gray-400">
+                      Leave blank to use the Provider Game Code above. Fill this if SmileCoin returns "Product does not exist" on the game page.
+                    </p>
                   </div>
                   {form.provider === 'smile_one' && (
                     <a

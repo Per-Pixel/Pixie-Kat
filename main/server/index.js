@@ -76,6 +76,42 @@ function fireLog(params) {
   });
 }
 
+function findPlayerName(payload) {
+  if (!payload || typeof payload !== 'object') return null;
+
+  const directKeys = [
+    'username',
+    'user_name',
+    'userName',
+    'nickname',
+    'nickName',
+    'name',
+    'roleName',
+    'rolename',
+    'characterName',
+    'playerName',
+  ];
+
+  for (const key of directKeys) {
+    const value = payload[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+
+  for (const value of Object.values(payload)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const nested = findPlayerName(item);
+        if (nested) return nested;
+      }
+    } else if (value && typeof value === 'object') {
+      const nested = findPlayerName(value);
+      if (nested) return nested;
+    }
+  }
+
+  return null;
+}
+
 // Health check
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'pixiekat-admin-proxy', timestamp: new Date().toISOString() });
@@ -522,12 +558,31 @@ app.post('/api/smilecoin/order/dry-run', requireAdmin, (req, res) => {
   res.json({ ok: true, dryRun: true, wouldSend: payload, testOrdersEnabled: smileCoin.ALLOW_TEST_ORDER });
 });
 
+// Cache: product code → first valid productid from SmileCoin productlist
+// Avoids a productlist call on every verify request after the first.
+const scProductIdCache = {};
+
+async function resolveScProductId(product) {
+  if (scProductIdCache[product]) return scProductIdCache[product];
+  try {
+    const list = await smileCoin.callSmileCoin('productlist', { product });
+    const firstId = list?.data?.product?.[0]?.id;
+    if (firstId) {
+      scProductIdCache[product] = String(firstId);
+      console.log(`[verify-player] cached productid ${firstId} for product="${product}"`);
+    }
+    return scProductIdCache[product] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Public player verification — POST /api/verify-player
 // No admin auth required (used by customer-facing game page).
-// Body: { user_id, zone_id?, api_game?, product?, product_id? }
+// Body: { user_id, zone_id?, api_game?, product?, product_id?, smile_coin_product? }
 // Tries SmileCode validate first, falls back to SmileCoin getrole.
 app.post('/api/verify-player', async (req, res) => {
-  const { user_id, zone_id, api_game, product, product_id } = req.body || {};
+  const { user_id, zone_id, api_game, product, product_id, smile_coin_product } = req.body || {};
   if (!user_id) {
     return res.status(400).json({ success: false, message: 'user_id is required' });
   }
@@ -540,7 +595,7 @@ app.post('/api/verify-player', async (req, res) => {
       const data = await smileOne.validate(api_game, userAccount);
       const result = data.result;
       if (result) {
-        const name = result.username || result.user_name || result.name || result.roleName;
+        const name = findPlayerName(result);
         if (name) {
           return res.json({ success: true, username: name, source: 'smilecode' });
         }
@@ -553,27 +608,54 @@ app.post('/api/verify-player', async (req, res) => {
   }
 
   // Fall back to SmileCoin getrole API (older form-based API)
-  if (smileCoin.isConfigured() && product) {
+  // Use smile_coin_product if the admin configured one; otherwise fall back to provider_game_code.
+  const scProduct = smile_coin_product || product;
+  console.log('[verify-player] SmileCoin attempt:', { user_id, zone_id, api_game, product, product_id, smile_coin_product, scProduct });
+  if (smileCoin.isConfigured() && scProduct) {
     try {
+      // Auto-resolve a valid productid — '1' is never valid; fetch real ID from productlist.
+      // Always use the base provider_game_code (product) for productlist lookup;
+      // smile_coin_product is only an override for the getrole product param itself.
+      const resolvedProductId = product_id && product_id !== '1'
+        ? String(product_id)
+        : (await resolveScProductId(product || scProduct)) ?? String(product_id || '1');
+
+      console.log('[verify-player] SmileCoin getrole params:', { user_id, zone_id: String(zone_id || user_id), product: scProduct, productid: resolvedProductId });
+
       const body = await smileCoin.callSmileCoin('getrole', {
         userid: String(user_id),
         zoneid: String(zone_id || user_id),
-        product,
-        productid: String(product_id || '1'),
+        product: scProduct,
+        productid: resolvedProductId,
       });
-      if (body.status === 200 && body.data) {
-        const name = body.data.username || body.data.user_name || body.data.name || body.data.roleName;
+      if (body.status === 200 || body.ok === true) {
+        const name = findPlayerName(body.data ?? body);
         if (name) {
           return res.json({ success: true, username: name, source: 'smilecoin' });
         }
       }
+      // Surface SmileCoin's error only if it's a real player-not-found case;
+      // product-config errors are treated as verification unavailable.
+      const errMsg = body.message || body.msg || '';
+      const isConfigError = /product does not exist|invalid product|not found/i.test(errMsg);
       return res.json({
         success: false,
-        message: body.message || body.msg || 'Player not found. Check your User ID and Zone ID.',
+        message: isConfigError
+          ? 'Player verification is unavailable for this game. You can still place your order.'
+          : (errMsg || 'Player not found. Check your User ID and Zone ID.'),
       });
     } catch (err) {
       console.error('[verify-player] SmileCoin failed:', err.message);
-      return res.status(502).json({ success: false, message: err.message });
+      // callSmileCoin throws when response is non-JSON; extract the raw text from the error message
+      const rawMatch = err.message.match(/non-JSON[^:]*:\s*(.+)$/s);
+      const rawText  = rawMatch?.[1]?.trim() ?? err.message;
+      const isConfigError = /product does not exist|invalid product/i.test(rawText);
+      return res.json({
+        success: false,
+        message: isConfigError
+          ? 'Player verification is unavailable for this game. You can still place your order.'
+          : 'Could not reach verification server. You can still place your order.',
+      });
     }
   }
 

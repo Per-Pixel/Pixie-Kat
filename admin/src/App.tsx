@@ -16,6 +16,7 @@ import Pages from './pages/Pages';
 import Notifications from './pages/Notifications';
 import Analytics from './pages/Analytics';
 import Wallets from './pages/Wallets';
+import Memberships from './pages/Memberships';
 import RevenueProducts from './pages/revenue/RevenueProducts';
 import Referral from './pages/revenue/Referral';
 import Compose from './pages/messages/Compose';
@@ -27,6 +28,7 @@ import GamesList from './pages/products/GamesList';
 import GameEditor from './pages/products/GameEditor';
 import ProductsList from './pages/products/ProductsList';
 import PromoList from './pages/content/PromoList';
+import HeroEditor from './pages/content/HeroEditor';
 import PromoEditor from './pages/content/PromoEditor';
 import StoragePage from './pages/storage/StoragePage';
 import PlaceholderPage from './pages/PlaceholderPage';
@@ -90,6 +92,7 @@ const AppRoutes: React.FC = () => {
         <Route path="providers/smile-coin" element={<SmileCoinDetailPage />} />
         <Route path="providers/smile-coin/api-console" element={<SmileCoinApiConsolePage />} />
         <Route path="wallets" element={<Wallets />} />
+        <Route path="memberships" element={<Memberships />} />
         {/* Revenue Routes */}
         <Route path="revenue/sales-overview" element={<Analytics />} />
         <Route path="revenue/products" element={<RevenueProducts />} />
@@ -113,6 +116,7 @@ const AppRoutes: React.FC = () => {
         <Route path="documentation" element={<PlaceholderPage title="Documentation" description="Keep admin guides, internal process notes, and setup references in one place." items={['Admin guide', 'Supabase setup', 'Release notes']} />} />
         {/* Page Management Routes */}
         <Route path="pages/homepage" element={<Pages />} />
+        <Route path="pages/homepage/hero" element={<HeroEditor />} />
         <Route path="pages/homepage/trending-games" element={<PromoList section="trending" title="Trending Games" description="Manage cards shown in the homepage carousel" basePath="/pages/homepage/trending-games" />} />
         <Route path="pages/homepage/trending-games/new" element={<PromoEditor section="trending" backPath="/pages/homepage/trending-games" sectionLabel="Trending Games" />} />
         <Route path="pages/homepage/trending-games/:id" element={<PromoEditor section="trending" backPath="/pages/homepage/trending-games" sectionLabel="Trending Games" />} />

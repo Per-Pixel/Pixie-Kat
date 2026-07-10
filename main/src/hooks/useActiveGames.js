@@ -26,8 +26,20 @@ export function useActiveGames() {
       if (cancelled) return;
 
       if (supaErr) {
+        if (import.meta.env.DEV) {
+          console.error("[useActiveGames] Supabase query failed", supaErr);
+        }
         setError(supaErr.message);
       } else {
+        if (import.meta.env.DEV) {
+          const rows = data ?? [];
+          console.info(
+            `[useActiveGames] Supabase returned ${rows.length} active game(s): ${
+              rows.map((game) => game.slug).join(", ") || "none"
+            }`,
+            rows
+          );
+        }
         setGames(
           (data ?? []).map((g) => ({
             id: g.slug,

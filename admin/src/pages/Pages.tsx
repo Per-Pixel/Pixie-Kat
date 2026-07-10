@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, Zap, Plus, ArrowRight, Eye, EyeOff, Code2, Info } from 'lucide-react';
+import { TrendingUp, Zap, Plus, ArrowRight, Eye, EyeOff, Code2, Info, Image } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { listPromoItems, PromoItem } from '../services/catalogService';
 
@@ -64,6 +64,31 @@ const Pages: React.FC = () => {
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-2xl font-bold text-gray-900">Content Management</h1>
         <p className="text-gray-500 mt-1 text-sm">Manage homepage sections and dynamic content areas.</p>
+      </motion.div>
+
+      {/* Hero section shortcut */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.03 }}
+        className="bg-white rounded-xl border-l-4 border-primary-500 border border-gray-200 shadow-sm p-5 flex items-center justify-between gap-4"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center">
+            <Image className="w-5 h-5 text-primary-600" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-gray-900">Hero Section</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Images, transforms, text & CTA button for the homepage hero</p>
+          </div>
+        </div>
+        <button
+          onClick={() => navigate('/pages/homepage/hero')}
+          className="btn btn-primary btn-sm flex items-center gap-1.5 shrink-0"
+        >
+          <ArrowRight className="w-3.5 h-3.5" />
+          Edit Hero
+        </button>
       </motion.div>
 
       {/* Dynamic content sections */}

@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 
 
 import { AuthProvider } from "./contexts/AuthContext";
+import ScrollToTop from "./components/common/ScrollToTop";
 
 import Loading from "./components/common/Loading";
 
@@ -155,6 +156,7 @@ function App() {
       <Router>
 
         <>
+          <ScrollToTop />
 
           {isLoading && (
 

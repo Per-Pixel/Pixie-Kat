@@ -4,10 +4,12 @@ import {
   AlertCircle,
   CheckCircle2,
   ChevronDown,
+  CreditCard,
   FileText,
   Info,
   Lightbulb,
   MessageCircle,
+  Wallet,
 } from "lucide-react";
 
 import { fallbackGameImage } from "./gamesData";
@@ -25,10 +27,8 @@ const defaultSteps = [
 ];
 
 const paymentMethods = [
-  { id: "binance", logo: "BINANCE", name: "Binance", description: "Secure online crypto payment", pay: "0.32 USDT", note: "(~ ₹30)", selectedAccent: true },
-  { id: "mobikwik", logo: "MobiKwik", name: "Mobikwik", description: "Secure online payment", pay: "₹30" },
-  { id: "paytm", logo: "Paytm", name: "Paytm", description: "Secure online payment", pay: "₹30" },
-  { id: "upi", logo: "UPI", name: "UPI", description: "Secure online payment", pay: "₹30" },
+  { id: "razorpay", logo: "Razorpay", name: "Razorpay", description: "Pay with UPI, cards, net banking, or supported apps", icon: CreditCard },
+  { id: "wallet", logo: "Wallet", name: "Pixie Wallet", description: "Use your PixieKat wallet balance for this order", icon: Wallet },
 ];
 
 const currencySymbols = {
@@ -114,17 +114,14 @@ const InstructionsAlert = ({ title, body }) => (
 const getMemberPrice = (price, percent) => {
   const value = Number(price);
   if (!Number.isFinite(value) || value <= 0) return null;
-  const discount = Math.max(1, Math.round(value * percent));
+  const discount = Math.max(1, Math.round(value * (Number(percent) / 100)));
   return Math.max(0, value - discount);
 };
 
-const MembershipOffer = ({ selectedPackage }) => {
-  const silverPrice = getMemberPrice(selectedPackage?.price, 0.03);
-  const goldPrice = getMemberPrice(selectedPackage?.price, 0.05);
-  const silverLabel = silverPrice == null ? "Select a pack" : formatPrice(silverPrice, selectedPackage.currency);
-  const goldLabel = goldPrice == null ? "Select a pack" : formatPrice(goldPrice, selectedPackage.currency);
-  const silverSavings = silverPrice == null ? "" : `Save ${formatPrice(Number(selectedPackage.price) - silverPrice, selectedPackage.currency)} vs ${selectedPackage.priceLabel}`;
-  const goldSavings = goldPrice == null ? "" : `Save ${formatPrice(Number(selectedPackage.price) - goldPrice, selectedPackage.currency)} vs ${selectedPackage.priceLabel}`;
+const firstJoined = (value) => (Array.isArray(value) ? value[0] ?? null : value ?? null);
+
+const MembershipOffer = ({ selectedPackage, plans, activeMembership, selectedPlanId, onSelectPlan }) => {
+  const activePlan = firstJoined(activeMembership?.membership_plans);
 
   return (
   <section className="rounded-xl bg-[#070b16] p-4 text-white shadow-[0_16px_36px_rgba(5,8,16,0.22)]">
@@ -133,31 +130,68 @@ const MembershipOffer = ({ selectedPackage }) => {
         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f4cc48] text-xs font-black text-[#5d3a00]">GD</span>
         <div>
           <h3 className="text-xl font-bold leading-5">Unlock Member Prices</h3>
-          <p className="mt-1 text-xs text-white/70">Save instantly on this pack</p>
+          <p className="mt-1 text-xs text-white/70">
+            {activePlan
+              ? `${activePlan.name} active: ${Number(activePlan.discount_percent).toFixed(0)}% off this order`
+              : "Choose a tier to unlock member pricing"}
+          </p>
         </div>
       </div>
       <span className="rounded border border-[#6b5d19] px-3 py-1 text-xs font-bold text-[#f5cf21]">RECOMMENDED</span>
     </div>
     <div className="mt-4 grid gap-3 md:grid-cols-2">
-      <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-        <p className="text-xs font-bold text-white/65">SILVER MEMBERS</p>
-        <p className="mt-1 text-2xl font-black">{silverLabel}</p>
-        {silverSavings ? <p className="text-xs text-white/65">{silverSavings}</p> : null}
-      </div>
-      <div className="rounded-lg border border-[#7f6b16] bg-[#282205]/70 p-3">
-        <p className="text-xs font-bold text-[#f5cf21]">GOLD MEMBERS</p>
-        <p className="mt-1 text-2xl font-black text-[#ffe75b]">{goldLabel}</p>
-        {goldSavings ? <p className="text-xs text-[#ffe75b]">{goldSavings}</p> : null}
-      </div>
+      {plans.length === 0 ? (
+        <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-white/70 md:col-span-2">
+          Membership plans are not configured yet.
+        </div>
+      ) : plans.map((plan) => {
+        const memberPrice = getMemberPrice(selectedPackage?.price, plan.discount_percent);
+        const selected = selectedPlanId === plan.id || activePlan?.id === plan.id;
+        const savings = memberPrice == null ? "" : formatPrice(Number(selectedPackage.price) - memberPrice, selectedPackage.currency);
+        return (
+          <button
+            key={plan.id}
+            type="button"
+            onClick={() => onSelectPlan(activePlan ? null : plan.id)}
+            disabled={Boolean(activePlan)}
+            className={`rounded-lg border p-3 text-left transition ${
+              selected ? "border-[#f5cf21] bg-[#282205]/70" : "border-white/10 bg-white/[0.03] hover:border-white/25"
+            } ${activePlan ? "cursor-default" : ""}`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className={`text-xs font-bold ${selected ? "text-[#f5cf21]" : "text-white/65"}`}>
+                  {plan.name.toUpperCase()} MEMBERS
+                </p>
+                <p className="mt-1 text-2xl font-black">
+                  {memberPrice == null ? "Select a pack" : formatPrice(memberPrice, selectedPackage.currency)}
+                </p>
+              </div>
+              <span className="rounded bg-white/10 px-2 py-1 text-xs font-bold">
+                {Number(plan.discount_percent).toFixed(0)}% OFF
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-white/65">
+              {savings ? `Save ${savings} on this pack` : "Member price appears after selecting a pack"}
+            </p>
+            {!activePlan ? (
+              <p className="mt-2 text-xs text-white/55">
+                Add membership: {formatPrice(plan.price, plan.currency)} / {plan.duration_days} days
+              </p>
+            ) : null}
+          </button>
+        );
+      })}
     </div>
-    <button type="button" className="mt-3 h-11 w-full rounded-lg bg-[#ffda24] text-sm font-black text-black">
-      Buy Membership &amp; Save  -&gt;
-    </button>
+    {!activePlan && selectedPlanId ? (
+      <button type="button" onClick={() => onSelectPlan(null)} className="mt-3 h-11 w-full rounded-lg bg-[#ffda24] text-sm font-black text-black">
+        Remove membership from this order
+      </button>
+    ) : null}
   </section>
   );
 };
-
-const MobileCheckoutBar = ({ selectedPackage, selectedPayment, onPay, isSubmitting }) => (
+const MobileCheckoutBar = ({ selectedPackage, selectedPayment, totalLabel, onPay, isSubmitting }) => (
   <div className="fixed inset-x-0 bottom-24 z-[90] mx-auto block max-w-md px-4 md:hidden">
     <div className="flex h-[72px] items-center gap-3 rounded-t-xl border border-[#e9edf3] bg-white/95 px-3 shadow-[0_-12px_30px_rgba(15,23,42,0.12)] backdrop-blur">
       <div className="min-w-0 flex-1">
@@ -166,10 +200,10 @@ const MobileCheckoutBar = ({ selectedPackage, selectedPayment, onPay, isSubmitti
       </div>
       <div className="min-w-[86px] text-center">
         <p className="text-[10px] font-bold text-[#9aa2ad]">TOTAL</p>
-        <p className="text-lg font-black text-[#6d4cff]">{selectedPackage?.priceLabel ?? "—"}</p>
+        <p className="text-lg font-black text-[#6d4cff]">{totalLabel ?? "..."}</p>
       </div>
-      <button type="button" onClick={onPay} disabled={isSubmitting || !selectedPackage} className="h-10 rounded-lg bg-[#aaa] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-70">
-        {isSubmitting ? "..." : `Pay ${selectedPackage?.priceLabel ?? selectedPayment.name}`}
+      <button type="button" onClick={onPay} disabled={isSubmitting || !selectedPackage} className="h-10 rounded-lg bg-[#6d4cff] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-70">
+        {isSubmitting ? "..." : `Pay ${totalLabel ?? selectedPayment.name}`}
       </button>
     </div>
   </div>
@@ -217,16 +251,20 @@ const DynamicField = ({ field, value, onChange }) => {
 const GamePage = () => {
   const { gameId: slug } = useParams();
   const { loading, notFound, game, fields, products } = useGameCatalog(slug);
-  const { user, isAuthenticated } = useAuth();
+  const { user, profile, isAuthenticated } = useAuth();
 
   const [selectedPackageId, setSelectedPackageId] = useState(null);
   const [selectedPaymentId, setSelectedPaymentId] = useState(paymentMethods[0].id);
+  const [membershipPlans, setMembershipPlans] = useState([]);
+  const [activeMembership, setActiveMembership] = useState(null);
+  const [selectedMembershipPlanId, setSelectedMembershipPlanId] = useState(null);
   const [fieldValues, setFieldValues] = useState({});
   const [contact, setContact] = useState({ email: "", whatsapp: "" });
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutSuccess, setCheckoutSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [orderComplete, setOrderComplete] = useState(null);
   const [playerName, setPlayerName] = useState(null);
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState("");
@@ -249,6 +287,43 @@ const GamePage = () => {
       })),
     [products]
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMemberships() {
+      const { data: plans } = await supabase
+        .from("membership_plans")
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
+
+      if (!cancelled) setMembershipPlans(plans ?? []);
+
+      if (!user?.id) {
+        if (!cancelled) setActiveMembership(null);
+        return;
+      }
+
+      const { data: membership } = await supabase
+        .from("user_memberships")
+        .select("*, membership_plans(*)")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .gt("expires_at", new Date().toISOString())
+        .order("expires_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!cancelled) setActiveMembership(membership ?? null);
+    }
+
+    loadMemberships();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (packages.length > 0) {
@@ -275,12 +350,13 @@ const GamePage = () => {
     setPlayerName(null);
     setVerifyError("");
 
-    const userIdKey = fields.find((f) => f.field_key === "user_id")?.field_key;
-    const serverIdKey = fields.find((f) => f.field_key === "zone_id" || f.field_key === "server_id")?.field_key;
+    const userIdKey = fields.find((f) => ["user_id", "userid", "player_id", "account_id"].includes(f.field_key))?.field_key;
+    const serverIdKey = fields.find((f) => ["zone_id", "server_id", "zoneid"].includes(f.field_key))?.field_key;
     const userId = String(fieldValues[userIdKey] ?? "").trim();
     const zoneId = String(fieldValues[serverIdKey] ?? "").trim();
 
     if (!userId) return;
+    if (serverIdKey && !zoneId) return;
 
     if (verifyTimer.current) clearTimeout(verifyTimer.current);
 
@@ -297,6 +373,7 @@ const GamePage = () => {
             api_game: game.provider_game_code,
             product: game.provider_game_code,
             product_id: "1",
+            smile_coin_product: game.metadata?.smile_coin_product || undefined,
           }),
         });
         const json = await res.json();
@@ -334,7 +411,14 @@ const GamePage = () => {
   const bannerImage = game.banner_url || game.image_url || defaultBanner;
   const selectedPackage = packages.find((item) => item.id === selectedPackageId) ?? packages[0] ?? null;
   const selectedPayment = paymentMethods.find((item) => item.id === selectedPaymentId) ?? paymentMethods[0];
-  const paymentTotalLabel = selectedPackage?.priceLabel ?? "—";
+  const selectedMembershipPlan = membershipPlans.find((plan) => plan.id === selectedMembershipPlanId) ?? null;
+  const discountPlan = firstJoined(activeMembership?.membership_plans) ?? selectedMembershipPlan;
+  const packagePrice = Number(selectedPackage?.price ?? 0);
+  const memberPrice = discountPlan ? getMemberPrice(packagePrice, discountPlan.discount_percent) : null;
+  const discountAmount = memberPrice == null ? 0 : Math.max(0, packagePrice - memberPrice);
+  const membershipAddOnAmount = activeMembership ? 0 : Number(selectedMembershipPlan?.price ?? 0);
+  const totalAmount = Math.max(0, packagePrice - discountAmount + membershipAddOnAmount);
+  const paymentTotalLabel = selectedPackage ? formatPrice(totalAmount, selectedPackage.currency) : "...";
 
   const updateField = (key, value) =>
     setFieldValues((prev) => ({ ...prev, [key]: value }));
@@ -367,23 +451,61 @@ const GamePage = () => {
       return;
     }
 
+    if (selectedPayment.id === "wallet" && Number(profile?.wallet_balance ?? 0) < totalAmount) {
+      setCheckoutError(`Your wallet balance is too low for ${paymentTotalLabel}. Please add money or use Razorpay.`);
+      return;
+    }
+
+    const orderMeta = {
+      game_id: game.id,
+      game_slug: game.slug,
+      game_name: game.name,
+      account_fields: fieldValues,
+      verified_username: playerName,
+      pricing: {
+        package_price: packagePrice,
+        membership_discount: discountAmount,
+        membership_add_on: membershipAddOnAmount,
+        total_amount: totalAmount,
+        active_membership_id: activeMembership?.id ?? null,
+        selected_membership_plan_id: selectedMembershipPlan?.id ?? null,
+        selected_membership_plan_name: selectedMembershipPlan?.name ?? null,
+        discount_plan_name: discountPlan?.name ?? null,
+      },
+      contact,
+    };
+
     setIsSubmitting(true);
-    const { error } = await supabase.from("orders").insert({
+
+    if (selectedPayment.id === "wallet") {
+      const { data: orderId, error } = await supabase.rpc("place_wallet_order", {
+        p_user_id: user.id,
+        p_product_id: selectedPackage.id,
+        p_product_name: selectedPackage.name,
+        p_total_amount: totalAmount,
+        p_currency: selectedPackage.currency,
+        p_metadata: orderMeta,
+      });
+      setIsSubmitting(false);
+      if (error) {
+        setCheckoutError(error.message || "Could not place this order. Please try again.");
+        return;
+      }
+      setOrderComplete({ orderId, method: "wallet", amount: paymentTotalLabel, package: selectedPackage.name });
+      return;
+    }
+
+    // Non-wallet: create pending order (Razorpay integration placeholder)
+    const { data: insertedRows, error } = await supabase.from("orders").insert({
       user_id: user.id,
       product_id: selectedPackage.id,
       product_name: selectedPackage.name,
-      total_amount: selectedPackage.price,
+      total_amount: totalAmount,
       currency: selectedPackage.currency,
       status: "pending",
       payment_method: selectedPayment.id,
-      metadata: {
-        game_id: game.id,
-        game_slug: game.slug,
-        game_name: game.name,
-        account_fields: fieldValues,
-        contact,
-      },
-    });
+      metadata: orderMeta,
+    }).select("id");
     setIsSubmitting(false);
 
     if (error) {
@@ -391,8 +513,59 @@ const GamePage = () => {
       return;
     }
 
-    setCheckoutSuccess("Order created. Complete payment to start processing.");
+    const orderId = insertedRows?.[0]?.id;
+    setOrderComplete({ orderId, method: selectedPayment.id, amount: paymentTotalLabel, package: selectedPackage.name });
   };
+
+  if (orderComplete) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(115deg,#fbfaf5_0%,#eef8f7_48%,#faf8f2_100%)] px-4 pt-24 text-[#10141f]">
+        <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-[0_24px_70px_rgba(15,23,42,0.12)] text-center">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+            <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+          </div>
+          <h2 className="text-2xl font-black text-[#10141f]">Order Placed!</h2>
+          <p className="mt-2 text-sm text-[#5f6977]">
+            {orderComplete.method === "wallet"
+              ? "Your wallet was charged and the order is now processing."
+              : "Your order has been received. Our team will process it after payment confirmation."}
+          </p>
+          <div className="mt-6 rounded-xl bg-[#f5f3ff] p-4 text-left space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-[#6d7480]">Package</span>
+              <span className="font-bold text-[#10141f]">{orderComplete.package}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#6d7480]">Amount Paid</span>
+              <span className="font-bold text-[#6d4cff]">{orderComplete.amount}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#6d7480]">Payment</span>
+              <span className="font-bold capitalize text-[#10141f]">{orderComplete.method}</span>
+            </div>
+            {orderComplete.orderId && (
+              <div className="flex justify-between">
+                <span className="text-[#6d7480]">Order ID</span>
+                <span className="font-mono text-xs text-[#9aa2ad]">{String(orderComplete.orderId).slice(0, 8)}…</span>
+              </div>
+            )}
+          </div>
+          {orderComplete.method !== "wallet" && (
+            <p className="mt-4 text-xs text-[#9aa2ad]">
+              Send payment via Razorpay and share the screenshot with support to complete processing.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-6 h-12 w-full rounded-xl bg-[#6d4cff] text-sm font-bold text-white"
+          >
+            Place Another Order
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[linear-gradient(115deg,#fbfaf5_0%,#eef8f7_48%,#faf8f2_100%)] pb-28 pt-24 text-[#10141f] md:pb-16">
@@ -446,6 +619,8 @@ const GamePage = () => {
                         ? "bg-[#f0edff] text-[#6d4cff]"
                         : playerName
                         ? "bg-[#e8f9f0] text-[#1a7f4b]"
+                        : verifyError.includes("can still place")
+                        ? "bg-[#fffbeb] text-[#92400e]"
                         : "bg-[#fff3f3] text-[#c0392b]"
                     }`}
                   >
@@ -520,7 +695,13 @@ const GamePage = () => {
         <main className="rounded-[28px] bg-white/75 px-4 py-7 shadow-[0_24px_70px_rgba(15,23,42,0.12)] backdrop-blur md:col-start-2 md:px-8 lg:px-9">
           <section className="mt-7">
             <SectionTitle number="3">Choose the Payment Method</SectionTitle>
-            <MembershipOffer selectedPackage={selectedPackage} />
+            <MembershipOffer
+              selectedPackage={selectedPackage}
+              plans={membershipPlans}
+              activeMembership={activeMembership}
+              selectedPlanId={selectedMembershipPlanId}
+              onSelectPlan={setSelectedMembershipPlanId}
+            />
 
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               {paymentMethods.map((method) => {
@@ -540,10 +721,15 @@ const GamePage = () => {
                       <div className="min-w-0 flex-1">
                         <p className="font-bold text-[#202634]">{method.name}</p>
                         <p className="text-xs text-[#6d7480]">{method.description}</p>
+                        {method.id === "wallet" ? (
+                          <p className="mt-1 text-xs font-bold text-[#6d4cff]">
+                            Balance: {formatPrice(profile?.wallet_balance ?? 0, selectedPackage?.currency ?? "INR")}
+                          </p>
+                        ) : null}
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-bold text-[#8a92a0]">YOU PAY</p>
-                        <p className={`text-xl font-black ${selected || method.selectedAccent ? "text-[#6d4cff]" : "text-[#10141f]"}`}>{paymentTotalLabel}</p>
+                        <p className={`text-xl font-black ${selected ? "text-[#6d4cff]" : "text-[#10141f]"}`}>{paymentTotalLabel}</p>
                         {method.note ? <p className="text-[10px] text-[#6d7480]">{method.note}</p> : null}
                       </div>
                     </div>
@@ -581,27 +767,36 @@ const GamePage = () => {
             {checkoutError ? (
               <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{checkoutError}</p>
             ) : null}
-            {checkoutSuccess ? (
-              <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{checkoutSuccess}</p>
-            ) : null}
 
             <div className="mt-6 border-t border-[#dfe4ec] pt-6">
               <div className="rounded-xl bg-[#f1f3f5] p-6">
                 <div className="flex items-center justify-between border-b border-[#d9dde3] pb-4 text-sm text-[#4b5563]">
                   <span>Package Price</span>
-                  <span className="font-bold text-[#10141f]">{selectedPackage?.priceLabel ?? "—"}</span>
+                  <span className="font-bold text-[#10141f]">{selectedPackage?.priceLabel ?? "..."}</span>
                 </div>
+                {discountAmount > 0 ? (
+                  <div className="mt-4 flex items-center justify-between border-b border-[#d9dde3] pb-4 text-sm text-[#1a7f4b]">
+                    <span>{discountPlan?.name} Discount</span>
+                    <span className="font-bold">-{formatPrice(discountAmount, selectedPackage?.currency)}</span>
+                  </div>
+                ) : null}
+                {membershipAddOnAmount > 0 ? (
+                  <div className="mt-4 flex items-center justify-between border-b border-[#d9dde3] pb-4 text-sm text-[#4b5563]">
+                    <span>{selectedMembershipPlan?.name} Membership</span>
+                    <span className="font-bold text-[#10141f]">{formatPrice(membershipAddOnAmount, selectedMembershipPlan?.currency)}</span>
+                  </div>
+                ) : null}
                 <div className="mt-4 flex items-center justify-between">
                   <span className="text-xl font-black text-[#10141f]">Total Pay</span>
                   <span className="text-right">
-                    <span className="block text-3xl font-black text-[#6d4cff]">{selectedPackage?.priceLabel ?? "—"}</span>
+                    <span className="block text-3xl font-black text-[#6d4cff]">{paymentTotalLabel}</span>
                     {selectedPayment.note ? <span className="text-xs text-[#6d7480]">{selectedPayment.note}</span> : null}
                   </span>
                 </div>
               </div>
 
-              <button type="button" onClick={handlePay} disabled={isSubmitting || !selectedPackage} className="mt-6 h-16 w-full rounded-xl bg-[#aaa] text-lg font-black text-white disabled:cursor-not-allowed disabled:opacity-70">
-                {isSubmitting ? "Creating order..." : `Pay ${selectedPackage?.priceLabel ?? ""}`}
+              <button type="button" onClick={handlePay} disabled={isSubmitting || !selectedPackage} className="mt-6 h-16 w-full rounded-xl bg-[#6d4cff] text-lg font-black text-white disabled:cursor-not-allowed disabled:opacity-70">
+                {isSubmitting ? "Creating order..." : `Pay ${paymentTotalLabel}`}
               </button>
               <p className="mt-5 text-center text-xs text-[#6d7480]">
                 By clicking Pay Now, you agree to our <span className="underline">Terms of Service</span>.
@@ -614,7 +809,7 @@ const GamePage = () => {
       <button type="button" className="fixed bottom-28 right-4 z-[130] flex h-12 w-12 items-center justify-center rounded-full bg-[#7b55ff] text-white shadow-[0_14px_30px_rgba(103,75,255,0.35)] md:bottom-8 md:right-8">
         <MessageCircle className="h-5 w-5" />
       </button>
-      <MobileCheckoutBar selectedPackage={selectedPackage} selectedPayment={selectedPayment} onPay={handlePay} isSubmitting={isSubmitting} />
+      <MobileCheckoutBar selectedPackage={selectedPackage} selectedPayment={selectedPayment} totalLabel={paymentTotalLabel} onPay={handlePay} isSubmitting={isSubmitting} />
     </div>
   );
 };
