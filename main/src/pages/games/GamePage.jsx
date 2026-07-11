@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
+  ArrowLeft,
   CheckCircle2,
   ChevronDown,
   CreditCard,
@@ -248,6 +249,8 @@ const DynamicField = ({ field, value, onChange }) => {
   );
 };
 
+const FIELD_TTL = 3 * 24 * 60 * 60 * 1000;
+
 const GamePage = () => {
   const { gameId: slug } = useParams();
   const { loading, notFound, game, fields, products } = useGameCatalog(slug);
@@ -264,6 +267,7 @@ const GamePage = () => {
   const [checkoutSuccess, setCheckoutSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [showCartReview, setShowCartReview] = useState(false);
   const [orderComplete, setOrderComplete] = useState(null);
   const [playerName, setPlayerName] = useState(null);
   const [verifying, setVerifying] = useState(false);
@@ -331,6 +335,44 @@ const GamePage = () => {
     }
   }, [packages]);
 
+  // Restore saved field values and contact from localStorage (up to 3 days old)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`pixiekat_fields_${slug}`);
+      if (raw) {
+        const { values, savedAt } = JSON.parse(raw);
+        if (Date.now() - savedAt < FIELD_TTL) {
+          setFieldValues((prev) => ({ ...prev, ...values }));
+          localStorage.setItem(`pixiekat_fields_${slug}`, JSON.stringify({ values, savedAt: Date.now() }));
+        } else {
+          localStorage.removeItem(`pixiekat_fields_${slug}`);
+        }
+      }
+    } catch {}
+    try {
+      const raw = localStorage.getItem("pixiekat_contact");
+      if (raw) {
+        const { values, savedAt } = JSON.parse(raw);
+        if (Date.now() - savedAt < FIELD_TTL) {
+          setContact(values);
+          localStorage.setItem("pixiekat_contact", JSON.stringify({ values, savedAt: Date.now() }));
+        } else {
+          localStorage.removeItem("pixiekat_contact");
+        }
+      }
+    } catch {}
+  }, [slug]);
+
+  // Auto-fill contact from profile only when fields are still empty
+  useEffect(() => {
+    if (isAuthenticated) {
+      setContact((prev) => ({
+        email: prev.email || profile?.email || user?.email || "",
+        whatsapp: prev.whatsapp || profile?.phone || "",
+      }));
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (fields.length > 0) {
       setFieldValues((prev) => {
@@ -392,6 +434,20 @@ const GamePage = () => {
     return () => clearTimeout(verifyTimer.current);
   }, [fieldValues, game?.provider_game_code, fields]);
 
+  // Persist field values to localStorage on every change
+  useEffect(() => {
+    if (Object.values(fieldValues).some(Boolean)) {
+      localStorage.setItem(`pixiekat_fields_${slug}`, JSON.stringify({ values: fieldValues, savedAt: Date.now() }));
+    }
+  }, [fieldValues, slug]);
+
+  // Persist contact to localStorage on every change
+  useEffect(() => {
+    if (contact.email || contact.whatsapp) {
+      localStorage.setItem("pixiekat_contact", JSON.stringify({ values: contact, savedAt: Date.now() }));
+    }
+  }, [contact]);
+
   if (loading) {
     return (
       <PageShell>
@@ -425,6 +481,16 @@ const GamePage = () => {
 
   const updateContact = (key, value) =>
     setContact((prev) => ({ ...prev, [key]: value }));
+
+  const handleReview = () => {
+    setCheckoutError("");
+    if (!selectedPackage) { setCheckoutError("Please select a package before checkout."); return; }
+    const missingField = fields.find((f) => f.is_required && !String(fieldValues[f.field_key] ?? "").trim());
+    if (missingField) { setCheckoutError(`Please enter ${missingField.label}.`); return; }
+    if (!contact.email.trim() || !contact.whatsapp.trim()) { setCheckoutError("Please enter your email address and WhatsApp number."); return; }
+    if (!isAuthenticated || !user?.id) { setCheckoutError("Please log in before placing this order."); return; }
+    setShowCartReview(true);
+  };
 
   const handlePay = async () => {
     setCheckoutError("");
@@ -486,12 +552,33 @@ const GamePage = () => {
         p_currency: selectedPackage.currency,
         p_metadata: orderMeta,
       });
-      setIsSubmitting(false);
       if (error) {
+        setIsSubmitting(false);
         setCheckoutError(error.message || "Could not place this order. Please try again.");
         return;
       }
-      setOrderComplete({ orderId, method: "wallet", amount: paymentTotalLabel, package: selectedPackage.name });
+      let fulfilled = false;
+      let provisioned = true;
+      let refunded = false;
+      let fulfillError = null;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch("/api/fulfill-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ orderId }),
+        });
+        const data = await res.json();
+        fulfilled = Boolean(data.ok || data.already);
+        provisioned = data.provisioned !== false;
+        refunded = res.status === 500; // provider rejected — wallet was refunded
+        if (!fulfilled) fulfillError = data.error || null;
+      } catch {
+        // Server unreachable — order placed, delivery is manual
+        provisioned = false;
+      }
+      setIsSubmitting(false);
+      setOrderComplete({ orderId, method: "wallet", amount: paymentTotalLabel, package: selectedPackage.name, fulfilled, provisioned, refunded, fulfillError });
       return;
     }
 
@@ -521,15 +608,26 @@ const GamePage = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(115deg,#fbfaf5_0%,#eef8f7_48%,#faf8f2_100%)] px-4 pt-24 text-[#10141f]">
         <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-[0_24px_70px_rgba(15,23,42,0.12)] text-center">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
-            <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+          <div className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full ${orderComplete.refunded ? "bg-amber-100" : "bg-emerald-100"}`}>
+            <CheckCircle2 className={`h-8 w-8 ${orderComplete.refunded ? "text-amber-500" : "text-emerald-600"}`} />
           </div>
-          <h2 className="text-2xl font-black text-[#10141f]">Order Placed!</h2>
+          <h2 className="text-2xl font-black text-[#10141f]">{orderComplete.refunded ? "Delivery Failed — Refunded" : "Order Placed!"}</h2>
           <p className="mt-2 text-sm text-[#5f6977]">
             {orderComplete.method === "wallet"
-              ? "Your wallet was charged and the order is now processing."
+              ? orderComplete.refunded
+                ? "The top-up could not be delivered. Your wallet has been refunded."
+                : orderComplete.fulfilled
+                  ? "Payment confirmed and your top-up has been delivered!"
+                  : orderComplete.provisioned
+                    ? "Top-up is being processed — please allow a few minutes."
+                    : "Payment confirmed. Our team will process your order shortly."
               : "Your order has been received. Our team will process it after payment confirmation."}
           </p>
+          {orderComplete.refunded && orderComplete.fulfillError && (
+            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 border border-amber-200 text-left">
+              <span className="font-semibold">Reason:</span> {orderComplete.fulfillError}
+            </p>
+          )}
           <div className="mt-6 rounded-xl bg-[#f5f3ff] p-4 text-left space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-[#6d7480]">Package</span>
@@ -569,6 +667,75 @@ const GamePage = () => {
 
   return (
     <div className="min-h-screen bg-[linear-gradient(115deg,#fbfaf5_0%,#eef8f7_48%,#faf8f2_100%)] pb-28 pt-24 text-[#10141f] md:pb-16">
+      {showCartReview && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-7 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div className="flex items-center gap-3 mb-5">
+              <button type="button" onClick={() => setShowCartReview(false)} className="p-2 rounded-full hover:bg-gray-100">
+                <ArrowLeft className="h-5 w-5 text-[#6d4cff]" />
+              </button>
+              <h2 className="text-xl font-black text-[#10141f]">Review Your Order</h2>
+            </div>
+            <div className="rounded-xl bg-[#f5f3ff] p-4 mb-4">
+              <p className="text-xs font-bold text-[#9aa2ad] mb-1">GAME & PACKAGE</p>
+              <p className="font-bold text-[#10141f]">{game.name}</p>
+              <p className="text-[#6d4cff] font-black text-lg">{selectedPackage?.name}</p>
+            </div>
+            {fields.length > 0 && (
+              <div className="rounded-xl bg-gray-50 p-4 mb-4 space-y-2">
+                <p className="text-xs font-bold text-[#9aa2ad] mb-1">ACCOUNT DETAILS</p>
+                {fields.map((f) => (
+                  <div key={f.id} className="flex justify-between text-sm">
+                    <span className="text-[#6d7480]">{f.label}</span>
+                    <span className="font-bold text-[#10141f]">{fieldValues[f.field_key] || "—"}</span>
+                  </div>
+                ))}
+                {playerName && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[#6d7480]">Verified Name</span>
+                    <span className="font-bold text-[#1a7f4b]">{playerName}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="rounded-xl bg-gray-50 p-4 mb-4 space-y-2">
+              <p className="text-xs font-bold text-[#9aa2ad] mb-1">CONTACT</p>
+              <div className="flex justify-between text-sm">
+                <span className="text-[#6d7480]">Email</span>
+                <span className="font-bold text-[#10141f]">{contact.email}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-[#6d7480]">WhatsApp</span>
+                <span className="font-bold text-[#10141f]">{contact.whatsapp}</span>
+              </div>
+            </div>
+            <div className="rounded-xl bg-[#f1f3f5] p-5 mb-5">
+              <div className="flex justify-between text-sm text-[#4b5563] border-b border-[#d9dde3] pb-3">
+                <span>Package Price</span>
+                <span className="font-bold text-[#10141f]">{selectedPackage?.priceLabel}</span>
+              </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-sm text-[#1a7f4b] border-b border-[#d9dde3] py-3">
+                  <span>{discountPlan?.name} Discount</span>
+                  <span className="font-bold">-{formatPrice(discountAmount, selectedPackage?.currency)}</span>
+                </div>
+              )}
+              <div className="flex justify-between mt-3">
+                <span className="text-base font-black text-[#10141f]">Total</span>
+                <span className="text-2xl font-black text-[#6d4cff]">{paymentTotalLabel}</span>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setShowCartReview(false)} className="flex-1 h-12 rounded-xl border border-[#dfe4ec] text-sm font-bold text-[#4b5563]">
+                Go Back
+              </button>
+              <button type="button" onClick={handlePay} disabled={isSubmitting} className="flex-1 h-12 rounded-xl bg-[#6d4cff] text-sm font-bold text-white disabled:opacity-70">
+                {isSubmitting ? "Processing..." : `Confirm & Pay ${paymentTotalLabel}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="mx-auto grid max-w-[1480px] gap-10 px-4 md:grid-cols-[394px_minmax(0,1fr)] md:px-8 md:pt-10 lg:px-12">
         <aside className="space-y-8 md:sticky md:top-24 md:self-start">
           <img
@@ -795,8 +962,8 @@ const GamePage = () => {
                 </div>
               </div>
 
-              <button type="button" onClick={handlePay} disabled={isSubmitting || !selectedPackage} className="mt-6 h-16 w-full rounded-xl bg-[#6d4cff] text-lg font-black text-white disabled:cursor-not-allowed disabled:opacity-70">
-                {isSubmitting ? "Creating order..." : `Pay ${paymentTotalLabel}`}
+              <button type="button" onClick={handleReview} disabled={isSubmitting || !selectedPackage} className="mt-6 h-16 w-full rounded-xl bg-[#6d4cff] text-lg font-black text-white disabled:cursor-not-allowed disabled:opacity-70">
+                {isSubmitting ? "Creating order..." : `Review & Pay ${paymentTotalLabel}`}
               </button>
               <p className="mt-5 text-center text-xs text-[#6d7480]">
                 By clicking Pay Now, you agree to our <span className="underline">Terms of Service</span>.
@@ -809,7 +976,7 @@ const GamePage = () => {
       <button type="button" className="fixed bottom-28 right-4 z-[130] flex h-12 w-12 items-center justify-center rounded-full bg-[#7b55ff] text-white shadow-[0_14px_30px_rgba(103,75,255,0.35)] md:bottom-8 md:right-8">
         <MessageCircle className="h-5 w-5" />
       </button>
-      <MobileCheckoutBar selectedPackage={selectedPackage} selectedPayment={selectedPayment} totalLabel={paymentTotalLabel} onPay={handlePay} isSubmitting={isSubmitting} />
+      <MobileCheckoutBar selectedPackage={selectedPackage} selectedPayment={selectedPayment} totalLabel={paymentTotalLabel} onPay={handleReview} isSubmitting={isSubmitting} />
     </div>
   );
 };

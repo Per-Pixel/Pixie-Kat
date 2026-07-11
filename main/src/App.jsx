@@ -43,6 +43,8 @@ const AccountPage = lazy(() => import("./pages/account"));
 
 const GameInfoPage = lazy(() => import("./pages/games/GamePage"));
 
+const BatchOrderPage = lazy(() => import("./pages/batch-order"));
+
 
 
 const preloadImage = (src) => {
@@ -217,6 +219,8 @@ function App() {
                   <Route path="/register" element={<Auth />} />
 
                   <Route path="/account/*" element={<AccountPage />} />
+
+                  <Route path="/batch-order" element={<BatchOrderPage />} />
 
                 </Routes>
 

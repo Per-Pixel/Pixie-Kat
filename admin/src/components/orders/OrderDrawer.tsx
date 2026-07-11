@@ -21,6 +21,13 @@ interface OrderRow {
   status: OrderStatus;
   payment_method?: string | null;
   payment_id?: string | null;
+  metadata?: {
+    account_fields?: Record<string, string>;
+    game_name?: string;
+    game_slug?: string;
+    verified_username?: string;
+    contact?: { email?: string; whatsapp?: string };
+  } | null;
   created_at: string;
   updated_at: string;
   profiles?: { id: string; name: string; email: string } | null;
@@ -186,6 +193,38 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
                   </a>
                 </div>
               </section>
+
+              {/* Game / Account Details */}
+              {order.metadata?.account_fields && Object.keys(order.metadata.account_fields).length > 0 && (
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Game Account Details</h3>
+                  <div className="bg-gray-50 rounded-xl divide-y divide-gray-100">
+                    {order.metadata.game_name && (
+                      <DetailRow icon={Package} label="Game" value={order.metadata.game_name} />
+                    )}
+                    {Object.entries(order.metadata.account_fields).map(([key, val]) =>
+                      val ? (
+                        <DetailRow
+                          key={key}
+                          icon={Hash}
+                          label={key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                          value={String(val)}
+                          onCopy={() => copyToClipboard(String(val), key)}
+                        />
+                      ) : null
+                    )}
+                    {order.metadata.verified_username && (
+                      <DetailRow icon={User} label="Verified Name" value={order.metadata.verified_username} />
+                    )}
+                    {order.metadata.contact?.email && (
+                      <DetailRow icon={User} label="Customer Email" value={order.metadata.contact.email} />
+                    )}
+                    {order.metadata.contact?.whatsapp && (
+                      <DetailRow icon={User} label="WhatsApp" value={order.metadata.contact.whatsapp} />
+                    )}
+                  </div>
+                </section>
+              )}
 
               {/* Status Change */}
               {allowedTransitions.length > 0 && (

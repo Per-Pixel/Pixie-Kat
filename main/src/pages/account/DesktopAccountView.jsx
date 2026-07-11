@@ -27,39 +27,6 @@ const sectionItems = [
   { id: "rewards", label: "Rewards", icon: Trophy },
 ];
 
-const orderRecords = [
-  {
-    id: "S260324132852478MVAA",
-    status: "Success",
-    title: "furniturelegends BR 275 Diamond c",
-    orderTime: "2026-03-24 13:28:53",
-    uidEmail: "1620060514",
-    serverId: "16820",
-    value: "BRL 18.75",
-    oldValue: "BRL 19.75",
-  },
-  {
-    id: "S260324132852478MVAB",
-    status: "Success",
-    title: "furniturelegends BR 140 Diamond c",
-    orderTime: "2026-03-23 22:11:09",
-    uidEmail: "1620060514",
-    serverId: "16820",
-    value: "BRL 9.45",
-    oldValue: "BRL 10.20",
-  },
-  {
-    id: "S260324132852478MVAC",
-    status: "Waiting for Payment",
-    title: "furniturelegends Weekly Pass",
-    orderTime: "2026-03-22 09:42:18",
-    uidEmail: "lonelykoala@gmail.com",
-    serverId: "16820",
-    value: "BRL 5.99",
-    oldValue: "BRL 6.50",
-  },
-];
-
 const orderSummary = [
   { label: "Completed", value: 2 },
   { label: "Refunded", value: 0 },
@@ -258,78 +225,106 @@ const ProfilePanel = ({ profile }) => (
   </div>
 );
 
-const OrdersPanel = () => (
-  <div className="space-y-7">
-    <div>
-      <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500">Account</p>
-      <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-[2.55rem]">My Orders</h1>
+const statusBadgeStyle = {
+  completed:  "bg-emerald-50 text-emerald-700 border-emerald-200",
+  pending:    "bg-amber-50 text-amber-700 border-amber-200",
+  processing: "bg-blue-50 text-blue-600 border-blue-200",
+  failed:     "bg-red-50 text-red-600 border-red-200",
+  refunded:   "bg-purple-50 text-purple-700 border-purple-200",
+  cancelled:  "bg-slate-100 text-slate-600 border-slate-200",
+  on_hold:    "bg-orange-50 text-orange-700 border-orange-200",
+};
+
+const getField = (meta, keys) => {
+  const fields = meta?.account_fields ?? {};
+  for (const k of keys) if (fields[k]) return fields[k];
+  return null;
+};
+
+const OrdersPanel = () => {
+  const { user } = useAuth();
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) { setLoading(false); return; }
+    supabase
+      .from("orders")
+      .select("id, product_name, total_amount, currency, status, created_at, metadata")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50)
+      .then(({ data }) => { setOrders(data ?? []); setLoading(false); });
+  }, [user?.id]);
+
+  const formatTs = (ts) => new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  return (
+    <div className="space-y-7">
+      <div>
+        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500">Account</p>
+        <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-[2.55rem]">My Orders</h1>
+      </div>
+
+      <SectionCard>
+        <div className="overflow-x-auto rounded-[22px] border border-slate-200 bg-white">
+          {loading ? (
+            <div className="py-12 text-center text-slate-400 text-sm">Loading your orders…</div>
+          ) : orders.length === 0 ? (
+            <div className="py-12 text-center">
+              <p className="text-slate-400 text-sm">No orders yet.</p>
+              <Link to="/games" className="mt-3 inline-block text-sm font-semibold text-[#6c49ff] hover:underline">Browse games →</Link>
+            </div>
+          ) : (
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/80">
+                  <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">Order ID</th>
+                  <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">Item</th>
+                  <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">Status</th>
+                  <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">Date</th>
+                  <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">User ID</th>
+                  <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">Zone / Server</th>
+                  <th className="whitespace-nowrap px-5 py-4 text-right font-semibold text-slate-500">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {orders.map((order) => {
+                  const accountId = getField(order.metadata, ["user_id", "userid", "player_id", "account_id"]);
+                  const zoneId = getField(order.metadata, ["zone_id", "server_id", "zoneid"]);
+                  return (
+                    <tr key={order.id} className="transition hover:bg-[#f5f3ff] cursor-pointer">
+                      <td className="whitespace-nowrap px-5 py-4">
+                        <span className="font-mono text-xs font-semibold text-slate-700">#{order.id.slice(0, 8).toUpperCase()}</span>
+                      </td>
+                      <td className="px-5 py-4 max-w-[180px]">
+                        <p className="font-medium text-slate-900 text-xs leading-snug">{order.product_name}</p>
+                        {order.metadata?.game_name && (
+                          <p className="text-xs text-slate-400">{order.metadata.game_name}</p>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusBadgeStyle[order.status] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                          {order.status.replace("_", " ")}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-4 text-xs text-slate-500">{formatTs(order.created_at)}</td>
+                      <td className="whitespace-nowrap px-5 py-4 text-xs font-mono text-slate-600">{accountId ?? "—"}</td>
+                      <td className="whitespace-nowrap px-5 py-4 text-xs font-mono text-slate-600">{zoneId ?? "—"}</td>
+                      <td className="whitespace-nowrap px-5 py-4 text-right">
+                        <span className="font-semibold text-slate-900">{order.currency} {Number(order.total_amount).toFixed(2)}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </SectionCard>
     </div>
-
-    <SectionCard>
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="flex flex-wrap gap-3">
-          {orderFilters.map((filter) => (
-            <FilterPill key={filter.label} {...filter} />
-          ))}
-        </div>
-
-        <input
-          type="text"
-          placeholder="Search by Order ID"
-          className="h-12 w-full rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-[#8b6dff] xl:w-64"
-        />
-      </div>
-
-      {/* Orders Table */}
-      <div className="mt-7 overflow-x-auto rounded-[22px] border border-slate-200 bg-white">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/80">
-              <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">Order ID</th>
-              <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">Item</th>
-              <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">Status</th>
-              <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">Date</th>
-              <th className="whitespace-nowrap px-5 py-4 font-semibold text-slate-500">UID / Email</th>
-              <th className="whitespace-nowrap px-5 py-4 text-right font-semibold text-slate-500">Value</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {orderRecords.map((order) => (
-              <tr
-                key={order.id}
-                className="transition hover:bg-[#f5f3ff] cursor-pointer"
-              >
-                <td className="whitespace-nowrap px-5 py-4">
-                  <span className="font-mono text-xs font-semibold text-slate-700">{order.id.slice(0, 16)}…</span>
-                </td>
-                <td className="px-5 py-4">
-                  <span className="font-medium text-slate-900">{order.title}</span>
-                </td>
-                <td className="px-5 py-4">
-                  <StatusBadge status={order.status} />
-                </td>
-                <td className="whitespace-nowrap px-5 py-4 text-slate-500">{order.orderTime}</td>
-                <td className="whitespace-nowrap px-5 py-4 text-slate-600">{order.uidEmail}</td>
-                <td className="whitespace-nowrap px-5 py-4 text-right">
-                  <span className="font-semibold text-slate-900">{order.value}</span>
-                  <span className="ml-2 text-xs text-slate-400 line-through">{order.oldValue}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mt-6 flex justify-end">
-        <div className="inline-flex items-center gap-4 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm text-slate-500">
-          <span>&lsaquo;</span>
-          <span className="rounded-full bg-slate-100 px-4 py-1 font-semibold text-slate-600">Page 1 / 1</span>
-          <span>&rsaquo;</span>
-        </div>
-      </div>
-    </SectionCard>
-  </div>
-);
+  );
+};
 
 const txTypeLabel = {
   credit: "Credit", debit: "Debit", purchase: "Purchase",

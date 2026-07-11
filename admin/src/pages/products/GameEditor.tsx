@@ -29,6 +29,7 @@ interface ProductDraft {
   stock: string;
   is_popular: boolean; status: ProductStatus;
   currency_prices: CurrencyPrices;
+  is_default: boolean;
 }
 
 interface PageSections {
@@ -134,6 +135,7 @@ const productFromDB = (p: Product): ProductDraft => ({
   stock: p.stock ? String(p.stock) : '',
   is_popular: p.is_popular ?? false, status: p.status ?? 'active',
   currency_prices: hydrateCurrencyPrices(defaultCurrencyPrices(p.price, p.cost_price, p.currency), p.metadata),
+  is_default: false,
 });
 
 const emptyProductDraft = (): ProductDraft => ({
@@ -142,6 +144,7 @@ const emptyProductDraft = (): ProductDraft => ({
   sku: '', provider_product_id: '', secondary_provider_product_id: '', stock: '',
   is_popular: false, status: 'active',
   currency_prices: defaultCurrencyPrices(),
+  is_default: false,
 });
 
 const defaultPageSections: PageSections = { trending: false, exclusive_offers: false, trendingItemId: null, exclusiveItemId: null };
@@ -188,7 +191,12 @@ const GameEditor: React.FC = () => {
       });
       setSteps(game.how_to_steps ?? []);
       setFields((game.game_fields ?? []).map((f) => ({ ...f, _key: uid() })));
-      setProducts((game.products ?? []).map(productFromDB));
+      const defaultProductId = String((game.metadata as Record<string, unknown>)?.default_product_id ?? '');
+      setProducts((game.products ?? []).map((p) => {
+        const draft = productFromDB(p);
+        draft.is_default = Boolean(defaultProductId && p.id === defaultProductId);
+        return draft;
+      }));
       const tItem = promoItems.find((pi) => pi.section === 'trending');
       const eItem = promoItems.find((pi) => pi.section === 'exclusive_offers');
       setPageSections({
@@ -289,7 +297,9 @@ const GameEditor: React.FC = () => {
         provider: form.provider, provider_game_code: form.provider_game_code || null,
         region: form.region || null, status: form.status, is_featured: form.is_featured,
         instructions: form.instructions || null, how_to_steps: steps.filter((s) => s.title.trim()),
-        metadata: form.smile_coin_product ? { smile_coin_product: form.smile_coin_product } : {},
+        metadata: {
+          ...(form.smile_coin_product ? { smile_coin_product: form.smile_coin_product } : {}),
+        },
       };
       const game = isEdit && id ? await updateGame(id, payload) : await createGame(payload);
 
@@ -300,7 +310,7 @@ const GameEditor: React.FC = () => {
         options: f.options ?? [], validation_regex: f.validation_regex ?? null,
       })));
 
-      await replaceProducts(game.id, products.map((p) => {
+      const savedProducts = await replaceProducts(game.id, products.map((p) => {
         const inr = p.currency_prices.INR;
         const extraCurrencies: Record<string, { selling_price: number; cost_price?: number }> = {};
         for (const { code } of SUPPORTED_CURRENCIES) {
@@ -329,6 +339,21 @@ const GameEditor: React.FC = () => {
           },
         };
       }));
+
+      // Update game metadata with default_product_id using the NEW product IDs
+      // (replaceProducts deletes and re-creates products with new UUIDs)
+      const defaultDraft = products.find((p) => p.is_default);
+      let newDefaultProductId: string | undefined;
+      if (defaultDraft) {
+        const defaultIdx = products.indexOf(defaultDraft);
+        newDefaultProductId = savedProducts[defaultIdx]?.id;
+      }
+      await updateGame(game.id, {
+        metadata: {
+          ...(form.smile_coin_product ? { smile_coin_product: form.smile_coin_product } : {}),
+          ...(newDefaultProductId ? { default_product_id: newDefaultProductId } : {}),
+        },
+      });
 
       // Sync page sections
       if (pageSections.trending && !pageSections.trendingItemId) {
@@ -617,6 +642,10 @@ const GameEditor: React.FC = () => {
                         {p.name && <span className="text-xs text-gray-400">— {p.name}</span>}
                       </div>
                       <div className="flex items-center gap-1.5">
+                        <button type="button" title={p.is_default ? 'Remove default' : 'Set as default product (auto-selected on storefront)'} onClick={() => setProducts((prev) => prev.map((pp) => pp._key === p._key ? { ...pp, is_default: !pp.is_default } : { ...pp, is_default: false }))} className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${p.is_default ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50'}`}>
+                          <Star className="w-3 h-3" fill={p.is_default ? 'currentColor' : 'none'} />
+                          Default
+                        </button>
                         <button type="button" title={p.is_popular ? 'Remove popular badge' : 'Mark as popular'} onClick={() => updateProduct(p._key, { is_popular: !p.is_popular })} className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${p.is_popular ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500 hover:bg-amber-50'}`}>
                           <Star className="w-3 h-3" fill={p.is_popular ? 'currentColor' : 'none'} />
                           Popular

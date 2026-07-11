@@ -7,7 +7,7 @@
 --   2. Checks wallet_balance >= requested amount
 --   3. Deducts the balance
 --   4. Inserts a wallet_transactions ledger entry
---   5. Creates the order with status = 'paid'
+--   5. Creates the order with status = 'processing'
 --   Returns the new order id.
 -- ============================================================
 
@@ -62,7 +62,7 @@ BEGIN
     total_amount, currency, status, payment_method, metadata
   ) VALUES (
     p_user_id, p_product_id, p_product_name,
-    p_total_amount, p_currency, 'paid', 'wallet', p_metadata
+    p_total_amount, p_currency, 'processing', 'wallet', p_metadata
   )
   RETURNING id INTO v_order_id;
 

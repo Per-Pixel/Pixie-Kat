@@ -13,6 +13,18 @@
  *   POST   /api/admin/users/:id/status          Update status + audit log
  *   DELETE /api/admin/users/:id                 Hard-delete from auth.users
  *   POST   /api/admin/wallet/adjust             Atomic wallet credit/debit
+ *
+ * Provider / Catalog:
+ *   GET    /api/smileone/status                 SmileCode config check
+ *   GET    /api/smileone/product-list           All products on account
+ *   GET    /api/smileone/sku-list               SKUs for a game
+ *   POST   /api/smileone/validate               Validate player account
+ *   POST   /api/smileone/send-order             Place SmileCode top-up
+ *   GET    /api/smileone/order-detail           SmileCode order status
+ *   POST   /api/verify-player                  Public player ID verification
+ *
+ * Fulfillment:
+ *   POST   /api/fulfill-order                  Auto-deliver wallet order via provider
  */
 
 import express from 'express';
@@ -41,7 +53,24 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
   ? productionOrigins
   : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'];
 
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+function isLocalNetworkOrigin(origin) {
+  if (!origin) return false;
+  // Allow any origin on ports 5173-5175 from localhost or LAN IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+  return /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+):517[3-5]$/.test(origin);
+}
+
+app.use(cors({
+  origin(origin, cb) {
+    if (process.env.NODE_ENV === 'production') {
+      if (allowedOrigins.includes(origin) || !origin) return cb(null, true);
+      return cb(null, false);
+    }
+    // Dev: allow localhost + any LAN IP
+    if (!origin || allowedOrigins.includes(origin) || isLocalNetworkOrigin(origin)) return cb(null, true);
+    cb(null, false);
+  },
+  credentials: true,
+}));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -587,8 +616,12 @@ app.post('/api/verify-player', async (req, res) => {
     return res.status(400).json({ success: false, message: 'user_id is required' });
   }
 
-  // Try SmileCode API first (newer JSON-RPC validate)
-  if (smileOne.isConfigured() && api_game) {
+  // Use SmileCoin getrole if the game has smile_coin_product configured.
+  // Only attempt SmileCode when there is no SmileCoin product (avoids IP-whitelist failures).
+  const scProduct = smile_coin_product || product;
+  const useSmileCoin = smileCoin.isConfigured() && scProduct;
+
+  if (!useSmileCoin && smileOne.isConfigured() && api_game) {
     try {
       const userAccount = { user_id: String(user_id) };
       if (zone_id) userAccount.server_id = String(zone_id);
@@ -600,17 +633,10 @@ app.post('/api/verify-player', async (req, res) => {
           return res.json({ success: true, username: name, source: 'smilecode' });
         }
       }
-      // SmileCode returned no error but no username — fall through to SmileCoin
     } catch (err) {
       console.error('[verify-player] SmileCode failed:', err.message);
-      // Fall through to SmileCoin
     }
   }
-
-  // Fall back to SmileCoin getrole API (older form-based API)
-  // Use smile_coin_product if the admin configured one; otherwise fall back to provider_game_code.
-  const scProduct = smile_coin_product || product;
-  console.log('[verify-player] SmileCoin attempt:', { user_id, zone_id, api_game, product, product_id, smile_coin_product, scProduct });
   if (smileCoin.isConfigured() && scProduct) {
     try {
       // Auto-resolve a valid productid — '1' is never valid; fetch real ID from productlist.
@@ -665,7 +691,203 @@ app.post('/api/verify-player', async (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Pixie-Kat Admin Proxy running on http://localhost:${PORT}`);
+// ── Auto-fulfillment ─────────────────────────────────────────────────────────
+// POST /api/fulfill-order
+// Body: { orderId }
+// Auth: any authenticated user — must own the order
+app.post('/api/fulfill-order', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ ok: false, error: 'Authorization required' });
+  }
+  const token = authHeader.slice(7);
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) {
+    return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
+  }
+
+  const { orderId } = req.body || {};
+  if (!orderId) return res.status(400).json({ ok: false, error: 'orderId is required' });
+
+  try {
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from('orders')
+      .select('id, user_id, product_id, status, metadata')
+      .eq('id', orderId)
+      .single();
+
+    if (orderError || !order) throw new Error('Order not found');
+    if (order.user_id !== user.id) return res.status(403).json({ ok: false, error: 'Access denied' });
+    if (order.status !== 'processing') {
+      return res.json({ ok: true, already: true, status: order.status });
+    }
+
+    const accountFields = order.metadata?.account_fields ?? {};
+    const userId = accountFields.user_id || accountFields.userid || accountFields.uid || accountFields.player_id || accountFields.account_id;
+    const zoneId  = accountFields.zone_id  || accountFields.server_id || accountFields.zoneid || accountFields.server;
+    if (!userId) throw new Error('No game account ID in order metadata');
+
+    const gameId = order.metadata?.game_id;
+    if (!gameId) throw new Error('No game_id in order metadata');
+
+    const { data: game } = await supabaseAdmin
+      .from('games')
+      .select('id, provider, provider_game_code, metadata')
+      .eq('id', gameId)
+      .single();
+    if (!game) throw new Error('Game not found');
+
+    let product = null;
+    const productId = order.product_id || order.metadata?.product_id;
+    if (productId) {
+      const { data } = await supabaseAdmin
+        .from('products')
+        .select('id, sku, provider_product_id, metadata')
+        .eq('id', productId)
+        .single();
+      product = data;
+    }
+
+    let fulfillResult = null;
+
+    const scProduct = game.metadata?.smile_coin_product;
+
+    if (scProduct && smileCoin.isConfigured()) {
+      let productid = String(
+        product?.metadata?.secondary_provider_product_id ||
+        product?.provider_product_id ||
+        product?.sku || ''
+      );
+
+      // If no productid in DB, resolve from productlist (same as verify-player)
+      if (!productid || productid === '1') {
+        const resolved = await resolveScProductId(scProduct);
+        if (resolved) {
+          productid = resolved;
+          console.log(`[fulfill-order] Resolved productid from productlist: ${productid}`);
+        }
+      }
+      if (!productid) throw new Error('No productid configured for this product (set provider_product_id or secondary_provider_product_id)');
+
+      const createParams = {
+        userid:    String(userId),
+        zoneid:    String(zoneId || userId),
+        product:   scProduct,
+        productid,
+      };
+      console.log('[fulfill-order] createorder params:', JSON.stringify(createParams));
+
+      const body = await smileCoin.callSmileCoin('createorder', createParams);
+      console.log('[fulfill-order] createorder response:', JSON.stringify(body).slice(0, 500));
+
+      // Accept both numeric and string status, and ok:true
+      const statusOk = Number(body.status) === 200 || body.ok === true;
+      if (!statusOk) {
+        // If the DB productid failed, try resolving from productlist as a fallback
+        if (!product?.metadata?.secondary_provider_product_id && !product?.provider_product_id) {
+          // Already used resolved productid, no fallback left
+          throw new Error(body.message || body.msg || `SmileCoin order failed (status ${body.status})`);
+        }
+        const resolved = await resolveScProductId(scProduct);
+        if (resolved && resolved !== productid) {
+          console.log(`[fulfill-order] Retrying with resolved productid: ${resolved} (was ${productid})`);
+          const retryParams = { ...createParams, productid: resolved };
+          const retryBody = await smileCoin.callSmileCoin('createorder', retryParams);
+          console.log('[fulfill-order] retry createorder response:', JSON.stringify(retryBody).slice(0, 500));
+          if (Number(retryBody.status) === 200 || retryBody.ok === true) {
+            fulfillResult = retryBody;
+          } else {
+            throw new Error(retryBody.message || retryBody.msg || `SmileCoin order failed (status ${retryBody.status})`);
+          }
+        } else {
+          throw new Error(body.message || body.msg || `SmileCoin order failed (status ${body.status})`);
+        }
+      } else {
+        fulfillResult = body;
+      }
+    } else if (game.provider === 'smile_one' && smileOne.isConfigured() && game.provider_game_code) {
+      const sku = product?.sku;
+      const pid = product?.provider_product_id;
+      if (!sku && !pid) throw new Error('No SKU or provider_product_id configured for this product');
+      const userAccount = { user_id: String(userId) };
+      if (zoneId) userAccount.server_id = String(zoneId);
+      const data = await smileOne.sendOrder(
+        game.provider_game_code,
+        [{ sku: sku || pid, qty: 1, pid: pid || sku }],
+        userAccount
+      );
+      fulfillResult = data.result;
+    } else {
+      // No auto-fulfillment provider configured — order stays processing for manual fulfillment
+      console.log(`[fulfill-order] No auto-fulfill provider for game ${gameId} (provider=${game.provider}, smile_coin_product=${scProduct || 'none'}). Order ${orderId} stays processing.`);
+      return res.json({ ok: false, provisioned: false, error: 'No auto-fulfillment provider configured for this game. Order will be fulfilled manually.' });
+    }
+
+    await supabaseAdmin
+      .from('orders')
+      .update({
+        status: 'completed',
+        updated_at: new Date().toISOString(),
+        metadata: { ...order.metadata, fulfill_result: fulfillResult, fulfilled_at: new Date().toISOString() },
+      })
+      .eq('id', orderId);
+
+    console.log(`[fulfill-order] Order ${orderId} completed via ${game.provider}`);
+    res.json({ ok: true, orderId, result: fulfillResult });
+
+  } catch (err) {
+    console.error('[fulfill-order]', err.message);
+
+    // Refund wallet + mark order failed atomically via the dedicated RPC.
+    // Falls back to adjust_wallet_balance if the migration isn't applied yet.
+    try {
+      const errorMeta = { fulfill_error: err.message, failed_at: new Date().toISOString() };
+      const { error: refundErr } = await supabaseAdmin.rpc('refund_wallet_order', {
+        p_order_id:       orderId,
+        p_error_metadata: errorMeta,
+      });
+
+      if (refundErr) {
+        // Migration not yet applied — fall back to individual operations
+        console.warn('[fulfill-order] refund_wallet_order unavailable, using fallback:', refundErr.message);
+
+        const { data: o } = await supabaseAdmin
+          .from('orders')
+          .select('user_id, total_amount, payment_method, status')
+          .eq('id', orderId)
+          .single();
+
+        if (o && o.payment_method === 'wallet' && o.status === 'processing') {
+          // Credit wallet back
+          await supabaseAdmin.rpc('adjust_wallet_balance', {
+            p_user_id:   o.user_id,
+            p_amount:    o.total_amount,
+            p_type:      'refund',
+            p_reference: 'Refund for failed order ' + orderId,
+            p_order_id:  orderId,
+          });
+        }
+
+        // Mark order failed and merge error info into metadata
+        const { data: cur } = await supabaseAdmin.from('orders').select('metadata').eq('id', orderId).single();
+        await supabaseAdmin.from('orders').update({
+          status:     'failed',
+          updated_at: new Date().toISOString(),
+          metadata:   { ...(cur?.metadata ?? {}), ...errorMeta },
+        }).eq('id', orderId).eq('status', 'processing');
+
+        console.log(`[fulfill-order] Fallback refund completed for order ${orderId}`);
+      } else {
+        console.log(`[fulfill-order] Wallet refunded for order ${orderId}`);
+      }
+    } catch (refundEx) {
+      console.error('[fulfill-order] refund exception:', refundEx.message);
+    }
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Pixie-Kat Admin Proxy running on http://0.0.0.0:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });

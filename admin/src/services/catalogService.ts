@@ -209,14 +209,14 @@ export async function listProducts(filters?: {
 export async function replaceProducts(
   gameId: string,
   products: Array<Partial<NewProduct> & { id?: string }>
-): Promise<void> {
+): Promise<Product[]> {
   const { error: delErr } = await supabase
     .from('products')
     .delete()
     .eq('game_id', gameId);
   if (delErr) throw delErr;
 
-  if (products.length === 0) return;
+  if (products.length === 0) return [];
 
   const rows = products.map((p, idx) => ({
     game_id: gameId,
@@ -237,8 +237,9 @@ export async function replaceProducts(
     metadata: p.metadata ?? {},
   }));
 
-  const { error } = await supabase.from('products').insert(rows);
+  const { data, error } = await supabase.from('products').insert(rows).select('*');
   if (error) throw error;
+  return (data ?? []) as Product[];
 }
 
 export async function createProduct(input: Partial<NewProduct>): Promise<Product> {

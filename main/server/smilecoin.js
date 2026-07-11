@@ -62,7 +62,9 @@ export async function callSmileCoin(endpoint, methodParams = {}) {
   const payload = buildPayload(methodParams);
   const form    = new URLSearchParams(payload).toString(); // matches ZCodeProject exactly
 
-  if (process.env.DEBUG_SC === '1') {
+  // Always log for key endpoints; DEBUG_SC=1 enables for all
+  const alwaysLog = ['getrole', 'createorder', 'productlist'].includes(endpoint);
+  if (alwaysLog || process.env.DEBUG_SC === '1') {
     console.log(`[smilecoin] POST ${apiUrl}${endpoint}`);
     console.log('[smilecoin] payload:', JSON.stringify({ ...payload, sign: payload.sign.slice(0, 8) + '...' }));
   }
@@ -82,8 +84,8 @@ export async function callSmileCoin(endpoint, methodParams = {}) {
       `Smilecoin ${endpoint} returned non-JSON (HTTP ${res.status}): ${text.slice(0, 300)}`
     );
   }
-  if (process.env.DEBUG_SC === '1') {
-    console.log('[smilecoin] response:', JSON.stringify(body).slice(0, 400));
+  if (alwaysLog || process.env.DEBUG_SC === '1') {
+    console.log('[smilecoin] response:', JSON.stringify(body).slice(0, 500));
   }
   return body;
 }
