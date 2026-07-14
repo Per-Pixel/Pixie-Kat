@@ -18,6 +18,7 @@ import Analytics from './pages/Analytics';
 import Wallets from './pages/Wallets';
 import Memberships from './pages/Memberships';
 import RevenueProducts from './pages/revenue/RevenueProducts';
+import SalesOverview from './pages/revenue/SalesOverview';
 import Referral from './pages/revenue/Referral';
 import Compose from './pages/messages/Compose';
 import Clients from './pages/auth/Clients';
@@ -26,6 +27,7 @@ import ManageUsers from './pages/ManageUsers';
 import UserDetail from './pages/users/UserDetail';
 import GamesList from './pages/products/GamesList';
 import GameEditor from './pages/products/GameEditor';
+import GameHelp from './pages/products/GameHelp';
 import ProductsList from './pages/products/ProductsList';
 import PromoList from './pages/content/PromoList';
 import HeroEditor from './pages/content/HeroEditor';
@@ -61,7 +63,7 @@ const AppRoutes: React.FC = () => {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="overview" element={<Analytics />} />
+        <Route path="overview" element={<Navigate to="/dashboard" replace />} />
         <Route path="products" element={<ProductsList title="All Products" />} />
         <Route path="products/active" element={<ProductsList statusFilter="active" title="Active Products" />} />
         <Route path="products/drafts" element={<ProductsList statusFilter="draft" title="Draft Products" />} />
@@ -75,6 +77,7 @@ const AppRoutes: React.FC = () => {
         <Route path="content/exclusive-offers/new" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="content/exclusive-offers/:id" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="products/games/new" element={<GameEditor />} />
+        <Route path="products/games/help" element={<GameHelp />} />
         <Route path="products/games/:id" element={<GameEditor />} />
         <Route path="users" element={<ManageUsers />} />
         <Route path="users/:id" element={<UserDetail />} />
@@ -94,7 +97,7 @@ const AppRoutes: React.FC = () => {
         <Route path="wallets" element={<Wallets />} />
         <Route path="memberships" element={<Memberships />} />
         {/* Revenue Routes */}
-        <Route path="revenue/sales-overview" element={<Analytics />} />
+        <Route path="revenue/sales-overview" element={<SalesOverview />} />
         <Route path="revenue/products" element={<RevenueProducts />} />
         <Route path="revenue/orders" element={<Orders />} />
         <Route path="revenue/brokers" element={<Resellers />} />
@@ -106,9 +109,10 @@ const AppRoutes: React.FC = () => {
         <Route path="messages/history" element={<Messages />} />
         {/* Auth Routes */}
         <Route path="auth/clients" element={<Clients />} />
-        <Route path="auth/users" element={<ManageUsers />} />
-        <Route path="auth/broker" element={<ManageUsers />} />
-        <Route path="auth/admin" element={<ManageUsers />} />
+        <Route path="auth/users" element={<ManageUsers defaultRoleFilter="user" title="Users" subtitle="Manage customer accounts" />} />
+        <Route path="auth/broker" element={<ManageUsers defaultRoleFilter="reseller" title="Brokers / Resellers" subtitle="Manage broker and reseller accounts" />} />
+        <Route path="auth/admin" element={<ManageUsers defaultRoleFilter="admin" title="Admins" subtitle="Manage administrator accounts" />} />
+        <Route path="auth/referrals" element={<Referral />} />
         <Route path="auth/permissions" element={<PlaceholderPage title="Permissions" description="Manage admin roles, access rules, and permission groups." items={['Admin access', 'Support access', 'Reseller access']} />} />
         {/* Component Routes */}
         <Route path="components/tasks" element={<PlaceholderPage title="Tasks" description="Track internal admin tasks and operational follow-ups." items={['Open tasks', 'Assigned work', 'Completed tasks']} />} />

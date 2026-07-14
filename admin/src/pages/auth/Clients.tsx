@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, UserPlus, Search, Filter, Eye, Edit, Trash2, Shield, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, UserPlus, Search, Eye, Edit, Trash2, Shield, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { toast } from 'react-hot-toast';
+import { api } from '../../services/api';
 
 interface Client {
   id: string;
@@ -58,15 +61,18 @@ const formatDate = (dateStr: string | null) => {
   return d.toLocaleDateString();
 };
 
+const CLIENT_ROLE = 'user';
+
 const Clients: React.FC = () => {
+  const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
-  const [stats, setStats] = useState({ totalUsers: 0, activeUsers: 0, resellers: 0, totalWallet: 0 });
+  const [stats, setStats] = useState({ totalClients: 0, activeClients: 0, suspendedClients: 0, totalWallet: 0 });
+  const [processing, setProcessing] = useState<string | null>(null);
 
   const loadClients = useCallback(async () => {
     setLoading(true);
@@ -74,14 +80,14 @@ const Clients: React.FC = () => {
       let query = supabase
         .from('profiles')
         .select('id, name, email, username, role, status, wallet_balance, created_at, last_login_at', { count: 'exact' })
+        .eq('role', CLIENT_ROLE)
         .order('created_at', { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
-      if (roleFilter) query = query.eq('role', roleFilter);
       if (statusFilter) query = query.eq('status', statusFilter);
 
       if (search.trim()) {
-        query = query.or(`name.ilike.%${search.trim()}%,email.ilike.%${search.trim()}%,username.ilike.%${search.trim}%`);
+        query = query.or(`name.ilike.%${search.trim()}%,email.ilike.%${search.trim()}%,username.ilike.%${search.trim()}%`);
       }
 
       const { data, error, count } = await query;
@@ -95,35 +101,38 @@ const Clients: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, roleFilter, statusFilter, search]);
+  }, [page, statusFilter, search]);
 
-  // Load stats separately
   const loadStats = useCallback(async () => {
     try {
-      const { count: totalUsers } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
-
-      const { count: activeUsers } = await supabase
+      const { count: totalClients } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
+        .eq('role', CLIENT_ROLE);
+
+      const { count: activeClients } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', CLIENT_ROLE)
         .eq('status', 'active');
 
-      const { count: resellers } = await supabase
+      const { count: suspendedClients } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
-        .in('role', ['reseller', 'admin', 'support']);
+        .eq('role', CLIENT_ROLE)
+        .in('status', ['suspended', 'banned']);
 
       const { data: walletData } = await supabase
         .from('profiles')
-        .select('wallet_balance');
+        .select('wallet_balance')
+        .eq('role', CLIENT_ROLE);
 
       const totalWallet = (walletData ?? []).reduce((s, p) => s + Number(p.wallet_balance ?? 0), 0);
 
       setStats({
-        totalUsers: totalUsers ?? 0,
-        activeUsers: activeUsers ?? 0,
-        resellers: resellers ?? 0,
+        totalClients: totalClients ?? 0,
+        activeClients: activeClients ?? 0,
+        suspendedClients: suspendedClients ?? 0,
         totalWallet,
       });
     } catch (err) {
@@ -152,9 +161,42 @@ const Clients: React.FC = () => {
   useEffect(() => {
     if (page === 0) loadClients();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roleFilter, statusFilter]);
+  }, [statusFilter]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  const viewClient = (id: string) => navigate(`/users/${id}`);
+  const editClient = (id: string) => navigate(`/users/${id}`);
+
+  const suspendClient = async (id: string) => {
+    if (!window.confirm('Suspend this client?')) return;
+    try {
+      setProcessing(id);
+      await api.post(`/admin/users/${id}/status`, { status: 'suspended', reason: 'Suspended by admin' });
+      toast.success('Client suspended');
+      await loadClients();
+      await loadStats();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to suspend client');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const deleteClient = async (id: string) => {
+    if (!window.confirm('Permanently delete this client? This cannot be undone.')) return;
+    try {
+      setProcessing(id);
+      await api.delete(`/admin/users/${id}`, { data: { confirmation: 'DELETE' } });
+      toast.success('Client deleted');
+      await loadClients();
+      await loadStats();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to delete client');
+    } finally {
+      setProcessing(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -168,8 +210,8 @@ const Clients: React.FC = () => {
           <div className="flex items-center">
             <Users className="w-8 h-8 text-primary-600 mr-3" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Client Management</h1>
-              <p className="text-gray-600">Manage client accounts and permissions</p>
+              <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
+              <p className="text-gray-600">Customer accounts — role: user only. Staff and admins are managed separately.</p>
             </div>
           </div>
           <button className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center">
@@ -190,7 +232,7 @@ const Clients: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Clients</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{stats.totalUsers}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-2">{stats.totalClients}</p>
             </div>
             <Users className="w-8 h-8 text-primary-600" />
           </div>
@@ -205,7 +247,7 @@ const Clients: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Active Clients</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{stats.activeUsers}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-2">{stats.activeClients}</p>
             </div>
             <Shield className="w-8 h-8 text-green-600" />
           </div>
@@ -219,10 +261,10 @@ const Clients: React.FC = () => {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Staff / Resellers</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{stats.resellers}</p>
+              <p className="text-sm font-medium text-gray-600">Suspended / Banned</p>
+              <p className="text-2xl font-bold text-gray-900 mt-2">{stats.suspendedClients}</p>
             </div>
-            <Users className="w-8 h-8 text-blue-600" />
+            <Users className="w-8 h-8 text-red-500" />
           </div>
         </motion.div>
 
@@ -263,17 +305,6 @@ const Clients: React.FC = () => {
             />
           </div>
           <select
-            value={roleFilter}
-            onChange={(e) => { setRoleFilter(e.target.value); setPage(0); }}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 focus:ring-2 focus:ring-primary-500"
-          >
-            <option value="">All Roles</option>
-            <option value="user">User</option>
-            <option value="reseller">Reseller</option>
-            <option value="support">Support</option>
-            <option value="admin">Admin</option>
-          </select>
-          <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
             className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 focus:ring-2 focus:ring-primary-500"
@@ -296,7 +327,7 @@ const Clients: React.FC = () => {
       >
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">Client List</h3>
-          <span className="text-sm text-gray-500">{total} users</span>
+          <span className="text-sm text-gray-500">{total} clients</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -360,13 +391,36 @@ const Clients: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
-                        <button className="text-primary-600 hover:text-primary-900">
+                        <button
+                          onClick={() => viewClient(client.id)}
+                          disabled={processing === client.id}
+                          title="View"
+                          className="text-primary-600 hover:text-primary-900 disabled:opacity-50"
+                        >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button className="text-gray-600 hover:text-gray-900">
+                        <button
+                          onClick={() => editClient(client.id)}
+                          disabled={processing === client.id}
+                          title="Edit"
+                          className="text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button className="text-red-600 hover:text-red-900">
+                        <button
+                          onClick={() => suspendClient(client.id)}
+                          disabled={processing === client.id || client.status === 'suspended'}
+                          title="Suspend"
+                          className="text-amber-600 hover:text-amber-900 disabled:opacity-50"
+                        >
+                          <Shield className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => deleteClient(client.id)}
+                          disabled={processing === client.id}
+                          title="Delete"
+                          className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>

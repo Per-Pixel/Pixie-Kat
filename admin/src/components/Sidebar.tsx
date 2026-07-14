@@ -81,6 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           label: 'Homepage',
           path: '/pages/homepage',
           children: [
+            { label: 'Hero Section', path: '/pages/homepage/hero' },
             { label: 'Trending Games', path: '/pages/homepage/trending-games' },
             { label: 'Exclusive Offers', path: '/pages/homepage/exclusive-offers' },
           ],
@@ -122,6 +123,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { label: 'Brokers', path: '/auth/broker' },
         { label: 'Admins', path: '/auth/admin' },
         { label: 'Clients', path: '/auth/clients' },
+        { label: 'Referrals', path: '/auth/referrals' },
         { label: 'Permissions', path: '/auth/permissions' },
       ],
     },

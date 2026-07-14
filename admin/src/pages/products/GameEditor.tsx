@@ -5,6 +5,7 @@ import {
   ArrowLeft, Save, Gamepad2, ListChecks, Package, Plus, Trash2,
   GripVertical, Info, ExternalLink, ChevronUp, ChevronDown,
   Eye, Globe, TrendingUp, Star, X, Monitor, Tablet, Smartphone, Layers, ListFilter, Link2,
+  Search, LayoutGrid, List, HelpCircle,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
@@ -13,6 +14,8 @@ import {
   Game, GameField, Product, GameFieldType, GameStatus, GameProvider, HowToStep, ProductStatus,
 } from '../../services/catalogService';
 import ImageSourceField from '../../components/common/ImageSourceField';
+import RichTextEditor from '../../components/common/RichTextEditor';
+import { sanitizeRichText } from '../../utils/sanitizeRichText';
 
 type FieldDraft = Partial<GameField> & { _key: string };
 
@@ -167,6 +170,11 @@ const GameEditor: React.FC = () => {
   const [pageSections, setPageSections] = useState<PageSections>(defaultPageSections);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkFilter, setBulkFilter] = useState('');
+  const [playerFieldsOpen, setPlayerFieldsOpen] = useState(false);
+  const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
+  const [collapsedPrices, setCollapsedPrices] = useState<Set<string>>(new Set());
+  const [packageSearch, setPackageSearch] = useState('');
+  const [packageViewMode, setPackageViewMode] = useState<'list' | 'grid'>('list');
 
   const change = <K extends keyof GameForm>(key: K, value: GameForm[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -192,11 +200,14 @@ const GameEditor: React.FC = () => {
       setSteps(game.how_to_steps ?? []);
       setFields((game.game_fields ?? []).map((f) => ({ ...f, _key: uid() })));
       const defaultProductId = String((game.metadata as Record<string, unknown>)?.default_product_id ?? '');
-      setProducts((game.products ?? []).map((p) => {
+      const productDrafts = (game.products ?? []).map((p) => {
         const draft = productFromDB(p);
         draft.is_default = Boolean(defaultProductId && p.id === defaultProductId);
         return draft;
-      }));
+      });
+      setProducts(productDrafts);
+      setCollapsedPackages(new Set(productDrafts.map((draft) => draft._key)));
+      setCollapsedPrices(new Set(productDrafts.map((draft) => draft._key)));
       const tItem = promoItems.find((pi) => pi.section === 'trending');
       const eItem = promoItems.find((pi) => pi.section === 'exclusive_offers');
       setPageSections({
@@ -238,7 +249,12 @@ const GameEditor: React.FC = () => {
     });
 
   // ---- Package helpers ----
-  const addProduct = () => setProducts((prev) => [...prev, emptyProductDraft()]);
+  const addProduct = () => {
+    const draft = emptyProductDraft();
+    setProducts((prev) => [...prev, draft]);
+    setCollapsedPackages((prev) => new Set(prev).add(draft._key));
+    setCollapsedPrices((prev) => new Set(prev).add(draft._key));
+  };
 
   const updateProduct = (key: string, patch: Partial<Omit<ProductDraft, 'currency_prices'>>) =>
     setProducts((prev) => prev.map((p) => (p._key === key ? { ...p, ...patch } : p)));
@@ -252,6 +268,20 @@ const GameEditor: React.FC = () => {
 
   const removeProduct = (key: string) =>
     setProducts((prev) => prev.filter((p) => p._key !== key));
+
+  const togglePackage = (key: string) =>
+    setCollapsedPackages((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+
+  const togglePrices = (key: string) =>
+    setCollapsedPrices((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
 
   const moveProduct = (key: string, dir: -1 | 1) =>
     setProducts((prev) => {
@@ -291,7 +321,7 @@ const GameEditor: React.FC = () => {
     try {
       const payload: Partial<Game> = {
         slug: slugify(form.slug), name: form.name.trim(),
-        subtitle: form.subtitle || null, description: form.description || null,
+        subtitle: form.subtitle || null, description: form.description ? sanitizeRichText(form.description) : null,
         image_url: form.image_url || null, banner_url: form.banner_url || null,
         category: form.category || null, currency_label: form.currency_label || 'Diamonds',
         provider: form.provider, provider_game_code: form.provider_game_code || null,
@@ -402,6 +432,9 @@ const GameEditor: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-3 mt-4 sm:mt-0">
+          <button type="button" onClick={() => navigate('/products/games/help')} className="btn btn-outline btn-md">
+            <HelpCircle className="w-4 h-4 mr-2" />Help
+          </button>
           <button type="button" onClick={() => setShowPreview(true)} className="btn btn-outline btn-md">
             <Eye className="w-4 h-4 mr-2" />Preview
           </button>
@@ -462,7 +495,7 @@ const GameEditor: React.FC = () => {
               </div>
               <div>
                 <label className="label mb-1.5 block">Description</label>
-                <textarea rows={3} className="input h-auto resize-none" value={form.description} onChange={(e) => change('description', e.target.value)} />
+                <RichTextEditor value={form.description} onChange={(value) => change('description', value)} placeholder="Describe the game and top-up experience…" />
               </div>
               <div className="grid grid-cols-1 gap-4">
                 <ImageSourceField
@@ -486,15 +519,22 @@ const GameEditor: React.FC = () => {
 
           {/* Dynamic field builder */}
           <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between">
+              <button type="button" onClick={() => setPlayerFieldsOpen((open) => !open)} className="flex flex-1 items-center gap-2 text-left">
                 <ListChecks className="w-5 h-5 text-primary-600" />
-                <h2 className="text-lg font-semibold text-gray-900">Player Identification Fields</h2>
-              </div>
-              <button onClick={addField} type="button" className="btn btn-outline btn-sm">
-                <Plus className="w-4 h-4 mr-1" />Add Field
+                <span>
+                  <span className="block text-lg font-semibold text-gray-900">Player Identification Fields</span>
+                  <span className="block text-xs text-gray-500">{fields.length} configured {fields.length === 1 ? 'field' : 'fields'}</span>
+                </span>
+                {playerFieldsOpen ? <ChevronUp className="ml-auto mr-3 h-4 w-4 text-gray-400" /> : <ChevronDown className="ml-auto mr-3 h-4 w-4 text-gray-400" />}
               </button>
+              {playerFieldsOpen && (
+                <button onClick={addField} type="button" className="btn btn-outline btn-sm">
+                  <Plus className="w-4 h-4 mr-1" />Add Field
+                </button>
+              )}
             </div>
+            {playerFieldsOpen && <div className="mt-4">
             <div className="flex items-start gap-2 text-xs text-gray-500 bg-blue-50 rounded-lg p-3 mb-4">
               <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
               <span>These are the inputs the customer fills before paying. Mobile Legends needs User ID + Zone ID; other games may need only a User ID, an email, or several custom fields.</span>
@@ -599,6 +639,7 @@ const GameEditor: React.FC = () => {
                 ))}
               </div>
             )}
+            </div>}
           </section>
 
           {/* Packages */}
@@ -623,7 +664,17 @@ const GameEditor: React.FC = () => {
             </div>
             <div className="flex items-start gap-2 text-xs text-gray-500 bg-amber-50 rounded-lg p-3 mb-4">
               <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-              <span><strong>Package Name</strong> is the product title shown to customers (e.g., "Diamonds 100 + 10"). <strong>In-Game Amount</strong> is the display label on the card (e.g., "110 Diamonds" or "Weekly Pass"). Set selling prices per currency below.</span>
+              <span><strong>Package Name</strong> is the product title shown to customers (e.g., "Diamonds 100 + 10"). <strong>In-Game Name</strong> is the display label on the card (e.g., "110 Diamonds" or "Weekly Pass"). Set selling prices per currency below.</span>
+            </div>
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative w-full sm:max-w-sm">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input className="input pl-9" placeholder="Search packages, denominations, or SKU…" value={packageSearch} onChange={(event) => setPackageSearch(event.target.value)} />
+              </div>
+              <div className="flex rounded-lg border border-gray-200 p-1">
+                <button type="button" title="List view" onClick={() => setPackageViewMode('list')} className={`rounded p-1.5 ${packageViewMode === 'list' ? 'bg-primary-50 text-primary-700' : 'text-gray-400'}`}><List className="h-4 w-4" /></button>
+                <button type="button" title="Grid view" onClick={() => setPackageViewMode('grid')} className={`rounded p-1.5 ${packageViewMode === 'grid' ? 'bg-primary-50 text-primary-700' : 'text-gray-400'}`}><LayoutGrid className="h-4 w-4" /></button>
+              </div>
             </div>
 
             {products.length === 0 ? (
@@ -631,16 +682,26 @@ const GameEditor: React.FC = () => {
                 No packages yet. Add the top-up amounts customers can buy.
               </div>
             ) : (
-              <div className="space-y-4">
-                {products.map((p, idx) => (
+              <div className={packageViewMode === 'grid' ? 'grid grid-cols-1 gap-4 xl:grid-cols-2' : 'space-y-4'}>
+                {products.filter((product) => {
+                  const query = packageSearch.trim().toLowerCase();
+                  return !query || [product.name, product.amount, product.sku, product.provider_product_id].some((value) => value.toLowerCase().includes(query));
+                }).map((p) => {
+                  const idx = products.findIndex((product) => product._key === p._key);
+                  return (
                   <div key={p._key} className="rounded-xl border border-gray-200 overflow-hidden">
                     {/* Package header bar */}
                     <div className="flex items-center justify-between bg-gray-50 px-4 py-2.5 border-b border-gray-200">
-                      <div className="flex items-center gap-2">
-                        <GripVertical className="w-4 h-4 text-gray-400" />
-                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Package {idx + 1}</span>
-                        {p.name && <span className="text-xs text-gray-400">— {p.name}</span>}
-                      </div>
+                      <button type="button" onClick={() => togglePackage(p._key)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                        <GripVertical className="w-4 h-4 shrink-0 text-gray-400" />
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold text-gray-800">{p.name || `Package ${idx + 1}`}</span>
+                          <span className="block truncate text-xs text-gray-500">
+                            {p.amount || 'No in-game name'} · Cost ₹{Number(p.currency_prices.INR.cost_price || 0).toFixed(2)} · Sell ₹{Number(p.currency_prices.INR.selling_price || 0).toFixed(2)} · Profit ₹{(Number(p.currency_prices.INR.selling_price || 0) - Number(p.currency_prices.INR.cost_price || 0)).toFixed(2)} · {form.provider === 'manual' ? 'Manual' : form.provider}
+                          </span>
+                        </span>
+                        {collapsedPackages.has(p._key) ? <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-gray-400" /> : <ChevronUp className="ml-auto h-4 w-4 shrink-0 text-gray-400" />}
+                      </button>
                       <div className="flex items-center gap-1.5">
                         <button type="button" title={p.is_default ? 'Remove default' : 'Set as default product (auto-selected on storefront)'} onClick={() => setProducts((prev) => prev.map((pp) => pp._key === p._key ? { ...pp, is_default: !pp.is_default } : { ...pp, is_default: false }))} className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${p.is_default ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50'}`}>
                           <Star className="w-3 h-3" fill={p.is_default ? 'currentColor' : 'none'} />
@@ -662,14 +723,14 @@ const GameEditor: React.FC = () => {
                     </div>
 
                     {/* Package body */}
-                    <div className="p-4 space-y-4">
+                    {!collapsedPackages.has(p._key) && <div className="p-4 space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="label mb-1.5 block text-xs">Package Name <span className="text-red-500">*</span></label>
                           <input className="input" placeholder="e.g., Diamonds 100 + 10" value={p.name} onChange={(e) => updateProduct(p._key, { name: e.target.value })} />
                         </div>
                         <div>
-                          <label className="label mb-1.5 block text-xs">In-Game Amount <span className="text-gray-400 font-normal">(display label)</span></label>
+                          <label className="label mb-1.5 block text-xs">In-Game Name <span className="text-gray-400 font-normal">(display label)</span></label>
                           <input className="input" placeholder="e.g., 110 Diamonds or Weekly Pass" value={p.amount} onChange={(e) => updateProduct(p._key, { amount: e.target.value })} />
                         </div>
                       </div>
@@ -681,12 +742,13 @@ const GameEditor: React.FC = () => {
 
                       {/* Multi-currency pricing table */}
                       <div>
-                        <div className="flex items-center gap-2 mb-2">
+                        <button type="button" onClick={() => togglePrices(p._key)} className="mb-2 flex w-full items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-left">
                           <Globe className="w-4 h-4 text-primary-600" />
                           <span className="text-sm font-semibold text-gray-800">Selling Prices</span>
-                          <span className="text-xs text-gray-400">(INR is primary; enable others to sell in multiple currencies)</span>
-                        </div>
-                        <div className="overflow-hidden rounded-lg border border-gray-200">
+                          <span className="text-xs text-gray-400">INR sell ₹{Number(p.currency_prices.INR.selling_price || 0).toFixed(2)} · cost ₹{Number(p.currency_prices.INR.cost_price || 0).toFixed(2)}</span>
+                          {collapsedPrices.has(p._key) ? <ChevronDown className="ml-auto h-4 w-4 text-gray-400" /> : <ChevronUp className="ml-auto h-4 w-4 text-gray-400" />}
+                        </button>
+                        {!collapsedPrices.has(p._key) && <div className="overflow-hidden rounded-lg border border-gray-200">
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="bg-gray-50 border-b border-gray-200">
@@ -741,7 +803,7 @@ const GameEditor: React.FC = () => {
                               })}
                             </tbody>
                           </table>
-                        </div>
+                        </div>}
                       </div>
 
                       {/* Compare price + SKU */}
@@ -787,9 +849,10 @@ const GameEditor: React.FC = () => {
                       )}
 
                       <ImageSourceField label="Package Image (optional)" value={p.image_url} onChange={(url) => updateProduct(p._key, { image_url: url })} placeholder="/img/promotion/starlight.webp or https://..." folder="products" previewClassName="h-20 w-32" />
-                    </div>
+                    </div>}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -1189,7 +1252,7 @@ const GameEditor: React.FC = () => {
                     <div className="mb-6">
                       <h1 className="text-2xl font-black text-gray-900">{form.name || 'Untitled Game'}</h1>
                       {form.subtitle && <p className="text-sm text-gray-500 mt-1">{form.subtitle}</p>}
-                      {form.description && <p className="text-sm text-gray-600 mt-2 leading-relaxed">{form.description}</p>}
+                      {form.description && <div className="text-sm text-gray-600 mt-2 leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeRichText(form.description) }} />}
                     </div>
 
                     {/* Account fields */}

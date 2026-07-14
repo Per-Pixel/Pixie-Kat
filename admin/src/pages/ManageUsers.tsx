@@ -32,8 +32,17 @@ interface RegisteredUser {
   role?: 'user' | 'admin' | 'reseller' | 'support';
 }
 
+interface ManageUsersProps {
+  defaultRoleFilter?: string;
+  title?: string;
+  subtitle?: string;
+}
 
-const ManageUsers: React.FC = () => {
+const ManageUsers: React.FC<ManageUsersProps> = ({
+  defaultRoleFilter = 'all',
+  title,
+  subtitle,
+}) => {
   const navigate = useNavigate();
   const [users, setUsers] = useState<RegisteredUser[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<RegisteredUser[]>([]);
@@ -42,8 +51,9 @@ const ManageUsers: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [roleFilter, setRoleFilter] = useState<string>(defaultRoleFilter);
   const [showFilters, setShowFilters] = useState(false);
+  const isDedicatedRole = Boolean(defaultRoleFilter && defaultRoleFilter !== 'all');
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
   const [processingAction, setProcessingAction] = useState<string | null>(null);
 
@@ -254,12 +264,12 @@ const ManageUsers: React.FC = () => {
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Manage Users</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{title || 'Manage Users'}</h1>
             <p className="text-gray-600 mt-1">
-              View, edit, and manage all registered users
+              {subtitle || 'View, edit, and manage all registered users'}
               {!loading && !error && (
                 <span className="ml-2 text-primary-600 font-medium">
-                  ({users.length} total)
+                  ({filteredUsers.length} shown)
                 </span>
               )}
             </p>
@@ -338,6 +348,7 @@ const ManageUsers: React.FC = () => {
                     value={roleFilter}
                     onChange={(e) => setRoleFilter(e.target.value)}
                     className="input"
+                    disabled={isDedicatedRole}
                   >
                     <option value="all">All Roles</option>
                     <option value="user">User</option>

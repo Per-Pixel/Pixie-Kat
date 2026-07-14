@@ -20,7 +20,11 @@ export interface ReportOrder {
   currency: string;
   status: string;
   payment_method?: string | null;
+  unit_selling_price?: number | string | null;
+  unit_cost_price?: number | string | null;
+  metadata?: Record<string, unknown> | null;
   created_at: string;
+  updated_at?: string | null;
   profiles?: { name: string; email: string } | null;
 }
 
@@ -29,11 +33,12 @@ export interface ReportProduct {
   game_id: string;
   name: string;
   price: number | string;
+  cost_price?: number | string | null;
   currency: string;
   stock?: number | null;
   status: string;
   is_popular: boolean;
-  game?: { name: string; category?: string | null } | null;
+  game?: { name: string; category?: string | null; provider?: string | null } | null;
 }
 
 export interface ReportWalletTransaction {
@@ -94,12 +99,12 @@ export async function getAdminReportData(): Promise<AdminReportData> {
       .order('created_at', { ascending: false }),
     supabase
       .from('orders')
-      .select('id, user_id, product_id, product_name, quantity, total_amount, currency, status, payment_method, created_at, profiles:user_id(name, email)')
+      .select('id, user_id, product_id, product_name, quantity, total_amount, currency, status, payment_method, unit_selling_price, unit_cost_price, metadata, created_at, updated_at, profiles:user_id(name, email)')
       .order('created_at', { ascending: false })
       .limit(5000),
     supabase
       .from('products')
-      .select('id, game_id, name, price, currency, stock, status, is_popular, game:games(name, category)')
+      .select('id, game_id, name, price, cost_price, currency, stock, status, is_popular, game:games(name, category, provider)')
       .order('created_at', { ascending: false }),
     supabase
       .from('wallet_transactions')

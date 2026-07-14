@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   ArrowLeft, RefreshCw, AlertCircle,
   LayoutDashboard, Wallet, Shield, BadgeCheck,
-  Activity, Monitor, StickyNote, Users, TrendingUp,
+  Activity, Monitor, StickyNote, Users, TrendingUp, Crown,
 } from 'lucide-react';
 import { useUserDetail } from './useUserDetail';
 import OverviewTab    from './tabs/OverviewTab';
@@ -16,17 +16,19 @@ import SessionsTab    from './tabs/SessionsTab';
 import NotesTab       from './tabs/NotesTab';
 import ReferralsTab   from './tabs/ReferralsTab';
 import SpendingTab    from './tabs/SpendingTab';
+import MembershipTab  from './tabs/MembershipTab';
 
 const TABS = [
-  { id: 'overview',  label: 'Overview',  icon: LayoutDashboard },
-  { id: 'spending',  label: 'Spending',  icon: TrendingUp },
-  { id: 'wallet',    label: 'Wallet',    icon: Wallet },
-  { id: 'security',  label: 'Security',  icon: Shield },
-  { id: 'kyc',       label: 'KYC',       icon: BadgeCheck },
-  { id: 'activity',  label: 'Activity',  icon: Activity },
-  { id: 'sessions',  label: 'Sessions',  icon: Monitor },
-  { id: 'notes',     label: 'Notes',     icon: StickyNote },
-  { id: 'referrals', label: 'Referrals', icon: Users },
+  { id: 'overview',    label: 'Overview',    icon: LayoutDashboard },
+  { id: 'spending',    label: 'Spending',    icon: TrendingUp },
+  { id: 'wallet',      label: 'Wallet',      icon: Wallet },
+  { id: 'membership',  label: 'Membership',  icon: Crown },
+  { id: 'security',    label: 'Security',    icon: Shield },
+  { id: 'kyc',         label: 'KYC',         icon: BadgeCheck },
+  { id: 'activity',    label: 'Activity',    icon: Activity },
+  { id: 'sessions',    label: 'Sessions',    icon: Monitor },
+  { id: 'notes',       label: 'Notes',       icon: StickyNote },
+  { id: 'referrals',   label: 'Referrals',   icon: Users },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -232,15 +234,16 @@ export default function UserDetail() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.15 }}
       >
-        {activeTab === 'overview'  && <OverviewTab  {...tabProps} />}
-        {activeTab === 'spending'  && <SpendingTab  {...tabProps} />}
-        {activeTab === 'wallet'    && <WalletTab    {...tabProps} />}
-        {activeTab === 'security'  && <SecurityTab  {...tabProps} />}
-        {activeTab === 'kyc'       && <KycTab       {...tabProps} />}
-        {activeTab === 'activity'  && <ActivityTab  {...tabProps} />}
-        {activeTab === 'sessions'  && <SessionsTab  {...tabProps} />}
-        {activeTab === 'notes'     && <NotesTab     {...tabProps} />}
-        {activeTab === 'referrals' && <ReferralsTab {...tabProps} />}
+        {activeTab === 'overview'    && <OverviewTab    {...tabProps} />}
+        {activeTab === 'spending'    && <SpendingTab    {...tabProps} />}
+        {activeTab === 'wallet'      && <WalletTab      {...tabProps} />}
+        {activeTab === 'membership'  && <MembershipTab  {...tabProps} />}
+        {activeTab === 'security'    && <SecurityTab    {...tabProps} />}
+        {activeTab === 'kyc'         && <KycTab         {...tabProps} />}
+        {activeTab === 'activity'    && <ActivityTab    {...tabProps} />}
+        {activeTab === 'sessions'    && <SessionsTab    {...tabProps} />}
+        {activeTab === 'notes'       && <NotesTab       {...tabProps} />}
+        {activeTab === 'referrals'   && <ReferralsTab   {...tabProps} />}
       </motion.div>
     </div>
   );

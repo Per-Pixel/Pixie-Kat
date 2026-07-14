@@ -17,6 +17,7 @@ import { fallbackGameImage } from "./gamesData";
 import { useGameCatalog } from "./useGameCatalog";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { sanitizeRichText } from "../../utils/sanitizeRichText";
 
 const defaultBanner = "/img/hero/game-mlbb-card.webp";
 
@@ -331,9 +332,11 @@ const GamePage = () => {
 
   useEffect(() => {
     if (packages.length > 0) {
-      setSelectedPackageId((prev) => prev ?? packages[0].id);
+      const defaultId = game?.metadata?.default_product_id;
+      const defaultPkg = defaultId ? packages.find((p) => p.id === defaultId) : null;
+      setSelectedPackageId((prev) => prev ?? defaultPkg?.id ?? packages[0].id);
     }
-  }, [packages]);
+  }, [packages, game?.metadata?.default_product_id]);
 
   // Restore saved field values and contact from localStorage (up to 3 days old)
   useEffect(() => {
@@ -761,6 +764,7 @@ const GamePage = () => {
         </aside>
 
         <main className="rounded-[28px] bg-white/75 px-4 py-7 shadow-[0_24px_70px_rgba(15,23,42,0.12)] backdrop-blur md:px-8 lg:px-9">
+          {game.description ? <div className="mb-7 text-sm leading-7 text-[#5f6977] [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-bold [&_h3]:font-bold [&_li]:ml-5 [&_ol]:list-decimal [&_ul]:list-disc [&_a]:text-[#6d4cff] [&_a]:underline" dangerouslySetInnerHTML={{ __html: sanitizeRichText(game.description) }} /> : null}
           <section>
             <SectionTitle number="1">Enter Account Details</SectionTitle>
             {fields.length === 0 ? (

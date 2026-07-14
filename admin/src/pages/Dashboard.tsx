@@ -1,25 +1,35 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import clsx from 'clsx';
 import {
-  Activity, AlertCircle, ArrowUpRight, Crown, DollarSign,
-  Package, RefreshCw, ShoppingCart, Users,
+  Activity,
+  AlertCircle,
+  ArrowDownRight,
+  ArrowUpRight,
+  BarChart3,
+  CheckCircle2,
+  Clock,
+  Crown,
+  DollarSign,
+  Package,
+  RefreshCw,
+  ShoppingCart,
+  TrendingUp,
+  Users,
+  Wallet,
+  XCircle,
 } from 'lucide-react';
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer,
+  Area, ComposedChart, CartesianGrid, Line, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { useAdminReport } from '../hooks/useAdminReport';
-
-const money = (value: number, currency = 'PKS') =>
-  `${currency} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-const dayKey = (value: Date) => value.toISOString().slice(0, 10);
-
-function percentChange(current: number, previous: number) {
-  if (previous === 0) return current === 0 ? 0 : 100;
-  return ((current - previous) / previous) * 100;
-}
+import {
+  computeDashboardMetrics,
+  computeCustomerInsights,
+  money,
+} from '../utils/dashboardMetrics';
 
 function timeAgo(value: string) {
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
@@ -29,95 +39,48 @@ function timeAgo(value: string) {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
+function ChangePill({ value, suffix = '%' }: { value: number; suffix?: string }) {
+  const positive = value >= 0;
+  return (
+    <span
+      className={clsx(
+        'inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-full',
+        positive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+      )}
+    >
+      {positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+      {Math.abs(value).toFixed(1)}{suffix}
+    </span>
+  );
+}
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { data, loading, error, refresh } = useAdminReport();
+  const [walletOnly, setWalletOnly] = useState(false);
 
-  const report = useMemo(() => {
+  const adminIds = useMemo(
+    () => new Set(data?.profiles.filter((p) => p.role === 'admin').map((p) => p.id) ?? []),
+    [data]
+  );
+
+  const todayReport = useMemo(() => {
     if (!data) return null;
+    return computeDashboardMetrics(data, 'today', new Date(), walletOnly ? 'wallet' : undefined);
+  }, [data, walletOnly]);
 
-    const now = new Date();
-    const today = dayKey(now);
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const completed = data.orders.filter((order) => order.status === 'completed');
-    const thisMonth = completed.filter((order) => new Date(order.created_at) >= monthStart);
-    const previousMonth = completed.filter((order) => {
-      const created = new Date(order.created_at);
-      return created >= previousMonthStart && created < monthStart;
-    });
-    const sum = (orders: typeof completed) =>
-      orders.reduce((total, order) => total + Number(order.total_amount || 0), 0);
+  const sevenDayReport = useMemo(() => {
+    if (!data) return null;
+    return computeDashboardMetrics(data, '7d', new Date(), walletOnly ? 'wallet' : undefined);
+  }, [data, walletOnly]);
 
-    const weekly = Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(now);
-      date.setDate(now.getDate() - (6 - index));
-      const key = dayKey(date);
-      const orders = data.orders.filter((order) => dayKey(new Date(order.created_at)) === key);
-      return {
-        label: date.toLocaleDateString('en-US', { weekday: 'short' }),
-        orders: orders.length,
-        revenue: sum(orders.filter((order) => order.status === 'completed')),
-        signups: data.profiles.filter((profile) => dayKey(new Date(profile.created_at)) === key).length,
-      };
-    });
+  const paymentFilter = useMemo(() => (walletOnly ? (o: any) => o.payment_method === 'wallet' : () => true), [walletOnly]);
 
-    const productStats = new Map<string, { name: string; orders: number; revenue: number }>();
-    completed.forEach((order) => {
-      const key = order.product_id ?? order.product_name;
-      const current = productStats.get(key) ?? { name: order.product_name, orders: 0, revenue: 0 };
-      current.orders += order.quantity || 1;
-      current.revenue += Number(order.total_amount || 0);
-      productStats.set(key, current);
-    });
-
-    const customerStats = new Map<string, { id: string; name: string; email: string; orders: number; spent: number }>();
-    completed.forEach((order) => {
-      const profile = data.profiles.find((item) => item.id === order.user_id);
-      const current = customerStats.get(order.user_id) ?? {
-        id: order.user_id,
-        name: profile?.name || order.profiles?.name || 'Unknown customer',
-        email: profile?.email || order.profiles?.email || '',
-        orders: 0,
-        spent: 0,
-      };
-      current.orders += 1;
-      current.spent += Number(order.total_amount || 0);
-      customerStats.set(order.user_id, current);
-    });
-
-    return {
-      totalRevenue: sum(completed),
-      revenueChange: percentChange(sum(thisMonth), sum(previousMonth)),
-      orderChange: percentChange(
-        data.orders.filter((order) => new Date(order.created_at) >= monthStart).length,
-        data.orders.filter((order) => {
-          const created = new Date(order.created_at);
-          return created >= previousMonthStart && created < monthStart;
-        }).length,
-      ),
-      todayRevenue: sum(completed.filter((order) => dayKey(new Date(order.created_at)) === today)),
-      todayOrders: data.orders.filter((order) => dayKey(new Date(order.created_at)) === today).length,
-      todaySignups: data.profiles.filter((profile) => dayKey(new Date(profile.created_at)) === today).length,
-      todayDeposits: data.walletTransactions
-        .filter((tx) => dayKey(new Date(tx.created_at)) === today && Number(tx.amount) > 0)
-        .reduce((total, tx) => total + Number(tx.amount), 0),
-      weekly,
-      topProducts: [...productStats.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 5),
-      topCustomers: [...customerStats.values()].sort((a, b) => b.spent - a.spent).slice(0, 5),
-      recentOrders: data.orders.slice(0, 5),
-      recentActivity: data.activities.slice(0, 6),
-      pendingOrders: data.orders.filter((order) => ['pending', 'processing', 'on_hold'].includes(order.status)).length,
-      pendingKyc: data.pendingKyc,
-      activeProducts: data.products.filter((product) => product.status === 'active').length,
-    };
-  }, [data]);
-
-  if (loading && !report) {
+  if (loading && !data) {
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-4">
         <div className="relative">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{background:'linear-gradient(135deg,#7c3aed,#5b21b6)'}}>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#7c3aed,#5b21b6)' }}>
             <RefreshCw className="w-7 h-7 text-white animate-spin" />
           </div>
         </div>
@@ -126,7 +89,7 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  if (error || !report || !data) {
+  if (error || !todayReport || !sevenDayReport || !data) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
         <AlertCircle className="w-5 h-5 mb-2" />
@@ -137,116 +100,229 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  const cards = [
-    { label: 'Total Revenue', value: money(report.totalRevenue), detail: `${report.revenueChange >= 0 ? '+' : ''}${report.revenueChange.toFixed(1)}% this month`, icon: DollarSign },
-    { label: 'Total Orders', value: data.orders.length.toLocaleString(), detail: `${report.orderChange >= 0 ? '+' : ''}${report.orderChange.toFixed(1)}% this month`, icon: ShoppingCart },
-    { label: 'Customers', value: data.profiles.filter((p) => p.role === 'user').length.toLocaleString(), detail: `${data.profiles.filter((p) => p.status === 'active').length} active accounts`, icon: Users },
-    { label: 'Active Products', value: report.activeProducts.toLocaleString(), detail: `${data.products.length} total products`, icon: Package },
-  ];
+  const { todayVsYesterday } = todayReport;
+  const { financial, trend } = sevenDayReport;
 
-  const todayCards = [
-    { label: "Today's Revenue", value: money(report.todayRevenue), emoji: '💰', grad: 'from-violet-500/15 to-purple-500/5', border: 'border-violet-500/25', text: 'text-violet-600' },
-    { label: "Today's Orders",  value: report.todayOrders,          emoji: '📦', grad: 'from-blue-500/15 to-blue-500/5',   border: 'border-blue-500/25',   text: 'text-blue-600' },
-    { label: 'New Signups',     value: report.todaySignups,         emoji: '🎮', grad: 'from-emerald-500/15 to-green-500/5', border: 'border-emerald-500/25', text: 'text-emerald-600' },
-    { label: 'Wallet Credits',  value: money(report.todayDeposits), emoji: '💎', grad: 'from-amber-500/15 to-orange-500/5', border: 'border-amber-500/25', text: 'text-amber-600' },
-  ];
+  const totalOrdersAllTime = data.orders.filter((o) => !adminIds.has(o.user_id) && paymentFilter(o)).length;
+  const pendingOrdersCount = data.orders.filter((o) => ['pending', 'processing', 'on_hold'].includes(o.status) && !adminIds.has(o.user_id) && paymentFilter(o)).length;
+  const pendingKyc = data.pendingKyc;
+  const activeProducts = data.products.filter((p) => p.status === 'active').length;
+  const totalProducts = data.products.length;
+  const recentActivity = data.activities.filter((a) => !adminIds.has(a.user_id)).slice(0, 8);
+
+  const nonAdminCustomerOrders = data.orders.filter((o) => !adminIds.has(o.user_id) && paymentFilter(o));
+  const recentCustomers = computeCustomerInsights(nonAdminCustomerOrders, data.profiles).slice(0, 5);
+
+  const ordersToday = data.orders.filter((o) => {
+    const d = new Date(o.created_at);
+    const today = new Date();
+    return !adminIds.has(o.user_id) &&
+      paymentFilter(o) &&
+      d.getFullYear() === today.getFullYear() &&
+      d.getMonth() === today.getMonth() &&
+      d.getDate() === today.getDate();
+  });
 
   return (
     <div className="space-y-6">
-
-      {/* ── Gaming hero banner ── */}
+      {/* Hero */}
       <div
         className="relative overflow-hidden rounded-2xl"
         style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 60%, #6d28d9 100%)' }}
       >
-        <div className="absolute inset-0 opacity-15"
-          style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)', backgroundSize: '28px 28px' }}
-        />
-        <div className="absolute -right-2 top-0 bottom-0 flex items-center pr-8 text-7xl opacity-10 select-none pointer-events-none">
-          🎮
-        </div>
-        <div className="absolute right-20 bottom-2 text-3xl opacity-10 select-none pointer-events-none">⚡</div>
-
-        <div className="relative px-6 py-6 flex items-center justify-between">
+        <div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+        <div className="absolute -right-2 top-0 bottom-0 flex items-center pr-8 text-7xl opacity-10 select-none pointer-events-none">🎮</div>
+        <div className="relative px-6 py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
               <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#4ade80' }}>Live</span>
             </div>
-            <h1 className="text-2xl font-black text-white tracking-tight">Store Dashboard</h1>
-            <p className="text-sm mt-0.5" style={{ color: '#9ca3af' }}>Real-time sync via Supabase · updates on every change</p>
+            <h1 className="text-2xl font-black text-white tracking-tight">Store Overview</h1>
+            <p className="text-sm mt-0.5" style={{ color: '#9ca3af' }}>What is happening right now · real-time via Supabase</p>
           </div>
-          <button
-            onClick={refresh}
-            disabled={loading}
-            className="p-2.5 rounded-xl text-white transition-colors"
-            style={{ background: 'rgba(255,255,255,0.08)' }}
-            onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
-            onMouseOut={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
-          >
-            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={refresh}
+              disabled={loading}
+              className="p-2.5 rounded-xl text-white transition-colors"
+              style={{ background: 'rgba(255,255,255,0.08)' }}
+              onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
+              onMouseOut={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+            >
+              <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={() => navigate('/analytics')}
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-white transition-colors"
+              style={{ background: 'rgba(255,255,255,0.12)' }}
+              onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
+              onMouseOut={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
+            >
+              Deep Analytics →
+            </button>
+            <button
+              onClick={() => setWalletOnly((v: boolean) => !v)}
+              className={clsx(
+                'px-4 py-2 rounded-xl text-xs font-semibold text-white transition-colors flex items-center gap-2',
+                walletOnly ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-white/10 hover:bg-white/20'
+              )}
+            >
+              <Wallet className="w-4 h-4" />
+              {walletOnly ? 'Wallet Only' : 'Wallet Only: Off'}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ── Today's at-a-glance cards ── */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {todayCards.map(({ label, value, emoji, grad, border, text }) => (
-          <div key={label} className={`rounded-xl border bg-gradient-to-br ${grad} ${border} p-4 shadow-sm`}>
-            <span className="text-2xl mb-2 block">{emoji}</span>
-            <p className="text-xs text-gray-500 font-medium">{label}</p>
-            <p className={`text-xl font-black mt-1 ${text}`}>{value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {cards.map(({ label, value, detail, icon: Icon }) => (
-          <motion.div key={label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">{label}</p><p className="text-2xl font-bold text-gray-900 mt-1">{value}</p></div><Icon className="w-6 h-6 text-primary-600" /></div>
-            <p className="text-xs text-gray-500 mt-3">{detail}</p>
+      {/* Today KPI row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[
+          { label: "Today's Revenue", value: money(todayVsYesterday.revenue.today), change: todayVsYesterday.revenue.change, icon: DollarSign, tone: 'bg-violet-50 text-violet-600' },
+          { label: "Today's Profit", value: money(todayVsYesterday.profit.today), change: todayVsYesterday.profit.change, icon: TrendingUp, tone: 'bg-emerald-50 text-emerald-600' },
+          { label: "Orders Today", value: ordersToday.length.toLocaleString(), icon: ShoppingCart, tone: 'bg-blue-50 text-blue-600' },
+          { label: "Active Products", value: `${activeProducts} / ${totalProducts}`, icon: Package, tone: 'bg-amber-50 text-amber-600' },
+        ].map((card, i) => (
+          <motion.div key={card.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500">{card.label}</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">{card.value}</p>
+              </div>
+              <div className={clsx('w-10 h-10 rounded-lg flex items-center justify-center', card.tone)}>
+                <card.icon className="w-5 h-5" />
+              </div>
+            </div>
+            {'change' in card && (
+              <div className="mt-2 flex items-center gap-1.5">
+                <ChangePill value={card.change!} />
+                <span className="text-xs text-gray-400">vs yesterday</span>
+              </div>
+            )}
           </motion.div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <h2 className="font-semibold text-gray-900">Last 7 Days</h2>
-          <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={report.weekly}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" /><XAxis dataKey="label" /><YAxis />
-              <Tooltip formatter={(value, name) => [name === 'revenue' ? money(Number(value)) : value, name]} />
-              <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fill="#dbeafe" />
-              <Area type="monotone" dataKey="orders" stroke="#10b981" fill="#d1fae5" />
-            </AreaChart>
-          </ResponsiveContainer>
+      {/* Order status summary (current live state) */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        {[
+          { label: 'Total (All Time)', value: totalOrdersAllTime, icon: ShoppingCart, bg: 'bg-gray-50 border-gray-200', text: 'text-gray-800', sub: 'text-gray-500' },
+          { label: 'Completed', value: financial.successfulOrders, icon: CheckCircle2, bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-800', sub: 'text-emerald-600' },
+          { label: 'Pending / Hold', value: financial.pendingOrders, icon: Clock, bg: 'bg-amber-50 border-amber-200', text: 'text-amber-800', sub: 'text-amber-600' },
+          { label: 'Failed', value: financial.failedOrders, icon: XCircle, bg: 'bg-red-50 border-red-200', text: 'text-red-800', sub: 'text-red-600' },
+          { label: 'Refunded', value: financial.refundedOrders, icon: Wallet, bg: 'bg-purple-50 border-purple-200', text: 'text-purple-800', sub: 'text-purple-600' },
+        ].map((card) => (
+          <button key={card.label} onClick={() => navigate('/orders')} className={clsx('rounded-xl border p-4 text-left hover:opacity-90 transition-opacity', card.bg)}>
+            <div className="flex items-center gap-2 mb-1">
+              <card.icon className={clsx('w-4 h-4', card.sub)} />
+              <p className={clsx('text-xs font-medium', card.text)}>{card.label}</p>
+            </div>
+            <p className={clsx('text-2xl font-bold', card.text)}>{card.value.toLocaleString()}</p>
+            {card.label === 'Total (All Time)' && <p className={clsx('text-xs mt-0.5', card.sub)}>excl. admin orders</p>}
+            {card.label === 'Completed' && <p className={clsx('text-xs mt-0.5', card.sub)}>7-day period</p>}
+            {card.label === 'Pending / Hold' && <p className={clsx('text-xs mt-0.5', card.sub)}>needs attention</p>}
+          </button>
+        ))}
+      </div>
+
+      {/* 7-day revenue sparkline */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-violet-500" /> 7-Day Revenue & Orders Trend
+          </h2>
+          <button onClick={() => navigate('/analytics')} className="text-xs text-primary-600 hover:underline">Full analytics →</button>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <h2 className="font-semibold text-gray-900">Signups</h2>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={report.weekly}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" /><YAxis allowDecimals={false} /><Tooltip /><Bar dataKey="signups" fill="#8b5cf6" radius={[4, 4, 0, 0]} /></BarChart>
+        {trend.some((t) => t.revenue > 0 || t.orders > 0) ? (
+          <ResponsiveContainer width="100%" height={220}>
+            <ComposedChart data={trend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 11 }} />
+              <Tooltip formatter={(value, name) => [name === 'orders' ? Number(value).toLocaleString() : money(Number(value)), String(name)]} />
+              <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#3b82f6" fill="#dbeafe" name="Revenue" />
+              <Area yAxisId="left" type="monotone" dataKey="profit" stroke="#10b981" fill="#d1fae5" name="Profit" />
+              <Line yAxisId="right" type="monotone" dataKey="orders" stroke="#8b5cf6" strokeWidth={2} dot={false} name="Orders" />
+            </ComposedChart>
           </ResponsiveContainer>
+        ) : (
+          <p className="py-12 text-center text-sm text-gray-400">No orders in the last 7 days.</p>
+        )}
+      </div>
+
+      {/* Quick KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: '7-Day Revenue', value: money(financial.revenue), icon: DollarSign, tone: 'text-blue-600' },
+          { label: '7-Day Gross Profit', value: money(financial.grossProfit), icon: TrendingUp, tone: 'text-emerald-600' },
+          { label: 'Pending KYC', value: pendingKyc.toLocaleString(), icon: Users, tone: 'text-amber-600' },
+          { label: 'Pending Orders', value: pendingOrdersCount.toLocaleString(), icon: Clock, tone: 'text-red-600' },
+        ].map((kpi) => (
+          <div key={kpi.label} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm flex items-center gap-3">
+            <kpi.icon className={clsx('w-8 h-8 shrink-0', kpi.tone)} />
+            <div>
+              <p className="text-xs text-gray-500">{kpi.label}</p>
+              <p className="text-lg font-bold text-gray-900">{kpi.value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent customers */}
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b p-4 flex items-center justify-between">
+            <div className="flex items-center gap-2"><Crown className="w-4 h-4 text-amber-500" /><h2 className="font-semibold">Top Customers</h2></div>
+            <button onClick={() => navigate('/auth/clients')} className="text-xs text-primary-600 hover:underline">View all →</button>
+          </div>
+          <div className="divide-y">
+            {recentCustomers.length ? recentCustomers.map((c) => (
+              <button key={c.id} onClick={() => navigate(`/users/${c.id}`)} className="w-full p-4 flex justify-between text-left hover:bg-gray-50">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{c.name}</p>
+                  <p className="text-xs text-gray-500 truncate">{c.email}</p>
+                </div>
+                <div className="text-right shrink-0 ml-2">
+                  <p className="text-sm font-semibold">{money(c.spent)}</p>
+                  <p className="text-xs text-gray-500">{c.orders} orders</p>
+                </div>
+              </button>
+            )) : <p className="p-6 text-sm text-gray-400">No customer spending yet.</p>}
+          </div>
+        </div>
+
+        {/* Recent activity */}
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm lg:col-span-2">
+          <div className="border-b p-4 flex items-center justify-between">
+            <div className="flex items-center gap-2"><Activity className="w-4 h-4 text-emerald-600" /><h2 className="font-semibold">Recent Activity</h2></div>
+            <button onClick={() => navigate('/activity-logs')} className="text-xs text-primary-600 hover:underline">View all →</button>
+          </div>
+          <div className="divide-y">
+            {recentActivity.length ? recentActivity.map((item) => (
+              <div key={item.id} className="px-4 py-3 flex items-start gap-3">
+                <div className="w-1.5 h-1.5 mt-2 rounded-full bg-emerald-400 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium capitalize">{item.action.replace(/_/g, ' ')}</p>
+                  {item.description && <p className="text-xs text-gray-500 truncate">{item.description}</p>}
+                </div>
+                <p className="text-xs text-gray-400 shrink-0">{timeAgo(item.created_at)}</p>
+              </div>
+            )) : <p className="p-6 text-sm text-gray-400">No activity recorded.</p>}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-          <div className="border-b p-4 flex items-center gap-2"><Crown className="w-4 h-4 text-amber-500" /><h2 className="font-semibold">Top Products</h2></div>
-          <div className="divide-y">{report.topProducts.length ? report.topProducts.map((item) => <div key={item.name} className="p-4 flex justify-between"><div><p className="text-sm font-medium">{item.name}</p><p className="text-xs text-gray-500">{item.orders} sold</p></div><p className="text-sm font-semibold">{money(item.revenue)}</p></div>) : <p className="p-6 text-sm text-gray-400">No completed orders yet.</p>}</div>
-        </div>
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-          <div className="border-b p-4 flex items-center gap-2"><Users className="w-4 h-4 text-primary-600" /><h2 className="font-semibold">Top Customers</h2></div>
-          <div className="divide-y">{report.topCustomers.length ? report.topCustomers.map((item) => <button key={item.id} onClick={() => navigate(`/users/${item.id}`)} className="w-full p-4 flex justify-between text-left hover:bg-gray-50"><div><p className="text-sm font-medium">{item.name}</p><p className="text-xs text-gray-500">{item.email}</p></div><div className="text-right"><p className="text-sm font-semibold">{money(item.spent)}</p><p className="text-xs text-gray-500">{item.orders} orders</p></div></button>) : <p className="p-6 text-sm text-gray-400">No customer spending yet.</p>}</div>
-        </div>
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-          <div className="border-b p-4 flex items-center gap-2"><Activity className="w-4 h-4 text-emerald-600" /><h2 className="font-semibold">Recent Activity</h2></div>
-          <div className="divide-y">{report.recentActivity.length ? report.recentActivity.map((item) => <div key={item.id} className="p-4"><p className="text-sm font-medium capitalize">{item.action.replace(/_/g, ' ')}</p><p className="text-xs text-gray-500 truncate">{item.description || 'Recorded activity'}</p><p className="text-xs text-gray-400 mt-1">{timeAgo(item.created_at)}</p></div>) : <p className="p-6 text-sm text-gray-400">No activity has been recorded.</p>}</div>
-        </div>
-      </div>
-
+      {/* Action alerts */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <button onClick={() => navigate('/orders')} className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center justify-between text-amber-800"><span>{report.pendingOrders} orders need attention</span><ArrowUpRight className="w-4 h-4" /></button>
-        <button onClick={() => navigate('/users')} className="rounded-xl border border-purple-200 bg-purple-50 p-4 flex items-center justify-between text-purple-800"><span>{report.pendingKyc} KYC records need review</span><ArrowUpRight className="w-4 h-4" /></button>
+        <button onClick={() => navigate('/orders')} className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center justify-between text-amber-800 hover:bg-amber-100 transition-colors">
+          <span className="text-sm font-medium">{pendingOrdersCount} orders need attention</span>
+          <ArrowUpRight className="w-4 h-4" />
+        </button>
+        <button onClick={() => navigate('/users')} className="rounded-xl border border-purple-200 bg-purple-50 p-4 flex items-center justify-between text-purple-800 hover:bg-purple-100 transition-colors">
+          <span className="text-sm font-medium">{pendingKyc} KYC records need review</span>
+          <ArrowUpRight className="w-4 h-4" />
+        </button>
       </div>
     </div>
   );
