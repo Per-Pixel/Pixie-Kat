@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { api } from './api';
 
 export type AnalyticsPeriod = 'today' | '7d' | '30d' | '6m' | '1y' | 'all' | 'custom';
 
@@ -60,12 +60,11 @@ export async function getAdminAnalytics(
   paymentMethod?: string | null,
 ): Promise<AdminAnalytics> {
   const { start, end, bucket } = analyticsRange(period, customStart, customEnd);
-  const { data, error } = await supabase.rpc('get_admin_analytics', {
-    p_start: start?.toISOString() ?? null,
-    p_end: end.toISOString(),
-    p_bucket: bucket,
-    p_payment_method: paymentMethod ?? null,
+  const { data } = await api.post<AdminAnalytics>('/admin/analytics', {
+    start: start?.toISOString() ?? null,
+    end: end.toISOString(),
+    bucket,
+    payment_method: paymentMethod ?? null,
   });
-  if (error) throw error;
-  return data as AdminAnalytics;
+  return data;
 }

@@ -1,17 +1,27 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  AlertCircle, BarChart3, DollarSign, Package,
-  RefreshCw, ShoppingCart, Users, Wallet,
+  AlertCircle, Ban, BarChart3, CheckCircle, CircleDollarSign, Clock, DollarSign,
+  Package, Percent, RefreshCw, RotateCcw, ShoppingCart, TrendingDown,
+  TrendingUp, Users, Wallet, XCircle,
 } from 'lucide-react';
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell,
-  Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart,
+  Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import clsx from 'clsx';
 import { AdminAnalytics, AnalyticsPeriod, getAdminAnalytics } from '../../services/adminAnalyticsService';
 
 const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b', '#06b6d4'];
+const statusColors: Record<string, string> = {
+  completed: '#10b981',
+  pending: '#f59e0b',
+  processing: '#3b82f6',
+  failed: '#ef4444',
+  cancelled: '#64748b',
+  refunded: '#8b5cf6',
+  on_hold: '#f97316',
+};
 const money = (value: number) => `INR ${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 const periods: Array<{ value: AnalyticsPeriod; label: string }> = [
   { value: 'today', label: 'Today' }, { value: '7d', label: '7 days' },
@@ -66,6 +76,8 @@ const SalesOverview: React.FC = () => {
   const { metrics, customers, wallet } = report;
   const completionRate = metrics.total_orders ? (metrics.completed_orders / metrics.total_orders) * 100 : 0;
   const avgOrder = metrics.completed_orders ? metrics.revenue / metrics.completed_orders : 0;
+  const profitMargin = metrics.revenue ? (metrics.known_profit / metrics.revenue) * 100 : 0;
+  const statusData = report.statuses.map((s) => ({ ...s, color: statusColors[s.status] || '#94a3b8' }));
 
   const salesMetrics = [
     { title: 'Revenue', value: money(metrics.revenue), icon: DollarSign, tone: 'bg-blue-50 text-blue-600' },
@@ -88,6 +100,26 @@ const SalesOverview: React.FC = () => {
     value: Number(p.revenue),
     color: colors[i % colors.length],
   }));
+
+  const additionalMetrics = [
+    { label: 'Known Gross Profit', value: money(metrics.known_profit), icon: TrendingUp, tone: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Known Cost', value: money(metrics.known_cost), icon: CircleDollarSign, tone: 'bg-violet-50 text-violet-600' },
+    { label: 'Refunded Value', value: money(metrics.refunds), icon: RotateCcw, tone: 'bg-red-50 text-red-600' },
+    { label: 'Avg Order Value', value: money(avgOrder), icon: DollarSign, tone: 'bg-blue-50 text-blue-600' },
+    { label: 'Completion Rate', value: `${completionRate.toFixed(1)}%`, icon: CheckCircle, tone: 'bg-green-50 text-green-600' },
+    { label: 'Profit Margin', value: `${profitMargin.toFixed(1)}%`, icon: Percent, tone: 'bg-indigo-50 text-indigo-600' },
+    { label: 'Wallet Spend', value: money(wallet.wallet_spend), icon: Wallet, tone: 'bg-amber-50 text-amber-600' },
+  ];
+
+  const orderMetrics = [
+    { label: 'Failed Orders', value: metrics.failed_orders.toLocaleString(), icon: XCircle, tone: 'bg-red-50 text-red-600' },
+    { label: 'Pending Orders', value: metrics.pending_orders.toLocaleString(), icon: Clock, tone: 'bg-amber-50 text-amber-600' },
+    { label: 'Processing Orders', value: metrics.processing_orders.toLocaleString(), icon: RefreshCw, tone: 'bg-blue-50 text-blue-600' },
+    { label: 'Cancelled Orders', value: metrics.cancelled_orders.toLocaleString(), icon: Ban, tone: 'bg-gray-100 text-gray-600' },
+    { label: 'Refunded Orders', value: metrics.refunded_orders.toLocaleString(), icon: RotateCcw, tone: 'bg-purple-50 text-purple-600' },
+    { label: 'Wallet Refunds', value: money(wallet.wallet_refunds), icon: TrendingDown, tone: 'bg-rose-50 text-rose-600' },
+    { label: 'Wallet Credits', value: money(wallet.wallet_credits), icon: TrendingUp, tone: 'bg-emerald-50 text-emerald-600' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -150,7 +182,7 @@ const SalesOverview: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -176,18 +208,21 @@ const SalesOverview: React.FC = () => {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue Trend */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue & Orders Trend</h3>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue, Profit & Orders Trend</h3>
           {trend.length ? (
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={trend}>
+              <ComposedChart data={trend}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="label" />
-                <YAxis />
+                <YAxis yAxisId="left" />
+                <YAxis yAxisId="right" orientation="right" allowDecimals={false} />
                 <Tooltip formatter={(value, name) => [name === 'orders' ? Number(value).toLocaleString() : money(Number(value)), String(name)]} />
-                <Area dataKey="revenue" stroke="#3b82f6" fill="#dbeafe" name="Revenue" />
-                <Area dataKey="profit" stroke="#10b981" fill="#d1fae5" name="Known Profit" />
-              </AreaChart>
+                <Legend />
+                <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#3b82f6" fill="#dbeafe" name="Revenue" />
+                <Area yAxisId="left" type="monotone" dataKey="profit" stroke="#10b981" fill="#d1fae5" name="Known Profit" />
+                <Line yAxisId="right" type="monotone" dataKey="orders" stroke="#8b5cf6" strokeWidth={2} dot={false} name="Orders" />
+              </ComposedChart>
             </ResponsiveContainer>
           ) : (
             <p className="py-20 text-center text-sm text-gray-400">No data in this period.</p>
@@ -195,7 +230,7 @@ const SalesOverview: React.FC = () => {
         </div>
 
         {/* Revenue by Product */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue by Product</h3>
           {productPieData.length ? (
             <ResponsiveContainer width="100%" height={300}>
@@ -221,19 +256,88 @@ const SalesOverview: React.FC = () => {
         </div>
       </div>
 
+      {/* Order Status Breakdown */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Orders by Status</h3>
+        {statusData.length ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={statusData}
+                  dataKey="count"
+                  nameKey="status"
+                  innerRadius={55}
+                  outerRadius={95}
+                  label={(entry) => `${entry.name}: ${Number(entry.value).toLocaleString()}`}
+                >
+                  {statusData.map((entry) => (
+                    <Cell key={entry.status} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {statusData.map((s) => (
+                <div key={s.status} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                  <p className="text-xs text-gray-500 capitalize">{s.status.replace(/_/g, ' ')}</p>
+                  <p className="text-lg font-bold" style={{ color: s.color }}>{Number(s.count).toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="py-20 text-center text-sm text-gray-400">No order status data.</p>
+        )}
+      </div>
+
       {/* Additional Metrics */}
-      <div className="grid grid-cols-2 gap-4 rounded-xl border bg-white p-5 sm:grid-cols-3 lg:grid-cols-6">
-        <div><p className="text-xs text-gray-500">Known Gross Profit</p><p className="text-lg font-bold text-emerald-600">{money(metrics.known_profit)}</p></div>
-        <div><p className="text-xs text-gray-500">Known Cost</p><p className="text-lg font-bold text-violet-600">{money(metrics.known_cost)}</p></div>
-        <div><p className="text-xs text-gray-500">Refunded Value</p><p className="text-lg font-bold text-red-600">{money(metrics.refunds)}</p></div>
-        <div><p className="text-xs text-gray-500">Avg Order Value</p><p className="text-lg font-bold">{money(avgOrder)}</p></div>
-        <div><p className="text-xs text-gray-500">Completion Rate</p><p className="text-lg font-bold text-green-600">{completionRate.toFixed(1)}%</p></div>
-        <div><p className="text-xs text-gray-500">Wallet Spend</p><p className="text-lg font-bold text-amber-600">{money(wallet.wallet_spend)}</p></div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {additionalMetrics.map(({ label, value, icon: Icon, tone }, index) => (
+          <motion.div
+            key={label}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+            className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+          >
+            <div className={clsx('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', tone)}>
+              <Icon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500">{label}</p>
+              <p className="truncate text-xl font-bold text-gray-900">{value}</p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Order Counts & Wallet Metrics */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {orderMetrics.map(({ label, value, icon: Icon, tone }, index) => (
+          <motion.div
+            key={label}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+            className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+          >
+            <div className={clsx('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', tone)}>
+              <Icon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500">{label}</p>
+              <p className="truncate text-xl font-bold text-gray-900">{value}</p>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
       {/* Product Performance Bar Chart */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Product Performance (Units Sold)</h3>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary-600" /> Product Performance (Units Sold)</h3>
         {report.products.length ? (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={report.products.slice(0, 10)} layout="vertical">
@@ -250,9 +354,9 @@ const SalesOverview: React.FC = () => {
       </div>
 
       {/* Top Products Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Top Selling Products</h3>
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2"><Package className="h-4 w-4 text-primary-600" /> Top Selling Products</h3>
         </div>
         <div className="p-6">
           {report.products.length ? (

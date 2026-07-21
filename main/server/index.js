@@ -25,6 +25,10 @@
  *
  * Fulfillment:
  *   POST   /api/fulfill-order                  Auto-deliver wallet order via provider
+ *
+ * Proxied RPCs (service_role only — functions no longer callable by anon/authenticated):
+ *   POST   /api/place-order                    Place wallet or pending order
+ *   POST   /api/admin/analytics                Get admin analytics dashboard data
  */
 
 import express from 'express';
@@ -62,7 +66,7 @@ function isLocalNetworkOrigin(origin) {
 app.use(cors({
   origin(origin, cb) {
     if (process.env.NODE_ENV === 'production') {
-      if (allowedOrigins.includes(origin) || !origin) return cb(null, true);
+      if (origin && allowedOrigins.includes(origin)) return cb(null, true);
       return cb(null, false);
     }
     // Dev: allow localhost + any LAN IP
@@ -79,6 +83,23 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 app.use('/api/', limiter);
+
+// Tighter per-endpoint limits on customer-facing, provider-touching routes
+const verifyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many verification attempts. Please wait a minute.' },
+});
+
+const fulfillLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many requests. Please wait a minute.' },
+});
 
 // Auth middleware — verifies Supabase JWT and checks admin/support role
 const requireAdmin = async (req, res, next) => {
@@ -331,8 +352,8 @@ app.delete('/api/admin/users/:id', requireSuperAdmin, async (req, res) => {
   }
 });
 
-// Wallet adjustment — atomic, via Postgres function
-app.post('/api/admin/wallet/adjust', requireAdmin, async (req, res) => {
+// Wallet adjustment — atomic, via Postgres function (super admin only)
+app.post('/api/admin/wallet/adjust', requireSuperAdmin, async (req, res) => {
   try {
     const { userId, amount, type, reference } = req.body;
 
@@ -379,7 +400,7 @@ app.post('/api/admin/wallet/adjust', requireAdmin, async (req, res) => {
 // ── SmileCode API routes ──────────────────────────────────────────────────────
 
 // Provider status — GET /api/smileone/status
-app.get('/api/smileone/status', async (req, res) => {
+app.get('/api/smileone/status', requireAdmin, async (req, res) => {
   if (!smileOne.isConfigured()) {
     return res.json({
       configured: false,
@@ -402,7 +423,7 @@ app.get('/api/smileone/status', async (req, res) => {
 });
 
 // All products on the account — GET /api/smileone/product-list
-app.get('/api/smileone/product-list', async (req, res) => {
+app.get('/api/smileone/product-list', requireAdmin, async (req, res) => {
   try {
     const data = await smileOne.productList();
     res.json({ success: true, productList: data.result?.productList ?? [] });
@@ -413,7 +434,7 @@ app.get('/api/smileone/product-list', async (req, res) => {
 });
 
 // SKU list for a product — GET /api/smileone/sku-list?apiGame=mobilelegends
-app.get('/api/smileone/sku-list', async (req, res) => {
+app.get('/api/smileone/sku-list', requireAdmin, async (req, res) => {
   try {
     const { apiGame } = req.query;
     if (!apiGame) return res.status(400).json({ success: false, message: 'apiGame is required' });
@@ -433,7 +454,7 @@ app.get('/api/smileone/sku-list', async (req, res) => {
 
 // Validate user account — POST /api/smileone/validate
 // Body: { apiGame, userAccount: { user_id, server_id? } }
-app.post('/api/smileone/validate', async (req, res) => {
+app.post('/api/smileone/validate', requireAdmin, async (req, res) => {
   try {
     const { apiGame, userAccount } = req.body;
     if (!apiGame || !userAccount) {
@@ -449,7 +470,7 @@ app.post('/api/smileone/validate', async (req, res) => {
 
 // Place order — POST /api/smileone/send-order
 // Body: { apiGame, items: [{ sku, qty, pid }], userAccount }
-app.post('/api/smileone/send-order', async (req, res) => {
+app.post('/api/smileone/send-order', requireAdmin, async (req, res) => {
   try {
     const { apiGame, items, userAccount } = req.body;
     if (!apiGame || !items?.length || !userAccount) {
@@ -464,7 +485,7 @@ app.post('/api/smileone/send-order', async (req, res) => {
 });
 
 // Order detail — GET /api/smileone/order-detail?orderId=SC...
-app.get('/api/smileone/order-detail', async (req, res) => {
+app.get('/api/smileone/order-detail', requireAdmin, async (req, res) => {
   try {
     const { orderId } = req.query;
     if (!orderId) return res.status(400).json({ success: false, message: 'orderId is required' });
@@ -551,7 +572,7 @@ app.post('/api/smilecoin/rolecheck', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/smilecoin/order', requireAdmin, async (req, res) => {
+app.post('/api/smilecoin/order', requireSuperAdmin, async (req, res) => {
   if (!smileCoin.ALLOW_TEST_ORDER) {
     return res.status(403).json({
       ok:     false,
@@ -610,7 +631,7 @@ async function resolveScProductId(product) {
 // No admin auth required (used by customer-facing game page).
 // Body: { user_id, zone_id?, api_game?, product?, product_id?, smile_coin_product? }
 // Tries SmileCode validate first, falls back to SmileCoin getrole.
-app.post('/api/verify-player', async (req, res) => {
+app.post('/api/verify-player', verifyLimiter, async (req, res) => {
   const { user_id, zone_id, api_game, product, product_id, smile_coin_product } = req.body || {};
   if (!user_id) {
     return res.status(400).json({ success: false, message: 'user_id is required' });
@@ -691,11 +712,91 @@ app.post('/api/verify-player', async (req, res) => {
   });
 });
 
+// ── Order placement (proxied RPC) ────────────────────────────────────────────
+// POST /api/place-order
+// Body: { product_id, product_name, total_amount, currency, metadata, payment_method? }
+// Auth: authenticated user — identity verified via JWT
+const placeOrderLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many orders. Please wait a minute.' },
+});
+
+app.post('/api/place-order', placeOrderLimiter, async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ ok: false, error: 'Authorization required' });
+  }
+  const token = authHeader.slice(7);
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) {
+    return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
+  }
+
+  const { product_id, product_name, total_amount, currency, metadata, payment_method } = req.body || {};
+  if (!product_id || !product_name || total_amount == null || !currency) {
+    return res.status(400).json({ ok: false, error: 'Missing required fields' });
+  }
+
+  try {
+    if (payment_method && payment_method !== 'wallet') {
+      const { data: orderId, error: rpcError } = await supabaseAdmin.rpc('place_pending_order', {
+        p_user_id: user.id,
+        p_product_id: product_id,
+        p_product_name: product_name,
+        p_total_amount: total_amount,
+        p_currency: currency,
+        p_payment_method: payment_method,
+        p_metadata: metadata || {},
+      });
+      if (rpcError) throw rpcError;
+      return res.json({ ok: true, orderId });
+    }
+
+    const { data: orderId, error: rpcError } = await supabaseAdmin.rpc('place_wallet_order', {
+      p_user_id: user.id,
+      p_product_id: product_id,
+      p_product_name: product_name,
+      p_total_amount: total_amount,
+      p_currency: currency,
+      p_metadata: metadata || {},
+    });
+    if (rpcError) throw rpcError;
+    return res.json({ ok: true, orderId });
+  } catch (err) {
+    console.error('[place-order]', err.message);
+    return res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// ── Admin analytics (proxied RPC) ────────────────────────────────────────────
+// POST /api/admin/analytics
+// Body: { start?, end?, bucket?, payment_method? }
+// Auth: admin or support
+app.post('/api/admin/analytics', requireAdmin, async (req, res) => {
+  const { start, end, bucket, payment_method } = req.body || {};
+  try {
+    const { data, error } = await supabaseAdmin.rpc('get_admin_analytics', {
+      p_start: start ?? null,
+      p_end: end ?? new Date().toISOString(),
+      p_bucket: bucket ?? 'day',
+      p_payment_method: payment_method ?? null,
+    });
+    if (error) throw error;
+    return res.json(data);
+  } catch (err) {
+    console.error('[admin/analytics]', err.message);
+    return res.status(400).json({ success: false, message: err.message });
+  }
+});
+
 // ── Auto-fulfillment ─────────────────────────────────────────────────────────
 // POST /api/fulfill-order
 // Body: { orderId }
 // Auth: any authenticated user — must own the order
-app.post('/api/fulfill-order', async (req, res) => {
+app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     return res.status(401).json({ ok: false, error: 'Authorization required' });
@@ -883,7 +984,7 @@ app.post('/api/fulfill-order', async (req, res) => {
     } catch (refundEx) {
       console.error('[fulfill-order] refund exception:', refundEx.message);
     }
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: 'Delivery failed. Your wallet has been refunded.' });
   }
 });
 

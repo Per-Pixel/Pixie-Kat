@@ -266,16 +266,20 @@ export default function BatchOrderPage() {
             ...(item.playerName ? { player_name: item.playerName } : {}),
           };
 
-          const { data: orderId, error: rpcErr } = await supabase.rpc("place_wallet_order", {
-            p_user_id:     user.id,
-            p_product_id:  item.product.id,
-            p_product_name: item.product.name,
-            p_total_amount: Number(item.product.price),
-            p_currency:    item.product.currency ?? "PKS",
-            p_metadata:    orderMeta,
+          const placeRes = await fetch("/api/place-order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              product_id: item.product.id,
+              product_name: item.product.name,
+              total_amount: Number(item.product.price),
+              currency: item.product.currency ?? "PKS",
+              metadata: orderMeta,
+            }),
           });
-
-          if (rpcErr) throw new Error(rpcErr.message);
+          const placeData = await placeRes.json();
+          if (!placeRes.ok || !placeData.ok) throw new Error(placeData.error || "Order failed");
+          const orderId = placeData.orderId;
 
           runningBalance -= Number(item.product.price);
           setWalletBalance(runningBalance);

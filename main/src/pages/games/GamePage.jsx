@@ -541,25 +541,34 @@ const GamePage = () => {
         selected_membership_plan_name: selectedMembershipPlan?.name ?? null,
         discount_plan_name: discountPlan?.name ?? null,
       },
-      contact,
+      contact: {
+        email: contact.email.trim().slice(0, 254),
+        whatsapp: contact.whatsapp.trim().slice(0, 32),
+      },
     };
 
     setIsSubmitting(true);
 
     if (selectedPayment.id === "wallet") {
-      const { data: orderId, error } = await supabase.rpc("place_wallet_order", {
-        p_user_id: user.id,
-        p_product_id: selectedPackage.id,
-        p_product_name: selectedPackage.name,
-        p_total_amount: totalAmount,
-        p_currency: selectedPackage.currency,
-        p_metadata: orderMeta,
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/place-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+        body: JSON.stringify({
+          product_id: selectedPackage.id,
+          product_name: selectedPackage.name,
+          total_amount: totalAmount,
+          currency: selectedPackage.currency,
+          metadata: orderMeta,
+        }),
       });
-      if (error) {
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
         setIsSubmitting(false);
-        setCheckoutError(error.message || "Could not place this order. Please try again.");
+        setCheckoutError(data.error || "Could not place this order. Please try again.");
         return;
       }
+      const orderId = data.orderId;
       let fulfilled = false;
       let provisioned = true;
       let refunded = false;
@@ -585,25 +594,28 @@ const GamePage = () => {
       return;
     }
 
-    // Non-wallet: create pending order (Razorpay integration placeholder)
-    const { data: insertedRows, error } = await supabase.from("orders").insert({
-      user_id: user.id,
-      product_id: selectedPackage.id,
-      product_name: selectedPackage.name,
-      total_amount: totalAmount,
-      currency: selectedPackage.currency,
-      status: "pending",
-      payment_method: selectedPayment.id,
-      metadata: orderMeta,
-    }).select("id");
+    // Non-wallet: create pending order via server-proxied RPC
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/place-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+      body: JSON.stringify({
+        product_id: selectedPackage.id,
+        product_name: selectedPackage.name,
+        total_amount: totalAmount,
+        currency: selectedPackage.currency,
+        payment_method: selectedPayment.id,
+        metadata: orderMeta,
+      }),
+    });
+    const data = await res.json();
     setIsSubmitting(false);
 
-    if (error) {
-      setCheckoutError(error.message || "Could not place this order. Please try again.");
+    if (!res.ok || !data.ok) {
+      setCheckoutError(data.error || "Could not place this order. Please try again.");
       return;
     }
-
-    const orderId = insertedRows?.[0]?.id;
+    const orderId = data.orderId;
     setOrderComplete({ orderId, method: selectedPayment.id, amount: paymentTotalLabel, package: selectedPackage.name });
   };
 
