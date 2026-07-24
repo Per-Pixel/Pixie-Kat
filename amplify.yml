@@ -4,19 +4,17 @@ frontend:
     preBuild:
       commands:
         - |
-          if [ "$AWS_BRANCH" = "admin" ]; then
-            cd admin && npm ci
-          else
-            cd main && npm ci
-          fi
+          set -e
+          if [ "$AWS_BRANCH" = "admin" ]; then APP_ROOT=admin; else APP_ROOT=main; fi
+          (cd "$APP_ROOT" && npm ci)
     build:
       commands:
         - |
-          if [ "$AWS_BRANCH" = "admin" ]; then
-            cd admin && npm run build && cp -r dist ../dist
-          else
-            cd main && npm run build && cp -r dist ../dist
-          fi
+          set -e
+          if [ "$AWS_BRANCH" = "admin" ]; then APP_ROOT=admin; else APP_ROOT=main; fi
+          (cd "$APP_ROOT" && npm run build)
+          rm -rf dist
+          mv "$APP_ROOT/dist" dist
   artifacts:
     baseDirectory: dist
     files:
