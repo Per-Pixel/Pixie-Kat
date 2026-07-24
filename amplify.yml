@@ -1,42 +1,30 @@
 version: 1
-applications:
-  - appRoot: main
-    frontend:
-      phases:
-        preBuild:
-          commands:
-            - npm ci
-        build:
-          commands:
-            - npm run build
-      artifacts:
-        baseDirectory: dist
-        files:
-          - '**/*'
-      cache:
-        paths:
-          - node_modules/**/*
-      redirects:
-        - source: '</^[^.]+$|[.](?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json)$)([^.]+$)/>'
-          target: /index.html
-          status: 200
-  - appRoot: admin
-    frontend:
-      phases:
-        preBuild:
-          commands:
-            - npm ci
-        build:
-          commands:
-            - npm run build
-      artifacts:
-        baseDirectory: dist
-        files:
-          - '**/*'
-      cache:
-        paths:
-          - node_modules/**/*
-      redirects:
-        - source: '</^[^.]+$|[.](?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json)$)([^.]+$)/>'
-          target: /index.html
-          status: 200
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - |
+          if [ "$AWS_BRANCH" = "admin" ]; then
+            cd admin && npm ci
+          else
+            cd main && npm ci
+          fi
+    build:
+      commands:
+        - |
+          if [ "$AWS_BRANCH" = "admin" ]; then
+            cd admin && npm run build && cp -r dist ../dist
+          else
+            cd main && npm run build && cp -r dist ../dist
+          fi
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+  redirects:
+    - source: '</^[^.]+$|[.](?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json)$)([^.]+$)/>'
+      target: /index.html
+      status: 200
