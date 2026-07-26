@@ -29,8 +29,8 @@ frontend:
     paths:
       - node_modules/**/*
   redirects:
-    - source: /api/*
-      target: http://pixiekat-api-prod.eba-p22mabr9.ap-south-1.elasticbeanstalk.com/api/:1
+    - source: /api/<*>
+      target: https://c4pmcbw502.execute-api.ap-south-1.amazonaws.com/prod/api/<*>
       status: 200
     - source: '</^[^.]+$|[.](?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json)$)([^.]+$)/>'
       target: /index.html
