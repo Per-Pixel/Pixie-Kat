@@ -6,12 +6,18 @@ frontend:
         - |
           set -e
           if [ "$AWS_BRANCH" = "admin" ]; then APP_ROOT=admin; else APP_ROOT=main; fi
+          # Force relative API URLs so the Amplify proxy handles /api/* (avoids mixed content)
+          export VITE_API_BASE_URL=""
+          if [ "$AWS_BRANCH" = "admin" ]; then export VITE_API_BASE_URL="/api"; fi
           (cd "$APP_ROOT" && npm ci)
     build:
       commands:
         - |
           set -e
           if [ "$AWS_BRANCH" = "admin" ]; then APP_ROOT=admin; else APP_ROOT=main; fi
+          # Force relative API URLs so the Amplify proxy handles /api/* (avoids mixed content)
+          export VITE_API_BASE_URL=""
+          if [ "$AWS_BRANCH" = "admin" ]; then export VITE_API_BASE_URL="/api"; fi
           (cd "$APP_ROOT" && npm run build)
           rm -rf dist
           mv "$APP_ROOT/dist" dist
