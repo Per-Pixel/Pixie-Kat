@@ -32,6 +32,6 @@ frontend:
     - source: /api/<*>
       target: https://c4pmcbw502.execute-api.ap-south-1.amazonaws.com/prod/api/<*>
       status: 200
-    - source: '</^[^.]+$|[.](?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json)$)([^.]+$)/>'
+    - source: '</^[^.]+$|[.](?!(avif|css|gif|ico|jpg|js|json|map|mp3|mp4|ogg|png|svg|txt|ttf|wav|webm|webp|woff|woff2)$)([^.]+$)/>'
       target: /index.html
       status: 200
