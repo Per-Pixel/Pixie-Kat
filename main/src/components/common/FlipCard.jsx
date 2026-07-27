@@ -3,8 +3,8 @@ import SlideTextButton from "../../animations/components/SlideTextButton";
 import { TiLocationArrow } from "react-icons/ti";
 
 const FlipCard = ({ 
-  frontVideo = "videos/feature-2.mp4", 
-  backVideo = "videos/feature-3.mp4", 
+  frontVideo = "/videos/feature-2.mp4", 
+  backVideo = "/videos/feature-3.mp4", 
   title = "Popular Games", 
   description = "Explore our collection of top games",
   buttonText = "View All Games",

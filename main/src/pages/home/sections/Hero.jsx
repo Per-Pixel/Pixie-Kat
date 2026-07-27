@@ -19,7 +19,7 @@ const defaultHeroSettings = {
   tagline: "Fast, Secure, Affordable",
   button_text: "Topup Now",
   button_link: "/games",
-  background_video: "videos/hero-1.mp4",
+  background_video: "/videos/hero-1.mp4",
   images: {
     jinx: {
       url: "/img/hero/Jinx.webp",
@@ -224,7 +224,7 @@ const Hero = () => {
       >
         <div>
           <video
-            src={heroSettings.background_video || "videos/hero-1.mp4"}
+            src={heroSettings.background_video || "/videos/hero-1.mp4"}
             autoPlay
             loop
             muted
@@ -246,7 +246,7 @@ const Hero = () => {
             <div className="relative size-full rounded-lg overflow-hidden">
               <video
                 ref={featureVideoRef}
-                src="videos/feature-4.mp4" 
+                src="/videos/feature-4.mp4" 
                 autoPlay
                 loop
                 muted
@@ -277,8 +277,8 @@ const Hero = () => {
         {false && !isMobile && (
           <div className="absolute bottom-64 right-8 z-50 h-48 w-80 md:h-64 md:w-96 pointer-events-auto">
             <FlipCard 
-              frontVideo="videos/feature-2.mp4"
-              backVideo="videos/feature-3.mp4"
+              frontVideo="/videos/feature-2.mp4"
+              backVideo="/videos/feature-3.mp4"
               title="Popular Games"
               description="Top up your favorite games instantly"
               buttonText="View All Games"
@@ -292,7 +292,7 @@ const Hero = () => {
             <BentoTilt className="h-full w-full rounded-lg overflow-hidden shadow-[0_0_15px_rgba(79,183,221,0.5)]">
               <div className="relative size-full rounded-lg overflow-hidden">
                 <video
-                  src="videos/feature-4.mp4" 
+                  src="/videos/feature-4.mp4" 
                   autoPlay
                   loop
                   muted
@@ -343,8 +343,8 @@ const Hero = () => {
                 </svg>
               </button>
               <FlipCard 
-                frontVideo="videos/feature-2.mp4"
-                backVideo="videos/feature-3.mp4"
+                frontVideo="/videos/feature-2.mp4"
+                backVideo="/videos/feature-3.mp4"
                 title="Popular Games"
                 description="Top up your favorite games instantly"
                 buttonText="View All Games"
