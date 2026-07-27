@@ -28,7 +28,7 @@ const Loading = ({
     "/img/loading/2.jpg",  // Black and white architectural
     "/img/loading/3.jpg",  // Person walking
     "/img/loading/4.jpg",  // Green leaf/glass
-    "/img/loading/5.jpg",  // Red abstract
+    "/img/loading/4.jpg",  // Red abstract (placeholder; add /img/loading/5.jpg when available)
     "/img/loading/6.jpg",  // Blue/teal abstract
     "/img/loading/7.jpg",  // Purple crystals/stones
     "/img/loading/8.jpg",  // Bottle/product shot
