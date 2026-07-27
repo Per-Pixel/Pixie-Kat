@@ -91,6 +91,31 @@ const Pages: React.FC = () => {
         </button>
       </motion.div>
 
+      {/* About section shortcut */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.04 }}
+        className="bg-white rounded-xl border-l-4 border-teal-500 border border-gray-200 shadow-sm p-5 flex items-center justify-between gap-4"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center">
+            <Image className="w-5 h-5 text-teal-600" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-gray-900">About Section</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Text, image, colors & layout for the homepage "About Us" area</p>
+          </div>
+        </div>
+        <button
+          onClick={() => navigate('/pages/homepage/about')}
+          className="btn btn-primary btn-sm flex items-center gap-1.5 shrink-0"
+        >
+          <ArrowRight className="w-3.5 h-3.5" />
+          Edit About
+        </button>
+      </motion.div>
+
       {/* Dynamic content sections */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}

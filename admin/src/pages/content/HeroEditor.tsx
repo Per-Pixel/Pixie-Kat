@@ -4,6 +4,7 @@ import { Save, RefreshCw, Monitor, Tablet, Smartphone, Image as ImageIcon, Type,
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
 import ImageSourceField from '../../components/common/ImageSourceField';
+import VideoSourceField from '../../components/common/VideoSourceField';
 
 type Device = 'desktop' | 'tablet' | 'mobile';
 
@@ -293,13 +294,15 @@ const HeroEditor: React.FC = () => {
 
           <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm space-y-4">
             <h2 className="text-lg font-semibold text-gray-900">Background Video</h2>
-            <TextInput
+            <VideoSourceField
               label="Video path or URL"
               value={settings.background_video}
               onChange={(v) => setField('background_video', v)}
-              placeholder="videos/hero-1.mp4"
+              placeholder="/videos/hero-1.mp4 or upload"
+              folder="hero"
+              previewClassName="h-40 w-full"
             />
-            <p className="text-xs text-gray-400">Relative to /public, e.g. <code>videos/hero-1.mp4</code></p>
+            <p className="text-xs text-gray-400">Use an absolute path like <code>/videos/hero-1.mp4</code> or upload a video file.</p>
           </section>
 
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
