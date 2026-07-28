@@ -114,13 +114,13 @@ const AboutEditor: React.FC = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('store_settings')
-      .select('about_settings')
+      .select('about_page_settings')
       .maybeSingle();
 
     if (error) {
       toast.error(error.message);
-    } else if (data?.about_settings && Object.keys(data.about_settings).length > 0) {
-      setSettings((prev) => ({ ...prev, ...data.about_settings }));
+    } else if (data?.about_page_settings && Object.keys(data.about_page_settings).length > 0) {
+      setSettings((prev) => ({ ...prev, ...data.about_page_settings }));
     }
     setLoading(false);
   };
@@ -131,17 +131,17 @@ const AboutEditor: React.FC = () => {
     setSaving(true);
     const { error } = await supabase
       .from('store_settings')
-      .upsert({ id: true, about_settings: settings }, { onConflict: 'id' });
+      .upsert({ id: true, about_page_settings: settings }, { onConflict: 'id' });
     setSaving(false);
     if (error) { toast.error(error.message); return; }
-    toast.success('About section settings saved');
+    toast.success('About page settings saved');
   };
 
   const setField = <K extends keyof AboutSettings>(key: K, value: AboutSettings[K]) =>
     setSettings((prev) => ({ ...prev, [key]: value }));
 
   if (loading) {
-    return <div className="p-12 text-center text-gray-500">Loading about settings…</div>;
+    return <div className="p-12 text-center text-gray-500">Loading about page settings…</div>;
   }
 
   return (
@@ -155,8 +155,8 @@ const AboutEditor: React.FC = () => {
         <div className="flex items-center gap-3">
           <ImageIcon className="h-7 w-7 text-primary-600" />
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">About Section Editor</h1>
-            <p className="text-sm text-gray-500">Customise text, image, and styles for the homepage "About Us" section</p>
+            <h1 className="text-2xl font-bold text-gray-900">About Page Editor</h1>
+            <p className="text-sm text-gray-500">Customise text, image, and styles for the client /about page</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -349,7 +349,7 @@ const AboutEditor: React.FC = () => {
 
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             <p className="font-semibold mb-1">Applying changes</p>
-            <p>Save here, then the live site reads settings from the database automatically on next page load. No redeploy needed.</p>
+            <p>Save here — stored in <code>about_page_settings</code> (separate from the homepage About section). No redeploy needed.</p>
           </div>
         </div>
       </div>

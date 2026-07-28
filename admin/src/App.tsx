@@ -32,6 +32,7 @@ import ProductsList from './pages/products/ProductsList';
 import PromoList from './pages/content/PromoList';
 import HeroEditor from './pages/content/HeroEditor';
 import AboutEditor from './pages/content/AboutEditor';
+import HomepageAboutEditor from './pages/content/homepage/AboutEditor';
 import HowItWorksEditor from './pages/content/HowItWorksEditor';
 import FaqEditor from './pages/content/FaqEditor';
 import ContactEditor from './pages/content/ContactEditor';
@@ -129,7 +130,7 @@ const AppRoutes: React.FC = () => {
         {/* Page Management Routes */}
         <Route path="pages/homepage" element={<Pages />} />
         <Route path="pages/homepage/hero" element={<HeroEditor />} />
-        <Route path="pages/homepage/about" element={<AboutEditor />} />
+        <Route path="pages/homepage/about" element={<HomepageAboutEditor />} />
         <Route path="pages/homepage/trending-games" element={<PromoList section="trending" title="Trending Games" description="Manage cards shown in the homepage carousel" basePath="/pages/homepage/trending-games" />} />
         <Route path="pages/homepage/trending-games/new" element={<PromoEditor section="trending" backPath="/pages/homepage/trending-games" sectionLabel="Trending Games" />} />
         <Route path="pages/homepage/trending-games/:id" element={<PromoEditor section="trending" backPath="/pages/homepage/trending-games" sectionLabel="Trending Games" />} />
@@ -137,7 +138,7 @@ const AppRoutes: React.FC = () => {
         <Route path="pages/homepage/exclusive-offers/new" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="pages/homepage/exclusive-offers/:id" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="pages/products" element={<Pages />} />
-        <Route path="pages/about" element={<Pages />} />
+        <Route path="pages/about" element={<AboutEditor />} />
         <Route path="pages/how-it-works" element={<HowItWorksEditor />} />
         <Route path="pages/faq" element={<FaqEditor />} />
         <Route path="pages/contact" element={<ContactEditor />} />

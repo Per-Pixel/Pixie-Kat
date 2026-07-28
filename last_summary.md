@@ -1,27 +1,16 @@
 # Last Summary
 
-## Session: Full-scope fix — loading screen, dead buttons, CMS layer, admin placeholders
+## Session: Dedicated about_page_settings key
 
 ### Completed
-- **Loading screen:** `main/src/App.jsx` skips intro when `sessionStorage.pixie_has_loaded` is set; sets it on complete.
-- **Dead buttons:** GamePage country dial-code `<select>` + WhatsApp FAB; Pricing CTAs → `/games`; How It Works video/Browse/Pricing/Top Up wired; FAQ Contact/WhatsApp/Browse wired.
-- **Contact placeholders:** `MobileHelpSection` + Contact Us page load from `store_settings` via `main/src/lib/storeContent.js` (no more support@uxsiostore.com / fake wa.me numbers).
-- **Pricing:** Fetches live `membership_plans` (price, duration_days, discount_percent, benefits); removed fabricated monthly/yearly tiers and false free-trial claim. Page copy/FAQs from `pricing_settings`.
-- **Migration:** `supabase/migrations/022_cms_page_settings.sql` adds `how_it_works_settings`, `faq_settings`, `contact_settings`, `pricing_settings` JSONB columns.
-- **Admin CMS editors:** Contact, How It Works, FAQ, Pricing Copy — save to `store_settings`; Sidebar + Pages hub updated.
-- **Admin placeholders replaced:** Permissions (ROLE_PERMISSIONS matrix), Documentation hub, Tasks/Events (localStorage CRUD).
+- Added `supabase/migrations/023_about_page_settings.sql` — `about_page_settings JSONB` on `store_settings` (empty default; no copy from homepage `about_settings`).
+- Pointed `admin/src/pages/content/AboutEditor.tsx` load/save at `about_page_settings`; retitled to About Page Editor; toast/help copy updated.
+- Documented migration + column split in `DocumentationPage.tsx`.
 
-### Schema note
-Storefront merge helpers accept both nested defaults and flat admin editor field names so CMS saves render correctly.
+### Ownership
+- Homepage About section → `about_settings` (`homepage/AboutEditor.tsx`) — unchanged
+- Client `/about` page → `about_page_settings` (`content/AboutEditor.tsx`)
 
-### Verify
-- Run migration `022_cms_page_settings.sql` on Supabase.
-- Set WhatsApp/phone in Admin → Content → Contact Page.
-- Membership plan prices: Admin → Memberships (not Pricing Copy).
-- Main + admin production builds both pass.
-
-### Files of interest
-- `main/src/lib/storeContent.js`
-- `main/src/pages/pricing/index.jsx`, `how-it-works/index.jsx`, `faq/index.jsx`, `support/ContactUsPage.jsx`
-- `admin/src/pages/content/{Contact,HowItWorks,Faq,PricingCopy}Editor.tsx`
-- `supabase/migrations/022_cms_page_settings.sql`
+### Note
+- Apply migration `023` on Supabase before saving from the About Page editor.
+- Public `/about` route not wired yet; column is ready for when it is.

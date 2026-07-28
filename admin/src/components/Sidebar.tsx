@@ -88,7 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           ],
         },
         { label: 'Products Page', path: '/pages/products' },
-        { label: 'About Page', path: '/pages/homepage/about' },
+        { label: 'About Page', path: '/pages/about' },
         { label: 'How It Works', path: '/pages/how-it-works' },
         { label: 'FAQ', path: '/pages/faq' },
         { label: 'Contact Page', path: '/pages/contact' },

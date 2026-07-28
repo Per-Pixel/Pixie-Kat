@@ -11,7 +11,8 @@ interface DocLink {
 
 const contentEditors: DocLink[] = [
   { label: 'Hero Section', path: '/pages/homepage/hero', description: 'Homepage hero images, text & CTA' },
-  { label: 'About Section', path: '/pages/homepage/about', description: 'Homepage about block copy & styles' },
+  { label: 'About Section', path: '/pages/homepage/about', description: 'Homepage about block — copy, CTA, image transforms & styles' },
+  { label: 'About Page', path: '/pages/about', description: 'Client /about page editor (separate from homepage section)' },
   { label: 'Trending Games', path: '/pages/homepage/trending-games', description: 'Homepage carousel cards' },
   { label: 'Exclusive Offers', path: '/pages/homepage/exclusive-offers', description: 'Promotional offer cards' },
   { label: 'How It Works', path: '/pages/how-it-works', description: 'Steps, features & stats for /how-it-works' },
@@ -76,8 +77,9 @@ const DocumentationPage: React.FC = () => (
         </p>
         <p>Key migrations for CMS content:</p>
         <ul className="list-disc pl-5 space-y-1">
-          <li><code className="text-xs bg-gray-100 px-1 rounded">021_about_settings.sql</code> — hero & about JSONB columns</li>
+          <li><code className="text-xs bg-gray-100 px-1 rounded">021_about_settings.sql</code> — homepage <code className="text-xs bg-gray-100 px-1 rounded">about_settings</code> JSONB</li>
           <li><code className="text-xs bg-gray-100 px-1 rounded">022_cms_page_settings.sql</code> — how_it_works, faq, contact, pricing_settings</li>
+          <li><code className="text-xs bg-gray-100 px-1 rounded">023_about_page_settings.sql</code> — client /about page <code className="text-xs bg-gray-100 px-1 rounded">about_page_settings</code> (separate from homepage)</li>
         </ul>
         <p>
           Configure <code className="text-xs bg-gray-100 px-1 rounded">VITE_SUPABASE_URL</code> and{' '}

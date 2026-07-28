@@ -141,7 +141,7 @@ const Pages: React.FC = () => {
           </div>
           <div>
             <h2 className="font-semibold text-gray-900">About Section</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Text, image, colors & layout for the homepage "About Us" area</p>
+            <p className="text-xs text-gray-500 mt-0.5">Homepage about block — text, CTA, image transforms, colors & layout</p>
           </div>
         </div>
         <button
