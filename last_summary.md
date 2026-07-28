@@ -1,19 +1,16 @@
 # Last Summary
 
-## Session: Restored About scroll animation & committed changes across main and admin branches
+## Session: Safe homepage About CMS reconnect
 
-### Key Changes
-1. **About Section GSAP Restoration (`About.jsx`)**:
-   - Reverted About section to its original high-fidelity GSAP ScrollTrigger timeline structure (`#clip`, `.mask-clip-path`, `.about-image`).
-   - Cleaned up `AnimatedTitle.jsx` word rendering and mapping.
-2. **Admin CMS & Storefront Appearance Integration**:
-   - Added `AppearanceSettings` editor to Admin Settings (`admin/src/pages/Settings.tsx`).
-   - Added `ProductsPageEditor` in Admin Content Management (`admin/src/pages/content/ProductsPageEditor.tsx`).
-   - Created Supabase migrations `024_products_page_settings.sql` and `025_appearance_settings.sql`.
-   - Integrated `AppearanceContext` into main storefront app (`main/src/contexts/AppearanceContext.jsx`).
-3. **Documentation & Memory Rules**:
-   - Updated `AGENTS.md` and `memory.md` with guidelines on preserving pristine DOM layout and GSAP scroll animations when wiring CMS data.
+### Done
+- Backed up working GSAP About section to `main/src/pages/home/sections/About.jsx.backup`
+- Restored admin **Content → Homepage → About Section** editor (`admin/src/pages/content/homepage/AboutEditor.tsx`) plus route, sidebar, and Pages shortcut
+- Reconnected storefront `About.jsx` to `store_settings.about_settings` for **copy + image URL/alt only**
 
-### Branch Status
-- Committed changes cleanly to `main` branch.
-- Updated `admin` branch to match `main`.
+### Safety (why animation should stay intact)
+- Left pristine `#clip` / `.mask-clip-path` ScrollTrigger timeline unchanged (no settings deps)
+- Intentionally ignore `clip_animation_enabled`, image transforms, `section_min_height`, and other layout/style CMS fields on the storefront
+- Image keeps `absolute left-0 top-0 size-full object-cover` (no CMS transform overrides)
+
+### Not restored
+- Separate client `/about` page editor (`pages/content/AboutEditor.tsx` / `/pages/about`) — out of scope for this homepage wiring

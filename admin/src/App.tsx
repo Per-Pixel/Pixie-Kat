@@ -31,7 +31,6 @@ import GameHelp from './pages/products/GameHelp';
 import ProductsList from './pages/products/ProductsList';
 import PromoList from './pages/content/PromoList';
 import HeroEditor from './pages/content/HeroEditor';
-import AboutEditor from './pages/content/AboutEditor';
 import HomepageAboutEditor from './pages/content/homepage/AboutEditor';
 import HowItWorksEditor from './pages/content/HowItWorksEditor';
 import FaqEditor from './pages/content/FaqEditor';
@@ -139,7 +138,6 @@ const AppRoutes: React.FC = () => {
         <Route path="pages/homepage/exclusive-offers/new" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="pages/homepage/exclusive-offers/:id" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="pages/products" element={<ProductsPageEditor />} />
-        <Route path="pages/about" element={<AboutEditor />} />
         <Route path="pages/how-it-works" element={<HowItWorksEditor />} />
         <Route path="pages/faq" element={<FaqEditor />} />
         <Route path="pages/contact" element={<ContactEditor />} />

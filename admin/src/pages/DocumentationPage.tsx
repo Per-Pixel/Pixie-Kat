@@ -11,8 +11,7 @@ interface DocLink {
 
 const contentEditors: DocLink[] = [
   { label: 'Hero Section', path: '/pages/homepage/hero', description: 'Homepage hero images, text & CTA' },
-  { label: 'About Section', path: '/pages/homepage/about', description: 'Homepage about block — copy, CTA, image transforms & styles' },
-  { label: 'About Page', path: '/pages/about', description: 'Client /about page editor (separate from homepage section)' },
+  { label: 'About Section', path: '/pages/homepage/about', description: 'Homepage about block — copy & image (animation preserved on storefront)' },
   { label: 'Products Page', path: '/pages/products', description: 'Hero carousel slides for /games' },
   { label: 'Trending Games', path: '/pages/homepage/trending-games', description: 'Homepage carousel cards' },
   { label: 'Exclusive Offers', path: '/pages/homepage/exclusive-offers', description: 'Promotional offer cards' },

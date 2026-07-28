@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, Zap, Plus, ArrowRight, Eye, EyeOff, Image, ListOrdered, HelpCircle, Mail, BadgePercent, BookOpen, Gamepad2 } from 'lucide-react';
+import { TrendingUp, Zap, Plus, ArrowRight, Eye, EyeOff, Image, ListOrdered, HelpCircle, Mail, BadgePercent, Gamepad2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { listPromoItems, PromoItem } from '../services/catalogService';
 
@@ -61,15 +61,6 @@ const Pages: React.FC = () => {
       iconColor: 'text-sky-600',
       accentColor: 'border-sky-500',
       editPath: '/pages/products',
-    },
-    {
-      title: 'About Page',
-      description: 'Client /about page copy (separate from homepage About section)',
-      icon: BookOpen,
-      iconBg: 'bg-teal-50',
-      iconColor: 'text-teal-600',
-      accentColor: 'border-teal-500',
-      editPath: '/pages/about',
     },
     {
       title: 'How It Works',
