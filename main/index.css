@@ -88,8 +88,9 @@ html {
     @apply absolute bottom-[-80dvh] left-1/2 w-full max-w-96 -translate-x-1/2 text-center font-circular-web text-lg md:max-w-[34rem];
   }
 
+  /* top inset keeps mask close to copy; overflow on #clip prevents mobile top clip when pinned */
   .about-image {
-    @apply absolute left-1/2 top-0 z-20 h-[60vh] w-96 origin-center -translate-x-1/2 overflow-hidden rounded-3xl md:w-[30vw];
+    @apply absolute left-1/2 top-4 z-20 h-[55vh] w-[min(24rem,85vw)] origin-center -translate-x-1/2 overflow-hidden rounded-3xl md:top-0 md:h-[60vh] md:w-[30vw];
   }
 
   .animated-title {

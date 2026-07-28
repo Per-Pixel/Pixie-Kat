@@ -53,22 +53,44 @@ function pickCopy(raw) {
   };
 }
 
+const refreshPinLayout = () => {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      ScrollTrigger.refresh();
+    });
+  });
+};
+
 const About = () => {
   const [copy, setCopy] = useState(defaultCopy);
 
   useEffect(() => {
+    let cancelled = false;
     supabase
       .from("store_settings")
       .select("about_settings")
       .maybeSingle()
       .then(({ data }) => {
+        if (cancelled) return;
         if (data?.about_settings && Object.keys(data.about_settings).length > 0) {
           setCopy(pickCopy(data.about_settings));
         }
       });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Pristine clip animation — no settings deps, no layout overrides
+  // CMS/fonts/images can land after first paint on remote — refresh pin math only
+  useEffect(() => {
+    refreshPinLayout();
+    const onResize = () => refreshPinLayout();
+    window.addEventListener("resize", onResize);
+    document.fonts?.ready?.then(refreshPinLayout);
+    return () => window.removeEventListener("resize", onResize);
+  }, [copy]);
+
+  // Pristine clip timeline — same structure as the working local template
   useGSAP(() => {
     const clipAnimation = gsap.timeline({
       scrollTrigger: {
@@ -78,6 +100,7 @@ const About = () => {
         scrub: 0.5,
         pin: true,
         pinSpacing: true,
+        invalidateOnRefresh: true,
       },
     });
 
@@ -90,7 +113,7 @@ const About = () => {
 
   return (
     <div id="about" className="min-h-screen w-screen">
-      <div className="relative mb-8 mt-36 flex flex-col items-center gap-5">
+      <div className="relative mb-4 mt-28 flex flex-col items-center gap-5 md:mb-8 md:mt-36">
         <h2 className="font-general text-sm uppercase md:text-[10px]">
           {copy.welcome_text}
         </h2>
@@ -105,12 +128,15 @@ const About = () => {
           <p>{copy.subtext_line2}</p>
         </div>
       </div>
-      <div className="h-dvh w-screen" id="clip">
+      <div className="relative h-dvh w-screen overflow-hidden" id="clip">
         <div className="mask-clip-path about-image">
           <img
             src={copy.image_url}
             alt={copy.image_alt}
             className="absolute left-0 top-0 size-full object-cover"
+            loading="eager"
+            decoding="async"
+            onLoad={refreshPinLayout}
           />
         </div>
       </div>
