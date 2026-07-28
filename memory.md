@@ -104,6 +104,7 @@ When solving technical problems:
 4. Explain risks before suggesting invasive changes.
 5. Clearly distinguish facts, assumptions, and hypotheses.
 6. When uncertain, state what information is missing instead of guessing.
+7. Animation/CMS Integration: When connecting template components (e.g., GSAP ScrollTrigger) to dynamic CMS data, preserve the original proven DOM layout and CSS rules. Only map dynamic props/strings into the existing structure. Sanitize DB fallback values to prevent container height collapse.
 
 ---
 

@@ -7,6 +7,7 @@ import { Plus, UserRound } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 import { useAuth } from "../../contexts/AuthContext";
+import { useAppearance } from "../../contexts/AppearanceContext";
 import Button from "../common/Button";
 import DropdownMenu from "../common/DropdownMenu";
 
@@ -22,6 +23,7 @@ const darkTextTopRoutes = ["/games", "/pricing", "/how-it-works", "/faq", "/supp
 
 const NavBar = () => {
   const { isAuthenticated, profile } = useAuth();
+  const appearance = useAppearance();
   const [isAudioPlaying, setIsAudioPlaying] = useState(true);
   const [isIndicatorActive, setIsIndicatorActive] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -30,6 +32,12 @@ const NavBar = () => {
   const audioElementRef = useRef(null);
   const navContainerRef = useRef(null);
   const location = useLocation();
+
+  const logoUrl = appearance.logo_url || "/img/logo.png";
+  const brandText = appearance.header_brand_text || "PixieKat";
+  const musicUrl = appearance.music_url || "/audio/loop.mp3";
+  const musicRate = Number(appearance.music_playback_rate) || 1;
+  const musicVolume = Number(appearance.music_volume);
 
   const { y: currentScrollY } = useWindowScroll();
   const [isNavVisible, setIsNavVisible] = useState(true);
@@ -58,13 +66,15 @@ const NavBar = () => {
   useEffect(() => {
     if (!audioElementRef.current) return;
 
-    audioElementRef.current.volume = 0.5;
+    audioElementRef.current.volume = Number.isFinite(musicVolume) ? musicVolume : 0.5;
+    audioElementRef.current.playbackRate = Math.min(2, Math.max(0.5, musicRate));
     audioElementRef.current.muted = true;
 
     const attemptPlay = () => {
       audioElementRef.current.play()
         .then(() => {
           setTimeout(() => {
+            if (!audioElementRef.current) return;
             audioElementRef.current.muted = false;
             setIsMuted(false);
             setIsAudioPlaying(true);
@@ -73,6 +83,7 @@ const NavBar = () => {
         })
         .catch(() => {
           const resumeAudio = () => {
+            if (!audioElementRef.current) return;
             audioElementRef.current.muted = false;
             setIsMuted(false);
             audioElementRef.current.play()
@@ -99,7 +110,13 @@ const NavBar = () => {
     return () => {
       window.removeEventListener('load', attemptPlay);
     };
-  }, []);
+  }, [musicUrl, musicRate, musicVolume]);
+
+  useEffect(() => {
+    if (!audioElementRef.current) return;
+    audioElementRef.current.volume = Number.isFinite(musicVolume) ? musicVolume : 0.5;
+    audioElementRef.current.playbackRate = Math.min(2, Math.max(0.5, musicRate));
+  }, [musicRate, musicVolume]);
 
   useEffect(() => {
     if (isAudioPlaying) {
@@ -159,14 +176,14 @@ const NavBar = () => {
         <nav className="flex size-full items-center justify-between p-4">
           <div className="flex items-center gap-7">
             <Link to="/" className="flex items-center">
-              <img src="/img/logo.png" alt="PixieKat Logo" className="w-10" />
+              <img src={logoUrl} alt={`${brandText} Logo`} className="w-10" />
               <span
                 className={clsx(
                   "ml-2 hidden text-xl font-bold sm:block",
                   useDarkTextAtTop ? "!text-[#0E041D]" : "!text-white"
                 )}
               >
-                PixieKat
+                {brandText}
               </span>
             </Link>
 
@@ -243,7 +260,7 @@ const NavBar = () => {
               <audio
                 ref={audioElementRef}
                 className="hidden"
-                src="/audio/loop.mp3"
+                src={musicUrl}
                 loop
                 preload="auto"
                 muted={isMuted}

@@ -13,6 +13,7 @@ const contentEditors: DocLink[] = [
   { label: 'Hero Section', path: '/pages/homepage/hero', description: 'Homepage hero images, text & CTA' },
   { label: 'About Section', path: '/pages/homepage/about', description: 'Homepage about block — copy, CTA, image transforms & styles' },
   { label: 'About Page', path: '/pages/about', description: 'Client /about page editor (separate from homepage section)' },
+  { label: 'Products Page', path: '/pages/products', description: 'Hero carousel slides for /games' },
   { label: 'Trending Games', path: '/pages/homepage/trending-games', description: 'Homepage carousel cards' },
   { label: 'Exclusive Offers', path: '/pages/homepage/exclusive-offers', description: 'Promotional offer cards' },
   { label: 'How It Works', path: '/pages/how-it-works', description: 'Steps, features & stats for /how-it-works' },
@@ -80,7 +81,14 @@ const DocumentationPage: React.FC = () => (
           <li><code className="text-xs bg-gray-100 px-1 rounded">021_about_settings.sql</code> — homepage <code className="text-xs bg-gray-100 px-1 rounded">about_settings</code> JSONB</li>
           <li><code className="text-xs bg-gray-100 px-1 rounded">022_cms_page_settings.sql</code> — how_it_works, faq, contact, pricing_settings</li>
           <li><code className="text-xs bg-gray-100 px-1 rounded">023_about_page_settings.sql</code> — client /about page <code className="text-xs bg-gray-100 px-1 rounded">about_page_settings</code> (separate from homepage)</li>
+          <li><code className="text-xs bg-gray-100 px-1 rounded">024_products_page_settings.sql</code> — <code className="text-xs bg-gray-100 px-1 rounded">products_page_settings</code> (Games page hero slides)</li>
+          <li><code className="text-xs bg-gray-100 px-1 rounded">025_appearance_settings.sql</code> — <code className="text-xs bg-gray-100 px-1 rounded">appearance_settings</code> (favicon, logo, tab titles, music)</li>
         </ul>
+        <p>
+          Branding lives under <strong>Settings → Appearance</strong> (not Content). Apply migrations{' '}
+          <code className="text-xs bg-gray-100 px-1 rounded">024</code> and{' '}
+          <code className="text-xs bg-gray-100 px-1 rounded">025</code> before saving from those editors.
+        </p>
         <p>
           Configure <code className="text-xs bg-gray-100 px-1 rounded">VITE_SUPABASE_URL</code> and{' '}
           <code className="text-xs bg-gray-100 px-1 rounded">VITE_SUPABASE_ANON_KEY</code> in both{' '}

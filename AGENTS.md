@@ -48,6 +48,7 @@ Before starting any task in this repo, read memory.md and last_summary.md in thi
 - Docs: read repo docs before code. User-visible behavior change: update docs/changelog.
 - Inline comment: brief; only tricky, bug-prone, or formerly buggy logic.
 - New dependency: quick health check—recent release, commits, adoption.
+- Dynamic CMS wiring: Preserve pristine UI layout/CSS and GSAP scroll animation structures from working templates; only inject text/data values. Never add complex ad-hoc transform overrides on animated elements. Always sanitize database inputs/defaults (e.g. minHeight) to prevent DOM container collapse.
 
 ## PR / CI
 - GitHub work: use matching workflow. Prefer shimmed `gh` / `gitcrawl gh`; PR refs use `gh pr view/diff`, not web search.

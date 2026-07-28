@@ -1,22 +1,48 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Save, Bell, Shield, Globe, CreditCard, Store,
-  Mail, Phone, Lock, Key, AlertTriangle, CheckCircle,
-  ToggleLeft, ToggleRight, Info,
+  Save, Bell, Shield, CreditCard, Store, Palette,
+  Mail, Phone, Lock, Key, AlertTriangle, CheckCircle, Info,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import ComingSoonModal from '../components/common/ComingSoonModal';
+import ImageSourceField from '../components/common/ImageSourceField';
+import { supabase } from '../lib/supabase';
 import clsx from 'clsx';
 
-type Tab = 'store' | 'payment' | 'notifications' | 'security';
+type Tab = 'store' | 'appearance' | 'payment' | 'notifications' | 'security';
 
 const tabs: Array<{ id: Tab; label: string; icon: React.ComponentType<any> }> = [
   { id: 'store', label: 'Store', icon: Store },
+  { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'payment', label: 'Payment', icon: CreditCard },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'security', label: 'Security', icon: Shield },
 ];
+
+interface AppearanceSettings {
+  favicon_url: string;
+  icon_url: string;
+  logo_url: string;
+  header_brand_text: string;
+  tab_title_active: string;
+  tab_title_inactive: string;
+  music_url: string;
+  music_playback_rate: number;
+  music_volume: number;
+}
+
+const defaultAppearance: AppearanceSettings = {
+  favicon_url: '',
+  icon_url: '',
+  logo_url: '/img/logo.png',
+  header_brand_text: 'PixieKat',
+  tab_title_active: 'PixieKat',
+  tab_title_inactive: 'Come back to PixieKat!',
+  music_url: '/audio/loop.mp3',
+  music_playback_rate: 1,
+  music_volume: 0.5,
+};
 
 interface ToggleProps {
   checked: boolean;
@@ -53,6 +79,7 @@ const SectionCard: React.FC<{ title: string; description?: string; children: Rea
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('store');
   const [saving, setSaving] = useState(false);
+  const [appearanceLoading, setAppearanceLoading] = useState(true);
   const [comingSoon, setComingSoon] = useState<{ open: boolean; feature: string }>({ open: false, feature: '' });
 
   // Store settings state
@@ -62,6 +89,9 @@ const Settings: React.FC = () => {
   const [timezone, setTimezone] = useState('Asia/Kuala_Lumpur');
   const [supportPhone, setSupportPhone] = useState('+60 12-345 6789');
   const [maintenanceMode, setMaintenanceMode] = useState(false);
+
+  // Appearance (persisted)
+  const [appearance, setAppearance] = useState<AppearanceSettings>(defaultAppearance);
 
   // Notification settings state
   const [emailOnNewOrder, setEmailOnNewOrder] = useState(true);
@@ -79,14 +109,66 @@ const Settings: React.FC = () => {
   const [loginAlerts, setLoginAlerts] = useState(true);
   const [failedAttemptLock, setFailedAttemptLock] = useState(true);
 
+  const loadAppearance = async () => {
+    setAppearanceLoading(true);
+    const { data, error } = await supabase
+      .from('store_settings')
+      .select('appearance_settings')
+      .maybeSingle();
+
+    if (error) {
+      toast.error(error.message);
+    } else if (data?.appearance_settings && typeof data.appearance_settings === 'object') {
+      const raw = data.appearance_settings as Partial<AppearanceSettings>;
+      setAppearance({
+        ...defaultAppearance,
+        ...raw,
+        music_playback_rate: Number.isFinite(Number(raw.music_playback_rate))
+          ? Number(raw.music_playback_rate)
+          : 1,
+        music_volume: Number.isFinite(Number(raw.music_volume))
+          ? Number(raw.music_volume)
+          : 0.5,
+      });
+    }
+    setAppearanceLoading(false);
+  };
+
+  useEffect(() => {
+    loadAppearance();
+  }, []);
+
   const handleSave = async () => {
     setSaving(true);
+
+    if (activeTab === 'appearance') {
+      const payload: AppearanceSettings = {
+        ...appearance,
+        music_playback_rate: Math.min(2, Math.max(0.5, Number(appearance.music_playback_rate) || 1)),
+        music_volume: Math.min(1, Math.max(0, Number(appearance.music_volume) || 0)),
+      };
+      const { error } = await supabase
+        .from('store_settings')
+        .upsert({ id: true, appearance_settings: payload }, { onConflict: 'id' });
+      setSaving(false);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      setAppearance(payload);
+      toast.success('Appearance settings saved');
+      return;
+    }
+
     await new Promise((r) => setTimeout(r, 800));
     setSaving(false);
     toast.success('Settings saved successfully!');
   };
 
   const openComingSoon = (feature: string) => setComingSoon({ open: true, feature });
+
+  const setAppearanceField = <K extends keyof AppearanceSettings>(key: K, value: AppearanceSettings[K]) =>
+    setAppearance((prev) => ({ ...prev, [key]: value }));
 
   return (
     <div className="space-y-6">
@@ -188,6 +270,133 @@ const Settings: React.FC = () => {
                     </div>
                   )}
                 </SectionCard>
+              </motion.div>
+            )}
+
+            {/* ---- APPEARANCE TAB ---- */}
+            {activeTab === 'appearance' && (
+              <motion.div key="appearance" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="space-y-6">
+                {appearanceLoading ? (
+                  <p className="text-sm text-gray-500 py-8 text-center">Loading appearance settings…</p>
+                ) : (
+                  <>
+                    <div className="flex items-start gap-2 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                      <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-blue-800">
+                        Saved to <code className="text-xs bg-blue-100 px-1 rounded">store_settings.appearance_settings</code>.
+                        Use PNG or ICO for favicon (16×16 / 32×32). Hard-refresh the storefront if icons look cached.
+                      </p>
+                    </div>
+
+                    <SectionCard title="Branding" description="Logo, favicon, and header identity on the storefront">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <ImageSourceField
+                          label="Logo"
+                          value={appearance.logo_url}
+                          onChange={(url) => setAppearanceField('logo_url', url)}
+                          folder="appearance"
+                          placeholder="/img/logo.png"
+                          previewClassName="h-16 w-16"
+                        />
+                        <div>
+                          <label className="label mb-1.5 block">Header brand text</label>
+                          <input
+                            className="input"
+                            value={appearance.header_brand_text}
+                            onChange={(e) => setAppearanceField('header_brand_text', e.target.value)}
+                            placeholder="PixieKat"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">Shown next to the logo in the navbar</p>
+                        </div>
+                        <ImageSourceField
+                          label="Favicon"
+                          value={appearance.favicon_url}
+                          onChange={(url) => setAppearanceField('favicon_url', url)}
+                          folder="appearance"
+                          placeholder="Upload a 32×32 PNG or ICO"
+                          previewClassName="h-10 w-10"
+                        />
+                        <ImageSourceField
+                          label="App icon (apple-touch)"
+                          value={appearance.icon_url}
+                          onChange={(url) => setAppearanceField('icon_url', url)}
+                          folder="appearance"
+                          placeholder="Optional higher-res icon"
+                          previewClassName="h-16 w-16"
+                        />
+                      </div>
+                    </SectionCard>
+
+                    <SectionCard title="Browser tab titles" description="Titles swap when the visitor leaves or returns to the tab">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="label mb-1.5 block">Active tab title</label>
+                          <input
+                            className="input"
+                            value={appearance.tab_title_active}
+                            onChange={(e) => setAppearanceField('tab_title_active', e.target.value)}
+                            placeholder="PixieKat"
+                          />
+                        </div>
+                        <div>
+                          <label className="label mb-1.5 block">Inactive tab title</label>
+                          <input
+                            className="input"
+                            value={appearance.tab_title_inactive}
+                            onChange={(e) => setAppearanceField('tab_title_inactive', e.target.value)}
+                            placeholder="Come back to PixieKat!"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">Shown when the browser tab is hidden</p>
+                        </div>
+                      </div>
+                    </SectionCard>
+
+                    <SectionCard title="Background music" description="Navbar loop track — speed uses HTML audio playbackRate (0.5–2×)">
+                      <div className="space-y-4">
+                        <div>
+                          <label className="label mb-1.5 block">Music URL</label>
+                          <input
+                            className="input"
+                            value={appearance.music_url}
+                            onChange={(e) => setAppearanceField('music_url', e.target.value)}
+                            placeholder="/audio/loop.mp3"
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="label mb-1.5 block">
+                              Playback speed ({Number(appearance.music_playback_rate).toFixed(2)}×)
+                            </label>
+                            <input
+                              type="range"
+                              min={0.5}
+                              max={2}
+                              step={0.05}
+                              className="w-full"
+                              value={appearance.music_playback_rate}
+                              onChange={(e) => setAppearanceField('music_playback_rate', Number(e.target.value))}
+                            />
+                          </div>
+                          <div>
+                            <label className="label mb-1.5 block">
+                              Volume ({Math.round(Number(appearance.music_volume) * 100)}%)
+                            </label>
+                            <input
+                              type="range"
+                              min={0}
+                              max={1}
+                              step={0.05}
+                              className="w-full"
+                              value={appearance.music_volume}
+                              onChange={(e) => setAppearanceField('music_volume', Number(e.target.value))}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </SectionCard>
+                  </>
+                )}
               </motion.div>
             )}
 

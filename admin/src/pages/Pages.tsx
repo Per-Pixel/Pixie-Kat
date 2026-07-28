@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, Zap, Plus, ArrowRight, Eye, EyeOff, Code2, Info, Image, ListOrdered, HelpCircle, Mail, BadgePercent } from 'lucide-react';
+import { TrendingUp, Zap, Plus, ArrowRight, Eye, EyeOff, Image, ListOrdered, HelpCircle, Mail, BadgePercent, BookOpen, Gamepad2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { listPromoItems, PromoItem } from '../services/catalogService';
 
@@ -54,6 +54,24 @@ const Pages: React.FC = () => {
 
   const pageEditors = [
     {
+      title: 'Products Page',
+      description: 'Hero carousel slides for the /games products page',
+      icon: Gamepad2,
+      iconBg: 'bg-sky-50',
+      iconColor: 'text-sky-600',
+      accentColor: 'border-sky-500',
+      editPath: '/pages/products',
+    },
+    {
+      title: 'About Page',
+      description: 'Client /about page copy (separate from homepage About section)',
+      icon: BookOpen,
+      iconBg: 'bg-teal-50',
+      iconColor: 'text-teal-600',
+      accentColor: 'border-teal-500',
+      editPath: '/pages/about',
+    },
+    {
       title: 'How It Works',
       description: 'Steps, features, stats & banners for /how-it-works',
       icon: ListOrdered,
@@ -89,11 +107,6 @@ const Pages: React.FC = () => {
       accentColor: 'border-emerald-500',
       editPath: '/pages/pricing',
     },
-  ];
-
-  const staticPages = [
-    { name: 'Homepage Layout', path: '/', note: 'React component — main/src/pages/index' },
-    { name: 'Products Page', path: '/products', note: 'Dynamic — fetched from games table' },
   ];
 
   return (
@@ -289,33 +302,6 @@ const Pages: React.FC = () => {
         })}
       </motion.div>
 
-      {/* Static / dynamic notes */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
-      >
-        <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
-          <Code2 className="w-4 h-4 text-gray-400" />
-          <h2 className="font-semibold text-gray-800 text-sm">Other Pages</h2>
-          <span className="ml-auto flex items-center gap-1 text-xs text-gray-400">
-            <Info className="w-3.5 h-3.5" />
-            Not editable from admin
-          </span>
-        </div>
-        <ul className="divide-y divide-gray-100">
-          {staticPages.map(page => (
-            <li key={page.name} className="flex items-center justify-between px-5 py-3.5">
-              <div>
-                <p className="text-sm font-medium text-gray-900">{page.name}</p>
-                <p className="text-xs text-gray-400 mt-0.5 font-mono">{page.note}</p>
-              </div>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Static</span>
-            </li>
-          ))}
-        </ul>
-      </motion.div>
     </div>
   );
 };

@@ -293,6 +293,101 @@ export const DEFAULT_CONTACT = {
   whatsapp_message: "Hi PixieKat support!",
 };
 
+export const DEFAULT_PRODUCTS_PAGE = {
+  slides: [
+    {
+      id: 1,
+      title: "PIXIEKAT STORE",
+      subtitle: "Official Gaming Platform",
+      description:
+        "PIXIEKAT STORE is a practical solution for every game lover to buy game vouchers without having to go to a physical store.",
+      cta: "WWW.PIXIEKATSTORE.COM",
+      bgGradient: "from-blue-700 via-violet-700 to-indigo-900",
+      image: "/img/hero/game-hero-card.gif",
+    },
+    {
+      id: 2,
+      title: "MOBILE LEGENDS",
+      subtitle: "Top Up Diamonds",
+      description:
+        "Get instant diamonds for Mobile Legends. Fast, secure, and reliable top-up service with 24/7 support.",
+      cta: "TOP UP NOW",
+      bgGradient: "from-indigo-700 via-fuchsia-700 to-violet-900",
+      image: "/img/hero/game-mlbb-card.webp",
+    },
+    {
+      id: 3,
+      title: "PUBG GLOBAL",
+      subtitle: "UC Coins Available",
+      description:
+        "Purchase UC coins for PUBG Mobile Global. Instant delivery and competitive prices guaranteed.",
+      cta: "BUY UC COINS",
+      bgGradient: "from-orange-600 via-rose-700 to-red-900",
+      image: "/img/hero/game-pubg-card.webp",
+    },
+    {
+      id: 4,
+      title: "GENSHIN IMPACT",
+      subtitle: "Genesis Crystals",
+      description:
+        "Top up Genesis Crystals for Genshin Impact. Safe transactions with instant delivery to your account.",
+      cta: "GET CRYSTALS",
+      bgGradient: "from-cyan-700 via-sky-700 to-indigo-900",
+      image: "/img/hero/game-genshin-card.webp",
+    },
+  ],
+};
+
+export const DEFAULT_APPEARANCE = {
+  favicon_url: "",
+  icon_url: "",
+  logo_url: "/img/logo.png",
+  header_brand_text: "PixieKat",
+  tab_title_active: "PixieKat",
+  tab_title_inactive: "Come back to PixieKat!",
+  music_url: "/audio/loop.mp3",
+  music_playback_rate: 1,
+  music_volume: 0.5,
+};
+
+export function mergeProductsPageSettings(raw) {
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_PRODUCTS_PAGE };
+  const slides = Array.isArray(raw.slides) && raw.slides.length > 0
+    ? raw.slides.map((s, i) => ({
+        id: typeof s?.id === "number" ? s.id : i + 1,
+        title: s?.title || "",
+        subtitle: s?.subtitle || "",
+        description: s?.description || "",
+        cta: s?.cta || "",
+        bgGradient: s?.bgGradient || "from-blue-700 via-violet-700 to-indigo-900",
+        image: s?.image || "",
+      }))
+    : DEFAULT_PRODUCTS_PAGE.slides;
+  return { slides };
+}
+
+export function mergeAppearanceSettings(raw) {
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_APPEARANCE };
+  const rate = Number(raw.music_playback_rate);
+  const volume = Number(raw.music_volume);
+  return {
+    ...DEFAULT_APPEARANCE,
+    ...raw,
+    music_playback_rate: Number.isFinite(rate) ? Math.min(2, Math.max(0.5, rate)) : 1,
+    music_volume: Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.5,
+  };
+}
+
+export async function fetchProductsPageSettings() {
+  const raw = await fetchJsonSetting("products_page_settings", {});
+  return mergeProductsPageSettings(raw);
+}
+
+export async function fetchAppearanceSettings() {
+  const raw = await fetchJsonSetting("appearance_settings", {});
+  return mergeAppearanceSettings(raw);
+}
+
 export function buildWhatsAppUrl(whatsapp, message = DEFAULT_CONTACT.whatsapp_message) {
   const digits = String(whatsapp || "").replace(/\D/g, "");
   if (!digits) return "/support/contact-us";

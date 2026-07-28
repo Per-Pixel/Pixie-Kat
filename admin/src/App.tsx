@@ -37,6 +37,7 @@ import HowItWorksEditor from './pages/content/HowItWorksEditor';
 import FaqEditor from './pages/content/FaqEditor';
 import ContactEditor from './pages/content/ContactEditor';
 import PricingCopyEditor from './pages/content/PricingCopyEditor';
+import ProductsPageEditor from './pages/content/ProductsPageEditor';
 import PromoEditor from './pages/content/PromoEditor';
 import StoragePage from './pages/storage/StoragePage';
 import PermissionsPage from './pages/PermissionsPage';
@@ -137,7 +138,7 @@ const AppRoutes: React.FC = () => {
         <Route path="pages/homepage/exclusive-offers" element={<PromoList section="exclusive_offers" title="Exclusive Offers" description="Manage promotional offer cards on the homepage" basePath="/pages/homepage/exclusive-offers" />} />
         <Route path="pages/homepage/exclusive-offers/new" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="pages/homepage/exclusive-offers/:id" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
-        <Route path="pages/products" element={<Pages />} />
+        <Route path="pages/products" element={<ProductsPageEditor />} />
         <Route path="pages/about" element={<AboutEditor />} />
         <Route path="pages/how-it-works" element={<HowItWorksEditor />} />
         <Route path="pages/faq" element={<FaqEditor />} />
