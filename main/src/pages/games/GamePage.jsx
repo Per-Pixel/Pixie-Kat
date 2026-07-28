@@ -18,8 +18,21 @@ import { useGameCatalog } from "./useGameCatalog";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { sanitizeRichText } from "../../utils/sanitizeRichText";
+import { buildWhatsAppUrl, fetchContactSettings } from "../../lib/storeContent";
 
 const defaultBanner = "/img/hero/game-mlbb-card.webp";
+
+const COUNTRY_DIAL_CODES = [
+  { code: "IN", label: "India", dial: "+91" },
+  { code: "US", label: "United States", dial: "+1" },
+  { code: "GB", label: "United Kingdom", dial: "+44" },
+  { code: "AE", label: "UAE", dial: "+971" },
+  { code: "SG", label: "Singapore", dial: "+65" },
+  { code: "ID", label: "Indonesia", dial: "+62" },
+  { code: "PH", label: "Philippines", dial: "+63" },
+  { code: "MY", label: "Malaysia", dial: "+60" },
+  { code: "BR", label: "Brazil", dial: "+55" },
+];
 
 const defaultSteps = [
   { title: "Enter Your ID", description: "Provide your account details for verification." },
@@ -264,6 +277,8 @@ const GamePage = () => {
   const [selectedMembershipPlanId, setSelectedMembershipPlanId] = useState(null);
   const [fieldValues, setFieldValues] = useState({});
   const [contact, setContact] = useState({ email: "", whatsapp: "" });
+  const [dialCountry, setDialCountry] = useState("IN");
+  const [supportWhatsAppUrl, setSupportWhatsAppUrl] = useState("/support/contact-us");
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutSuccess, setCheckoutSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -324,6 +339,12 @@ const GamePage = () => {
     }
 
     loadMemberships();
+
+    fetchContactSettings().then((settings) => {
+      if (!cancelled) {
+        setSupportWhatsAppUrl(buildWhatsAppUrl(settings.whatsapp, settings.whatsapp_message));
+      }
+    });
 
     return () => {
       cancelled = true;
@@ -543,7 +564,7 @@ const GamePage = () => {
       },
       contact: {
         email: contact.email.trim().slice(0, 254),
-        whatsapp: contact.whatsapp.trim().slice(0, 32),
+        whatsapp: `${COUNTRY_DIAL_CODES.find((c) => c.code === dialCountry)?.dial ?? "+91"} ${contact.whatsapp.trim()}`.slice(0, 32),
       },
     };
 
@@ -937,11 +958,21 @@ const GamePage = () => {
               <div>
                 <span className="text-xs font-bold text-[#6d7480]">WHATSAPP NUMBER</span>
                 <div className="mt-2 grid grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] gap-3">
-                  <button type="button" className="flex h-14 items-center justify-between rounded-xl border border-[#dfe4ec] bg-white px-3 text-left">
-                    <span className="font-bold text-[#4b5563]">IN</span>
-                    <span className="text-center text-sm font-bold text-[#141923]">India<br /><span className="text-xs font-medium text-[#6d7480]">+91</span></span>
-                    <ChevronDown className="h-4 w-4 text-[#6d7480]" />
-                  </button>
+                  <label className="relative block">
+                    <span className="sr-only">Country dial code</span>
+                    <select
+                      className="h-14 w-full appearance-none rounded-xl border border-[#dfe4ec] bg-white px-3 pr-8 text-left text-sm font-bold text-[#141923] outline-none"
+                      value={dialCountry}
+                      onChange={(event) => setDialCountry(event.target.value)}
+                    >
+                      {COUNTRY_DIAL_CODES.map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.code} {country.dial} — {country.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6d7480]" />
+                  </label>
                   <input className="h-14 rounded-xl border border-[#dfe4ec] bg-white px-4 text-base font-bold text-[#141923] outline-none placeholder:text-[#9aa2ad]" placeholder="98765 43210" value={contact.whatsapp} onChange={(event) => updateContact("whatsapp", event.target.value)} />
                 </div>
               </div>
@@ -989,9 +1020,15 @@ const GamePage = () => {
         </main>
       </div>
 
-      <button type="button" className="fixed bottom-28 right-4 z-[130] flex h-12 w-12 items-center justify-center rounded-full bg-[#7b55ff] text-white shadow-[0_14px_30px_rgba(103,75,255,0.35)] md:bottom-8 md:right-8">
+      <a
+        href={supportWhatsAppUrl}
+        target={supportWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
+        rel={supportWhatsAppUrl.startsWith("http") ? "noreferrer" : undefined}
+        aria-label="Chat on WhatsApp"
+        className="fixed bottom-28 right-4 z-[130] flex h-12 w-12 items-center justify-center rounded-full bg-[#7b55ff] text-white shadow-[0_14px_30px_rgba(103,75,255,0.35)] md:bottom-8 md:right-8"
+      >
         <MessageCircle className="h-5 w-5" />
-      </button>
+      </a>
       <MobileCheckoutBar selectedPackage={selectedPackage} selectedPayment={selectedPayment} totalLabel={paymentTotalLabel} onPay={handleReview} isSubmitting={isSubmitting} />
     </div>
   );

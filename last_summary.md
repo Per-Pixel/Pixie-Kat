@@ -1,30 +1,27 @@
 # Last Summary
 
-## Session: Fix media assets + add admin editors for Hero video & About section
+## Session: Full-scope fix — loading screen, dead buttons, CMS layer, admin placeholders
 
-### Media fixes (3 commits)
-- `amplify.yml` SPA rewrite regex expanded: added `avif|mp3|mp4|ogg|wav|webm|webp`.
-- Replaced missing fallback images in `Loading.tsx` and `TrendingGames.jsx` with existing assets.
-- **Root cause found:** all video/image paths in `Hero.jsx`, `Features.jsx`, `About.jsx`, `FlipCard.jsx` were **relative** (e.g. `src="videos/hero-1.mp4"`) instead of absolute (`/videos/hero-1.mp4`). Fixed all to absolute paths.
-- Ran `bulk-upload-static-assets.js` against production Supabase — 34 already indexed, 2 new, 1 too large (`feature-1.mp4`).
+### Completed
+- **Loading screen:** `main/src/App.jsx` skips intro when `sessionStorage.pixie_has_loaded` is set; sets it on complete.
+- **Dead buttons:** GamePage country dial-code `<select>` + WhatsApp FAB; Pricing CTAs → `/games`; How It Works video/Browse/Pricing/Top Up wired; FAQ Contact/WhatsApp/Browse wired.
+- **Contact placeholders:** `MobileHelpSection` + Contact Us page load from `store_settings` via `main/src/lib/storeContent.js` (no more support@uxsiostore.com / fake wa.me numbers).
+- **Pricing:** Fetches live `membership_plans` (price, duration_days, discount_percent, benefits); removed fabricated monthly/yearly tiers and false free-trial claim. Page copy/FAQs from `pricing_settings`.
+- **Migration:** `supabase/migrations/022_cms_page_settings.sql` adds `how_it_works_settings`, `faq_settings`, `contact_settings`, `pricing_settings` JSONB columns.
+- **Admin CMS editors:** Contact, How It Works, FAQ, Pricing Copy — save to `store_settings`; Sidebar + Pages hub updated.
+- **Admin placeholders replaced:** Permissions (ROLE_PERMISSIONS matrix), Documentation hub, Tasks/Events (localStorage CRUD).
 
-### New admin features (commit `9335f63`)
-- **VideoSourceField** (`admin/src/components/common/VideoSourceField.tsx`): new component for video upload/URL input with preview, used in HeroEditor.
-- **HeroEditor** enhanced: background video field now uses `VideoSourceField` (upload + URL + preview) instead of plain text input.
-- **AboutEditor** (`admin/src/pages/content/AboutEditor.tsx`): full editor for homepage About section — text content, image upload, colors, object-fit, border-radius, min-height, clip animation toggle. Saves to `store_settings.about_settings`.
-- **Frontend About.jsx** now reads `about_settings` from Supabase `store_settings` table, with hardcoded defaults as fallback.
-- Wired into admin: routing (`App.tsx`), sidebar (`Sidebar.tsx`), content management shortcut (`Pages.tsx`).
-- Migration `021_about_settings.sql` created.
+### Schema note
+Storefront merge helpers accept both nested defaults and flat admin editor field names so CMS saves render correctly.
 
-### Required manual step
-Run this SQL in the Supabase SQL Editor to add the column:
-```sql
-ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS about_settings JSONB NOT NULL DEFAULT '{}'::jsonb;
-```
+### Verify
+- Run migration `022_cms_page_settings.sql` on Supabase.
+- Set WhatsApp/phone in Admin → Content → Contact Page.
+- Membership plan prices: Admin → Memberships (not Pricing Copy).
+- Main + admin production builds both pass.
 
-### Next steps
-1. Run the migration SQL above in Supabase Dashboard.
-2. Wait for Amplify builds (main + admin) to finish.
-3. Use admin panel → Content → Homepage → Hero Section to set the background video.
-4. Use admin panel → Content → Homepage → About Section to customize text/image/styles.
-5. Add real game covers to `main/public/img/games/` and `5.jpg` to `main/public/img/loading/` when available.
+### Files of interest
+- `main/src/lib/storeContent.js`
+- `main/src/pages/pricing/index.jsx`, `how-it-works/index.jsx`, `faq/index.jsx`, `support/ContactUsPage.jsx`
+- `admin/src/pages/content/{Contact,HowItWorks,Faq,PricingCopy}Editor.tsx`
+- `supabase/migrations/022_cms_page_settings.sql`

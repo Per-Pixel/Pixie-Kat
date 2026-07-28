@@ -99,9 +99,17 @@ const AppShell = ({ children }) => {
 
 
 
+const LOADING_SESSION_KEY = "pixie_has_loaded";
+
 function App() {
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => {
+    try {
+      return sessionStorage.getItem(LOADING_SESSION_KEY) !== "1";
+    } catch {
+      return true;
+    }
+  });
 
   const mainContentRef = useRef(null);
 
@@ -140,6 +148,12 @@ function App() {
 
 
   const handleLoadingComplete = useCallback(() => {
+
+    try {
+      sessionStorage.setItem(LOADING_SESSION_KEY, "1");
+    } catch {
+      /* ignore quota / private mode */
+    }
 
     setTimeout(() => {
 

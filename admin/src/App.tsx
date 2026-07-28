@@ -32,9 +32,16 @@ import ProductsList from './pages/products/ProductsList';
 import PromoList from './pages/content/PromoList';
 import HeroEditor from './pages/content/HeroEditor';
 import AboutEditor from './pages/content/AboutEditor';
+import HowItWorksEditor from './pages/content/HowItWorksEditor';
+import FaqEditor from './pages/content/FaqEditor';
+import ContactEditor from './pages/content/ContactEditor';
+import PricingCopyEditor from './pages/content/PricingCopyEditor';
 import PromoEditor from './pages/content/PromoEditor';
 import StoragePage from './pages/storage/StoragePage';
-import PlaceholderPage from './pages/PlaceholderPage';
+import PermissionsPage from './pages/PermissionsPage';
+import DocumentationPage from './pages/DocumentationPage';
+import TasksPage from './pages/TasksPage';
+import EventsPage from './pages/EventsPage';
 import ActivityLogs from './pages/ActivityLogs';
 import ProvidersPage from './pages/providers/ProvidersPage';
 import SmileOneDetailPage from './pages/providers/SmileOneDetailPage';
@@ -114,11 +121,11 @@ const AppRoutes: React.FC = () => {
         <Route path="auth/broker" element={<ManageUsers defaultRoleFilter="reseller" title="Brokers / Resellers" subtitle="Manage broker and reseller accounts" />} />
         <Route path="auth/admin" element={<ManageUsers defaultRoleFilter="admin" title="Admins" subtitle="Manage administrator accounts" />} />
         <Route path="auth/referrals" element={<Referral />} />
-        <Route path="auth/permissions" element={<PlaceholderPage title="Permissions" description="Manage admin roles, access rules, and permission groups." items={['Admin access', 'Support access', 'Reseller access']} />} />
+        <Route path="auth/permissions" element={<PermissionsPage />} />
         {/* Component Routes */}
-        <Route path="components/tasks" element={<PlaceholderPage title="Tasks" description="Track internal admin tasks and operational follow-ups." items={['Open tasks', 'Assigned work', 'Completed tasks']} />} />
-        <Route path="components/events" element={<PlaceholderPage title="Events" description="Review operational events and scheduled admin activity." items={['Upcoming events', 'Recent events', 'Event history']} />} />
-        <Route path="documentation" element={<PlaceholderPage title="Documentation" description="Keep admin guides, internal process notes, and setup references in one place." items={['Admin guide', 'Supabase setup', 'Release notes']} />} />
+        <Route path="components/tasks" element={<TasksPage />} />
+        <Route path="components/events" element={<EventsPage />} />
+        <Route path="documentation" element={<DocumentationPage />} />
         {/* Page Management Routes */}
         <Route path="pages/homepage" element={<Pages />} />
         <Route path="pages/homepage/hero" element={<HeroEditor />} />
@@ -131,7 +138,10 @@ const AppRoutes: React.FC = () => {
         <Route path="pages/homepage/exclusive-offers/:id" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="pages/products" element={<Pages />} />
         <Route path="pages/about" element={<Pages />} />
-        <Route path="pages/contact" element={<Pages />} />
+        <Route path="pages/how-it-works" element={<HowItWorksEditor />} />
+        <Route path="pages/faq" element={<FaqEditor />} />
+        <Route path="pages/contact" element={<ContactEditor />} />
+        <Route path="pages/pricing" element={<PricingCopyEditor />} />
         {/* Quick Action Routes */}
         <Route path="quick/add-product" element={<AddProduct />} />
         <Route path="quick/manage-users" element={<ManageUsers />} />

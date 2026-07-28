@@ -1,11 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { buildWhatsAppUrl, fetchContactSettings, DEFAULT_CONTACT } from '../../../lib/storeContent';
 
 const MobileHelpSection = () => {
   const [showContactModal, setShowContactModal] = useState(false);
+  const [contact, setContact] = useState(DEFAULT_CONTACT);
+
+  useEffect(() => {
+    fetchContactSettings().then(setContact);
+  }, []);
+
+  const phoneHref = contact.support_phone || contact.phone_display
+    ? `tel:${String(contact.support_phone || contact.phone_display).replace(/[^\d+]/g, '')}`
+    : '/support/contact-us';
+
+  const whatsappUrl = buildWhatsAppUrl(contact.whatsapp, contact.whatsapp_message);
+
   return (
     <div className="px-4 py-6 bg-blue-50">
-      {/* Need Help Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -34,7 +46,6 @@ const MobileHelpSection = () => {
         </div>
       </motion.div>
 
-      {/* Game Categories */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -55,7 +66,6 @@ const MobileHelpSection = () => {
         </div>
       </motion.div>
 
-      {/* Additional Info */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -70,12 +80,11 @@ const MobileHelpSection = () => {
           <h5 className="font-bold">Important Information</h5>
         </div>
         <p className="text-sm opacity-90 leading-relaxed">
-          Make sure to check your game ID and server before making any purchase. 
+          Make sure to check your game ID and server before making any purchase.
           All transactions are processed securely and instantly.
         </p>
       </motion.div>
 
-      {/* Contact Modal */}
       <AnimatePresence>
         {showContactModal && (
           <motion.div
@@ -99,7 +108,7 @@ const MobileHelpSection = () => {
 
                 <div className="space-y-4">
                   <motion.a
-                    href="mailto:support@uxsiostore.com"
+                    href={`mailto:${contact.support_email}`}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className="block bg-blue-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors"
@@ -107,23 +116,27 @@ const MobileHelpSection = () => {
                     📧 Email Support
                   </motion.a>
 
-                  <motion.a
-                    href="tel:+1234567890"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="block bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors"
-                  >
-                    📱 Call Support
-                  </motion.a>
+                  {(contact.support_phone || contact.phone_display) ? (
+                    <motion.a
+                      href={phoneHref}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="block bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors"
+                    >
+                      📱 Call Support
+                    </motion.a>
+                  ) : null}
 
-                  <motion.button
+                  <motion.a
+                    href={whatsappUrl}
+                    target={whatsappUrl.startsWith('http') ? '_blank' : undefined}
+                    rel={whatsappUrl.startsWith('http') ? 'noreferrer' : undefined}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => window.open('https://wa.me/1234567890', '_blank')}
                     className="block w-full bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors"
                   >
                     💬 WhatsApp Support
-                  </motion.button>
+                  </motion.a>
                 </div>
 
                 <motion.button
