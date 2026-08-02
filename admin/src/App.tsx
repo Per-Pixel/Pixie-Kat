@@ -38,6 +38,7 @@ import ContactEditor from './pages/content/ContactEditor';
 import PricingCopyEditor from './pages/content/PricingCopyEditor';
 import ProductsPageEditor from './pages/content/ProductsPageEditor';
 import PromoEditor from './pages/content/PromoEditor';
+import JjkCheaperEditor from './pages/content/events/JjkCheaperEditor';
 import StoragePage from './pages/storage/StoragePage';
 import PermissionsPage from './pages/PermissionsPage';
 import DocumentationPage from './pages/DocumentationPage';
@@ -138,6 +139,7 @@ const AppRoutes: React.FC = () => {
         <Route path="pages/homepage/exclusive-offers/new" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="pages/homepage/exclusive-offers/:id" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="pages/products" element={<ProductsPageEditor />} />
+        <Route path="pages/events/jjk-cheaper" element={<JjkCheaperEditor />} />
         <Route path="pages/how-it-works" element={<HowItWorksEditor />} />
         <Route path="pages/faq" element={<FaqEditor />} />
         <Route path="pages/contact" element={<ContactEditor />} />

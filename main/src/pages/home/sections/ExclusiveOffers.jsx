@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 
 import { usePromoSection } from "../../../hooks/usePromoSection";
+import { useJjkCheaperPlacement } from "../../../hooks/useJjkCheaperPlacement";
 
 const fallbackExclusiveOffers = [
   {
@@ -115,6 +116,7 @@ const ExclusiveOfferCard = ({ title, image, flag, link }) => {
 
 const ExclusiveOffers = () => {
   const { items: promoItems } = usePromoSection("exclusive_offers");
+  const jjkPromo = useJjkCheaperPlacement("homepage_banner");
 
   const exclusiveOffers =
     promoItems.length > 0
@@ -125,6 +127,8 @@ const ExclusiveOffers = () => {
           link: item.link_url || (item.game_id ? `/games/${item.game_id}` : "/games"),
         }))
       : fallbackExclusiveOffers;
+
+  const offers = jjkPromo ? [jjkPromo, ...exclusiveOffers] : exclusiveOffers;
 
   return (
     <section className="bg-[#dfdff0] px-2 py-12 md:px-8 md:py-16">
@@ -141,8 +145,8 @@ const ExclusiveOffers = () => {
       </div>
 
       <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4 lg:grid-cols-6 md:gap-4">
-        {exclusiveOffers.map((offer) => (
-          <ExclusiveOfferCard key={offer.title} {...offer} />
+        {offers.map((offer) => (
+          <ExclusiveOfferCard key={`${offer.title}-${offer.link || ""}`} {...offer} />
         ))}
       </div>
     </section>

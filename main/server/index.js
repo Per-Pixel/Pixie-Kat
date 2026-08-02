@@ -26,6 +26,10 @@
  * Fulfillment:
  *   POST   /api/fulfill-order                  Auto-deliver wallet order via provider
  *
+ * Storefront catalog (service_role — bypasses broken anon RLS helper grants):
+ *   GET    /api/catalog/games                  Active games list
+ *   GET    /api/catalog/games/:slug            Active game + fields + products
+ *
  * Proxied RPCs (service_role only — functions no longer callable by anon/authenticated):
  *   POST   /api/place-order                    Place wallet or pending order
  *   POST   /api/admin/analytics                Get admin analytics dashboard data
@@ -165,6 +169,53 @@ function findPlayerName(payload) {
 // Health check
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'pixiekat-admin-proxy', timestamp: new Date().toISOString() });
+});
+
+// Public storefront catalog — service_role bypasses RLS.
+// Needed while anon lacks EXECUTE on is_admin_or_support() (see migration 026).
+app.get('/api/catalog/games', async (_req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('games')
+      .select('id, slug, name, subtitle, image_url, banner_url, category, currency_label, is_featured, sort_order')
+      .eq('status', 'active')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json({ ok: true, games: data ?? [] });
+  } catch (err) {
+    console.error('[catalog/games]', err);
+    res.status(500).json({ ok: false, error: err.message || 'Failed to load games' });
+  }
+});
+
+app.get('/api/catalog/games/:slug', async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('games')
+      .select('*, game_fields(*), products(*)')
+      .eq('slug', req.params.slug)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ ok: false, error: 'Game not found' });
+
+    const fields = (data.game_fields ?? [])
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order);
+
+    const products = (data.products ?? [])
+      .filter((p) => p.status === 'active')
+      .sort((a, b) => a.sort_order - b.sort_order);
+
+    const { game_fields: _fields, products: _products, ...game } = data;
+    res.json({ ok: true, game, fields, products });
+  } catch (err) {
+    console.error('[catalog/games/:slug]', err);
+    res.status(500).json({ ok: false, error: err.message || 'Failed to load game' });
+  }
 });
 
 // Force logout all sessions for a user

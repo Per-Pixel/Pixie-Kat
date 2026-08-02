@@ -5,13 +5,13 @@
 @tailwind utilities;
 
 body {
-  width: 100dvw;
-  overflow-x: hidden;
+  width: 100%;
+  overflow-x: clip;
   background-color: #dfdff0;
   font-family: "General Sans", sans-serif;
 }
 html {
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 * {

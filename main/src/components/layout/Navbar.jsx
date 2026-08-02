@@ -8,6 +8,7 @@ import { Link, useLocation } from "react-router-dom";
 
 import { useAuth } from "../../contexts/AuthContext";
 import { useAppearance } from "../../contexts/AppearanceContext";
+import { useJjkCheaperPlacement } from "../../hooks/useJjkCheaperPlacement";
 import Button from "../common/Button";
 import DropdownMenu from "../common/DropdownMenu";
 
@@ -24,6 +25,7 @@ const darkTextTopRoutes = ["/games", "/pricing", "/how-it-works", "/faq", "/supp
 const NavBar = () => {
   const { isAuthenticated, profile } = useAuth();
   const appearance = useAppearance();
+  const jjkNavPromo = useJjkCheaperPlacement("navbar");
   const [isAudioPlaying, setIsAudioPlaying] = useState(true);
   const [isIndicatorActive, setIsIndicatorActive] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -211,6 +213,14 @@ const NavBar = () => {
                   {item.name}
                 </Link>
               ))}
+              {jjkNavPromo ? (
+                <Link
+                  to={jjkNavPromo.link}
+                  className={`nav-hover-btn ${navTextColorClass} hover:text-neon-purple`}
+                >
+                  {jjkNavPromo.title}
+                </Link>
+              ) : null}
             </div>
 
             {!isAuthenticated ? (

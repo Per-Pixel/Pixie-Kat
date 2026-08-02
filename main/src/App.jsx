@@ -46,6 +46,8 @@ const GameInfoPage = lazy(() => import("./pages/games/GamePage"));
 
 const BatchOrderPage = lazy(() => import("./pages/batch-order"));
 
+const JjkCheaperPage = lazy(() => import("./pages/events/jjk-cheaper"));
+
 
 
 const preloadImage = (src) => {
@@ -76,23 +78,55 @@ const AppShell = ({ children }) => {
 
   const isAuthRoute = ["/login", "/register", "/auth"].includes(location.pathname);
 
+  const isEventArchive = location.pathname.startsWith("/event/");
+
 
 
   return (
 
     <>
 
-      {!isWalletRoute ? <NavBar /> : null}
+      {!isWalletRoute && !isEventArchive ? <NavBar /> : null}
 
       {children}
 
-      {!isWalletRoute && !isHomePage && !isAuthRoute ? <Footer /> : null}
+      {!isWalletRoute && !isHomePage && !isAuthRoute && !isEventArchive ? <Footer /> : null}
 
-      {!isWalletRoute ? <BottomNav /> : null}
+      {!isWalletRoute && !isEventArchive ? <BottomNav /> : null}
 
-      {!isWalletRoute ? <FloatingActions /> : null}
+      {!isWalletRoute && !isEventArchive ? <FloatingActions /> : null}
 
     </>
+
+  );
+
+};
+
+
+
+function MainFrame({ isLoading, mainContentRef, children }) {
+
+  const location = useLocation();
+
+  const isEventArchive = location.pathname.startsWith("/event/");
+
+
+
+  return (
+
+    <main
+
+      className={`relative min-h-screen w-full bg-dark-900${isEventArchive ? "" : " overflow-x-clip"}`}
+
+      ref={mainContentRef}
+
+      style={{ opacity: isLoading ? 0 : 1 }}
+
+    >
+
+      {children}
+
+    </main>
 
   );
 
@@ -191,15 +225,7 @@ function App() {
 
 
 
-          <main
-
-            className="relative min-h-screen w-screen overflow-x-hidden bg-dark-900"
-
-            ref={mainContentRef}
-
-            style={{ opacity: isLoading ? 0 : 1 }}
-
-          >
+          <MainFrame isLoading={isLoading} mainContentRef={mainContentRef}>
 
             <AppShell>
 
@@ -237,13 +263,15 @@ function App() {
 
                   <Route path="/batch-order" element={<BatchOrderPage />} />
 
+                  <Route path="/event/jjk-cheaper" element={<JjkCheaperPage />} />
+
                 </Routes>
 
               </Suspense>
 
             </AppShell>
 
-          </main>
+          </MainFrame>
 
         </>
 

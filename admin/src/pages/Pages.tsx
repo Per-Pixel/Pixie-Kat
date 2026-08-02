@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, Zap, Plus, ArrowRight, Eye, EyeOff, Image, ListOrdered, HelpCircle, Mail, BadgePercent, Gamepad2 } from 'lucide-react';
+import { TrendingUp, Zap, Plus, ArrowRight, Eye, EyeOff, Image, ListOrdered, HelpCircle, Mail, BadgePercent, Gamepad2, Sparkles } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { listPromoItems, PromoItem } from '../services/catalogService';
 
@@ -53,6 +53,15 @@ const Pages: React.FC = () => {
   ];
 
   const pageEditors = [
+    {
+      title: 'JJK Cheaper Guide',
+      description: 'Draft event archive at /event/jjk-cheaper — sections, placements & publish',
+      icon: Sparkles,
+      iconBg: 'bg-rose-50',
+      iconColor: 'text-rose-600',
+      accentColor: 'border-rose-500',
+      editPath: '/pages/events/jjk-cheaper',
+    },
     {
       title: 'Products Page',
       description: 'Hero carousel slides for the /games products page',
