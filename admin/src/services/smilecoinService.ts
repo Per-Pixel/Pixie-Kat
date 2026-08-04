@@ -85,6 +85,39 @@ export interface SmOrderResponse {
   [k: string]: unknown;
 }
 
+export interface SmMismatchOrder {
+  id: string;
+  user_id: string;
+  product_id: string;
+  product_name: string;
+  total_amount: number;
+  status: string;
+  metadata: {
+    provider_mismatch?: {
+      expected_provider_price: number;
+      actual_provider_price: number;
+      product_name?: string;
+      provider_order_id?: string;
+      refund_amount?: number;
+      refund_currency?: string;
+      refund_status?: 'completed' | 'failed';
+      refund_error?: string;
+    };
+    fulfill_result?: { order_id?: string; price?: string | number; [k: string]: unknown };
+    account_fields?: Record<string, string>;
+    game_name?: string;
+    player_name?: string;
+    [k: string]: unknown;
+  };
+  created_at: string;
+}
+
+export interface SmMismatchesResponse {
+  ok: boolean;
+  count: number;
+  orders: SmMismatchOrder[];
+}
+
 // ── Curated game catalog ─────────────────────────────────────────────────────
 
 export interface SmGameCatalogEntry {
@@ -159,6 +192,11 @@ export const smilecoin = {
 
   orderDryRun: async (params: { userid: string; zoneid: string; product: string; productid: string }): Promise<SmOrderResponse> => {
     const { data } = await api.post<SmOrderResponse>('/smilecoin/order/dry-run', params);
+    return data;
+  },
+
+  mismatches: async (limit = 50): Promise<SmMismatchesResponse> => {
+    const { data } = await api.get<SmMismatchesResponse>(`/smilecoin/mismatches?limit=${limit}`);
     return data;
   },
 };

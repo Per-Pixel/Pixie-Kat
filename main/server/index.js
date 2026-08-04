@@ -659,6 +659,27 @@ app.post('/api/smilecoin/order/dry-run', requireAdmin, (req, res) => {
   res.json({ ok: true, dryRun: true, wouldSend: payload, testOrdersEnabled: smileCoin.ALLOW_TEST_ORDER });
 });
 
+// ── Mismatch audit ───────────────────────────────────────────────────────────
+// GET /api/smilecoin/mismatches?limit=50
+// Returns recent orders where the provider returned a different price than expected.
+app.get('/api/smilecoin/mismatches', requireAdmin, async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('orders')
+      .select('id, user_id, product_id, product_name, total_amount, status, metadata, created_at')
+      .not('metadata->provider_mismatch', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    res.json({ ok: true, count: data?.length ?? 0, orders: data ?? [] });
+  } catch (err) {
+    console.error('[smilecoin/mismatches]', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // Cache: product code → first valid productid from SmileCoin productlist
 // Avoids a productlist call on every verify request after the first.
 const scProductIdCache = {};
@@ -864,7 +885,7 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
   try {
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
-      .select('id, user_id, product_id, status, metadata')
+      .select('id, user_id, product_id, total_amount, currency, status, metadata')
       .eq('id', orderId)
       .single();
 
@@ -975,17 +996,76 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
       return res.json({ ok: false, provisioned: false, error: 'No auto-fulfillment provider configured for this game. Order will be fulfilled manually.' });
     }
 
+    // ── Provider price mismatch detection ──
+    // Compare the provider-returned price against the expected provider price
+    // stored in product.metadata.expected_provider_price. If the provider
+    // fulfilled a different product (e.g. Elite Bundle instead of Weekly Pass),
+    // the price will differ — auto-refund the proportional difference and flag
+    // it for admin review.
+    let mismatch = null;
+    let refundAmount = 0;
+    const returnedPrice = fulfillResult?.price != null ? Number(fulfillResult.price) : null;
+    const expectedPrice = product?.metadata?.expected_provider_price != null
+      ? Number(product.metadata.expected_provider_price)
+      : null;
+
+    if (returnedPrice != null && expectedPrice != null && returnedPrice !== expectedPrice) {
+      // Calculate proportional refund: if provider delivered a cheaper product,
+      // refund the fraction of the order amount that wasn't delivered.
+      // e.g. expected 76 BRL, got 39 BRL → refund (1 - 39/76) * 155 PKS ≈ 75.46 PKS
+      if (returnedPrice < expectedPrice) {
+        const ratio = 1 - (returnedPrice / expectedPrice);
+        refundAmount = Math.round(Number(order.total_amount) * ratio * 100) / 100;
+      }
+
+      mismatch = {
+        expected_provider_price: expectedPrice,
+        actual_provider_price: returnedPrice,
+        product_name: product?.name || order.metadata?.product_name,
+        provider_order_id: fulfillResult?.order_id,
+        refund_amount: refundAmount,
+        refund_currency: order.currency || 'PKS',
+      };
+      console.warn(`[fulfill-order] PRICE MISMATCH on order ${orderId}: expected provider price ${expectedPrice}, got ${returnedPrice}. Refunding ${refundAmount} to wallet.`);
+
+      // Auto-refund the difference to the user's wallet
+      if (refundAmount > 0) {
+        try {
+          await supabaseAdmin.rpc('adjust_wallet_balance', {
+            p_user_id:   order.user_id,
+            p_amount:    refundAmount,
+            p_type:      'refund',
+            p_reference: `Provider mismatch refund for order ${orderId} — expected ${expectedPrice}, got ${returnedPrice}`,
+            p_order_id:  orderId,
+          });
+          mismatch.refund_status = 'completed';
+          console.log(`[fulfill-order] Mismatch refund of ${refundAmount} completed for order ${orderId}`);
+        } catch (refundErr) {
+          mismatch.refund_status = 'failed';
+          mismatch.refund_error = refundErr.message;
+          console.error(`[fulfill-order] Mismatch refund failed for order ${orderId}:`, refundErr.message);
+        }
+      }
+    }
+
+    const completedMeta = {
+      ...order.metadata,
+      fulfill_result: fulfillResult,
+      fulfilled_at: new Date().toISOString(),
+      ...(mismatch ? { provider_mismatch: mismatch } : {}),
+    };
+
     await supabaseAdmin
       .from('orders')
       .update({
         status: 'completed',
         updated_at: new Date().toISOString(),
-        metadata: { ...order.metadata, fulfill_result: fulfillResult, fulfilled_at: new Date().toISOString() },
+        metadata: completedMeta,
       })
       .eq('id', orderId);
 
-    console.log(`[fulfill-order] Order ${orderId} completed via ${game.provider}`);
-    res.json({ ok: true, orderId, result: fulfillResult });
+    console.log(`[fulfill-order] Order ${orderId} completed via ${game.provider}${mismatch ? ' (MISMATCH — refund ' + refundAmount + ')' : ''}`);
+    res.json({ ok: true, orderId, result: fulfillResult, ...(mismatch ? { mismatch } : {}) });
 
   } catch (err) {
     console.error('[fulfill-order]', err.message);
