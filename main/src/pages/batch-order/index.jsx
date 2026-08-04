@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import {
+  AlertTriangle,
   CheckCircle2,
   Loader2,
   Minus,
@@ -250,6 +251,7 @@ export default function BatchOrderPage() {
       let completed = 0;
       let failed    = 0;
       const errors  = [];
+      const mismatches = [];
 
       setResults((prev) => ({
         ...prev,
@@ -298,6 +300,7 @@ export default function BatchOrderPage() {
             errors.push(body.error || "Delivery failed — refunded");
           } else {
             completed++;
+            if (body.mismatch) mismatches.push(body.mismatch);
           }
         } catch (err) {
           failed++;
@@ -311,6 +314,7 @@ export default function BatchOrderPage() {
             completed,
             total:     qty,
             error:     errors[errors.length - 1] ?? null,
+            mismatches: mismatches.length > 0 ? [...mismatches] : null,
           },
         }));
       }
@@ -322,6 +326,7 @@ export default function BatchOrderPage() {
           completed,
           total:     qty,
           error:     errors.length > 0 ? errors[0] : null,
+          mismatches: mismatches.length > 0 ? [...mismatches] : null,
         },
       }));
     }
@@ -528,6 +533,7 @@ export default function BatchOrderPage() {
                       <div
                         key={item.localId}
                         className={`flex items-start justify-between gap-3 rounded-xl border px-3 py-2.5 text-sm ${
+                          res?.status === "done" && res?.mismatches?.length ? "border-amber-300 bg-amber-50" :
                           res?.status === "done"    ? "border-emerald-200 bg-emerald-50" :
                           res?.status === "partial" ? "border-amber-200 bg-amber-50"    :
                           res?.status === "failed"  ? "border-red-200 bg-red-50"        :
@@ -561,6 +567,16 @@ export default function BatchOrderPage() {
                           </div>
                           {res?.error && (
                             <p className="mt-0.5 text-xs text-red-500">{res.error}</p>
+                          )}
+                          {res?.mismatches?.length > 0 && (
+                            <div className="mt-1 flex items-start gap-1 rounded-md bg-amber-100 px-2 py-1 text-xs text-amber-800">
+                              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                              <span>
+                                Provider price mismatch on {res.mismatches.length} order{res.mismatches.length > 1 ? "s" : ""}
+                                {` — expected ${res.mismatches[0].expected_provider_price}, got ${res.mismatches[0].actual_provider_price}. `}
+                                The provider may have substituted a different product.
+                              </span>
+                            </div>
                           )}
                         </div>
                         {!isProcessed && (
