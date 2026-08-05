@@ -10,7 +10,7 @@ const fallbackTrendingGames = [
     oldPrice: 69,
     price: 51,
     discount: 15,
-    image: "/img/hero/game-hero-card.gif", // placeholder: add /img/games/black-myth-wukong.jpg
+    image: "/img/hero/game-hero-card.gif",
   },
   {
     title: "Alan Wake 2",
@@ -26,7 +26,7 @@ const fallbackTrendingGames = [
     oldPrice: 62,
     price: 54,
     discount: 20,
-    image: "/img/hero/game-pubg-card.webp", // placeholder: add /img/games/mortal-kombat-11.jpg
+    image: "/img/hero/game-pubg-card.webp",
   },
   {
     title: "Spider-Man 2",
@@ -34,7 +34,7 @@ const fallbackTrendingGames = [
     oldPrice: 59,
     price: 35,
     discount: 30,
-    image: "/img/hero/game-genshin-card.webp", // placeholder: add /img/games/spider-man-2.jpg
+    image: "/img/hero/game-genshin-card.webp",
   },
   {
     title: "The Witcher 3",
@@ -42,7 +42,7 @@ const fallbackTrendingGames = [
     oldPrice: 49,
     price: 32,
     discount: 20,
-    image: "/img/games/honor-of-kings.jpg", // placeholder: add /img/games/witcher-3.jpg
+    image: "/img/games/honor-of-kings.jpg",
   },
   {
     title: "Honor of Kings",

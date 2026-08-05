@@ -118,7 +118,7 @@ function MainFrame({ isLoading, mainContentRef, children }) {
 
     <main
 
-      className={`relative min-h-screen w-full bg-dark-900${isEventArchive ? "" : " overflow-x-clip"}`}
+      className={`relative min-h-screen w-full${isEventArchive ? "" : " overflow-x-clip"}`}
 
       ref={mainContentRef}
 

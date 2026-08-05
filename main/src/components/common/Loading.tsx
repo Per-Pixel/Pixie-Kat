@@ -24,15 +24,15 @@ const Loading = ({
 
   // Define the images array
   const images = [
-    "/img/loading/1.jpg",  // Eye/face close-up
-    "/img/loading/2.jpg",  // Black and white architectural
-    "/img/loading/3.jpg",  // Person walking
-    "/img/loading/4.jpg",  // Green leaf/glass
-    "/img/loading/4.jpg",  // Red abstract (placeholder; add /img/loading/5.jpg when available)
-    "/img/loading/6.jpg",  // Blue/teal abstract
-    "/img/loading/7.jpg",  // Purple crystals/stones
-    "/img/loading/8.jpg",  // Bottle/product shot
-    "/img/loading/9.jpg"   // Green abstract
+    "/img/loading/1.jpg",
+    "/img/loading/2.jpg",
+    "/img/loading/3.jpg",
+    "/img/loading/4.jpg",
+    "/img/loading/9.jpg",
+    "/img/loading/6.jpg",
+    "/img/loading/7.jpg",
+    "/img/loading/8.jpg",
+    "/img/loading/1.jpg",
   ];
 
   useEffect(() => {

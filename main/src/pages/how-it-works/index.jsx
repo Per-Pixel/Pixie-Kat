@@ -395,7 +395,7 @@ const HowItWorks = () => {
                 <motion.button
                   type="button"
                   onClick={handleVideoPlay}
-                  whileHover={{ scale: 1.1 }}
+                  whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.93 }}
                   className="w-16 h-16 rounded-lg flex items-center justify-center transition-colors duration-200"
                   style={{

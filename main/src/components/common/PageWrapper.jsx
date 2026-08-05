@@ -1,13 +1,16 @@
 import { motion } from 'framer-motion';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 const PageWrapper = ({ children }) => {
+  const reduced = useReducedMotion();
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={reduced ? false : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.5 }}
-      className="min-h-screen bg-dark-900 text-white pt-24"
+      exit={reduced ? undefined : { opacity: 0, y: -20 }}
+      transition={{ duration: reduced ? 0 : 0.5 }}
+      className="min-h-screen pt-24"
     >
       {children}
     </motion.div>

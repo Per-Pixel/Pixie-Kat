@@ -365,7 +365,7 @@ const ContactUsPage = () => {
                       referrerPolicy="no-referrer-when-downgrade"
                     />
                   ) : (
-                    <span className="text-gray-400 text-sm">📍 Map placeholder</span>
+                    <span className="text-gray-400 text-sm">Map not available</span>
                   )}
                 </div>
               </motion.div>

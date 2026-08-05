@@ -140,12 +140,12 @@ const Pricing = () => {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
-            <span className="bg-gradient-to-r from-neon-purple to-neon-blue bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
+            <span className="bg-gradient-to-r from-violet-600 to-blue-500 bg-clip-text text-transparent">
               {copy.heading}
             </span>
           </h1>
-          <p className="text-gray-300 text-lg md:text-xl max-w-3xl mx-auto mb-8">
+          <p className="text-gray-600 text-lg md:text-xl max-w-3xl mx-auto mb-8">
             {copy.subheading}
           </p>
         </motion.div>
@@ -173,11 +173,11 @@ const Pricing = () => {
                   variants={cardVariants}
                   whileHover={{ scale: 1.02, y: -10 }}
                   className={`relative bg-gradient-to-br ${visual.color} rounded-2xl p-8 border-2 ${visual.borderColor} ${visual.glowColor} shadow-2xl overflow-hidden ${
-                    popular ? 'ring-4 ring-neon-purple/50' : ''
+                    popular ? 'ring-4 ring-violet-400/50' : ''
                   }`}
                 >
                   {popular && (
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-neon-purple to-neon-blue text-white px-6 py-2 rounded-full text-sm font-bold shadow-lg">
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-violet-600 to-blue-500 text-white px-6 py-2 rounded-full text-sm font-bold shadow-lg">
                       MOST POPULAR
                     </div>
                   )}
@@ -238,7 +238,7 @@ const Pricing = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => navigate('/games')}
-                    className={`w-full bg-gradient-to-r from-neon-purple to-neon-blue text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-neon-purple/50 transition-all duration-300 ${
+                    className={`w-full bg-gradient-to-r from-violet-600 to-blue-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-violet-400/50 transition-shadow duration-300 ${
                       popular ? 'animate-glow' : ''
                     }`}
                   >
@@ -256,18 +256,18 @@ const Pricing = () => {
           transition={{ duration: 0.6, delay: 0.8 }}
           className="mt-16 text-center"
         >
-          <h2 className="text-3xl font-bold text-white mb-8">Frequently Asked Questions</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-8">Frequently Asked Questions</h2>
           <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
             {copy.faqs.map((faq) => (
-              <div key={faq.question} className="bg-dark-600 rounded-xl p-6 text-left">
-                <h3 className="text-neon-purple font-semibold mb-2">{faq.question}</h3>
-                <p className="text-gray-300 text-sm">{faq.answer}</p>
+              <div key={faq.question} className="bg-white/80 rounded-xl p-6 text-left shadow-sm">
+                <h3 className="text-violet-600 font-semibold mb-2">{faq.question}</h3>
+                <p className="text-gray-600 text-sm">{faq.answer}</p>
               </div>
             ))}
           </div>
-          <p className="mt-8 text-sm text-gray-400">
+          <p className="mt-8 text-sm text-gray-500">
             Looking for more answers?{' '}
-            <Link to="/faq" className="text-neon-blue underline">
+            <Link to="/faq" className="text-violet-600 underline">
               Visit the full FAQ
             </Link>
           </p>
