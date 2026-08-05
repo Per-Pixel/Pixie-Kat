@@ -48,6 +48,8 @@ const BatchOrderPage = lazy(() => import("./pages/batch-order"));
 
 const JjkCheaperPage = lazy(() => import("./pages/events/jjk-cheaper"));
 
+const LegalPage = lazy(() => import("./pages/legal/LegalPage"));
+
 
 
 const preloadImage = (src) => {
@@ -264,6 +266,12 @@ function App() {
                   <Route path="/batch-order" element={<BatchOrderPage />} />
 
                   <Route path="/event/jjk-cheaper" element={<JjkCheaperPage />} />
+
+                  <Route path="/terms" element={<LegalPage docKey="terms" />} />
+
+                  <Route path="/privacy" element={<LegalPage docKey="privacy" />} />
+
+                  <Route path="/refund-policy" element={<LegalPage docKey="refund" />} />
 
                 </Routes>
 

@@ -1,29 +1,23 @@
 import { FaLinkedinIn, FaFacebookF, FaTwitter } from "react-icons/fa";
 import { HiArrowUpRight } from "react-icons/hi2";
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import MouseGlow from "../common/MouseGlow";
+import { fetchFooterSettings, DEFAULT_FOOTER } from "../../lib/storeContent";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const footerNavLinks = [
-  { label: "How It Works", href: "/how-it-works" },
-  { label: "Games", href: "/games" },
-  { label: "Pricing", href: "/pricing" },
-  { label: "Support", href: "/support" },
-];
-
-const socialLinks = [
-  { href: "https://linkedin.com", icon: <FaLinkedinIn />, label: "LinkedIn" },
-  { href: "https://facebook.com", icon: <FaFacebookF />, label: "Facebook" },
-  { href: "https://twitter.com", icon: <FaTwitter />, label: "Twitter" },
-];
+const socialIconMap = {
+  linkedin: <FaLinkedinIn />,
+  facebook: <FaFacebookF />,
+  twitter: <FaTwitter />,
+};
 
 /* ─── Split text into word spans (pure render, no hooks) ─── */
 const WordSpans = ({ text, className = "", wrapperClass = "footer-reveal-word-wrapper", wordClass = "footer-reveal-word" }) => {
-  const words = useMemo(() => text.split(" "), [text]);
+  const words = useMemo(() => (text || "").split(" "), [text]);
   return (
     <span className={className}>
       {words.map((word, i) => (
@@ -41,7 +35,7 @@ const WordSpans = ({ text, className = "", wrapperClass = "footer-reveal-word-wr
 /* ─── Split brand name into letter spans (pure render, no hooks) ─── */
 const LetterSpans = ({ text }) => (
   <span className="footer-brand-name">
-    {text.split("").map((char, i) => (
+    {(text || "pixie kat store").split("").map((char, i) => (
       <span key={i} className="footer-brand-letter-wrapper">
         <span className="footer-brand-letter">
           {char === " " ? "\u00A0" : char}
@@ -53,6 +47,13 @@ const LetterSpans = ({ text }) => (
 
 const Footer = () => {
   const footerRef = useRef(null);
+  const [footerData, setFooterData] = useState(DEFAULT_FOOTER);
+
+  useEffect(() => {
+    fetchFooterSettings().then((data) => {
+      if (data) setFooterData(data);
+    });
+  }, []);
 
   useEffect(() => {
     const root = footerRef.current;
@@ -125,7 +126,7 @@ const Footer = () => {
       tl.scrollTrigger?.kill();
       tl.kill();
     };
-  }, []);
+  }, [footerData]);
 
   return (
     <footer ref={footerRef} className="footer-wrapper">
@@ -139,16 +140,16 @@ const Footer = () => {
               alt="Pixie Kat"
               className="footer-cta-label-icon"
             />
-            <span>Get In Touch</span>
+            <span>{footerData.cta_label_text || "Get In Touch"}</span>
           </div>
 
           <h2 className="footer-cta-heading">
             <WordSpans
-              text="Ready to level up your game?"
+              text={footerData.cta_heading_bold || "Ready to level up your game?"}
               className="footer-cta-heading-bold"
             />{" "}
             <WordSpans
-              text="Top up your favorite titles instantly or explore our premium membership plans."
+              text={footerData.cta_heading_light || "Top up your favorite titles instantly or explore our premium membership plans."}
               className="footer-cta-heading-light"
             />
           </h2>
@@ -157,15 +158,15 @@ const Footer = () => {
         {/* Divider row: contact + nav */}
         <div className="footer-divider-row">
           <div className="footer-contact">
-            <span className="footer-contact-label">Reach us at:</span>
-            <a href="mailto:support@pixiekatstore.com" className="footer-contact-email">
-              support@pixiekatstore.com
+            <span className="footer-contact-label">{footerData.contact_label || "Reach us at:"}</span>
+            <a href={`mailto:${footerData.contact_email || "support@pixiekatstore.com"}`} className="footer-contact-email">
+              {footerData.contact_email || "support@pixiekatstore.com"}
               <HiArrowUpRight className="footer-contact-arrow" />
             </a>
           </div>
 
           <nav className="footer-nav">
-            {footerNavLinks.map((link) => (
+            {(footerData.nav_links || DEFAULT_FOOTER.nav_links).map((link) => (
               <Link key={link.label} to={link.href} className="footer-nav-link">
                 {link.label}
               </Link>
@@ -180,7 +181,7 @@ const Footer = () => {
             alt="Pixie Kat Store"
             className="footer-brand-logo"
           />
-          <LetterSpans text="pixie kat store" />
+          <LetterSpans text={footerData.brand_name_text || "pixie kat store"} />
         </div>
 
         {/* Static ambient glow at the bottom */}
@@ -190,11 +191,11 @@ const Footer = () => {
       {/* ——— Bottom bar ——— */}
       <div className="footer-bottom">
         <p className="footer-copyright">
-          © {new Date().getFullYear()} Pixie Kat Store. All rights reserved.
+          {footerData.copyright_text || `© ${new Date().getFullYear()} Pixie Kat Store. All rights reserved.`}
         </p>
 
         <div className="footer-socials">
-          {socialLinks.map((link) => (
+          {(footerData.social_links || DEFAULT_FOOTER.social_links).map((link) => (
             <a
               key={link.label}
               href={link.href}
@@ -202,7 +203,7 @@ const Footer = () => {
               rel="noopener noreferrer"
               className="footer-social-link"
             >
-              {link.label}
+              {socialIconMap[link.icon?.toLowerCase()] || link.label}
             </a>
           ))}
         </div>

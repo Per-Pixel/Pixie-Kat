@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, Zap, Plus, ArrowRight, Eye, EyeOff, Image, ListOrdered, HelpCircle, Mail, BadgePercent, Gamepad2, Sparkles } from 'lucide-react';
+import { TrendingUp, Zap, Plus, ArrowRight, Eye, EyeOff, Image, ListOrdered, HelpCircle, Mail, BadgePercent, Gamepad2, Sparkles, Layout, Shield } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { listPromoItems, PromoItem } from '../services/catalogService';
 
@@ -106,6 +106,24 @@ const Pages: React.FC = () => {
       iconColor: 'text-emerald-600',
       accentColor: 'border-emerald-500',
       editPath: '/pages/pricing',
+    },
+    {
+      title: 'Footer Section',
+      description: 'CTA headings, contact email, social links, nav links & copyright',
+      icon: Layout,
+      iconBg: 'bg-violet-50',
+      iconColor: 'text-violet-600',
+      accentColor: 'border-violet-500',
+      editPath: '/pages/footer',
+    },
+    {
+      title: 'Legal & Policies',
+      description: 'Terms of Service, Privacy Policy & Refund Policy document sections',
+      icon: Shield,
+      iconBg: 'bg-blue-50',
+      iconColor: 'text-blue-600',
+      accentColor: 'border-blue-500',
+      editPath: '/pages/legal',
     },
   ];
 

@@ -39,6 +39,8 @@ import PricingCopyEditor from './pages/content/PricingCopyEditor';
 import ProductsPageEditor from './pages/content/ProductsPageEditor';
 import PromoEditor from './pages/content/PromoEditor';
 import JjkCheaperEditor from './pages/content/events/JjkCheaperEditor';
+import FooterEditor from './pages/content/FooterEditor';
+import LegalPagesEditor from './pages/content/LegalPagesEditor';
 import StoragePage from './pages/storage/StoragePage';
 import PermissionsPage from './pages/PermissionsPage';
 import DocumentationPage from './pages/DocumentationPage';
@@ -144,6 +146,8 @@ const AppRoutes: React.FC = () => {
         <Route path="pages/faq" element={<FaqEditor />} />
         <Route path="pages/contact" element={<ContactEditor />} />
         <Route path="pages/pricing" element={<PricingCopyEditor />} />
+        <Route path="pages/footer" element={<FooterEditor />} />
+        <Route path="pages/legal" element={<LegalPagesEditor />} />
         {/* Quick Action Routes */}
         <Route path="quick/add-product" element={<AddProduct />} />
         <Route path="quick/manage-users" element={<ManageUsers />} />
