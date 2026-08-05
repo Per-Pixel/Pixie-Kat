@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 
 import { useAuth } from '../../contexts/AuthContext';
 import SlideTextButton from "../../animations/components/SlideTextButton";
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 const menuItems = [
   { title: 'Home', path: '/' },
@@ -23,7 +24,7 @@ const cardData = [
     description: 'Your trusted gaming top-up partner',
     image: '/videos/feature-1.mp4',
     buttonText: 'Get Started',
-    gradient: 'from-neon-purple to-neon-blue'
+    gradient: 'from-violet-500 to-blue-500'
   },
   {
     id: 'games',
@@ -31,7 +32,7 @@ const cardData = [
     description: 'Top up MLBB, PUBG, Free Fire & more',
     image: '/videos/feature-2.mp4',
     buttonText: 'Browse Games',
-    gradient: 'from-neon-blue to-neon-cyan'
+    gradient: 'from-blue-500 to-cyan-500'
   },
   {
     id: 'pricing',
@@ -39,7 +40,7 @@ const cardData = [
     description: 'Get exclusive benefits and bonuses',
     image: '/videos/feature-3.mp4',
     buttonText: 'View Plans',
-    gradient: 'from-neon-cyan to-neon-pink'
+    gradient: 'from-cyan-500 to-pink-500'
   },
   {
     id: 'howitworks',
@@ -47,7 +48,7 @@ const cardData = [
     description: 'Simple 5-step process for instant top-ups',
     image: '/videos/feature-4.mp4',
     buttonText: 'Learn More',
-    gradient: 'from-neon-pink to-neon-purple'
+    gradient: 'from-pink-500 to-violet-500'
   },
   {
     id: 'faq',
@@ -55,7 +56,7 @@ const cardData = [
     description: 'Find answers to common questions',
     image: '/videos/feature-5.mp4',
     buttonText: 'Read FAQ',
-    gradient: 'from-neon-purple to-neon-blue'
+    gradient: 'from-violet-500 to-blue-500'
   },
   {
     id: 'support',
@@ -63,7 +64,7 @@ const cardData = [
     description: '24/7 support via WhatsApp & more',
     image: '/videos/feature-1.mp4',
     buttonText: 'Get Help',
-    gradient: 'from-neon-blue to-neon-cyan'
+    gradient: 'from-blue-500 to-cyan-500'
   }
 ];
 
@@ -71,9 +72,15 @@ const DropdownMenu = ({ onClose }) => {
   const [activeCard, setActiveCard] = useState('home');
   const menuRef = useRef(null);
   const { isAuthenticated } = useAuth();
+  const reduced = useReducedMotion();
 
   useEffect(() => {
     const menu = menuRef.current;
+
+    if (reduced) {
+      gsap.set(menu, { y: 0, opacity: 1 });
+      return;
+    }
 
     gsap.set(menu, {
       y: '-100%',
@@ -110,6 +117,10 @@ const DropdownMenu = ({ onClose }) => {
   const currentCard = cardData.find(card => card.id === activeCard) || cardData[0];
 
   const handleClose = () => {
+    if (reduced) {
+      onClose();
+      return;
+    }
     const menu = menuRef.current;
 
     gsap.to(menu, {
@@ -148,7 +159,7 @@ const DropdownMenu = ({ onClose }) => {
                   onMouseEnter={() => handleMenuItemHover(item.title)}
                   onClick={handleClose}
                 >
-                  <span className="h-0.5 w-0 bg-neon-purple transition-all duration-300 group-hover:w-4"></span>
+                  <span className="h-0.5 w-0 bg-violet-500 transition-all duration-300 group-hover:w-4"></span>
                   {item.title}
                 </Link>
               </li>
@@ -161,7 +172,7 @@ const DropdownMenu = ({ onClose }) => {
                   className="group flex items-center gap-3 text-2xl text-white/70 transition-colors duration-300 hover:text-white"
                   onClick={handleClose}
                 >
-                  <span className="h-0.5 w-0 bg-neon-purple transition-all duration-300 group-hover:w-4"></span>
+                  <span className="h-0.5 w-0 bg-violet-500 transition-all duration-300 group-hover:w-4"></span>
                   Login
                 </Link>
               </li>
@@ -184,7 +195,7 @@ const DropdownMenu = ({ onClose }) => {
               <SlideTextButton
                 title={currentCard.buttonText}
                 leftIcon={<TiLocationArrow />}
-                containerClass="bg-white text-sm py-3 px-8 text-neon-purple flex-center gap-2 hover:bg-gray-100 transition-colors duration-200"
+                containerClass="bg-white text-sm py-3 px-8 text-violet-600 flex-center gap-2 hover:bg-gray-100 transition-colors duration-200"
                 onClick={() => {}}
               />
             </div>

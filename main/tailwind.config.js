@@ -1,6 +1,16 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  safelist: [
+    "grayscale",
+    "reveal-color",
+    "text-[50px]",
+    "text-[80px]",
+    "text-[60px]",
+    "text-[100px]",
+    "z-[9999]",
+    "z-[9997]",
+  ],
   theme: {
     extend: {
       fontFamily: {
@@ -25,17 +35,6 @@ export default {
           100: "#8e983f",
           300: "#edff66",
         },
-        safelist: [
-          'grayscale',
-          'reveal-color',
-          'text-[50px]',
-          'text-[80px]',
-          'text-[60px]',
-          'text-[100px]',
-          'z-[9999]',
-          'z-[9997]'
-        ],
-
       },
     },
   },

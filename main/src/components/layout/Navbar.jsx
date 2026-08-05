@@ -170,7 +170,7 @@ const NavBar = () => {
   return (
     <div
       ref={navContainerRef}
-      className="fixed inset-x-0 top-4 z-[100] h-16 border-none transition-all duration-700 sm:inset-x-6"
+      className="fixed inset-x-0 top-4 z-[100] h-16 border-none transition-[background-color,border-color,border-radius] duration-700 sm:inset-x-6"
     >
       <header className="absolute top-1/2 w-full -translate-y-1/2">
         <nav className="flex size-full items-center justify-between p-4">
@@ -205,12 +205,13 @@ const NavBar = () => {
                   className={`nav-hover-btn ${
                     location.pathname === item.path
                       ? `${navTextColorClass} border-b-2 ${navActiveBorderClass}`
-                      : `${navTextColorClass} hover:text-neon-purple`
+                      : `${navTextColorClass} hover:text-violet-300`
                   }`}
                 >
                   {item.name}
                 </Link>
               ))}
+
             </div>
 
             {!isAuthenticated ? (
@@ -225,7 +226,7 @@ const NavBar = () => {
                 <Link
                   to="/games/mobile-legends/add-money"
                   className={clsx(
-                    "flex h-11 items-center gap-2 rounded-full border border-slate-200/80 px-2.5 backdrop-blur-md transition-all duration-300 ease-in-out hover:-translate-y-0.5",
+                    "flex h-11 items-center gap-2 rounded-full border border-slate-200/80 px-2.5 backdrop-blur-md transition-transform duration-300 ease-in-out hover:-translate-y-0.5",
                     authPanelClass
                   )}
                 >
@@ -242,7 +243,7 @@ const NavBar = () => {
 
                 <Link
                   to="/account"
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-violet-200 via-white to-violet-400 text-violet-700 shadow-[0_10px_25px_rgba(168,85,247,0.35)] transition-all duration-300 ease-in-out hover:-translate-y-0.5"
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-violet-200 via-white to-violet-400 text-violet-700 shadow-[0_10px_25px_rgba(168,85,247,0.35)] transition-transform duration-300 ease-in-out hover:-translate-y-0.5"
                   aria-label="Open account page"
                 >
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 backdrop-blur">

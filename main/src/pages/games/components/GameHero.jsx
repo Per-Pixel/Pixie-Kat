@@ -165,7 +165,7 @@ const GameHero = () => {
                         <p className="hidden sm:block mx-auto mb-5 max-w-2xl text-sm text-white/90 md:text-base">
                           {slide.description}
                         </p>
-                        <button className="hidden sm:inline-flex rounded-lg bg-[#f4b73f] px-6 py-2 text-sm font-bold text-black transition-all duration-300 hover:bg-[#ffd06f] md:px-8 md:text-base">
+                        <button className="hidden sm:inline-flex rounded-lg bg-[#f4b73f] px-6 py-2 text-sm font-bold text-black transition-colors duration-300 hover:bg-[#ffd06f] md:px-8 md:text-base">
                           {slide.cta}
                         </button>
                       </motion.div>

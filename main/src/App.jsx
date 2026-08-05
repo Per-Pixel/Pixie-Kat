@@ -193,7 +193,7 @@ function App() {
 
           <main
 
-            className="relative min-h-screen w-screen overflow-x-hidden bg-dark-900"
+            className="relative min-h-screen w-screen overflow-x-hidden"
 
             ref={mainContentRef}
 
