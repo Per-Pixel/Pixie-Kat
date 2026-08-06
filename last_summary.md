@@ -13,6 +13,8 @@
 
 ### Current state
 - Backend dev server is now running on `0.0.0.0:3001` with the `mismatches` route live.
+- EB backend `pixiekat-api-prod` was redeployed from `main` (`app-260806_151905119072`) because the running version (`app-260726_155504729364`) predated the `mismatches` route.
+- After redeploy: `GET https://c4pmcbw502.execute-api.ap-south-1.amazonaws.com/prod/api/smilecoin/mismatches?limit=1` returns `401 Missing or malformed Authorization header` (route live), not 404.
 - Refreshing the admin console and retrying `Load mismatches` should now hit the route (it will then require a valid admin JWT, as expected).
 
 ### Follow-up
