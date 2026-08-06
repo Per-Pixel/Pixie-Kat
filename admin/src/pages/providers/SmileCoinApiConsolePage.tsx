@@ -156,7 +156,7 @@ const SmileCoinApiConsolePage: React.FC = () => {
 
         {/* Endpoint badges */}
         <div className="flex flex-wrap gap-2 mt-4">
-          {['GET /api/health', 'GET /api/products', 'GET /api/productlist', 'GET /api/servers', 'GET /api/points', 'POST /api/rolecheck', 'POST /api/order', 'GET /api/mismatches'].map(e => (
+          {['GET /api/smilecoin/health', 'GET /api/smilecoin/products', 'GET /api/smilecoin/productlist', 'GET /api/smilecoin/servers', 'GET /api/smilecoin/points', 'POST /api/smilecoin/rolecheck', 'POST /api/smilecoin/order', 'GET /api/smilecoin/mismatches'].map(e => (
             <span key={e} className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-mono rounded-full">{e}</span>
           ))}
         </div>
