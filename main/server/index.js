@@ -782,13 +782,16 @@ app.post('/api/verify-player', verifyLimiter, async (req, res) => {
         }
       }
       // Surface SmileCoin's error only if it's a real player-not-found case;
-      // product-config errors are treated as verification unavailable.
+      // product-config errors and transient network errors get a friendly fallback.
       const errMsg = body.message || body.msg || '';
       const isConfigError = /product does not exist|invalid product|not found/i.test(errMsg);
+      const isNetworkError = /conex[aã]o|rede|network|timeout|tente novamente|try again|connection/i.test(errMsg);
       return res.json({
         success: false,
         message: isConfigError
           ? 'Player verification is unavailable for this game. You can still place your order.'
+          : isNetworkError
+          ? 'Could not reach verification server. You can still place your order.'
           : (errMsg || 'Player not found. Check your User ID and Zone ID.'),
       });
     } catch (err) {
