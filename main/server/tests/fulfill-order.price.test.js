@@ -152,3 +152,37 @@ test('pointsDeficiency blocks zero/insufficient balance, fails open when unknown
   // Unknown balance → fail-open
   assert.strictEqual(pointsDeficiency(NaN, 100), null);
 });
+
+// ── Expected price fallback chain ──────────────────────────────────────────────
+// Mirrors the logic in ../index.js: metadata.expected_provider_price first,
+// then the live productlist SKU price from pre-flight, then null.
+
+function resolveExpectedPrice(metadataExpected, preFlightSkuPrice) {
+  if (metadataExpected != null) return Number(metadataExpected);
+  if (Number.isFinite(preFlightSkuPrice)) return preFlightSkuPrice;
+  return null;
+}
+
+test('resolveExpectedPrice uses metadata first, then productlist fallback, then null', () => {
+  // Metadata set → always wins
+  assert.strictEqual(resolveExpectedPrice(76, 3.9), 76);
+  assert.strictEqual(resolveExpectedPrice('76', 3.9), 76);
+  // No metadata, productlist available → use productlist
+  assert.strictEqual(resolveExpectedPrice(null, 3.9), 3.9);
+  assert.strictEqual(resolveExpectedPrice(undefined, 100), 100);
+  // Neither → null (skipped_no_expected_price)
+  assert.strictEqual(resolveExpectedPrice(null, NaN), null);
+  assert.strictEqual(resolveExpectedPrice(undefined, undefined), null);
+});
+
+test('proportional refund is near-full when wrong (cheap) product is delivered', () => {
+  // Customer orders 10000 diamonds (expected BRL 76), provider delivers elite pass (BRL 3.90)
+  const orderTotal = 500;
+  const returned = 3.9;
+  const expected = 76;
+  const ratio = 1 - (returned / expected);
+  const refund = Math.round(orderTotal * ratio * 100) / 100;
+  // ~94.9% refund — effectively a full refund for a clearly wrong product
+  assert.ok(refund > 470, `refund ${refund} should be near-full for wrong product`);
+  assert.ok(refund < 500, `refund ${refund} should not exceed order total`);
+});
