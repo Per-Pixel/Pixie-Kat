@@ -3,11 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, ShoppingCart, User, Package, CreditCard, Calendar,
   CheckCircle, Clock, AlertCircle, RefreshCw, XCircle,
-  PauseCircle, RotateCcw, Hash, Copy, ExternalLink,
+  PauseCircle, RotateCcw, Hash, Copy, ExternalLink, Coins,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import clsx from 'clsx';
+import api from '../../services/api';
 
 type OrderStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'refunded' | 'cancelled' | 'on_hold';
 
@@ -27,6 +28,16 @@ interface OrderRow {
     game_slug?: string;
     verified_username?: string;
     contact?: { email?: string; whatsapp?: string };
+    provider_mismatch?: {
+      expected_provider_price: number | null;
+      actual_provider_price: number;
+      product_name?: string;
+      provider_order_id?: string;
+      refund_amount?: number;
+      refund_currency?: string;
+      refund_status?: 'completed' | 'failed' | 'skipped_no_expected_price';
+      refund_error?: string;
+    };
   } | null;
   created_at: string;
   updated_at: string;
@@ -70,12 +81,43 @@ function formatDate(ts: string) {
 const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onStatusChange }) => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [confirmStatus, setConfirmStatus] = useState<OrderStatus | null>(null);
+  const [crediting, setCrediting] = useState(false);
 
   if (!order) return null;
 
   const cfg = statusConfig[order.status];
   const StatusIcon = cfg.icon;
   const allowedTransitions = statusTransitions[order.status];
+
+  const handleCreditRefund = async () => {
+    const mm = order.metadata?.provider_mismatch;
+    if (!mm || mm.refund_status === 'completed') return;
+    setCrediting(true);
+    try {
+      await api.post('/admin/wallet/adjust', {
+        userId: order.user_id,
+        amount: Math.abs(Number(mm.refund_amount || 0)),
+        type: 'refund',
+        reference: `Manual mismatch credit for order ${order.id} — expected ${mm.expected_provider_price ?? 'unset'}, got ${mm.actual_provider_price}`,
+      });
+      // Record that the refund was credited
+      await supabase
+        .from('orders')
+        .update({
+          metadata: {
+            ...order.metadata,
+            provider_mismatch: { ...mm, refund_status: 'completed', refund_error: undefined },
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', order.id);
+      toast.success('Refund credited to customer wallet');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to credit refund');
+    } finally {
+      setCrediting(false);
+    }
+  };
 
   const handleStatusChange = async (newStatus: OrderStatus) => {
     if (newStatus === order.status) return;
@@ -170,6 +212,40 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
                   <DetailRow icon={Calendar} label="Placed" value={formatDate(order.created_at)} />
                 </div>
               </section>
+
+              {/* Provider Mismatch */}
+              {order.metadata?.provider_mismatch && (
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Provider Mismatch</h3>
+                  <div className="bg-amber-50 rounded-xl border border-amber-200 p-4 space-y-3">
+                    <div className="flex items-start gap-2 text-amber-800 text-sm">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <p>
+                        The provider returned a different price than expected.
+                        {order.metadata.provider_mismatch.refund_status === 'skipped_no_expected_price' && ' Expected provider price is not set for this product.'}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <DetailRow icon={Hash} label="Expected" value={String(order.metadata.provider_mismatch.expected_provider_price ?? '—')} />
+                      <DetailRow icon={Hash} label="Actual" value={String(order.metadata.provider_mismatch.actual_provider_price)} />
+                      {order.metadata.provider_mismatch.provider_order_id && (
+                        <DetailRow icon={Hash} label="Provider Order" value={order.metadata.provider_mismatch.provider_order_id} />
+                      )}
+                      <DetailRow icon={Hash} label="Refund" value={`${Number(order.metadata.provider_mismatch.refund_amount || 0).toFixed(2)} ${order.metadata.provider_mismatch.refund_currency || 'PKS'} — ${order.metadata.provider_mismatch.refund_status ?? 'pending'}`} />
+                    </div>
+                    {order.metadata.provider_mismatch.refund_status !== 'completed' && (
+                      <button
+                        onClick={handleCreditRefund}
+                        disabled={crediting}
+                        className="w-full flex items-center justify-center gap-2 btn btn-sm bg-amber-600 text-white hover:bg-amber-700 border-0"
+                      >
+                        {crediting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Coins className="w-4 h-4" />}
+                        Credit {Number(order.metadata.provider_mismatch.refund_amount || 0).toFixed(2)} {order.metadata.provider_mismatch.refund_currency || 'PKS'} to wallet
+                      </button>
+                    )}
+                  </div>
+                </section>
+              )}
 
               {/* Customer Info */}
               <section>

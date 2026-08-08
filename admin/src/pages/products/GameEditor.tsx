@@ -29,6 +29,7 @@ interface ProductDraft {
   compare_price: string; image_url: string; sku: string;
   provider_product_id: string;
   secondary_provider_product_id: string;
+  expected_provider_price: string;
   stock: string;
   is_popular: boolean; status: ProductStatus;
   currency_prices: CurrencyPrices;
@@ -135,6 +136,9 @@ const productFromDB = (p: Product): ProductDraft => ({
   image_url: p.image_url ?? '', sku: p.sku ?? '',
   provider_product_id: p.provider_product_id ?? '',
   secondary_provider_product_id: String((p.metadata as Record<string, unknown>)?.secondary_provider_product_id ?? ''),
+  expected_provider_price: (p.metadata as Record<string, unknown>)?.expected_provider_price != null
+    ? String((p.metadata as Record<string, unknown>)?.expected_provider_price)
+    : '',
   stock: p.stock ? String(p.stock) : '',
   is_popular: p.is_popular ?? false, status: p.status ?? 'active',
   currency_prices: hydrateCurrencyPrices(defaultCurrencyPrices(p.price, p.cost_price, p.currency), p.metadata),
@@ -144,7 +148,8 @@ const productFromDB = (p: Product): ProductDraft => ({
 const emptyProductDraft = (): ProductDraft => ({
   _key: Math.random().toString(36).slice(2, 10),
   name: '', amount: '', description: '', compare_price: '', image_url: '',
-  sku: '', provider_product_id: '', secondary_provider_product_id: '', stock: '',
+  sku: '', provider_product_id: '', secondary_provider_product_id: '',
+  expected_provider_price: '', stock: '',
   is_popular: false, status: 'active',
   currency_prices: defaultCurrencyPrices(),
   is_default: false,
@@ -366,6 +371,7 @@ const GameEditor: React.FC = () => {
           metadata: {
             ...(Object.keys(extraCurrencies).length > 0 ? { currencies: extraCurrencies } : {}),
             ...(p.secondary_provider_product_id ? { secondary_provider_product_id: p.secondary_provider_product_id } : {}),
+            ...(p.expected_provider_price ? { expected_provider_price: Number(p.expected_provider_price) } : {}),
           },
         };
       }));
@@ -844,6 +850,21 @@ const GameEditor: React.FC = () => {
                                 When a customer orders this package, both <code className="bg-primary-100 px-1 rounded">{p.provider_product_id || '…'}</code> and <code className="bg-primary-100 px-1 rounded">{p.secondary_provider_product_id}</code> will be fulfilled.
                               </p>
                             )}
+                          </div>
+                          <div>
+                            <label className="label mb-1.5 block text-xs">Expected Provider Price <span className="text-gray-400 font-normal">(BRL / local currency)</span></label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              className="input font-mono text-sm"
+                              placeholder="e.g., 4.00"
+                              value={p.expected_provider_price}
+                              onChange={(e) => updateProduct(p._key, { expected_provider_price: e.target.value })}
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Used to detect provider substitution and auto-refund the difference.
+                            </p>
                           </div>
                         </div>
                       )}
