@@ -449,7 +449,7 @@ const GamePage = () => {
           setVerifyError(json.message || "Player not found. Check your User ID" + (serverIdKey ? " and Zone ID." : "."));
         }
       } catch {
-        setVerifyError("Could not verify — make sure the game server is running.");
+        setVerifyError("Could not reach verification server. You can still place your order.");
       } finally {
         setVerifying(false);
       }
