@@ -594,6 +594,7 @@ const GamePage = () => {
       let provisioned = true;
       let refunded = false;
       let fulfillError = null;
+      let mismatch = null;
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const res = await fetch("/api/fulfill-order", {
@@ -605,13 +606,14 @@ const GamePage = () => {
         fulfilled = Boolean(data.ok || data.already);
         provisioned = data.provisioned !== false;
         refunded = res.status === 500; // provider rejected — wallet was refunded
+        mismatch = data.mismatch || null;
         if (!fulfilled) fulfillError = data.error || null;
       } catch {
         // Server unreachable — order placed, delivery is manual
         provisioned = false;
       }
       setIsSubmitting(false);
-      setOrderComplete({ orderId, method: "wallet", amount: paymentTotalLabel, package: selectedPackage.name, fulfilled, provisioned, refunded, fulfillError });
+      setOrderComplete({ orderId, method: "wallet", amount: paymentTotalLabel, package: selectedPackage.name, fulfilled, provisioned, refunded, mismatch, fulfillError });
       return;
     }
 
@@ -644,19 +646,29 @@ const GamePage = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(115deg,#fbfaf5_0%,#eef8f7_48%,#faf8f2_100%)] px-4 pt-24 text-[#10141f]">
         <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-[0_24px_70px_rgba(15,23,42,0.12)] text-center">
-          <div className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full ${orderComplete.refunded ? "bg-amber-100" : "bg-emerald-100"}`}>
-            <CheckCircle2 className={`h-8 w-8 ${orderComplete.refunded ? "text-amber-500" : "text-emerald-600"}`} />
+          <div className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full ${orderComplete.refunded || orderComplete.mismatch ? "bg-amber-100" : "bg-emerald-100"}`}>
+            <CheckCircle2 className={`h-8 w-8 ${orderComplete.refunded || orderComplete.mismatch ? "text-amber-500" : "text-emerald-600"}`} />
           </div>
-          <h2 className="text-2xl font-black text-[#10141f]">{orderComplete.refunded ? "Delivery Failed — Refunded" : "Order Placed!"}</h2>
+          <h2 className="text-2xl font-black text-[#10141f]">
+            {orderComplete.refunded
+              ? "Delivery Failed — Refunded"
+              : orderComplete.mismatch
+                ? "Top-up Delivered"
+                : "Order Placed!"}
+          </h2>
           <p className="mt-2 text-sm text-[#5f6977]">
             {orderComplete.method === "wallet"
               ? orderComplete.refunded
                 ? "The top-up could not be delivered. Your wallet has been refunded."
-                : orderComplete.fulfilled
-                  ? "Payment confirmed and your top-up has been delivered!"
-                  : orderComplete.provisioned
-                    ? "Top-up is being processed — please allow a few minutes."
-                    : "Payment confirmed. Our team will process your order shortly."
+                : orderComplete.mismatch?.refund_status === "completed"
+                  ? "Top-up delivered with a partial refund — the provider sent a different package and we credited your wallet."
+                  : orderComplete.mismatch?.refund_status === "failed"
+                    ? `Top-up delivered, but the refund of ${formatPrice(orderComplete.mismatch.refund_amount, orderComplete.mismatch.refund_currency || "PKS")} could not be credited. Contact support.`
+                    : orderComplete.fulfilled
+                      ? "Payment confirmed and your top-up has been delivered!"
+                      : orderComplete.provisioned
+                        ? "Top-up is being processed — please allow a few minutes."
+                        : "Payment confirmed. Our team will process your order shortly."
               : "Your order has been received. Our team will process it after payment confirmation."}
           </p>
           {orderComplete.refunded && orderComplete.fulfillError && (
@@ -673,6 +685,12 @@ const GamePage = () => {
               <span className="text-[#6d7480]">Amount Paid</span>
               <span className="font-bold text-[#6d4cff]">{orderComplete.amount}</span>
             </div>
+            {orderComplete.mismatch?.refund_status === "completed" && (
+              <div className="flex justify-between">
+                <span className="text-[#6d7480]">Credited Refund</span>
+                <span className="font-bold text-emerald-600">+{formatPrice(orderComplete.mismatch.refund_amount, orderComplete.mismatch.refund_currency || "PKS")}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-[#6d7480]">Payment</span>
               <span className="font-bold capitalize text-[#10141f]">{orderComplete.method}</span>
