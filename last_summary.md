@@ -1,21 +1,37 @@
 # Last Summary
 
-## Session: Fix `mismatches` 404 in admin Smilecoin console
+## Session: Block orders on insufficient Smile Points / missing Provider Product ID
 
-### What happened
-- User reported `mismatches failed: Request failed with status code 404` from the admin Smilecoin API console.
-- The frontend call is in `admin/src/pages/providers/SmileCoinApiConsolePage.tsx` → `smilecoin.mismatches(100)` → `admin/src/services/smilecoinService.ts` `GET /api/smilecoin/mismatches?limit=100`.
-- The backend route `GET /api/smilecoin/mismatches` is present in `main/server/index.js` (lines 612-630) and the `admin/.env` base URL points to `http://192.168.1.5:3001/api`, so the call path is correct.
-- Also fixed the endpoint badge list in `admin/src/pages/providers/SmileCoinApiConsolePage.tsx` so the Smilecoin console labels show the correct `/api/smilecoin/...` paths (was missing the `smilecoin` segment for mismatches and several other endpoints).
-- Started `main/server` with `npm run dev` and tested the endpoint directly:
-  - `GET http://localhost:3001/api/smilecoin/mismatches?limit=1` → `401 Missing or malformed Authorization header` (route is loaded and reachable).
-  - Confirms the 404 came from a stale backend process that had not picked up the `mismatches` route.
+### Problem
+User/admin orders were going through to the SmileCoin provider even when the merchant account had no Smile Points, and fulfillment silently delivered the **lowest** provider product (cheapest denomination) instead of the product the customer paid for.
 
-### Current state
-- Backend dev server is now running on `0.0.0.0:3001` with the `mismatches` route live.
-- EB backend `pixiekat-api-prod` was redeployed from `main` (`app-260806_151905119072`) because the running version (`app-260726_155504729364`) predated the `mismatches` route.
-- After redeploy: `GET https://c4pmcbw502.execute-api.ap-south-1.amazonaws.com/prod/api/smilecoin/mismatches?limit=1` returns `401 Missing or malformed Authorization header` (route live), not 404.
-- Refreshing the admin console and retrying `Load mismatches` should now hit the route (it will then require a valid admin JWT, as expected).
+### Root cause — two combined bugs in `main/server/index.js` `/api/fulfill-order`
+1. **No points/balance pre-flight.** `createorder` was called with no check against the merchant Smile Points balance. The `querypoints` endpoint existed and was shown in admin, but never consulted in the fulfillment path.
+2. **Silent cheapest-SKU fallback.** When a product had no `provider_product_id` (the GameEditor field is optional), `resolveScProductId()` picked `productlist.data.product[0].id` — the first/lowest SKU — and fulfilled against it. The same fallback also ran as a retry when the configured productid failed. Last session's price-mismatch refund only reacts *after* the wrong cheap item is already delivered to the player's account (can't be un-delivered).
+
+### Fix (both conditions: auto-refund & fail, per user decision)
+`main/server/index.js`:
+- Added pure helpers after `resolveScProductId`: `resolveOrderProductId`, `extractPointsBalance`, `extractSkuPrice`, `pointsDeficiency`, and async `preFlightPointsCheck(product, productid)`.
+  - `resolveOrderProductId` returns the configured provider product id or **null** (never falls back to productlist[0]); rejects `'1'` placeholder and whitespace.
+  - `pointsDeficiency` is **fail-closed** on zero/insufficient balance, **fail-open** when balance or cost can't be determined (so a transient provider query error doesn't block every order).
+- Rewrote the SmileCoin branch of `/api/fulfill-order`:
+  - Requires a valid provider product id; throws a clear "set provider_product_id in admin GameEditor" error otherwise.
+  - Runs `preFlightPointsCheck` before `createorder`; throws on insufficient points.
+  - Deleted the productlist fallback and the retry-with-resolved-productid block (same lowest-SKU bug).
+- Both throws land in the existing catch block (lines ~1068+), which already calls `refund_wallet_order` (or fallback `adjust_wallet_balance`) and marks the order `failed`. Customer wallet is refunded; order does not reach the provider.
+
+### Regression tests
+`main/server/tests/fulfill-order.price.test.js` — added 4 tests mirroring the pure helpers (7 total, all passing):
+- `resolveOrderProductId` never falls back to placeholder/lowest SKU.
+- `extractPointsBalance` handles flat, nested, and zero balances.
+- `extractSkuPrice` matches SKU by id and parses price.
+- `pointsDeficiency` blocks zero/insufficient, fails open on unknown.
+
+### Verification
+- `node --check main/server/index.js` → SYNTAX_OK
+- `node --test tests/fulfill-order.price.test.js` in `main/server` → 7/7 pass, 0 fail
 
 ### Follow-up
-- If you prefer to run the full dev stack, stop the current server and run `npm run dev:all` from `main` (it will kill port 3001 and start frontend, backend, and admin together).
+- The `resolveScProductId` cheapest-SKU fallback is intentionally **kept** for `verify-player` (read-only player probe) — only removed from `fulfill-order`.
+- Audit existing products in admin GameEditor and backfill `provider_product_id` for any SmileCoin products missing it; otherwise those orders will now (correctly) auto-refund-and-fail until fixed.
+- End-to-end manual check against the live SmileCoin gateway requires `SC_EMAIL/SC_UID/SC_KEY` env and a real productlist/points response shape — not run here.
