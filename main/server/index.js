@@ -699,6 +699,82 @@ async function resolveScProductId(product) {
   }
 }
 
+// ── Fulfillment guards (pure, mirrored in tests/fulfill-order.price.test.js) ──
+
+// Resolve the exact provider product id for an order. Never falls back to the
+// lowest productlist SKU — returns null when unconfigured so the caller can fail
+// the order instead of silently delivering a cheaper denomination than sold.
+function resolveOrderProductId(product) {
+  const id = String(
+    product?.metadata?.secondary_provider_product_id ||
+    product?.provider_product_id ||
+    product?.sku || ''
+  ).trim();
+  return (!id || id === '1') ? null : id;
+}
+
+// Parse the merchant Smile Points balance from a querypoints response.
+function extractPointsBalance(body) {
+  if (!body) return NaN;
+  const flat = body.smile_points ?? body.points ?? body.balance;
+  const nested = body?.data?.smile_points ?? body?.data?.points ?? body?.data?.balance;
+  const v = flat ?? nested;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+// Parse a single SKU's point cost from a productlist, matching by id.
+function extractSkuPrice(skus, productid) {
+  if (!Array.isArray(skus)) return NaN;
+  const sku = skus.find(s => s && String(s.id) === String(productid));
+  if (!sku) return NaN;
+  const candidates = [sku.price, sku.point, sku.points, sku.smile_price, sku.sell_price, sku.amount];
+  for (const c of candidates) {
+    if (c == null) continue;
+    const n = parseFloat(String(c));
+    if (Number.isFinite(n)) return n;
+  }
+  return NaN;
+}
+
+// Returns an error message when the merchant can't afford the SKU, else null.
+// Fail-open (null) when balance can't be determined; fail-closed when the
+// balance is zero or provably below the SKU cost.
+function pointsDeficiency(balance, cost) {
+  if (!Number.isFinite(balance)) return null;
+  if (balance <= 0) {
+    return `Insufficient Smile Points: balance is ${balance}. Top up the merchant balance and re-fulfill.`;
+  }
+  if (Number.isFinite(cost) && balance < cost) {
+    return `Insufficient Smile Points: need ${cost}, have ${balance}. Top up the merchant balance and re-fulfill.`;
+  }
+  return null;
+}
+
+// Pre-flight: block fulfillment when the merchant Smile Points balance can't
+// cover the SKU. Fail-open on provider query errors so a transient hiccup
+// doesn't block all orders (createorder will still reject if truly short).
+async function preFlightPointsCheck(product, productid) {
+  let balance = NaN;
+  let cost = NaN;
+  try {
+    const ptsBody = await smileCoin.callSmileCoin('querypoints', { product });
+    balance = extractPointsBalance(ptsBody);
+    const listBody = await smileCoin.callSmileCoin('productlist', { product });
+    const skus = listBody?.data?.product ?? listBody?.productList ?? listBody?.list ?? listBody?.skus ?? listBody?.product ?? [];
+    cost = extractSkuPrice(skus, productid);
+  } catch (err) {
+    console.warn('[fulfill-order] Points pre-flight query failed; proceeding to createorder:', err.message);
+    return;
+  }
+  const deficiency = pointsDeficiency(balance, cost);
+  if (deficiency) {
+    console.warn(`[fulfill-order] ${deficiency}`);
+    throw new Error(deficiency);
+  }
+  console.log(`[fulfill-order] Points pre-flight OK: balance ${balance}, SKU ${productid} cost ${Number.isFinite(cost) ? cost : 'unknown'}`);
+}
+
 // Public player verification — POST /api/verify-player
 // No admin auth required (used by customer-facing game page).
 // Body: { user_id, zone_id?, api_game?, product?, product_id?, smile_coin_product? }
@@ -926,21 +1002,22 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
     const scProduct = game.metadata?.smile_coin_product;
 
     if (scProduct && smileCoin.isConfigured()) {
-      let productid = String(
-        product?.metadata?.secondary_provider_product_id ||
-        product?.provider_product_id ||
-        product?.sku || ''
-      );
-
-      // If no productid in DB, resolve from productlist (same as verify-player)
-      if (!productid || productid === '1') {
-        const resolved = await resolveScProductId(scProduct);
-        if (resolved) {
-          productid = resolved;
-          console.log(`[fulfill-order] Resolved productid from productlist: ${productid}`);
-        }
+      // Fulfillment must use the exact provider product the customer paid for.
+      // Never fall back to the first (lowest) SKU from the productlist — that
+      // silently delivers a cheaper denomination than what was sold. If no valid
+      // provider product id is configured, fail the order (auto-refund) so the
+      // admin can fix the product config and the customer can re-order.
+      const productid = resolveOrderProductId(product);
+      if (!productid) {
+        throw new Error(
+          'No valid Provider Product ID for this product (set provider_product_id in admin GameEditor). ' +
+          'Order refunded — fix the product config, then have the customer re-order.'
+        );
       }
-      if (!productid) throw new Error('No productid configured for this product (set provider_product_id or secondary_provider_product_id)');
+
+      // Pre-flight: block the order when the merchant Smile Points balance can't
+      // cover this SKU (e.g. balance is 0 or below the SKU's point cost).
+      await preFlightPointsCheck(scProduct, productid);
 
       const createParams = {
         userid:    String(userId),
@@ -956,28 +1033,9 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
       // Accept both numeric and string status, and ok:true
       const statusOk = Number(body.status) === 200 || body.ok === true;
       if (!statusOk) {
-        // If the DB productid failed, try resolving from productlist as a fallback
-        if (!product?.metadata?.secondary_provider_product_id && !product?.provider_product_id) {
-          // Already used resolved productid, no fallback left
-          throw new Error(body.message || body.msg || `SmileCoin order failed (status ${body.status})`);
-        }
-        const resolved = await resolveScProductId(scProduct);
-        if (resolved && resolved !== productid) {
-          console.log(`[fulfill-order] Retrying with resolved productid: ${resolved} (was ${productid})`);
-          const retryParams = { ...createParams, productid: resolved };
-          const retryBody = await smileCoin.callSmileCoin('createorder', retryParams);
-          console.log('[fulfill-order] retry createorder response:', JSON.stringify(retryBody).slice(0, 500));
-          if (Number(retryBody.status) === 200 || retryBody.ok === true) {
-            fulfillResult = retryBody;
-          } else {
-            throw new Error(retryBody.message || retryBody.msg || `SmileCoin order failed (status ${retryBody.status})`);
-          }
-        } else {
-          throw new Error(body.message || body.msg || `SmileCoin order failed (status ${body.status})`);
-        }
-      } else {
-        fulfillResult = body;
+        throw new Error(body.message || body.msg || `SmileCoin order failed (status ${body.status})`);
       }
+      fulfillResult = body;
     } else if (game.provider === 'smile_one' && smileOne.isConfigured() && game.provider_game_code) {
       const sku = product?.sku;
       const pid = product?.provider_product_id;
@@ -1002,48 +1060,97 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
     // fulfilled a different product (e.g. Elite Bundle instead of Weekly Pass),
     // the price will differ — auto-refund the proportional difference and flag
     // it for admin review.
+    function normalizeProviderPrice(raw) {
+      if (raw == null) return null;
+      const str = String(raw).trim().toUpperCase();
+      // Strip common currency prefixes/symbols and whitespace, then parse
+      const cleaned = str
+        .replace(/^(BRL|USD|EUR|PHP|MYR|IDR|PKR|INR|PKS)\s*/i, '')
+        .replace(/[A-Za-z$₹€£¥]/g, '')
+        .replace(/\s+/g, '')
+        .replace(',', '.');
+      if (!cleaned) return null;
+      const n = Number(cleaned);
+      return Number.isFinite(n) && n >= 0 ? n : null;
+    }
+
+    function extractReturnedPrice(result) {
+      if (!result || typeof result !== 'object') return null;
+      const candidates = [
+        result.price,
+        result?.data?.price,
+        result.product_price,
+        result.amount,
+        result.total_amount,
+      ];
+      for (const candidate of candidates) {
+        const price = normalizeProviderPrice(candidate);
+        if (price != null) return price;
+      }
+      console.log('[fulfill-order] Could not extract provider price. Candidates:', JSON.stringify(candidates));
+      return null;
+    }
+
     let mismatch = null;
     let refundAmount = 0;
-    const returnedPrice = fulfillResult?.price != null ? Number(fulfillResult.price) : null;
+    const returnedPrice = extractReturnedPrice(fulfillResult);
     const expectedPrice = product?.metadata?.expected_provider_price != null
       ? Number(product.metadata.expected_provider_price)
       : null;
 
-    if (returnedPrice != null && expectedPrice != null && returnedPrice !== expectedPrice) {
-      // Calculate proportional refund: if provider delivered a cheaper product,
-      // refund the fraction of the order amount that wasn't delivered.
-      // e.g. expected 76 BRL, got 39 BRL → refund (1 - 39/76) * 155 PKS ≈ 75.46 PKS
-      if (returnedPrice < expectedPrice) {
-        const ratio = 1 - (returnedPrice / expectedPrice);
-        refundAmount = Math.round(Number(order.total_amount) * ratio * 100) / 100;
-      }
+    if (returnedPrice != null) {
+      if (expectedPrice == null) {
+        // Provider reported a price but we have nothing to compare it with.
+        // Flag the order so admins can backfill the expected price.
+        mismatch = {
+          expected_provider_price: null,
+          actual_provider_price: returnedPrice,
+          product_name: product?.name || order.metadata?.product_name,
+          provider_order_id: fulfillResult?.order_id,
+          refund_amount: 0,
+          refund_currency: order.currency || 'PKS',
+          refund_status: 'skipped_no_expected_price',
+        };
+        console.warn(`[fulfill-order] No expected_provider_price for product ${product?.id || 'unknown'} (order ${orderId}). Provider reported ${returnedPrice}.`);
+      } else if (returnedPrice !== expectedPrice) {
+        // Calculate proportional refund: if provider delivered a cheaper product,
+        // refund the fraction of the order amount that wasn't delivered.
+        // e.g. expected 76 BRL, got 39 BRL → refund (1 - 39/76) * 155 PKS ≈ 75.46 PKS
+        if (returnedPrice < expectedPrice) {
+          const ratio = 1 - (returnedPrice / expectedPrice);
+          refundAmount = Math.round(Number(order.total_amount) * ratio * 100) / 100;
+        }
 
-      mismatch = {
-        expected_provider_price: expectedPrice,
-        actual_provider_price: returnedPrice,
-        product_name: product?.name || order.metadata?.product_name,
-        provider_order_id: fulfillResult?.order_id,
-        refund_amount: refundAmount,
-        refund_currency: order.currency || 'PKS',
-      };
-      console.warn(`[fulfill-order] PRICE MISMATCH on order ${orderId}: expected provider price ${expectedPrice}, got ${returnedPrice}. Refunding ${refundAmount} to wallet.`);
+        mismatch = {
+          expected_provider_price: expectedPrice,
+          actual_provider_price: returnedPrice,
+          product_name: product?.name || order.metadata?.product_name,
+          provider_order_id: fulfillResult?.order_id,
+          refund_amount: refundAmount,
+          refund_currency: order.currency || 'PKS',
+        };
+        console.warn(`[fulfill-order] PRICE MISMATCH on order ${orderId}: expected provider price ${expectedPrice}, got ${returnedPrice}. Refunding ${refundAmount} to wallet.`);
 
-      // Auto-refund the difference to the user's wallet
-      if (refundAmount > 0) {
-        try {
-          await supabaseAdmin.rpc('adjust_wallet_balance', {
-            p_user_id:   order.user_id,
-            p_amount:    refundAmount,
-            p_type:      'refund',
-            p_reference: `Provider mismatch refund for order ${orderId} — expected ${expectedPrice}, got ${returnedPrice}`,
-            p_order_id:  orderId,
-          });
+        // Auto-refund the difference to the user's wallet
+        if (refundAmount > 0) {
+          try {
+            await supabaseAdmin.rpc('adjust_wallet_balance', {
+              p_user_id:   order.user_id,
+              p_amount:    refundAmount,
+              p_type:      'refund',
+              p_reference: `Provider mismatch refund for order ${orderId} — expected ${expectedPrice}, got ${returnedPrice}`,
+              p_order_id:  orderId,
+            });
+            mismatch.refund_status = 'completed';
+            console.log(`[fulfill-order] Mismatch refund of ${refundAmount} completed for order ${orderId}`);
+          } catch (refundErr) {
+            mismatch.refund_status = 'failed';
+            mismatch.refund_error = refundErr.message;
+            console.error(`[fulfill-order] Mismatch refund failed for order ${orderId}:`, refundErr.message);
+          }
+        } else {
           mismatch.refund_status = 'completed';
-          console.log(`[fulfill-order] Mismatch refund of ${refundAmount} completed for order ${orderId}`);
-        } catch (refundErr) {
-          mismatch.refund_status = 'failed';
-          mismatch.refund_error = refundErr.message;
-          console.error(`[fulfill-order] Mismatch refund failed for order ${orderId}:`, refundErr.message);
+          mismatch.refund_amount = 0;
         }
       }
     }
