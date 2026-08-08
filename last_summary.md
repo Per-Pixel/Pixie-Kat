@@ -31,7 +31,13 @@ User/admin orders were going through to the SmileCoin provider even when the mer
 - `node --check main/server/index.js` → SYNTAX_OK
 - `node --test tests/fulfill-order.price.test.js` in `main/server` → 7/7 pass, 0 fail
 
+### Git + deploy
+- Two separate commits (previous session's refund UI + this session's guard) on both `admin` and `main` branches.
+- Both branches pushed to `origin` (GitHub `Per-Pixel/Pixie-Kat`).
+- **Deployed `main/server` to AWS Elastic Beanstalk** (`pixiekat-api-prod`, `ap-south-1`) via `eb deploy`. Health check confirmed live.
+- Frontend (`main` + `admin`) auto-deploys via AWS Amplify on git push.
+
 ### Follow-up
 - The `resolveScProductId` cheapest-SKU fallback is intentionally **kept** for `verify-player` (read-only player probe) — only removed from `fulfill-order`.
 - Audit existing products in admin GameEditor and backfill `provider_product_id` for any SmileCoin products missing it; otherwise those orders will now (correctly) auto-refund-and-fail until fixed.
-- End-to-end manual check against the live SmileCoin gateway requires `SC_EMAIL/SC_UID/SC_KEY` env and a real productlist/points response shape — not run here.
+- Test live: place an order with insufficient Smile Points — should now auto-refund and fail instead of delivering the cheapest SKU.

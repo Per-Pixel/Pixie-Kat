@@ -703,6 +703,8 @@ function pointsDeficiency(balance, cost) {
 // Pre-flight: block fulfillment when the merchant Smile Points balance can't
 // cover the SKU. Fail-open on provider query errors so a transient hiccup
 // doesn't block all orders (createorder will still reject if truly short).
+// Returns { balance, skuPrice } so the caller can reuse the productlist SKU
+// price as an automatic expected-price fallback for mismatch detection.
 async function preFlightPointsCheck(product, productid) {
   let balance = NaN;
   let cost = NaN;
@@ -714,7 +716,7 @@ async function preFlightPointsCheck(product, productid) {
     cost = extractSkuPrice(skus, productid);
   } catch (err) {
     console.warn('[fulfill-order] Points pre-flight query failed; proceeding to createorder:', err.message);
-    return;
+    return { balance: NaN, skuPrice: NaN };
   }
   const deficiency = pointsDeficiency(balance, cost);
   if (deficiency) {
@@ -722,6 +724,7 @@ async function preFlightPointsCheck(product, productid) {
     throw new Error(deficiency);
   }
   console.log(`[fulfill-order] Points pre-flight OK: balance ${balance}, SKU ${productid} cost ${Number.isFinite(cost) ? cost : 'unknown'}`);
+  return { balance, skuPrice: cost };
 }
 
 // Public player verification — POST /api/verify-player
@@ -966,7 +969,8 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
 
       // Pre-flight: block the order when the merchant Smile Points balance can't
       // cover this SKU (e.g. balance is 0 or below the SKU's point cost).
-      await preFlightPointsCheck(scProduct, productid);
+      // Also returns the live productlist SKU price for mismatch detection.
+      const { skuPrice: preFlightSkuPrice } = await preFlightPointsCheck(scProduct, productid);
 
       const createParams = {
         userid:    String(userId),
@@ -1043,9 +1047,13 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
     let mismatch = null;
     let refundAmount = 0;
     const returnedPrice = extractReturnedPrice(fulfillResult);
+    // Expected price fallback chain:
+    //   1. metadata.expected_provider_price (manually set in admin — most reliable)
+    //   2. preFlightSkuPrice (live from productlist — auto-detected, same currency
+    //      as createorder since both go through the same SC_COUNTRY endpoint)
     const expectedPrice = product?.metadata?.expected_provider_price != null
       ? Number(product.metadata.expected_provider_price)
-      : null;
+      : Number.isFinite(preFlightSkuPrice) ? preFlightSkuPrice : null;
 
     if (returnedPrice != null) {
       if (expectedPrice == null) {
@@ -1060,7 +1068,7 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
           refund_currency: order.currency || 'PKS',
           refund_status: 'skipped_no_expected_price',
         };
-        console.warn(`[fulfill-order] No expected_provider_price for product ${product?.id || 'unknown'} (order ${orderId}). Provider reported ${returnedPrice}.`);
+        console.warn(`[fulfill-order] No expected price for product ${product?.id || 'unknown'} (order ${orderId}). Provider reported ${returnedPrice}. Flagged for admin review.`);
       } else if (returnedPrice !== expectedPrice) {
         // Calculate proportional refund: if provider delivered a cheaper product,
         // refund the fraction of the order amount that wasn't delivered.
@@ -1070,6 +1078,9 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
           refundAmount = Math.round(Number(order.total_amount) * ratio * 100) / 100;
         }
 
+        const expectedSource = product?.metadata?.expected_provider_price != null
+          ? 'metadata.expected_provider_price'
+          : 'productlist (auto-detected)';
         mismatch = {
           expected_provider_price: expectedPrice,
           actual_provider_price: returnedPrice,
@@ -1078,7 +1089,7 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
           refund_amount: refundAmount,
           refund_currency: order.currency || 'PKS',
         };
-        console.warn(`[fulfill-order] PRICE MISMATCH on order ${orderId}: expected provider price ${expectedPrice}, got ${returnedPrice}. Refunding ${refundAmount} to wallet.`);
+        console.warn(`[fulfill-order] PRICE MISMATCH on order ${orderId}: expected provider price ${expectedPrice} (${expectedSource}), got ${returnedPrice}. Refunding ${refundAmount} to wallet.`);
 
         // Auto-refund the difference to the user's wallet
         if (refundAmount > 0) {
