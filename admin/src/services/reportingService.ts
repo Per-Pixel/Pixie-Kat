@@ -96,7 +96,8 @@ export async function getAdminReportData(): Promise<AdminReportData> {
     supabase
       .from('profiles')
       .select('id, name, email, role, status, wallet_balance, created_at')
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(5000),
     supabase
       .from('orders')
       .select('id, user_id, product_id, product_name, quantity, total_amount, currency, status, payment_method, unit_selling_price, unit_cost_price, metadata, created_at, updated_at, profiles:user_id(name, email)')
@@ -105,7 +106,8 @@ export async function getAdminReportData(): Promise<AdminReportData> {
     supabase
       .from('products')
       .select('id, game_id, name, price, cost_price, currency, stock, status, is_popular, game:games(name, category, provider)')
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(2000),
     supabase
       .from('wallet_transactions')
       .select('id, user_id, type, amount, created_at')
@@ -114,7 +116,8 @@ export async function getAdminReportData(): Promise<AdminReportData> {
     supabase
       .from('referrals')
       .select('id, referrer_id, referred_id, status, commission, created_at')
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(5000),
     supabase
       .from('user_activity_log')
       .select('id, user_id, actor_id, action, description, ip_address, metadata, created_at')

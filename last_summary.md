@@ -1,18 +1,18 @@
 # Last Summary
 
-## Session: Fix verify-player Portuguese error message leak
+## Session: Fix Localhost Admin Panel Connection & Client Player Verification
 
-### Problem
-When SmileCoin's `getrole` API returns a transient network error, the raw Portuguese message ("Há um problema com a conexão de rede. Por favor, tente novamente!") was passed directly to the customer-facing game page instead of the player's username. The admin console showed names fine because it reads from stored order metadata (from `createorder` responses), not from live `getrole` calls.
+### 1. Admin Panel Localhost API Base URL
+- **Problem**: Admin panel failed to connect to the backend server or load Supabase-dependent API resources when running locally on localhost (`http://localhost:5174`).
+- **Root Cause**: `admin/.env` contained `VITE_API_BASE_URL=http://192.168.1.5:3001/api`. The hardcoded local LAN IP (`192.168.1.5`) was unreachable or rejected by CORS on localhost.
+- **Fix**: Updated `admin/.env` to `VITE_API_BASE_URL=http://localhost:3001/api`.
 
-### Root cause
-In `/api/verify-player`, when `getrole` returns a non-200 response, the code only checked for "product config" errors (regex: `product does not exist|invalid product|not found`) to decide whether to show a friendly fallback message. Transient network errors from SmileCoin (in Portuguese or other languages) fell through to the raw `errMsg` being returned verbatim to the client.
-
-### Fix
-- **`main/server/index.js`**: Added a `isNetworkError` regex (`/conex[aã]o|rede|network|timeout|tente novamente|try again|connection/i`) alongside `isConfigError`. Network errors now get the same friendly English fallback: "Could not reach verification server. You can still place your order."
-- **`main/src/pages/games/GamePage.jsx`**: Updated the client-side catch block (when the fetch to our own server fails) to also use the "can still place your order" phrasing so it renders as an amber warning rather than a scary red error.
-
-### Verification
-- `node --check main/server/index.js` → SYNTAX_OK
-- `node --test tests/fulfill-order.price.test.js` → 9/9 pass
-- Client verifyError badge already checks `.includes("can still place")` for amber styling — the new message triggers it correctly.
+### 2. Client-Side Player Verification Display
+- **Problem**: Player verification logged the valid player username in the backend console during `getrole`, but the client UI displayed "Player could not be verified / Player not found".
+- **Root Cause**:
+  1. Strict status checking `body.status === 200` in `/api/verify-player` failed when SmileCoin returned `status` as a string (`"200"`).
+  2. `findPlayerName(body.data ?? body)` defaulted to `body.data` when present, skipping top-level response attributes (like `body.username`).
+- **Fix**:
+  - Updated status checks in `/api/verify-player`, `rolecheck`, and `order` to use `Number(body.status) === 200`.
+  - Updated `/api/verify-player` to check `findPlayerName(body) || (body.data ? findPlayerName(body.data) : null)`.
+  - Expanded `findPlayerName` key search to include `role`, `player`, `role_name`, `player_name`, and `character_name`, and supported numeric values.

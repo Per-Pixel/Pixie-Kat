@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Pixie-Kat Admin Proxy Server
  *
  * Handles ONLY privileged operations requiring the Supabase service role key.
@@ -127,7 +127,12 @@ function fireLog(params) {
 }
 
 function findPlayerName(payload) {
-  if (!payload || typeof payload !== 'object') return null;
+  if (!payload) return null;
+  if (typeof payload === 'string' || typeof payload === 'number') {
+    const str = String(payload).trim();
+    if (str) return str;
+  }
+  if (typeof payload !== 'object') return null;
 
   const directKeys = [
     'username',
@@ -138,13 +143,21 @@ function findPlayerName(payload) {
     'name',
     'roleName',
     'rolename',
+    'role_name',
     'characterName',
+    'character_name',
     'playerName',
+    'player_name',
+    'role',
+    'player',
   ];
 
   for (const key of directKeys) {
     const value = payload[key];
-    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (value != null && (typeof value === 'string' || typeof value === 'number')) {
+      const str = String(value).trim();
+      if (str) return str;
+    }
   }
 
   for (const value of Object.values(payload)) {
@@ -565,7 +578,7 @@ app.post('/api/smilecoin/rolecheck', requireAdmin, async (req, res) => {
       product,
       productid,
     });
-    res.json({ ok: body.status === 200, ...body });
+    res.json({ ok: Number(body.status) === 200, ...body });
   } catch (err) {
     console.error('[smilecoin/rolecheck]', err.message);
     res.status(502).json({ ok: false, error: err.message });
@@ -591,7 +604,7 @@ app.post('/api/smilecoin/order', requireSuperAdmin, async (req, res) => {
       product,
       productid,
     });
-    res.json({ ok: body.status === 200, ...body });
+    res.json({ ok: Number(body.status) === 200, ...body });
   } catch (err) {
     console.error('[smilecoin/order]', err.message);
     res.status(502).json({ ok: false, error: err.message });
@@ -637,12 +650,21 @@ async function resolveScProductId(product) {
   if (scProductIdCache[product]) return scProductIdCache[product];
   try {
     const list = await smileCoin.callSmileCoin('productlist', { product });
-    const firstId = list?.data?.product?.[0]?.id;
-    if (firstId) {
-      scProductIdCache[product] = String(firstId);
-      console.log(`[verify-player] cached productid ${firstId} for product="${product}"`);
-    }
-    return scProductIdCache[product] ?? null;
+    const skus = list?.data?.product;
+    if (!Array.isArray(skus) || skus.length === 0) return null;
+
+    // Bundle/subscription SKUs (e.g. "Weekly Elite Bundle", "Monthly Epic Bundle",
+    // "Passe Semanal", "Passagem do crepúsculo") fail getrole with status 20007.
+    // Prefer a standard diamond SKU for role verification — the specific product
+    // doesn't matter, we just need any valid one to check the player exists.
+    const bundlePattern = /bundle|pass[ae]|passe|subscription|weekly|monthly|crepúsculo/i;
+    const standardSku = skus.find(s => s?.spu && !bundlePattern.test(s.spu));
+    const picked = standardSku || skus[0];
+    const pickedId = String(picked.id);
+
+    scProductIdCache[product] = pickedId;
+    console.log(`[verify-player] cached productid ${pickedId} (${picked.spu}) for product="${product}"`);
+    return pickedId;
   } catch {
     return null;
   }
@@ -775,8 +797,8 @@ app.post('/api/verify-player', verifyLimiter, async (req, res) => {
         product: scProduct,
         productid: resolvedProductId,
       });
-      if (body.status === 200 || body.ok === true) {
-        const name = findPlayerName(body.data ?? body);
+      if (Number(body.status) === 200 || body.ok === true) {
+        const name = findPlayerName(body) || (body.data ? findPlayerName(body.data) : null);
         if (name) {
           return res.json({ success: true, username: name, source: 'smilecoin' });
         }
