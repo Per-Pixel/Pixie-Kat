@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, Plus, Minus, RefreshCw, ArrowUpRight, ArrowDownLeft, X, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
+import { api } from '../../../services/api';
 import { toast } from 'react-hot-toast';
 import type { UserDetailData } from '../useUserDetail';
 
@@ -67,16 +68,12 @@ export default function WalletTab({ data, refetch }: Props) {
 
     setSubmitting(true);
     try {
-      const adjustedAmount = adjustType === 'debit' ? -Math.abs(parsed) : Math.abs(parsed);
-      const { error } = await supabase.rpc('adjust_wallet_balance', {
-        p_user_id: profile.id,
-        p_amount: adjustedAmount,
-        p_type: adjustType,
-        p_reference: reference.trim(),
-        p_actor_id: adminUser?.id ?? null,
+      await api.post('/admin/wallet/adjust', {
+        userId: profile.id,
+        amount: parsed,
+        type: adjustType,
+        reference: reference.trim(),
       });
-
-      if (error) throw error;
 
       toast.success('Wallet adjusted successfully');
       setAmount('');
@@ -85,13 +82,13 @@ export default function WalletTab({ data, refetch }: Props) {
       await fetchTx();
       refetch();
     } catch (err: any) {
-      const msg = err.message || 'Wallet adjustment failed';
+      const msg = err.response?.data?.message || err.message || 'Wallet adjustment failed';
       if (msg.includes('Insufficient wallet balance')) {
         toast.error(`Insufficient balance. ${msg}`);
       } else if (msg.includes('Could not find the function') || msg.includes('adjust_wallet_balance')) {
         toast.error('Wallet adjustment is not set up yet. Run supabase/migrations/002_functions_triggers.sql in Supabase.');
-      } else if (msg.includes('Permission denied')) {
-        toast.error('Only active admin or support accounts can adjust wallets.');
+      } else if (msg.includes('Permission denied') || msg.includes('Requires admin role')) {
+        toast.error('Only active admin accounts can adjust wallets.');
       } else {
         toast.error(msg);
       }

@@ -1,0 +1,212 @@
+Main:
+0
+
+2026-07-24T10:59:19.456Z [INFO]: # Build environment configured with Standard build compute type: 8GiB Memory, 4vCPUs, 128GB Disk Space
+
+1
+
+2026-07-24T10:59:20.215Z [INFO]: # Cloning repository: git@github.com:Per-Pixel/Pixie-Kat.git
+
+2
+
+2026-07-24T10:59:28.653Z [INFO]: 
+
+3
+
+2026-07-24T10:59:28.733Z [INFO]: Cloning into 'Pixie-Kat'...
+
+4
+
+2026-07-24T10:59:28.734Z [INFO]: # Switching to commit: 1c4bec63de4f4c0717b7245b6a10fc77f8ba1aee
+
+5
+
+2026-07-24T10:59:28.863Z [INFO]: Note: switching to '1c4bec63de4f4c0717b7245b6a10fc77f8ba1aee'.
+
+6
+
+                                 You are in 'detached HEAD' state. You can look around, make experimental
+
+7
+
+                                 changes and commit them, and you can discard any commits you make in this
+
+8
+
+                                 state without impacting any branches by switching back to a branch.
+
+9
+
+                                 If you want to create a new branch to retain commits you create, you may
+
+10
+
+                                 do so (now or later) by using -c with the switch command. Example:
+
+11
+
+                                 git switch -c <new-branch-name>
+
+12
+
+                                 Or undo this operation with:
+
+13
+
+                                 git switch -
+
+14
+
+                                 Turn off this advice by setting config variable advice.detachedHead to false
+
+15
+
+                                 HEAD is now at 1c4bec6 fix: robust branch-based build with mv and subshells
+
+16
+
+2026-07-24T10:59:28.905Z [INFO]: Successfully cleaned up Git credentials
+
+17
+
+2026-07-24T10:59:28.906Z [INFO]: # Checking for Git submodules at: /codebuild/output/src2536044969/src/Pixie-Kat/.gitmodules
+
+18
+
+2026-07-24T10:59:28.915Z [ERROR]: !!! CustomerError: Monorepo spec provided without "applications" key
+
+19
+
+2026-07-24T10:59:28.915Z [INFO]: # Starting environment caching...
+
+20
+
+2026-07-24T10:59:28.915Z [INFO]: # Environment caching completed
+
+ if [ "$AWS_BRANCH" = "admin" ]; then
+            cd admin && npm ci
+          else
+            cd main && npm ci
+          fi
+          set -e
+          if [ "$AWS_BRANCH" = "admin" ]; then APP_ROOT=admin; else APP_ROOT=main; fi
+          (cd "$APP_ROOT" && npm ci)
+    build:
+      commands:
+        - |
+          if [ "$AWS_BRANCH" = "admin" ]; then
+            cd admin && npm run build && cp -r dist ../dist
+          else
+            cd main && npm run build && cp -r dist ../dist
+          fi
+          set -e
+          if [ "$AWS_BRANCH" = "admin" ]; then APP_ROOT=admin; else APP_ROOT=main; fi
+          (cd "$APP_ROOT" && npm run build)
+          rm -rf dist
+          mv "$APP_ROOT/dist" dist
+
+
+Admin:
+2026-07-24T11:00:26.142Z [INFO]: # Build environment configured with Standard build compute type: 8GiB Memory, 4vCPUs, 128GB Disk Space
+
+1
+
+2026-07-24T11:00:26.992Z [INFO]: # Cloning repository: git@github.com:Per-Pixel/Pixie-Kat.git
+
+2
+
+2026-07-24T11:00:33.384Z [INFO]: 
+
+3
+
+2026-07-24T11:00:33.466Z [INFO]: Cloning into 'Pixie-Kat'...
+
+4
+
+2026-07-24T11:00:33.467Z [INFO]: # Switching to commit: 1c4bec63de4f4c0717b7245b6a10fc77f8ba1aee
+
+5
+
+2026-07-24T11:00:33.594Z [INFO]: Note: switching to '1c4bec63de4f4c0717b7245b6a10fc77f8ba1aee'.
+
+6
+
+                                 You are in 'detached HEAD' state. You can look around, make experimental
+
+7
+
+                                 changes and commit them, and you can discard any commits you make in this
+
+8
+
+                                 state without impacting any branches by switching back to a branch.
+
+9
+
+                                 If you want to create a new branch to retain commits you create, you may
+
+10
+
+                                 do so (now or later) by using -c with the switch command. Example:
+
+11
+
+                                 git switch -c <new-branch-name>
+
+12
+
+                                 Or undo this operation with:
+
+13
+
+                                 git switch -
+
+14
+
+                                 Turn off this advice by setting config variable advice.detachedHead to false
+
+15
+
+                                 HEAD is now at 1c4bec6 fix: robust branch-based build with mv and subshells
+
+16
+
+2026-07-24T11:00:33.647Z [INFO]: Successfully cleaned up Git credentials
+
+17
+
+2026-07-24T11:00:33.647Z [INFO]: # Checking for Git submodules at: /codebuild/output/src2304037859/src/Pixie-Kat/.gitmodules
+
+18
+
+2026-07-24T11:00:33.657Z [ERROR]: !!! CustomerError: Monorepo spec provided without "applications" key
+
+19
+
+2026-07-24T11:00:33.657Z [INFO]: # Starting environment caching...
+
+20
+
+2026-07-24T11:00:33.657Z [INFO]: # Environment caching completed
+
+   if [ "$AWS_BRANCH" = "admin" ]; then
+            cd admin && npm ci
+          else
+            cd main && npm ci
+          fi
+          set -e
+          if [ "$AWS_BRANCH" = "admin" ]; then APP_ROOT=admin; else APP_ROOT=main; fi
+          (cd "$APP_ROOT" && npm ci)
+    build:
+      commands:
+        - |
+          if [ "$AWS_BRANCH" = "admin" ]; then
+            cd admin && npm run build && cp -r dist ../dist
+          else
+            cd main && npm run build && cp -r dist ../dist
+          fi
+          set -e
+          if [ "$AWS_BRANCH" = "admin" ]; then APP_ROOT=admin; else APP_ROOT=main; fi
+          (cd "$APP_ROOT" && npm run build)
+          rm -rf dist
+          mv "$APP_ROOT/dist" dist

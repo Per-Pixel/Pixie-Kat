@@ -23,6 +23,13 @@ interface OrderRow {
   status: OrderStatus;
   payment_method?: string | null;
   payment_id?: string | null;
+  metadata?: {
+    account_fields?: Record<string, string>;
+    game_name?: string;
+    game_slug?: string;
+    verified_username?: string;
+    contact?: { email?: string; whatsapp?: string };
+  } | null;
   created_at: string;
   updated_at: string;
   profiles?: { id: string; name: string; email: string } | null;
@@ -89,7 +96,7 @@ const Orders: React.FC = () => {
     setError(null);
     const { data, error: ordersError } = await supabase
       .from('orders')
-      .select(`id, user_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, created_at, updated_at, profiles:user_id (id, name, email)`)
+      .select(`id, user_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, metadata, created_at, updated_at, profiles:user_id (id, name, email)`)
       .order('created_at', { ascending: false })
       .limit(500);
     if (ordersError) { setError(ordersError.message); setOrders([]); }

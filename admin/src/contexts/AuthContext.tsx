@@ -7,7 +7,7 @@ import {
   ReactNode,
 } from 'react';
 import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseConfigError } from '../lib/supabase';
 import { UserRole, ROLE_PERMISSIONS } from '../types/auth';
 import type { User, LoginCredentials } from '../types/auth';
 import { toast } from 'react-hot-toast';
@@ -37,7 +37,8 @@ async function fetchProfile(userId: string): Promise<User | null> {
     .eq('id', userId)
     .single();
 
-  if (error || !data) return null;
+  if (error) throw error;
+  if (!data) return null;
 
   return {
     id: data.id,
@@ -65,6 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [lastActivity, setLastActivity] = useState<Date | null>(null);
 
   const handleSession = useCallback(async (newSession: Session | null) => {
+    if (supabaseConfigError) {
+      setError(supabaseConfigError);
+      setIsLoading(false);
+      return;
+    }
+
     if (!newSession) {
       setUser(null);
       setSession(null);
@@ -72,7 +79,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const profile = await fetchProfile(newSession.user.id);
+    let profile: User | null;
+    try {
+      profile = await fetchProfile(newSession.user.id);
+    } catch (profileError) {
+      const message = profileError instanceof Error ? profileError.message : 'Unknown profile error';
+      setError(`Unable to load your admin profile: ${message}`);
+      setUser(null);
+      setSession(null);
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      return;
+    }
 
     if (!profile) {
       setError('Account profile not found. Contact support.');
@@ -128,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email: credentials.email,
+      email: credentials.email.trim(),
       password: credentials.password,
     });
 

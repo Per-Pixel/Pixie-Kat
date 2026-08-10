@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -22,42 +22,26 @@ import {
 } from "react-icons/fa";
 
 import { pageBackground } from "./accountShared";
+import { useAuth } from "../../contexts/AuthContext";
+import { supabase } from "../../lib/supabase";
 
-const orderRecords = [
-  {
-    id: "S260324132852478MVAA",
-    status: "Success",
-    title: "furniturelegends BR 275 Diamond c",
-    orderTime: "2026-03-24 13:28:53",
-    uidEmail: "1620060514",
-    serverId: "16820",
-    value: "BRL 18.75",
-    oldValue: "BRL 19.75",
-    pinCode: "",
-  },
-  {
-    id: "S260324132852478MVAB",
-    status: "Success",
-    title: "furniturelegends BR 140 Diamond c",
-    orderTime: "2026-03-23 22:11:09",
-    uidEmail: "1620060514",
-    serverId: "16820",
-    value: "BRL 9.45",
-    oldValue: "BRL 10.20",
-    pinCode: "",
-  },
-  {
-    id: "S260324132852478MVAC",
-    status: "Waiting for Payment",
-    title: "furniturelegends Weekly Pass",
-    orderTime: "2026-03-22 09:42:18",
-    uidEmail: "lonelykoala@gmail.com",
-    serverId: "16820",
-    value: "BRL 5.99",
-    oldValue: "BRL 6.50",
-    pinCode: "",
-  },
-];
+const toCardOrder = (order) => {
+  const fields = order.metadata?.account_fields ?? {};
+  const uid    = fields.user_id || fields.userid || fields.player_id || fields.account_id || "—";
+  const server = fields.zone_id || fields.server_id || fields.zoneid || "—";
+  return {
+    id:        "#" + order.id.slice(0, 8).toUpperCase(),
+    _rawId:    order.id,
+    status:    order.status.replace(/_/g, " "),
+    title:     `${order.metadata?.game_name ? order.metadata.game_name + " — " : ""}${order.product_name}`,
+    orderTime: new Date(order.created_at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }),
+    uidEmail:  uid,
+    serverId:  server,
+    value:     `${order.currency} ${Number(order.total_amount).toFixed(2)}`,
+    oldValue:  "",
+    pinCode:   "",
+  };
+};
 
 const statusOptions = [
   "Status",
@@ -285,11 +269,25 @@ const OrderCard = ({ order, compact = false, onClick }) => (
 );
 
 const DashboardPanel = ({ navigate }) => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("all-orders");
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [status, setStatus] = useState("Status");
   const [range, setRange] = useState({ start: 17, end: 24 });
+  const [rawOrders, setRawOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) { setOrdersLoading(false); return; }
+    supabase
+      .from("orders")
+      .select("id, product_name, total_amount, currency, status, created_at, metadata")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(30)
+      .then(({ data }) => { setRawOrders(data ?? []); setOrdersLoading(false); });
+  }, [user?.id]);
 
   return (
     <div className="mt-4 rounded-t-[18px] bg-slate-900/90 px-3 py-4 text-white shadow-[0_18px_34px_rgba(15,23,42,0.15)]">
@@ -378,16 +376,22 @@ const DashboardPanel = ({ navigate }) => {
               Note: Order Time is displayed in UTC-3, please be aware that the time show may differ from your local time zone.
             </p>
 
-            <div className="mt-6 max-h-[28rem] space-y-4 overflow-y-auto pr-1 [scrollbar-color:#64748b_transparent] [scrollbar-width:thin]">
-              {orderRecords.map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  compact
-                  onClick={() => navigate(`/account/orders/${order.id}`)}
-                />
-              ))}
-            </div>
+            {ordersLoading ? (
+              <div className="mt-6 py-8 text-center text-sm text-slate-400">Loading orders…</div>
+            ) : rawOrders.length === 0 ? (
+              <div className="mt-6 rounded-[14px] border border-dashed border-[#315f95] px-4 py-10 text-center text-sm text-slate-400">No orders yet.</div>
+            ) : (
+              <div className="mt-6 max-h-[28rem] space-y-4 overflow-y-auto pr-1 [scrollbar-color:#64748b_transparent] [scrollbar-width:thin]">
+                {rawOrders.map((raw) => (
+                  <OrderCard
+                    key={raw.id}
+                    order={toCardOrder(raw)}
+                    compact
+                    onClick={() => navigate(`/account/orders/${raw.id}`)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -414,20 +418,44 @@ const BackHeader = ({ title, children }) => {
   );
 };
 
-const OrderDetailsScreen = () => (
-  <MobilePageScaffold>
-    <BackHeader title="Order details" />
-    <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25 }} className="mt-4 rounded-t-[18px] bg-slate-900/90 px-3 py-4">
-      <div className="rounded-[14px] bg-slate-800/95 px-4 py-5">
-        <div className="mb-4 flex items-center justify-center gap-12 text-lg font-medium text-slate-400">
-          <span className="border-b-2 border-[#5724ff] pb-1 text-white">All orders</span>
-          <span>Likes</span>
+const OrderDetailsScreen = () => {
+  const location = useLocation();
+  const { user } = useAuth();
+  const orderId = location.pathname.split("/orders/")[1];
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!orderId || !user?.id) { setLoading(false); return; }
+    supabase
+      .from("orders")
+      .select("id, product_name, total_amount, currency, status, created_at, metadata")
+      .eq("id", orderId)
+      .eq("user_id", user.id)
+      .single()
+      .then(({ data }) => { setOrder(data); setLoading(false); });
+  }, [orderId, user?.id]);
+
+  return (
+    <MobilePageScaffold>
+      <BackHeader title="Order details" />
+      <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25 }} className="mt-4 rounded-t-[18px] bg-slate-900/90 px-3 py-4">
+        <div className="rounded-[14px] bg-slate-800/95 px-4 py-5">
+          <div className="mb-4 flex items-center justify-center gap-12 text-lg font-medium text-slate-400">
+            <span className="border-b-2 border-[#5724ff] pb-1 text-white">Order Details</span>
+          </div>
+          {loading ? (
+            <div className="py-8 text-center text-sm text-slate-400">Loading…</div>
+          ) : order ? (
+            <OrderCard order={toCardOrder(order)} onClick={() => {}} />
+          ) : (
+            <div className="py-8 text-center text-sm text-slate-400">Order not found.</div>
+          )}
         </div>
-        <OrderCard order={orderRecords[0]} onClick={() => {}} />
-      </div>
-    </motion.div>
-  </MobilePageScaffold>
-);
+      </motion.div>
+    </MobilePageScaffold>
+  );
+};
 
 const RedeemTabs = ({ activeTab, navigate }) => {
   const tabs = [

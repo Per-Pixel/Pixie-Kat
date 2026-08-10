@@ -25,15 +25,7 @@ In your Supabase project dashboard:
 In your Supabase project:
 1. Go to **SQL Editor**
 2. Run each file in `supabase/migrations/` in numeric order:
-   - `001_initial_schema.sql`
-   - `002_functions_triggers.sql`
-   - `003_avatar_storage.sql`
-   - `003_security_hardening.sql`
-   - `004_login_session_tracking.sql`
-   - `005_games_products.sql`
-   - `006_promotional_items.sql`
-   - `007_media_storage.sql`
-   - `008_admin_operations.sql`
+   - `001_initial_schema.sql` through `020_fix_linter_indexes.sql`
 
 All migrations should complete with no errors.
 
@@ -132,6 +124,13 @@ In **Authentication → Settings**:
 | Enable email confirmations | Yes |
 | Minimum password length | 8 |
 | JWT expiry | 3600 (1 hour) |
+| Leaked Password Protection | Enabled (dashboard-only — cannot be toggled via SQL) |
+
+> **Leaked Password Protection**: This setting is found in Supabase Studio →
+> Project Settings → Authentication → Security. It checks new passwords against
+> the [HaveIBeenPwned](https://haveibeenpwned.com) API. It cannot be toggled via
+> SQL migration — it must be enabled in the dashboard. The Supabase linter flags
+> it as a warning, but it is a dashboard-only configuration item.
 
 ---
 

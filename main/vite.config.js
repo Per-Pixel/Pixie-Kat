@@ -20,10 +20,17 @@ export default defineConfig({
     }),
   ],
   server: {
+    host: true,
     fs: {
       allow: [
         path.resolve(__dirname, './'),
       ],
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
   build: {

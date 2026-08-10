@@ -1,0 +1,37 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - |
+          set -e
+          if [ "$AWS_BRANCH" = "admin" ]; then APP_ROOT=admin; else APP_ROOT=main; fi
+          # Force relative API URLs so the Amplify proxy handles /api/* (avoids mixed content)
+          export VITE_API_BASE_URL=""
+          if [ "$AWS_BRANCH" = "admin" ]; then export VITE_API_BASE_URL="/api"; fi
+          (cd "$APP_ROOT" && npm ci)
+    build:
+      commands:
+        - |
+          set -e
+          if [ "$AWS_BRANCH" = "admin" ]; then APP_ROOT=admin; else APP_ROOT=main; fi
+          # Force relative API URLs so the Amplify proxy handles /api/* (avoids mixed content)
+          export VITE_API_BASE_URL=""
+          if [ "$AWS_BRANCH" = "admin" ]; then export VITE_API_BASE_URL="/api"; fi
+          (cd "$APP_ROOT" && npm run build)
+          rm -rf dist
+          mv "$APP_ROOT/dist" dist
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+  redirects:
+    - source: /api/<*>
+      target: https://c4pmcbw502.execute-api.ap-south-1.amazonaws.com/prod/api/<*>
+      status: 200
+    - source: '</^[^.]+$|[.](?!(avif|css|gif|ico|jpg|js|json|map|mp3|mp4|ogg|png|svg|txt|ttf|wav|webm|webp|woff|woff2)$)([^.]+$)/>'
+      target: /index.html
+      status: 200

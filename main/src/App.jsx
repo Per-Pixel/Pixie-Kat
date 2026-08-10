@@ -5,6 +5,8 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 
 
 import { AuthProvider } from "./contexts/AuthContext";
+import { AppearanceProvider } from "./contexts/AppearanceContext";
+import ScrollToTop from "./components/common/ScrollToTop";
 
 import Loading from "./components/common/Loading";
 
@@ -42,6 +44,12 @@ const AccountPage = lazy(() => import("./pages/account"));
 
 const GameInfoPage = lazy(() => import("./pages/games/GamePage"));
 
+const BatchOrderPage = lazy(() => import("./pages/batch-order"));
+
+const JjkCheaperPage = lazy(() => import("./pages/events/jjk-cheaper"));
+
+const LegalPage = lazy(() => import("./pages/legal/LegalPage"));
+
 
 
 const preloadImage = (src) => {
@@ -72,21 +80,23 @@ const AppShell = ({ children }) => {
 
   const isAuthRoute = ["/login", "/register", "/auth"].includes(location.pathname);
 
+  const isEventArchive = location.pathname.startsWith("/event/");
+
 
 
   return (
 
     <>
 
-      {!isWalletRoute ? <NavBar /> : null}
+      {!isWalletRoute && !isEventArchive ? <NavBar /> : null}
 
       {children}
 
-      {!isWalletRoute && !isHomePage && !isAuthRoute ? <Footer /> : null}
+      {!isWalletRoute && !isHomePage && !isAuthRoute && !isEventArchive ? <Footer /> : null}
 
-      {!isWalletRoute ? <BottomNav /> : null}
+      {!isWalletRoute && !isEventArchive ? <BottomNav /> : null}
 
-      {!isWalletRoute ? <FloatingActions /> : null}
+      {!isWalletRoute && !isEventArchive ? <FloatingActions /> : null}
 
     </>
 
@@ -96,9 +106,47 @@ const AppShell = ({ children }) => {
 
 
 
+function MainFrame({ isLoading, mainContentRef, children }) {
+
+  const location = useLocation();
+
+  const isEventArchive = location.pathname.startsWith("/event/");
+
+
+
+  return (
+
+    <main
+
+      className={`relative min-h-screen w-full${isEventArchive ? "" : " overflow-x-clip"}`}
+
+      ref={mainContentRef}
+
+      style={{ opacity: isLoading ? 0 : 1 }}
+
+    >
+
+      {children}
+
+    </main>
+
+  );
+
+};
+
+
+
+const LOADING_SESSION_KEY = "pixie_has_loaded";
+
 function App() {
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => {
+    try {
+      return sessionStorage.getItem(LOADING_SESSION_KEY) !== "1";
+    } catch {
+      return true;
+    }
+  });
 
   const mainContentRef = useRef(null);
 
@@ -138,6 +186,12 @@ function App() {
 
   const handleLoadingComplete = useCallback(() => {
 
+    try {
+      sessionStorage.setItem(LOADING_SESSION_KEY, "1");
+    } catch {
+      /* ignore quota / private mode */
+    }
+
     setTimeout(() => {
 
       setIsLoading(false);
@@ -151,10 +205,11 @@ function App() {
   return (
 
     <AuthProvider>
-
+      <AppearanceProvider>
       <Router>
 
         <>
+          <ScrollToTop />
 
           {isLoading && (
 
@@ -172,15 +227,7 @@ function App() {
 
 
 
-          <main
-
-            className="relative min-h-screen w-screen overflow-x-hidden bg-dark-900"
-
-            ref={mainContentRef}
-
-            style={{ opacity: isLoading ? 0 : 1 }}
-
-          >
+          <MainFrame isLoading={isLoading} mainContentRef={mainContentRef}>
 
             <AppShell>
 
@@ -216,18 +263,28 @@ function App() {
 
                   <Route path="/account/*" element={<AccountPage />} />
 
+                  <Route path="/batch-order" element={<BatchOrderPage />} />
+
+                  <Route path="/event/jjk-cheaper" element={<JjkCheaperPage />} />
+
+                  <Route path="/terms" element={<LegalPage docKey="terms" />} />
+
+                  <Route path="/privacy" element={<LegalPage docKey="privacy" />} />
+
+                  <Route path="/refund-policy" element={<LegalPage docKey="refund" />} />
+
                 </Routes>
 
               </Suspense>
 
             </AppShell>
 
-          </main>
+          </MainFrame>
 
         </>
 
       </Router>
-
+      </AppearanceProvider>
     </AuthProvider>
 
   );

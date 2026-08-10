@@ -16,7 +16,10 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await login({ ...credentials });
+      await login({
+        email: credentials.email.trim(),
+        password: credentials.password,
+      });
       toast.success('Welcome back!');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Login failed');
@@ -75,14 +78,14 @@ const Login: React.FC = () => {
               {/* Username Field */}
               <div>
                 <label className="block text-sm text-gray-600 mb-2">
-                  Username
+                  Email address
                 </label>
                 <input
                   type="email"
                   value={credentials.email}
                   onChange={handleInputChange('email')}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                  placeholder=""
+                  placeholder="admin@example.com"
                   required
                 />
               </div>

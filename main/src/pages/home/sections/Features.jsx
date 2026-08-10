@@ -120,7 +120,7 @@ const Features = () => (
 
       <BentoTilt className="border-hsla relative mb-7 h-96 w-full overflow-hidden rounded-md md:h-[65vh]">
         <BentoCard
-          src="videos/feature-1.mp4"
+          src="/videos/feature-1.mp4"
           title={
             <>
               Pixie<b>K</b>at
@@ -144,7 +144,7 @@ const Features = () => (
 
         <BentoTilt className="bento-tilt_2">
           <video
-            src="videos/feature-5.mp4"
+            src="/videos/feature-5.mp4"
             loop
             muted
             autoPlay

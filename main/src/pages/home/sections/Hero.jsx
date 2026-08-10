@@ -11,6 +11,39 @@ import FlipCard from "../../../components/common/FlipCard";
 import { useParallaxScroll } from "../../../animations/hooks/useParallaxScroll";
 import MobileSquareButton from "../../../components/common/MobileSquareButton";
 import Loading from "../../../components/common/Loading";
+import { supabase } from "../../../lib/supabase";
+
+const defaultHeroSettings = {
+  heading: "PixieKat",
+  subheading: "Instant Gaming Credits",
+  tagline: "Fast, Secure, Affordable",
+  button_text: "Topup Now",
+  button_link: "/games",
+  background_video: "/videos/hero-1.mp4",
+  images: {
+    jinx: {
+      url: "/img/hero/Jinx.webp",
+      show_on_phone: false,
+      desktop: { scale: 120, rotate: 0, x: 0, y: 0, pos_left: "43%", pos_top: "60%" },
+      tablet:  { scale: 100, rotate: 0, x: 0, y: 0, pos_left: "30%", pos_top: "69%" },
+      mobile:  { scale: 80,  rotate: 0, x: 0, y: 0, pos_left: "30%", pos_top: "69%" },
+    },
+    faze: {
+      url: "/img/hero/Faze.webp",
+      show_on_phone: true,
+      desktop: { scale: 150, rotate: 0, x: 0, y: 0, pos_left: "50%", pos_top: "70%" },
+      tablet:  { scale: 130, rotate: 0, x: 0, y: 0, pos_left: "50%", pos_top: "70%" },
+      mobile:  { scale: 110, rotate: 0, x: 0, y: 0, pos_left: "50%", pos_top: "70%" },
+    },
+    melissa: {
+      url: "/img/hero/melissa.webp",
+      show_on_phone: false,
+      desktop: { scale: 150, rotate: 0, x: 0, y: 0, pos_left: "59%", pos_top: "65%" },
+      tablet:  { scale: 120, rotate: 0, x: 0, y: 0, pos_left: "70%", pos_top: "69%" },
+      mobile:  { scale: 100, rotate: 0, x: 0, y: 0, pos_left: "70%", pos_top: "69%" },
+    },
+  },
+};
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -24,17 +57,37 @@ const Hero = () => {
   const featureVideoRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
   const [isPhone, setIsPhone] = useState(false);
+  const [heroSettings, setHeroSettings] = useState(defaultHeroSettings);
   const [showPopularGames, setShowPopularGames] = useState(false);
   const [showContactUs, setShowContactUs] = useState(false);
   const heroRef = useRef(null);
   const heroContainerRef = useRef(null);
   const mobileTabletCharacterSize = isMobile ? "w-[320px] md:w-[420px]" : "";
-  const mobileTabletJinxPosition = isMobile
-    ? "left-[30%] top-[69%]"
-    : "left-[43%] top-[60%]";
-  const mobileTabletMelissaPosition = isMobile
-    ? "left-[70%] top-[69%]"
-    : "left-[59%] top-[65%]";
+
+  // Fetch hero settings from Supabase
+  useEffect(() => {
+    supabase
+      .from('store_settings')
+      .select('hero_settings')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.hero_settings && Object.keys(data.hero_settings).length > 0) {
+          setHeroSettings((prev) => ({
+            ...prev,
+            ...data.hero_settings,
+            images: { ...prev.images, ...(data.hero_settings.images ?? {}) },
+          }));
+        }
+      });
+  }, []);
+
+  // Helper: pick the right transform for current breakpoint
+  const getImgTx = (imgKey) => {
+    const img = heroSettings.images[imgKey];
+    if (!img) return null;
+    const device = isPhone ? 'mobile' : isMobile ? 'tablet' : 'desktop';
+    return { img, tx: img[device] };
+  };
 
   // Effect to detect mobile devices
   useEffect(() => {
@@ -171,7 +224,7 @@ const Hero = () => {
       >
         <div>
           <video
-            src="videos/hero-1.mp4"
+            src={heroSettings.background_video || "/videos/hero-1.mp4"}
             autoPlay
             loop
             muted
@@ -193,7 +246,7 @@ const Hero = () => {
             <div className="relative size-full rounded-lg overflow-hidden">
               <video
                 ref={featureVideoRef}
-                src="videos/feature-4.mp4" 
+                src="/videos/feature-4.mp4" 
                 autoPlay
                 loop
                 muted
@@ -224,8 +277,8 @@ const Hero = () => {
         {false && !isMobile && (
           <div className="absolute bottom-64 right-8 z-50 h-48 w-80 md:h-64 md:w-96 pointer-events-auto">
             <FlipCard 
-              frontVideo="videos/feature-2.mp4"
-              backVideo="videos/feature-3.mp4"
+              frontVideo="/videos/feature-2.mp4"
+              backVideo="/videos/feature-3.mp4"
               title="Popular Games"
               description="Top up your favorite games instantly"
               buttonText="View All Games"
@@ -239,7 +292,7 @@ const Hero = () => {
             <BentoTilt className="h-full w-full rounded-lg overflow-hidden shadow-[0_0_15px_rgba(79,183,221,0.5)]">
               <div className="relative size-full rounded-lg overflow-hidden">
                 <video
-                  src="videos/feature-4.mp4" 
+                  src="/videos/feature-4.mp4" 
                   autoPlay
                   loop
                   muted
@@ -290,8 +343,8 @@ const Hero = () => {
                 </svg>
               </button>
               <FlipCard 
-                frontVideo="videos/feature-2.mp4"
-                backVideo="videos/feature-3.mp4"
+                frontVideo="/videos/feature-2.mp4"
+                backVideo="/videos/feature-3.mp4"
                 title="Popular Games"
                 description="Top up your favorite games instantly"
                 buttonText="View All Games"
@@ -309,51 +362,23 @@ const Hero = () => {
           className="absolute inset-0 z-20 pointer-events-none"
           style={{ willChange: 'transform' }}
         >
-          {/* Adjusted Jinx image */}
-          {!isPhone && (
-          <div className={`absolute ${mobileTabletJinxPosition} z-30 -translate-x-1/2 -translate-y-1/2 scale-120`} style={{ willChange: 'transform' }}>
-            <img 
-              ref={jinxRef}
-              src="/img/hero/Jinx.webp" 
-              alt="Jinx" 
-              className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-120"}`}
-              loading="lazy"
-              decoding="async"
-              fetchpriority="low"
-              sizes="(max-width: 768px) 360px, 480px"
-            />
-          </div>
-          )}
+          {/* Jinx image */}
+          {(() => { const r = getImgTx('jinx'); if (!r) return null; const { img, tx } = r; return (!isPhone || img.show_on_phone) ? (
+          <div className="absolute z-30" style={{ left: tx.pos_left, top: tx.pos_top, transform: `translate(-50%,-50%) scale(${tx.scale/100}) rotate(${tx.rotate}deg) translate(${tx.x}px,${tx.y}px)`, willChange: 'transform' }}>
+            <img ref={jinxRef} src={img.url} alt="Jinx" className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-120"}`} loading="lazy" decoding="async" fetchpriority="low" sizes="(max-width: 768px) 360px, 480px" />
+          </div>) : null; })()}
 
-          {/* Faze logo image */}
-          <div className="absolute left-1/2 top-[70%] z-50 -translate-x-1/2 -translate-y-1/2 scale-150" style={{ willChange: 'transform' }}>
-            <img 
-              ref={fazeLogoRef}
-              src="/img/hero/Faze.webp" 
-              alt="Faze" 
-              className={`h-auto ${isPhone ? "w-[461px]" : "w-64 md:w-80"}`}
-              loading="lazy"
-              decoding="async"
-              fetchpriority="low"
-              sizes="(max-width: 768px) 256px, 320px"
-            />
-          </div>
+          {/* Faze image */}
+          {(() => { const r = getImgTx('faze'); if (!r) return null; const { img, tx } = r; return (!isPhone || img.show_on_phone) ? (
+          <div className="absolute z-50" style={{ left: tx.pos_left, top: tx.pos_top, transform: `translate(-50%,-50%) scale(${tx.scale/100}) rotate(${tx.rotate}deg) translate(${tx.x}px,${tx.y}px)`, willChange: 'transform' }}>
+            <img ref={fazeLogoRef} src={img.url} alt="Faze" className={`h-auto ${isPhone ? "w-[461px]" : "w-64 md:w-80"}`} loading="lazy" decoding="async" fetchpriority="low" sizes="(max-width: 768px) 256px, 320px" />
+          </div>) : null; })()}
 
           {/* Melissa image */}
-          {!isPhone && (
-          <div className={`absolute ${mobileTabletMelissaPosition} z-20 -translate-x-1/2 -translate-y-1/2 scale-150`} style={{ willChange: 'transform' }}>
-            <img 
-              ref={lunoxRef}
-              src="/img/hero/melissa.webp" 
-              alt="Lunox" 
-              className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-130"}`}
-              loading="lazy"
-              decoding="async"
-              fetchpriority="low"
-              sizes="(max-width: 768px) 360px, 520px"
-            />
-          </div>
-          )}
+          {(() => { const r = getImgTx('melissa'); if (!r) return null; const { img, tx } = r; return (!isPhone || img.show_on_phone) ? (
+          <div className="absolute z-20" style={{ left: tx.pos_left, top: tx.pos_top, transform: `translate(-50%,-50%) scale(${tx.scale/100}) rotate(${tx.rotate}deg) translate(${tx.x}px,${tx.y}px)`, willChange: 'transform' }}>
+            <img ref={lunoxRef} src={img.url} alt="Lunox" className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-130"}`} loading="lazy" decoding="async" fetchpriority="low" sizes="(max-width: 768px) 360px, 520px" />
+          </div>) : null; })()}
         </div>
 
         {/* Mobile contact square button next to Pixiekat title */}
@@ -372,19 +397,19 @@ const Hero = () => {
         <div className="absolute left-0 top-0 z-40 size-full">
           <div className="mt-24 px-5 sm:px-10">
             <h1 className="special-font hero-heading text-blue-100">
-              Pixie<b>K</b>at
+              {heroSettings.heading}
             </h1>
 
             <p className="mb-5 max-w-64 font-robert-regular text-blue-100">
-              Instant Gaming Credits <br /> Fast, Secure, Affordable
+              {heroSettings.subheading} <br /> {heroSettings.tagline}
             </p>
 
             <Button
               id="topup-now"
-              title="Topup Now"
+              title={heroSettings.button_text}
               leftIcon={<TiLocationArrow />}
               containerClass="bg-yellow-300 flex-center gap-1"
-              onClick={() => navigate("/games")}
+              onClick={() => navigate(heroSettings.button_link || "/games")}
             />
           </div>
         </div>

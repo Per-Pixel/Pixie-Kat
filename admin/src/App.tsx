@@ -16,7 +16,9 @@ import Pages from './pages/Pages';
 import Notifications from './pages/Notifications';
 import Analytics from './pages/Analytics';
 import Wallets from './pages/Wallets';
+import Memberships from './pages/Memberships';
 import RevenueProducts from './pages/revenue/RevenueProducts';
+import SalesOverview from './pages/revenue/SalesOverview';
 import Referral from './pages/revenue/Referral';
 import Compose from './pages/messages/Compose';
 import Clients from './pages/auth/Clients';
@@ -27,11 +29,25 @@ import ManageUsers from './pages/ManageUsers';
 import UserDetail from './pages/users/UserDetail';
 import GamesList from './pages/products/GamesList';
 import GameEditor from './pages/products/GameEditor';
+import GameHelp from './pages/products/GameHelp';
 import ProductsList from './pages/products/ProductsList';
 import PromoList from './pages/content/PromoList';
+import HeroEditor from './pages/content/HeroEditor';
+import HomepageAboutEditor from './pages/content/homepage/AboutEditor';
+import HowItWorksEditor from './pages/content/HowItWorksEditor';
+import FaqEditor from './pages/content/FaqEditor';
+import ContactEditor from './pages/content/ContactEditor';
+import PricingCopyEditor from './pages/content/PricingCopyEditor';
+import ProductsPageEditor from './pages/content/ProductsPageEditor';
 import PromoEditor from './pages/content/PromoEditor';
+import JjkCheaperEditor from './pages/content/events/JjkCheaperEditor';
+import FooterEditor from './pages/content/FooterEditor';
+import LegalPagesEditor from './pages/content/LegalPagesEditor';
 import StoragePage from './pages/storage/StoragePage';
-import PlaceholderPage from './pages/PlaceholderPage';
+import PermissionsPage from './pages/PermissionsPage';
+import DocumentationPage from './pages/DocumentationPage';
+import TasksPage from './pages/TasksPage';
+import EventsPage from './pages/EventsPage';
 import ActivityLogs from './pages/ActivityLogs';
 import ProvidersPage from './pages/providers/ProvidersPage';
 import SmileOneDetailPage from './pages/providers/SmileOneDetailPage';
@@ -61,7 +77,7 @@ const AppRoutes: React.FC = () => {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="overview" element={<Analytics />} />
+        <Route path="overview" element={<Navigate to="/dashboard" replace />} />
         <Route path="products" element={<ProductsList title="All Products" />} />
         <Route path="products/active" element={<ProductsList statusFilter="active" title="Active Products" />} />
         <Route path="products/drafts" element={<ProductsList statusFilter="draft" title="Draft Products" />} />
@@ -75,6 +91,7 @@ const AppRoutes: React.FC = () => {
         <Route path="content/exclusive-offers/new" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="content/exclusive-offers/:id" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="products/games/new" element={<GameEditor />} />
+        <Route path="products/games/help" element={<GameHelp />} />
         <Route path="products/games/:id" element={<GameEditor />} />
         <Route path="users" element={<ManageUsers />} />
         <Route path="users/:id" element={<UserDetail />} />
@@ -92,8 +109,9 @@ const AppRoutes: React.FC = () => {
         <Route path="providers/smile-coin" element={<SmileCoinDetailPage />} />
         <Route path="providers/smile-coin/api-console" element={<SmileCoinApiConsolePage />} />
         <Route path="wallets" element={<Wallets />} />
+        <Route path="memberships" element={<Memberships />} />
         {/* Revenue Routes */}
-        <Route path="revenue/sales-overview" element={<Analytics />} />
+        <Route path="revenue/sales-overview" element={<SalesOverview />} />
         <Route path="revenue/products" element={<RevenueProducts />} />
         <Route path="revenue/orders" element={<Orders />} />
         <Route path="revenue/brokers" element={<Resellers />} />
@@ -105,26 +123,34 @@ const AppRoutes: React.FC = () => {
         <Route path="messages/history" element={<Messages />} />
         {/* Auth Routes */}
         <Route path="auth/clients" element={<Clients />} />
-        <Route path="auth/users" element={<ManageUsers />} />
-        <Route path="auth/broker" element={<ManageUsers />} />
-        <Route path="auth/admin" element={<ManageUsers />} />
-        <Route path="auth/permissions" element={<PlaceholderPage title="Permissions" description="Manage admin roles, access rules, and permission groups." items={['Admin access', 'Support access', 'Reseller access']} />} />
+        <Route path="auth/users" element={<ManageUsers defaultRoleFilter="user" title="Users" subtitle="Manage customer accounts" />} />
+        <Route path="auth/broker" element={<ManageUsers defaultRoleFilter="reseller" title="Brokers / Resellers" subtitle="Manage broker and reseller accounts" />} />
+        <Route path="auth/admin" element={<ManageUsers defaultRoleFilter="admin" title="Admins" subtitle="Manage administrator accounts" />} />
+        <Route path="auth/referrals" element={<Referral />} />
+        <Route path="auth/permissions" element={<PermissionsPage />} />
         {/* Component Routes */}
-        <Route path="components/tasks" element={<PlaceholderPage title="Tasks" description="Track internal admin tasks and operational follow-ups." items={['Open tasks', 'Assigned work', 'Completed tasks']} />} />
-        <Route path="components/events" element={<PlaceholderPage title="Events" description="Review operational events and scheduled admin activity." items={['Upcoming events', 'Recent events', 'Event history']} />} />
-        <Route path="documentation" element={<PlaceholderPage title="Documentation" description="Keep admin guides, internal process notes, and setup references in one place." items={['Admin guide', 'Supabase setup', 'Release notes']} />} />
+        <Route path="components/tasks" element={<TasksPage />} />
+        <Route path="components/events" element={<EventsPage />} />
+        <Route path="documentation" element={<DocumentationPage />} />
         {/* Page Management Routes */}
         <Route path="pages/homepage" element={<Pages />} />
+        <Route path="pages/homepage/hero" element={<HeroEditor />} />
+        <Route path="pages/homepage/about" element={<HomepageAboutEditor />} />
         <Route path="pages/homepage/trending-games" element={<PromoList section="trending" title="Trending Games" description="Manage cards shown in the homepage carousel" basePath="/pages/homepage/trending-games" />} />
         <Route path="pages/homepage/trending-games/new" element={<PromoEditor section="trending" backPath="/pages/homepage/trending-games" sectionLabel="Trending Games" />} />
         <Route path="pages/homepage/trending-games/:id" element={<PromoEditor section="trending" backPath="/pages/homepage/trending-games" sectionLabel="Trending Games" />} />
         <Route path="pages/homepage/exclusive-offers" element={<PromoList section="exclusive_offers" title="Exclusive Offers" description="Manage promotional offer cards on the homepage" basePath="/pages/homepage/exclusive-offers" />} />
         <Route path="pages/homepage/exclusive-offers/new" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="pages/homepage/exclusive-offers/:id" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
-        <Route path="pages/products" element={<Pages />} />
-        <Route path="pages/about" element={<Pages />} />
-        <Route path="pages/contact" element={<Pages />} />
-        {/* CMS Routes (from local branch) */}
+        <Route path="pages/products" element={<ProductsPageEditor />} />
+        <Route path="pages/events/jjk-cheaper" element={<JjkCheaperEditor />} />
+        <Route path="pages/how-it-works" element={<HowItWorksEditor />} />
+        <Route path="pages/faq" element={<FaqEditor />} />
+        <Route path="pages/contact" element={<ContactEditor />} />
+        <Route path="pages/pricing" element={<PricingCopyEditor />} />
+        <Route path="pages/footer" element={<FooterEditor />} />
+        <Route path="pages/legal" element={<LegalPagesEditor />} />
+        {/* CMS Routes */}
         <Route path="trash" element={<Trash />} />
         <Route path="media" element={<MediaLibrary />} />
         {/* Quick Action Routes */}

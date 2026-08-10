@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Headphones, Send, ArrowUp } from 'lucide-react';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 const FloatingActions = () => {
+  const reduced = useReducedMotion();
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
@@ -33,11 +35,11 @@ const FloatingActions = () => {
       <motion.a
         href="/support"
         aria-label="Contact Support"
-        initial={{ opacity: 0, scale: 0.8 }}
+        initial={reduced ? false : { opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.4, duration: 0.4 }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
+        transition={{ delay: reduced ? 0 : 0.4, duration: reduced ? 0 : 0.4 }}
+        whileHover={reduced ? undefined : { scale: 1.05 }}
+        whileTap={reduced ? undefined : { scale: 0.95 }}
         className="fixed z-[140] flex h-14 w-14 items-center justify-center rounded-full shadow-lg lg:hidden"
         style={{
           bottom: '13rem',  /* shifted up to make room for scroll-to-top */
@@ -54,11 +56,11 @@ const FloatingActions = () => {
         type="button"
         aria-label="Share"
         onClick={handleShare}
-        initial={{ opacity: 0, scale: 0.8 }}
+        initial={reduced ? false : { opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.5, duration: 0.4 }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
+        transition={{ delay: reduced ? 0 : 0.5, duration: reduced ? 0 : 0.4 }}
+        whileHover={reduced ? undefined : { scale: 1.05 }}
+        whileTap={reduced ? undefined : { scale: 0.95 }}
         className="fixed z-[140] flex h-14 w-14 items-center justify-center rounded-full shadow-lg lg:hidden"
         style={{
           bottom: '9rem',   /* shifted up to make room for scroll-to-top */
@@ -78,12 +80,12 @@ const FloatingActions = () => {
             type="button"
             aria-label="Scroll to top"
             onClick={scrollToTop}
-            initial={{ opacity: 0, scale: 0.6, y: 20 }}
+            initial={reduced ? false : { opacity: 0, scale: 0.6, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.6, y: 20 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            whileHover={{ scale: 1.12 }}
-            whileTap={{ scale: 0.92 }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.6, y: 20 }}
+            transition={{ duration: reduced ? 0 : 0.25, ease: 'easeOut' }}
+            whileHover={reduced ? undefined : { scale: 1.05 }}
+            whileTap={reduced ? undefined : { scale: 0.92 }}
             className="fixed z-[140] flex h-14 w-14 items-center justify-center rounded-full shadow-xl"
             style={{
               /* On mobile: just above the bottom nav (64px) + small gap.

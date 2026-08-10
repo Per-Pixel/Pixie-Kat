@@ -5,10 +5,10 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, RefreshCw, Terminal, CheckCircle2, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, RefreshCw, Terminal, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
-  smilecoin, extractSmSkus, SM_CATALOG, SmSku,
+  smilecoin, extractSmSkus, SM_CATALOG, SmSku, SmMismatchOrder,
 } from '../../services/smilecoinService';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -21,7 +21,7 @@ interface CallLog {
   at: string;
 }
 
-const TABS = ['health', 'products', 'productlist', 'servers', 'points', 'rolecheck', 'order'] as const;
+const TABS = ['health', 'products', 'productlist', 'servers', 'points', 'rolecheck', 'order', 'mismatches'] as const;
 type Tab = (typeof TABS)[number];
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -79,6 +79,8 @@ const SmileCoinApiConsolePage: React.FC = () => {
   const [userid, setUserid] = useState('');
   const [zoneid, setZoneid] = useState('');
   const [testOrdersEnabled, setTestOrdersEnabled] = useState<boolean | null>(null);
+  const [mismatchOrders, setMismatchOrders] = useState<SmMismatchOrder[]>([]);
+  const [mismatchLoading, setMismatchLoading] = useState(false);
 
   useEffect(() => {
     smilecoin.health()
@@ -117,6 +119,22 @@ const SmileCoinApiConsolePage: React.FC = () => {
     if (list[0]) setSkuId(String(list[0].id));
   }
 
+  async function loadMismatches() {
+    setMismatchLoading(true);
+    try {
+      const r = await smilecoin.mismatches(100);
+      setMismatchOrders(r.orders ?? []);
+      setResp(r);
+      setLog(l => [{ id: Date.now(), endpoint: 'mismatches', ok: true, ms: 0, at: new Date().toLocaleTimeString() }, ...l].slice(0, 15));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setResp({ error: msg });
+      toast.error(`mismatches failed: ${msg}`);
+    } finally {
+      setMismatchLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -138,7 +156,7 @@ const SmileCoinApiConsolePage: React.FC = () => {
 
         {/* Endpoint badges */}
         <div className="flex flex-wrap gap-2 mt-4">
-          {['GET /api/health', 'GET /api/products', 'GET /api/productlist', 'GET /api/servers', 'GET /api/points', 'POST /api/rolecheck', 'POST /api/order'].map(e => (
+          {['GET /api/smilecoin/health', 'GET /api/smilecoin/products', 'GET /api/smilecoin/productlist', 'GET /api/smilecoin/servers', 'GET /api/smilecoin/points', 'POST /api/smilecoin/rolecheck', 'POST /api/smilecoin/order', 'GET /api/smilecoin/mismatches'].map(e => (
             <span key={e} className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-mono rounded-full">{e}</span>
           ))}
         </div>
@@ -336,6 +354,68 @@ const SmileCoinApiConsolePage: React.FC = () => {
                     Dry-run preview
                   </button>
                 </div>
+              </>
+            )}
+
+            {/* mismatches */}
+            {tab === 'mismatches' && (
+              <>
+                <PanelHeader title="GET /api/smilecoin/mismatches" desc="Orders where the provider returned a different price than expected — possible product substitution." />
+                <RunButton busy={mismatchLoading} label="Load mismatches" onClick={loadMismatches} />
+
+                {mismatchOrders.length > 0 && (
+                  <div className="space-y-2 mt-2">
+                    <p className="text-xs font-medium text-amber-600">{mismatchOrders.length} mismatch{mismatchOrders.length !== 1 ? 'es' : ''} found</p>
+                    <div className="max-h-[360px] overflow-y-auto space-y-2">
+                      {mismatchOrders.map(o => {
+                        const mm = o.metadata?.provider_mismatch;
+                        return (
+                          <div key={o.id} className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs space-y-1">
+                            <div className="flex items-center gap-2 justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                <span className="font-semibold text-gray-800">{o.product_name}</span>
+                              </div>
+                              <span className="text-gray-400 font-mono">{new Date(o.created_at).toLocaleString()}</span>
+                            </div>
+                            {mm && (
+                              <div className="flex flex-wrap gap-4 text-gray-600">
+                                <span>Expected: <span className="font-mono font-semibold text-emerald-700">{mm.expected_provider_price}</span></span>
+                                <span>Got: <span className="font-mono font-semibold text-red-600">{mm.actual_provider_price}</span></span>
+                                {mm.refund_amount != null && mm.refund_amount > 0 && (
+                                  <span className={`font-semibold ${mm.refund_status === 'completed' ? 'text-emerald-700' : 'text-red-600'}`}>
+                                    Refund: {mm.refund_amount} {mm.refund_currency || 'PKS'}
+                                    {mm.refund_status === 'completed' ? ' ✓' : mm.refund_status === 'failed' ? ' ✗' : ''}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {mm?.refund_status === 'failed' && mm.refund_error && (
+                              <div className="text-red-500">Refund error: {mm.refund_error}</div>
+                            )}
+                            <div className="flex flex-wrap gap-4 text-gray-500">
+                              {o.metadata?.game_name && <span>Game: {o.metadata.game_name}</span>}
+                              {o.metadata?.player_name && <span>Player: {o.metadata.player_name}</span>}
+                              {o.metadata?.account_fields?.user_id && <span>UID: <span className="font-mono">{o.metadata.account_fields.user_id}</span></span>}
+                            </div>
+                            <div className="flex flex-wrap gap-4 text-gray-400">
+                              <span>Order: <span className="font-mono">{o.id.slice(0, 8)}…</span></span>
+                              <span>Amount: {o.total_amount}</span>
+                              {mm?.provider_order_id && <span>Provider: <span className="font-mono">{mm.provider_order_id}</span></span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {!mismatchLoading && mismatchOrders.length === 0 && resp && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" />
+                    No price mismatches found. All orders matched expected provider prices.
+                  </div>
+                )}
               </>
             )}
           </div>

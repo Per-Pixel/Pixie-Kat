@@ -1,6 +1,11 @@
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import PageWrapper from '../../components/common/PageWrapper';
+import {
+  DEFAULT_HOW_IT_WORKS,
+  fetchJsonSetting,
+} from '../../lib/storeContent';
 
 const POWDER_BLUE = '#ADD8E6';
 
@@ -9,12 +14,13 @@ const FeaturesCarousel = ({ features }) => {
   const dragStartX = useRef(0);
   const total = features.length;
 
-  const prev = () => setCurrent(i => (i - 1 + total) % total);
-  const next = () => setCurrent(i => (i + 1) % total);
+  const prev = () => setCurrent((i) => (i - 1 + total) % total);
+  const next = () => setCurrent((i) => (i + 1) % total);
+
+  if (total === 0) return null;
 
   return (
     <div className="relative px-4">
-      {/* Track */}
       <div className="overflow-hidden rounded-2xl">
         <motion.div
           className="flex"
@@ -23,7 +29,9 @@ const FeaturesCarousel = ({ features }) => {
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.08}
-          onDragStart={(_, info) => { dragStartX.current = info.point.x; }}
+          onDragStart={(_, info) => {
+            dragStartX.current = info.point.x;
+          }}
           onDragEnd={(_, info) => {
             const delta = dragStartX.current - info.point.x;
             if (delta > 40) next();
@@ -44,7 +52,6 @@ const FeaturesCarousel = ({ features }) => {
         </motion.div>
       </div>
 
-      {/* Dot indicators */}
       <div className="flex justify-center gap-2 mt-5">
         {features.map((_, i) => (
           <button
@@ -54,13 +61,12 @@ const FeaturesCarousel = ({ features }) => {
             style={{
               width: i === current ? '24px' : '8px',
               height: '8px',
-              backgroundColor: i === current ? POWDER_BLUE : '#d1d5db'
+              backgroundColor: i === current ? POWDER_BLUE : '#d1d5db',
             }}
           />
         ))}
       </div>
 
-      {/* Prev / Next arrows */}
       <button
         onClick={prev}
         className="absolute left-0 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors z-10"
@@ -87,103 +93,121 @@ const POWDER_BLUE_DARK = '#5BA4CF';
 const POWDER_BLUE_BG = '#EBF5FF';
 const BANNER_BG = '#0f2318';
 
+function mergeHowItWorksSettings(raw) {
+  const source = raw || {};
+  const flatBannerTitle = source.banner_title || '';
+  const flatFooter = source.footer_title || '';
+  const footerLines = String(flatFooter).split('\n').filter(Boolean);
+
+  return {
+    ...DEFAULT_HOW_IT_WORKS,
+    ...source,
+    headings: {
+      ...DEFAULT_HOW_IT_WORKS.headings,
+      ...source.headings,
+      ...(source.heading_prefix
+        ? { title_before: `${source.heading_prefix} ` }
+        : {}),
+      ...(source.heading_accent ? { title_highlight: source.heading_accent } : {}),
+      ...(source.subheading ? { subtitle: source.subheading } : {}),
+    },
+    banner: {
+      ...DEFAULT_HOW_IT_WORKS.banner,
+      ...source.banner,
+      ...(flatBannerTitle
+        ? {
+            title_before: '',
+            title_highlight: flatBannerTitle,
+            title_after: '',
+          }
+        : {}),
+      ...(source.banner_body ? { body: source.banner_body } : {}),
+    },
+    cta: {
+      ...DEFAULT_HOW_IT_WORKS.cta,
+      ...source.cta,
+      ...(source.cta_title ? { title: source.cta_title } : {}),
+      ...(source.cta_body ? { body: source.cta_body } : {}),
+    },
+    prefooter_cta: {
+      ...DEFAULT_HOW_IT_WORKS.prefooter_cta,
+      ...source.prefooter_cta,
+      ...(footerLines[0] ? { title_line1: footerLines[0] } : {}),
+      ...(footerLines[1] ? { title_line2: footerLines[1] } : {}),
+      ...(source.footer_body ? { body: source.footer_body } : {}),
+    },
+    steps:
+      Array.isArray(source.steps) && source.steps.length > 0
+        ? source.steps.map((step, index) => ({
+            ...step,
+            id: step.id ?? index + 1,
+            details: Array.isArray(step.details)
+              ? step.details
+              : String(step.details || '')
+                  .split('\n')
+                  .map((line) => line.trim())
+                  .filter(Boolean),
+          }))
+        : DEFAULT_HOW_IT_WORKS.steps,
+    features:
+      Array.isArray(source.features) && source.features.length > 0
+        ? source.features
+        : DEFAULT_HOW_IT_WORKS.features,
+    stats:
+      Array.isArray(source.stats) && source.stats.length > 0
+        ? source.stats
+        : DEFAULT_HOW_IT_WORKS.stats,
+    video_url: source.video_url || DEFAULT_HOW_IT_WORKS.video_url,
+  };
+}
+
 const HowItWorks = () => {
+  const navigate = useNavigate();
+  const stepsRef = useRef(null);
   const [activeStep, setActiveStep] = useState(0);
+  const [settings, setSettings] = useState(DEFAULT_HOW_IT_WORKS);
 
-  const steps = [
-    {
-      id: 1,
-      title: 'Pick Your Game',
-      icon: '🎮',
-      description: 'Browse 50+ supported titles and select the game you want to top up.',
-      details: [
-        'MLBB, PUBG, Free Fire & more',
-        'New titles added every week',
-        'All officially supported games',
-        'Search or filter by category'
-      ],
-      image: '🎯'
-    },
-    {
-      id: 2,
-      title: 'Choose Package',
-      icon: '💎',
-      description: 'Select a top-up amount — from starter packs to premium bundles at the best prices.',
-      details: [
-        'Flexible denomination options',
-        'Bonus rewards on select packages',
-        'Member-exclusive discounts',
-        'Zero hidden fees, always'
-      ],
-      image: '💰'
-    },
-    {
-      id: 3,
-      title: 'Enter Game Details',
-      icon: '📝',
-      description: 'Type in your Game ID and server. We guide you every step of the way.',
-      details: [
-        'Enter your Game ID / User ID',
-        'Select server if required',
-        'We help you locate your ID',
-        'Details verified before processing'
-      ],
-      image: '🔍'
-    },
-    {
-      id: 4,
-      title: 'Secure Checkout',
-      icon: '💳',
-      description: 'Pay using your preferred method. Every transaction is SSL-encrypted and safe.',
-      details: [
-        'UPI, Cards, Net Banking & Wallets',
-        'SSL-encrypted checkout',
-        'Instant payment confirmation',
-        'No data stored after purchase'
-      ],
-      image: '🔒'
-    },
-    {
-      id: 5,
-      title: 'Instant Delivery',
-      icon: '⚡',
-      description: 'Credits land in your game account within minutes. No waiting, no hassle.',
-      details: [
-        'Average delivery: 2–5 minutes',
-        'Real-time order tracking',
-        '24/7 support if needed',
-        '99.9% successful delivery rate'
-      ],
-      image: '🎉'
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchJsonSetting('how_it_works_settings', DEFAULT_HOW_IT_WORKS).then((data) => {
+      if (!cancelled) {
+        setSettings(mergeHowItWorksSettings(data));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const { headings, banner, cta, prefooter_cta, steps, features, stats } = settings;
+  const safeActiveStep = Math.min(activeStep, Math.max(steps.length - 1, 0));
+  const currentStep = steps[safeActiveStep] || steps[0];
+  const stepDetails = Array.isArray(currentStep?.details) ? currentStep.details : [];
+
+  const handleVideoPlay = () => {
+    if (settings.video_url) {
+      window.open(settings.video_url, '_blank', 'noopener,noreferrer');
+      return;
     }
-  ];
-
-  const features = [
-    { icon: '⚡', title: 'Instant Delivery', description: 'Most orders fulfilled within 2–5 minutes, guaranteed.' },
-    { icon: '🛡️', title: '100% Secure', description: 'Bank-grade SSL encryption on every single transaction.' },
-    { icon: '💰', title: 'Best Prices', description: 'Competitive rates and exclusive member-only deals.' },
-    { icon: '🎯', title: '99.9% Success Rate', description: 'Industry-leading delivery success across all games.' },
-    { icon: '📱', title: '24/7 Support', description: 'Real humans ready to help you around the clock.' },
-    { icon: '🎁', title: 'Bonus Rewards', description: 'Earn extra credits and gifts with every purchase.' }
-  ];
+    stepsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.15 } }
+    visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
   };
 
   const itemVariants = {
     hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1, transition: { duration: 0.5, ease: 'easeOut' } }
+    visible: { y: 0, opacity: 1, transition: { duration: 0.5, ease: 'easeOut' } },
   };
 
   return (
     <PageWrapper>
       <div className="text-gray-900">
-
         <div className="container mx-auto px-4">
-
-          {/* ── Header ── */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -192,24 +216,41 @@ const HowItWorks = () => {
           >
             <div className="relative inline-block">
               <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
-                How it{' '}
-                <span style={{ color: POWDER_BLUE }}>works?</span>
+                {headings.title_before}
+                <span style={{ color: POWDER_BLUE }}>{headings.title_highlight}</span>
               </h1>
-              <span className="absolute -top-5 left-0 text-xl" style={{ color: POWDER_BLUE }}>✦</span>
-              <span className="absolute -top-3 right-0 text-sm" style={{ color: POWDER_BLUE }}>✦</span>
+              <span className="absolute -top-5 left-0 text-xl" style={{ color: POWDER_BLUE }}>
+                ✦
+              </span>
+              <span className="absolute -top-3 right-0 text-sm" style={{ color: POWDER_BLUE }}>
+                ✦
+              </span>
               <span className="absolute bottom-4 -left-6 text-xs text-gray-400">✦</span>
-              <span className="absolute -bottom-1 -right-7 text-base" style={{ color: POWDER_BLUE }}>✦</span>
+              <span className="absolute -bottom-1 -right-7 text-base" style={{ color: POWDER_BLUE }}>
+                ✦
+              </span>
             </div>
             <p className="text-gray-600 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-              Top up your favorite games{' '}
-              <span className="font-semibold" style={{ color: POWDER_BLUE_DARK }}>instantly</span>,{' '}
-              <span className="font-semibold" style={{ color: POWDER_BLUE_DARK }}>securely</span>, and at the best prices —
-              from start to finish.
+              {headings.subtitle.includes('instantly') ? (
+                <>
+                  Top up your favorite games{' '}
+                  <span className="font-semibold" style={{ color: POWDER_BLUE_DARK }}>
+                    instantly
+                  </span>
+                  ,{' '}
+                  <span className="font-semibold" style={{ color: POWDER_BLUE_DARK }}>
+                    securely
+                  </span>
+                  , and at the best prices — from start to finish.
+                </>
+              ) : (
+                headings.subtitle
+              )}
             </p>
           </motion.div>
 
-          {/* ── Step Tab Navigation ── */}
           <motion.div
+            ref={stepsRef}
             variants={containerVariants}
             initial="hidden"
             animate="visible"
@@ -218,15 +259,19 @@ const HowItWorks = () => {
             <div className="flex flex-wrap justify-center gap-3">
               {steps.map((step, index) => (
                 <motion.button
-                  key={step.id}
+                  key={step.id ?? index}
                   variants={itemVariants}
                   onClick={() => setActiveStep(index)}
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.97 }}
                   className="px-5 py-2 rounded-full border text-sm font-medium transition-all duration-200"
                   style={
-                    activeStep === index
-                      ? { borderColor: POWDER_BLUE, color: POWDER_BLUE_DARK, backgroundColor: POWDER_BLUE_BG }
+                    safeActiveStep === index
+                      ? {
+                          borderColor: POWDER_BLUE,
+                          color: POWDER_BLUE_DARK,
+                          backgroundColor: POWDER_BLUE_BG,
+                        }
                       : { borderColor: '#d1d5db', color: '#4b5563', backgroundColor: '#ffffff' }
                   }
                 >
@@ -236,45 +281,49 @@ const HowItWorks = () => {
             </div>
           </motion.div>
 
-          {/* ── Active Step Detail Panel ── */}
-          <motion.div
-            key={activeStep}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="max-w-4xl mx-auto mb-16"
-          >
-            <div className="bg-white rounded-2xl p-8 shadow-md border border-gray-100">
-              <div className="flex items-center mb-6">
-                <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center text-3xl mr-6 border-2"
-                  style={{ backgroundColor: POWDER_BLUE_BG, borderColor: POWDER_BLUE }}
-                >
-                  {steps[activeStep].icon}
-                </div>
-                <div>
-                  <h2 className="text-3xl font-bold text-gray-900">Step {steps[activeStep].id}</h2>
-                  <h3 className="text-xl font-semibold" style={{ color: POWDER_BLUE_DARK }}>
-                    {steps[activeStep].title}
-                  </h3>
-                </div>
-                <div className="ml-auto text-5xl">{steps[activeStep].image}</div>
-              </div>
-
-              <p className="text-gray-600 text-lg mb-6">{steps[activeStep].description}</p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {steps[activeStep].details.map((detail, index) => (
-                  <div key={index} className="flex items-center text-gray-700">
-                    <span className="mr-3 font-bold" style={{ color: POWDER_BLUE }}>✓</span>
-                    <span>{detail}</span>
+          {currentStep && (
+            <motion.div
+              key={safeActiveStep}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="max-w-4xl mx-auto mb-16"
+            >
+              <div className="bg-white rounded-2xl p-8 shadow-md border border-gray-100">
+                <div className="flex items-center mb-6">
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-3xl mr-6 border-2"
+                    style={{ backgroundColor: POWDER_BLUE_BG, borderColor: POWDER_BLUE }}
+                  >
+                    {currentStep.icon}
                   </div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
+                  <div>
+                    <h2 className="text-3xl font-bold text-gray-900">
+                      Step {currentStep.id ?? safeActiveStep + 1}
+                    </h2>
+                    <h3 className="text-xl font-semibold" style={{ color: POWDER_BLUE_DARK }}>
+                      {currentStep.title}
+                    </h3>
+                  </div>
+                  <div className="ml-auto text-5xl">{currentStep.image}</div>
+                </div>
 
-          {/* ── Features Grid / Carousel ── */}
+                <p className="text-gray-600 text-lg mb-6">{currentStep.description}</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {stepDetails.map((detail, index) => (
+                    <div key={index} className="flex items-center text-gray-700">
+                      <span className="mr-3 font-bold" style={{ color: POWDER_BLUE }}>
+                        ✓
+                      </span>
+                      <span>{detail}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -282,16 +331,15 @@ const HowItWorks = () => {
             className="mb-16"
           >
             <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">
-              Why choose{' '}
-              <span style={{ color: POWDER_BLUE }}>PixieKat</span>?
+              {headings.features_title_before}
+              <span style={{ color: POWDER_BLUE }}>{headings.features_title_highlight}</span>
+              {headings.features_title_after}
             </h2>
 
-            {/* Mobile carousel */}
             <div className="md:hidden">
               <FeaturesCarousel features={features} />
             </div>
 
-            {/* Desktop grid */}
             <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
               {features.map((feature, index) => (
                 <motion.div
@@ -306,10 +354,8 @@ const HowItWorks = () => {
               ))}
             </div>
           </motion.div>
-
         </div>
 
-        {/* ── "What is PixieKat?" Dark Banner ── */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -321,63 +367,58 @@ const HowItWorks = () => {
             style={{ backgroundColor: BANNER_BG }}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 min-h-[280px]">
-
-              {/* Left — What is PixieKat? */}
               <div className="p-10 md:p-12 flex flex-col justify-center">
                 <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-                  What is{' '}
-                  <span style={{ color: POWDER_BLUE }}>PixieKat</span>?
+                  {banner.title_before}
+                  <span style={{ color: POWDER_BLUE }}>{banner.title_highlight}</span>
+                  {banner.title_after}
                 </h2>
                 <p className="text-gray-300 text-sm md:text-base leading-relaxed max-w-sm">
-                  PixieKat is your{' '}
-                  <span className="font-semibold" style={{ color: POWDER_BLUE }}>trusted</span>,{' '}
-                  <span className="font-semibold" style={{ color: POWDER_BLUE }}>instant</span>{' '}
-                  game top-up platform. We deliver in-game credits, diamonds, and currency
-                  directly to your account — no login required, no delays. Just{' '}
-                  <span className="font-semibold" style={{ color: POWDER_BLUE }}>fast</span> and{' '}
-                  <span className="font-semibold" style={{ color: POWDER_BLUE }}>secure</span>{' '}
-                  top-ups every single time.
+                  {banner.body}
                 </p>
               </div>
 
-              {/* Right — How PixieKat works */}
-              <div
-                className="p-10 md:p-12 flex flex-col items-center justify-center border-t border-white/10 md:border-t-0 md:border-l md:border-white/10 relative"
-              >
-                <span className="absolute top-6 right-10 text-xl" style={{ color: POWDER_BLUE }}>✦</span>
+              <div className="p-10 md:p-12 flex flex-col items-center justify-center border-t border-white/10 md:border-t-0 md:border-l md:border-white/10 relative">
+                <span className="absolute top-6 right-10 text-xl" style={{ color: POWDER_BLUE }}>
+                  ✦
+                </span>
                 <span className="absolute top-10 left-8 text-xs text-white/40">✦</span>
                 <span className="absolute bottom-8 right-16 text-sm text-orange-400">✦</span>
                 <span className="absolute bottom-12 left-12 text-base text-white/30">✦</span>
 
                 <h3 className="text-2xl md:text-3xl font-bold text-white mb-6 text-center">
-                  How{' '}
-                  <span style={{ color: POWDER_BLUE }}>PixieKat</span> works
+                  {banner.video_title_before}
+                  <span style={{ color: POWDER_BLUE }}>{banner.video_title_highlight}</span>
+                  {banner.video_title_after}
                 </h3>
 
                 <motion.button
-                  whileHover={{ scale: 1.1 }}
+                  type="button"
+                  onClick={handleVideoPlay}
+                  whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.93 }}
                   className="w-16 h-16 rounded-lg flex items-center justify-center transition-colors duration-200"
                   style={{
                     border: '2px solid rgba(255,255,255,0.5)',
-                    backgroundColor: 'rgba(255,255,255,0.1)'
+                    backgroundColor: 'rgba(255,255,255,0.1)',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)')}
-                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)')}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                  }}
                 >
                   <svg className="w-7 h-7 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>
                 </motion.button>
               </div>
-
             </div>
           </div>
         </motion.div>
 
         <div className="container mx-auto px-4">
-
-          {/* ── CTA Section ── */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -385,45 +426,60 @@ const HowItWorks = () => {
             className="text-center mb-16"
           >
             <div className="bg-white rounded-2xl p-8 max-w-2xl mx-auto shadow-md border border-gray-100">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">Ready to top up?</h2>
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">{cta.title}</h2>
               <p className="text-gray-600 mb-6">
-                Join thousands of gamers who trust{' '}
-                <span className="font-semibold" style={{ color: POWDER_BLUE_DARK }}>PixieKat</span>{' '}
-                for{' '}
-                <span className="font-semibold" style={{ color: POWDER_BLUE_DARK }}>fast</span>,{' '}
-                <span className="font-semibold" style={{ color: POWDER_BLUE_DARK }}>secure</span>{' '}
-                top-ups every time.
+                {cta.body.includes('PixieKat') ? (
+                  <>
+                    Join thousands of gamers who trust{' '}
+                    <span className="font-semibold" style={{ color: POWDER_BLUE_DARK }}>
+                      PixieKat
+                    </span>{' '}
+                    for{' '}
+                    <span className="font-semibold" style={{ color: POWDER_BLUE_DARK }}>
+                      fast
+                    </span>
+                    ,{' '}
+                    <span className="font-semibold" style={{ color: POWDER_BLUE_DARK }}>
+                      secure
+                    </span>{' '}
+                    top-ups every time.
+                  </>
+                ) : (
+                  cta.body
+                )}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <motion.button
+                  type="button"
+                  onClick={() => navigate('/games')}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className="font-bold py-3 px-8 rounded-xl transition-opacity duration-200 hover:opacity-90"
                   style={{ backgroundColor: POWDER_BLUE, color: '#0f2318' }}
                 >
-                  Browse Games
+                  {cta.primary_label}
                 </motion.button>
                 <motion.button
+                  type="button"
+                  onClick={() => navigate('/pricing')}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className="border-2 font-bold py-3 px-8 rounded-xl transition-colors duration-200 text-gray-700 border-gray-300"
-                  style={{ '--hover-border': POWDER_BLUE }}
-                  onMouseEnter={e => {
+                  onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = POWDER_BLUE;
                     e.currentTarget.style.color = POWDER_BLUE_DARK;
                   }}
-                  onMouseLeave={e => {
+                  onMouseLeave={(e) => {
                     e.currentTarget.style.borderColor = '#d1d5db';
                     e.currentTarget.style.color = '#374151';
                   }}
                 >
-                  View Pricing
+                  {cta.secondary_label}
                 </motion.button>
               </div>
             </div>
           </motion.div>
 
-          {/* ── Stats ── */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -431,12 +487,7 @@ const HowItWorks = () => {
             className="pb-16"
           >
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto text-center">
-              {[
-                { value: '5,000+', label: 'Happy Gamers' },
-                { value: '50+', label: 'Games Supported' },
-                { value: '99.9%', label: 'Success Rate' },
-                { value: '~2 Min', label: 'Avg. Delivery' }
-              ].map((stat, i) => (
+              {stats.map((stat, i) => (
                 <div key={i}>
                   <div className="text-3xl font-bold mb-2" style={{ color: POWDER_BLUE_DARK }}>
                     {stat.value}
@@ -447,7 +498,6 @@ const HowItWorks = () => {
             </div>
           </motion.div>
 
-          {/* ── Pre-footer CTA Card ── */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
@@ -457,32 +507,47 @@ const HowItWorks = () => {
             <div
               className="rounded-3xl px-8 py-16 md:py-20 text-center shadow-sm max-w-4xl mx-auto"
               style={{
-                background: 'linear-gradient(165deg, #f8fafc 0%, #dce8f5 50%, #c5d8ef 100%)'
+                background: 'linear-gradient(165deg, #f8fafc 0%, #dce8f5 50%, #c5d8ef 100%)',
               }}
             >
               <h2 className="text-3xl md:text-5xl font-bold text-gray-900 leading-tight mb-5">
-                Stop waiting.<br className="hidden sm:block" />
-                Start playing.
+                {prefooter_cta.title_line1}
+                <br className="hidden sm:block" />
+                {prefooter_cta.title_line2}
               </h2>
               <p className="text-gray-500 text-base md:text-lg mb-10 max-w-md mx-auto leading-relaxed">
-                Top up your favorite game in under 5 minutes — no account sharing, no delays, just{' '}
-                <span className="font-medium text-gray-700">instant</span> delivery straight to your account.
+                {prefooter_cta.body.includes('instant') ? (
+                  <>
+                    Top up your favorite game in under 5 minutes — no account sharing, no delays, just{' '}
+                    <span className="font-medium text-gray-700">instant</span> delivery straight to
+                    your account.
+                  </>
+                ) : (
+                  prefooter_cta.body
+                )}
               </p>
               <motion.button
+                type="button"
+                onClick={() => navigate('/games')}
                 whileHover={{ scale: 1.04, backgroundColor: '#111827', color: '#ffffff' }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ duration: 0.18 }}
                 className="inline-flex items-center gap-2 px-7 py-3 rounded-full border-2 border-gray-800 text-gray-800 font-semibold text-sm"
                 style={{ backgroundColor: 'transparent' }}
               >
-                Top Up Now
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                {prefooter_cta.button_label}
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  viewBox="0 0 24 24"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
               </motion.button>
             </div>
           </motion.div>
-
         </div>
       </div>
     </PageWrapper>

@@ -1,57 +1,29 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DEFAULT_PRODUCTS_PAGE, fetchProductsPageSettings } from '../../../lib/storeContent';
 
 const GameHero = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
-
-  const slides = [
-    {
-      id: 1,
-      title: 'PIXIEKAT STORE',
-      subtitle: 'Official Gaming Platform',
-      description:
-        'PIXIEKAT STORE is a practical solution for every game lover to buy game vouchers without having to go to a physical store.',
-      cta: 'WWW.PIXIEKATSTORE.COM',
-      bgGradient: 'from-blue-700 via-violet-700 to-indigo-900',
-      image: '/img/hero/game-hero-card.gif',
-    },
-    {
-      id: 2,
-      title: 'MOBILE LEGENDS',
-      subtitle: 'Top Up Diamonds',
-      description:
-        'Get instant diamonds for Mobile Legends. Fast, secure, and reliable top-up service with 24/7 support.',
-      cta: 'TOP UP NOW',
-      bgGradient: 'from-indigo-700 via-fuchsia-700 to-violet-900',
-      image: '/img/hero/game-mlbb-card.webp',
-    },
-    {
-      id: 3,
-      title: 'PUBG GLOBAL',
-      subtitle: 'UC Coins Available',
-      description:
-        'Purchase UC coins for PUBG Mobile Global. Instant delivery and competitive prices guaranteed.',
-      cta: 'BUY UC COINS',
-      bgGradient: 'from-orange-600 via-rose-700 to-red-900',
-      image: '/img/hero/game-pubg-card.webp',
-    },
-    {
-      id: 4,
-      title: 'GENSHIN IMPACT',
-      subtitle: 'Genesis Crystals',
-      description:
-        'Top up Genesis Crystals for Genshin Impact. Safe transactions with instant delivery to your account.',
-      cta: 'GET CRYSTALS',
-      bgGradient: 'from-cyan-700 via-sky-700 to-indigo-900',
-      image: '/img/hero/game-genshin-card.webp',
-    },
-  ];
+  const [slides, setSlides] = useState(DEFAULT_PRODUCTS_PAGE.slides);
 
   useEffect(() => {
-    if (!isAutoPlaying) return;
+    let cancelled = false;
+    fetchProductsPageSettings().then((settings) => {
+      if (!cancelled && settings?.slides?.length) {
+        setSlides(settings.slides);
+        setCurrentSlide(0);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isAutoPlaying || slides.length === 0) return;
 
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
@@ -59,6 +31,12 @@ const GameHero = () => {
 
     return () => clearInterval(interval);
   }, [isAutoPlaying, slides.length]);
+
+  useEffect(() => {
+    if (currentSlide >= slides.length) {
+      setCurrentSlide(0);
+    }
+  }, [slides.length, currentSlide]);
 
   const goToSlide = (index) => {
     setCurrentSlide(index);
@@ -123,6 +101,8 @@ const GameHero = () => {
     return 'w-[66%] md:w-[32%] h-[121px] sm:h-[253px] md:h-[308px] opacity-0 scale-90 z-10 pointer-events-none -translate-x-1/2';
   };
 
+  if (!slides.length) return null;
+
   return (
     <div
       className="group relative px-4 py-1 md:px-8 md:py-2 lg:py-6 min-h-[calc(28vh-3rem)] min-h-[calc(28svh-3rem)] md:min-h-[calc(34vh-4rem)] md:min-h-[calc(34svh-4rem)] lg:min-h-[calc(50vh-6rem)] lg:min-h-[calc(50svh-6rem)] flex items-start lg:items-center overflow-hidden"
@@ -185,7 +165,7 @@ const GameHero = () => {
                         <p className="hidden sm:block mx-auto mb-5 max-w-2xl text-sm text-white/90 md:text-base">
                           {slide.description}
                         </p>
-                        <button className="hidden sm:inline-flex rounded-lg bg-[#f4b73f] px-6 py-2 text-sm font-bold text-black transition-all duration-300 hover:bg-[#ffd06f] md:px-8 md:text-base">
+                        <button className="hidden sm:inline-flex rounded-lg bg-[#f4b73f] px-6 py-2 text-sm font-bold text-black transition-colors duration-300 hover:bg-[#ffd06f] md:px-8 md:text-base">
                           {slide.cta}
                         </button>
                       </motion.div>

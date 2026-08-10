@@ -7,6 +7,8 @@ import { Plus, UserRound } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 import { useAuth } from "../../contexts/AuthContext";
+import { useAppearance } from "../../contexts/AppearanceContext";
+import { useJjkCheaperPlacement } from "../../hooks/useJjkCheaperPlacement";
 import Button from "../common/Button";
 import DropdownMenu from "../common/DropdownMenu";
 
@@ -22,6 +24,8 @@ const darkTextTopRoutes = ["/games", "/pricing", "/how-it-works", "/faq", "/supp
 
 const NavBar = () => {
   const { isAuthenticated, profile } = useAuth();
+  const appearance = useAppearance();
+  const jjkNavPromo = useJjkCheaperPlacement("navbar");
   const [isAudioPlaying, setIsAudioPlaying] = useState(true);
   const [isIndicatorActive, setIsIndicatorActive] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -30,6 +34,12 @@ const NavBar = () => {
   const audioElementRef = useRef(null);
   const navContainerRef = useRef(null);
   const location = useLocation();
+
+  const logoUrl = appearance.logo_url || "/img/logo.png";
+  const brandText = appearance.header_brand_text || "PixieKat";
+  const musicUrl = appearance.music_url || "/audio/loop.mp3";
+  const musicRate = Number(appearance.music_playback_rate) || 1;
+  const musicVolume = Number(appearance.music_volume);
 
   const { y: currentScrollY } = useWindowScroll();
   const [isNavVisible, setIsNavVisible] = useState(true);
@@ -58,13 +68,15 @@ const NavBar = () => {
   useEffect(() => {
     if (!audioElementRef.current) return;
 
-    audioElementRef.current.volume = 0.5;
+    audioElementRef.current.volume = Number.isFinite(musicVolume) ? musicVolume : 0.5;
+    audioElementRef.current.playbackRate = Math.min(2, Math.max(0.5, musicRate));
     audioElementRef.current.muted = true;
 
     const attemptPlay = () => {
       audioElementRef.current.play()
         .then(() => {
           setTimeout(() => {
+            if (!audioElementRef.current) return;
             audioElementRef.current.muted = false;
             setIsMuted(false);
             setIsAudioPlaying(true);
@@ -73,6 +85,7 @@ const NavBar = () => {
         })
         .catch(() => {
           const resumeAudio = () => {
+            if (!audioElementRef.current) return;
             audioElementRef.current.muted = false;
             setIsMuted(false);
             audioElementRef.current.play()
@@ -99,7 +112,13 @@ const NavBar = () => {
     return () => {
       window.removeEventListener('load', attemptPlay);
     };
-  }, []);
+  }, [musicUrl, musicRate, musicVolume]);
+
+  useEffect(() => {
+    if (!audioElementRef.current) return;
+    audioElementRef.current.volume = Number.isFinite(musicVolume) ? musicVolume : 0.5;
+    audioElementRef.current.playbackRate = Math.min(2, Math.max(0.5, musicRate));
+  }, [musicRate, musicVolume]);
 
   useEffect(() => {
     if (isAudioPlaying) {
@@ -153,20 +172,20 @@ const NavBar = () => {
   return (
     <div
       ref={navContainerRef}
-      className="fixed inset-x-0 top-4 z-[100] h-16 border-none transition-all duration-700 sm:inset-x-6"
+      className="fixed inset-x-0 top-4 z-[100] h-16 border-none transition-[background-color,border-color,border-radius] duration-700 sm:inset-x-6"
     >
       <header className="absolute top-1/2 w-full -translate-y-1/2">
         <nav className="flex size-full items-center justify-between p-4">
           <div className="flex items-center gap-7">
             <Link to="/" className="flex items-center">
-              <img src="/img/logo.png" alt="PixieKat Logo" className="w-10" />
+              <img src={logoUrl} alt={`${brandText} Logo`} className="w-10" />
               <span
                 className={clsx(
                   "ml-2 hidden text-xl font-bold sm:block",
                   useDarkTextAtTop ? "!text-[#0E041D]" : "!text-white"
                 )}
               >
-                PixieKat
+                {brandText}
               </span>
             </Link>
 
@@ -188,12 +207,20 @@ const NavBar = () => {
                   className={`nav-hover-btn ${
                     location.pathname === item.path
                       ? `${navTextColorClass} border-b-2 ${navActiveBorderClass}`
-                      : `${navTextColorClass} hover:text-neon-purple`
+                      : `${navTextColorClass} hover:text-violet-300`
                   }`}
                 >
                   {item.name}
                 </Link>
               ))}
+              {jjkNavPromo ? (
+                <Link
+                  to={jjkNavPromo.link}
+                  className={`nav-hover-btn ${navTextColorClass} hover:text-violet-300`}
+                >
+                  {jjkNavPromo.title}
+                </Link>
+              ) : null}
             </div>
 
             {!isAuthenticated ? (
@@ -208,7 +235,7 @@ const NavBar = () => {
                 <Link
                   to="/games/mobile-legends/add-money"
                   className={clsx(
-                    "flex h-11 items-center gap-2 rounded-full border border-slate-200/80 px-2.5 backdrop-blur-md transition-all duration-300 ease-in-out hover:-translate-y-0.5",
+                    "flex h-11 items-center gap-2 rounded-full border border-slate-200/80 px-2.5 backdrop-blur-md transition-transform duration-300 ease-in-out hover:-translate-y-0.5",
                     authPanelClass
                   )}
                 >
@@ -225,7 +252,7 @@ const NavBar = () => {
 
                 <Link
                   to="/account"
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-violet-200 via-white to-violet-400 text-violet-700 shadow-[0_10px_25px_rgba(168,85,247,0.35)] transition-all duration-300 ease-in-out hover:-translate-y-0.5"
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-violet-200 via-white to-violet-400 text-violet-700 shadow-[0_10px_25px_rgba(168,85,247,0.35)] transition-transform duration-300 ease-in-out hover:-translate-y-0.5"
                   aria-label="Open account page"
                 >
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 backdrop-blur">
@@ -243,7 +270,7 @@ const NavBar = () => {
               <audio
                 ref={audioElementRef}
                 className="hidden"
-                src="/audio/loop.mp3"
+                src={musicUrl}
                 loop
                 preload="auto"
                 muted={isMuted}

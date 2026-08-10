@@ -4,13 +4,16 @@ import { useNavigate } from 'react-router-dom';
 
 import { fallbackGameImage } from '../gamesData';
 import { useActiveGames } from '../../../hooks/useActiveGames';
+import { useJjkCheaperPlacement } from '../../../hooks/useJjkCheaperPlacement';
 
 const GameGrid = () => {
   const navigate = useNavigate();
   const [showAllGames, setShowAllGames] = useState(false);
-  const { games: allGames } = useActiveGames();
+  const { games: availableGames, loading, error } = useActiveGames();
+  const jjkPromo = useJjkCheaperPlacement('games_page');
 
-  const games = showAllGames ? allGames : allGames.slice(0, 7);
+  // Only show games from Supabase — never the old hardcoded demo catalog.
+  const games = showAllGames ? availableGames : availableGames.slice(0, 7);
 
   const handleGameClick = (game) => {
     navigate(`/games/${game.id}`);
@@ -64,6 +67,13 @@ const GameGrid = () => {
           </div>
         </motion.div>
 
+        {loading ? (
+          <p className="text-black/50 text-sm md:text-base">Loading games…</p>
+        ) : error ? (
+          <p className="text-red-600 text-sm md:text-base">Couldn’t load games: {error}</p>
+        ) : availableGames.length === 0 ? (
+          <p className="text-black/50 text-sm md:text-base">No games available yet.</p>
+        ) : (
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -71,6 +81,37 @@ const GameGrid = () => {
           viewport={{ once: true, margin: '-50px' }}
           className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6"
         >
+          {jjkPromo ? (
+            <motion.div
+              key="jjk-cheaper-promo"
+              variants={itemVariants}
+              whileHover={{
+                scale: 1.03,
+                y: -3,
+                transition: { duration: 0.2 },
+              }}
+              whileTap={{ scale: 0.97 }}
+              className="rounded-[18px] md:rounded-[22px] bg-[#dedede] p-3 md:p-4 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer group border border-black"
+              onClick={() => navigate(jjkPromo.link)}
+            >
+              <div className="aspect-square rounded-[16px] md:rounded-[18px] mb-3 overflow-hidden bg-black relative">
+                <img
+                  src={jjkPromo.image}
+                  alt={jjkPromo.title}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = fallbackGameImage;
+                  }}
+                />
+                <span className="absolute left-2 top-2 rounded-full bg-lime-400 px-2 py-0.5 text-[10px] font-bold uppercase text-black">
+                  Event
+                </span>
+              </div>
+              <h3 className="text-sm md:text-base font-semibold text-black line-clamp-2">{jjkPromo.title}</h3>
+            </motion.div>
+          ) : null}
           {games.map((game) => (
             <motion.div
               key={game.id}
@@ -106,7 +147,7 @@ const GameGrid = () => {
             </motion.div>
           ))}
 
-          {!showAllGames && (
+          {!showAllGames && availableGames.length > 7 && (
             <motion.div
               variants={itemVariants}
               whileHover={{
@@ -149,6 +190,7 @@ const GameGrid = () => {
             </motion.div>
           )}
         </motion.div>
+        )}
       </div>
     </div>
   );
