@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosResponse, AxiosRequestConfig } from 'axios';
 import { ApiResponse, PaginatedResponse } from '@/types/api';
+import { supabase } from '../lib/supabase';
 
 // API Configuration
 export const API_CONFIG = {
@@ -13,17 +14,22 @@ export const API_CONFIG = {
 export const api = axios.create({
   baseURL: API_CONFIG.baseURL,
   timeout: API_CONFIG.timeout,
-  withCredentials: true, // Enable cookies for authentication
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor to add request metadata
+// Request interceptor to add auth token and request metadata
 api.interceptors.request.use(
-  (config) => {
-    // Cookie-based auth - no need to add Authorization header
-    // Cookies are sent automatically with withCredentials: true
+  async (config) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        config.headers.Authorization = `Bearer ${session.access_token}`;
+      }
+    } catch (sessionError) {
+      console.warn('Failed to get session for request:', sessionError);
+    }
     
     // Add request ID for tracking
     config.headers['X-Request-ID'] = generateRequestId();
@@ -59,12 +65,21 @@ api.interceptors.response.use(
       console.error(`❌ ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url}`, error.response?.data || error.message);
     }
 
-    // Handle 401 Unauthorized - Redirect to login
+    // Handle 401 Unauthorized — refresh Supabase session and retry once
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      // Cookie expired or invalid, redirect to login
-      window.location.href = '/login';
-      return Promise.reject(error);
+
+      try {
+        const { data, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !data.session) throw refreshError ?? new Error('Session refresh failed');
+        if (originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${data.session.access_token}`;
+        }
+        return api(originalRequest);
+      } catch {
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
     }
 
     // Handle network errors with retry logic

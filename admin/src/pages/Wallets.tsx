@@ -1,199 +1,391 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, CreditCard, DollarSign, TrendingUp, Plus, Send, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  Eye,
+  RefreshCw,
+  Search,
+  Users,
+  Wallet,
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
-interface WalletData {
+type WalletRole = 'user' | 'reseller';
+type RoleFilter = 'all' | WalletRole;
+
+interface WalletProfile {
   id: string;
   name: string;
-  balance: string;
-  currency: string;
-  change: string;
-  changeType: 'increase' | 'decrease';
+  email: string;
+  role: WalletRole;
+  status: 'active' | 'inactive' | 'suspended' | 'banned';
+  wallet_balance: number | string | null;
+  updated_at?: string | null;
 }
 
-interface Transaction {
+interface WalletTx {
   id: string;
-  type: 'incoming' | 'outgoing';
-  amount: string;
-  description: string;
-  timestamp: string;
-  status: 'completed' | 'pending' | 'failed';
+  user_id: string;
+  type: string;
+  amount: number | string;
+  balance_after: number | string;
+  reference?: string | null;
+  created_at: string;
 }
 
-const walletData: WalletData[] = [
-  {
-    id: '1',
-    name: 'Main Wallet',
-    balance: '12,450.00',
-    currency: 'USD',
-    change: '+5.2%',
-    changeType: 'increase',
-  },
-  {
-    id: '2',
-    name: 'Crypto Wallet',
-    balance: '0.5847',
-    currency: 'BTC',
-    change: '+12.8%',
-    changeType: 'increase',
-  },
-  {
-    id: '3',
-    name: 'Savings',
-    balance: '8,920.00',
-    currency: 'USD',
-    change: '+2.1%',
-    changeType: 'increase',
-  },
-];
+function formatMoney(value: number | string | null | undefined) {
+  return `PKS ${Number(value ?? 0).toFixed(2)}`;
+}
 
-const recentTransactions: Transaction[] = [
-  {
-    id: '1',
-    type: 'incoming',
-    amount: '+$1,250.00',
-    description: 'Payment from client #12345',
-    timestamp: '2 hours ago',
-    status: 'completed',
-  },
-  {
-    id: '2',
-    type: 'outgoing',
-    amount: '-$450.00',
-    description: 'Withdrawal to bank account',
-    timestamp: '1 day ago',
-    status: 'completed',
-  },
-  {
-    id: '3',
-    type: 'incoming',
-    amount: '+$890.00',
-    description: 'Referral commission',
-    timestamp: '2 days ago',
-    status: 'completed',
-  },
-];
+function formatDate(value?: string | null) {
+  if (!value) return 'Never';
+  return new Date(value).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('') || 'PK';
+}
+
+const roleBadge: Record<WalletRole, string> = {
+  user: 'bg-gray-100 text-gray-700',
+  reseller: 'bg-teal-100 text-teal-700',
+};
+
+const statusBadge: Record<string, string> = {
+  active: 'bg-green-100 text-green-700',
+  inactive: 'bg-gray-100 text-gray-600',
+  suspended: 'bg-orange-100 text-orange-700',
+  banned: 'bg-red-100 text-red-700',
+};
+
+const txLabels: Record<string, string> = {
+  credit: 'Credit',
+  debit: 'Debit',
+  purchase: 'Purchase',
+  refund: 'Refund',
+  referral_bonus: 'Referral Bonus',
+  reward_redemption: 'Reward Redemption',
+};
 
 const Wallets: React.FC = () => {
+  const navigate = useNavigate();
+  const [wallets, setWallets] = useState<WalletProfile[]>([]);
+  const [transactions, setTransactions] = useState<WalletTx[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
+
+  const fetchWallets = async () => {
+    setLoading(true);
+    setError('');
+
+    const [profilesRes, txRes] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, name, email, role, status, wallet_balance, updated_at')
+        .in('role', ['user', 'reseller'])
+        .order('wallet_balance', { ascending: false }),
+      supabase
+        .from('wallet_transactions')
+        .select('id, user_id, type, amount, balance_after, reference, created_at')
+        .order('created_at', { ascending: false })
+        .limit(20),
+    ]);
+
+    if (profilesRes.error) {
+      setError(profilesRes.error.message || 'Failed to load wallets');
+      setWallets([]);
+      setTransactions([]);
+    } else {
+      setWallets((profilesRes.data as WalletProfile[]) ?? []);
+      setTransactions((txRes.data as WalletTx[]) ?? []);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchWallets();
+
+    const profilesChannel = supabase
+      .channel('admin-wallet-profiles')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        () => {
+          fetchWallets();
+        }
+      )
+      .subscribe();
+
+    const txChannel = supabase
+      .channel('admin-wallet-transactions')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'wallet_transactions' },
+        () => {
+          fetchWallets();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(profilesChannel);
+      supabase.removeChannel(txChannel);
+    };
+  }, []);
+
+  const profileById = useMemo(() => {
+    return new Map(wallets.map((profile) => [profile.id, profile]));
+  }, [wallets]);
+
+  const filteredWallets = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return wallets.filter((wallet) => {
+      const matchesRole = roleFilter === 'all' || wallet.role === roleFilter;
+      const matchesSearch =
+        !q ||
+        wallet.name.toLowerCase().includes(q) ||
+        wallet.email.toLowerCase().includes(q);
+      return matchesRole && matchesSearch;
+    });
+  }, [wallets, roleFilter, search]);
+
+  const totals = useMemo(() => {
+    const users = wallets.filter((wallet) => wallet.role === 'user');
+    const resellers = wallets.filter((wallet) => wallet.role === 'reseller');
+    const sum = (rows: WalletProfile[]) =>
+      rows.reduce((total, wallet) => total + Number(wallet.wallet_balance ?? 0), 0);
+
+    return {
+      all: sum(wallets),
+      users: sum(users),
+      resellers: sum(resellers),
+      userCount: users.length,
+      resellerCount: resellers.length,
+    };
+  }, [wallets]);
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+        className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between"
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Wallet className="w-8 h-8 text-primary-600 mr-3" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Wallets</h1>
-              <p className="text-gray-600">Manage your digital wallets and transactions</p>
-            </div>
-          </div>
-          <div className="flex space-x-3">
-            <button className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Wallet
-            </button>
-            <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center">
-              <Send className="w-4 h-4 mr-2" />
-              Transfer
-            </button>
+        <div className="flex items-center">
+          <Wallet className="mr-3 h-8 w-8 text-primary-600" />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Wallets</h1>
+            <p className="text-gray-600">Live balances for users and resellers</p>
           </div>
         </div>
+        <button onClick={fetchWallets} disabled={loading} className="btn btn-outline btn-md">
+          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </motion.div>
 
-      {/* Wallet Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {walletData.map((wallet, index) => (
-          <motion.div
-            key={wallet.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg p-6 text-white"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">{wallet.name}</h3>
-              <CreditCard className="w-6 h-6" />
-            </div>
-            <div className="space-y-2">
-              <p className="text-2xl font-bold">
-                {wallet.balance} {wallet.currency}
-              </p>
-              <div className="flex items-center">
-                <TrendingUp className="w-4 h-4 mr-1" />
-                <span className="text-sm">{wallet.change} this month</span>
-              </div>
-            </div>
-          </motion.div>
-        ))}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Balance</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">{formatMoney(totals.all)}</p>
+          <p className="mt-1 text-sm text-gray-500">{wallets.length} wallets</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">User Wallets</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">{formatMoney(totals.users)}</p>
+          <p className="mt-1 text-sm text-gray-500">{totals.userCount} users</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Reseller Wallets</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">{formatMoney(totals.resellers)}</p>
+          <p className="mt-1 text-sm text-gray-500">{totals.resellerCount} resellers</p>
+        </div>
       </div>
 
-      {/* Recent Transactions */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="bg-white rounded-lg shadow-sm border border-gray-200"
-      >
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Recent Transactions</h3>
-            <button className="text-primary-600 hover:text-primary-700 text-sm font-medium">
-              View all
-            </button>
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by name or email..."
+                className="input pl-10"
+              />
+            </div>
+          </div>
+          <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-1">
+            {(['all', 'user', 'reseller'] as const).map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setRoleFilter(filter)}
+                className={`rounded-md px-4 py-2 text-sm font-medium capitalize transition-colors ${
+                  roleFilter === filter
+                    ? 'bg-white text-primary-600 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                {filter === 'all' ? 'All' : `${filter}s`}
+              </button>
+            ))}
           </div>
         </div>
-        <div className="divide-y divide-gray-200">
-          {recentTransactions.map((transaction, index) => (
-            <motion.div
-              key={transaction.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.5 + index * 0.1 }}
-              className="p-6 hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    transaction.type === 'incoming' 
-                      ? 'bg-green-100 text-green-600' 
-                      : 'bg-red-100 text-red-600'
-                  }`}>
-                    {transaction.type === 'incoming' ? (
-                      <ArrowDownLeft className="w-5 h-5" />
-                    ) : (
-                      <ArrowUpRight className="w-5 h-5" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{transaction.description}</p>
-                    <p className="text-sm text-gray-500">{transaction.timestamp}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className={`font-semibold ${
-                    transaction.type === 'incoming' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {transaction.amount}
-                  </p>
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                    transaction.status === 'completed' 
-                      ? 'bg-green-100 text-green-800'
-                      : transaction.status === 'pending'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {transaction.status}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
+        >
+          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+            <h3 className="text-lg font-semibold text-gray-900">Wallet Balances</h3>
+            <span className="text-sm text-gray-500">{filteredWallets.length} shown</span>
+          </div>
+
+          {error ? (
+            <div className="p-8 text-center text-sm text-red-600">{error}</div>
+          ) : loading ? (
+            <div className="p-10 text-center text-gray-500">
+              <RefreshCw className="mx-auto mb-2 h-5 w-5 animate-spin" />
+              Loading wallets...
+            </div>
+          ) : filteredWallets.length === 0 ? (
+            <div className="p-10 text-center text-sm text-gray-500">No wallets match your filters.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="border-b border-gray-200 bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Account</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Balance</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {filteredWallets.map((wallet) => (
+                    <tr key={wallet.id} className="hover:bg-gray-50">
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-600">
+                            {initials(wallet.name)}
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{wallet.name}</div>
+                            <div className="text-sm text-gray-500">{wallet.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${roleBadge[wallet.role]}`}>
+                          {wallet.role}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${statusBadge[wallet.status] ?? statusBadge.inactive}`}>
+                          {wallet.status}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-semibold text-gray-900">
+                        {formatMoney(wallet.wallet_balance)}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/users/${wallet.id}`)}
+                          className="inline-flex items-center rounded-md px-2 py-1 text-primary-600 hover:bg-primary-50"
+                          title="Open user wallet"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="rounded-lg border border-gray-200 bg-white shadow-sm"
+        >
+          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+            <h3 className="text-lg font-semibold text-gray-900">Recent Wallet Activity</h3>
+            <Users className="h-5 w-5 text-gray-400" />
+          </div>
+
+          {transactions.length === 0 ? (
+            <div className="p-8 text-center text-sm text-gray-500">No wallet transactions yet.</div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {transactions.map((tx) => {
+                const profile = profileById.get(tx.user_id);
+                const amount = Number(tx.amount ?? 0);
+                const positive = amount >= 0;
+
+                return (
+                  <button
+                    key={tx.id}
+                    type="button"
+                    onClick={() => profile && navigate(`/users/${profile.id}`)}
+                    className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition-colors hover:bg-gray-50"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${
+                        positive ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                      }`}>
+                        {positive ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-gray-900">
+                          {profile?.name ?? 'Unknown account'}
+                        </p>
+                        <p className="truncate text-xs text-gray-500">
+                          {txLabels[tx.type] ?? tx.type}
+                          {tx.reference ? ` · ${tx.reference}` : ''}
+                        </p>
+                        <p className="text-xs text-gray-400">{formatDate(tx.created_at)}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`whitespace-nowrap text-sm font-semibold ${positive ? 'text-green-600' : 'text-red-600'}`}>
+                        {positive ? '+' : '-'}{formatMoney(Math.abs(amount))}
+                      </p>
+                      <p className="whitespace-nowrap text-xs text-gray-400">
+                        Bal {formatMoney(tx.balance_after)}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </motion.div>
+      </div>
     </div>
   );
 };

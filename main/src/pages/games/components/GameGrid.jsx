@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
-import { fallbackGameImage, gamesData } from '../gamesData';
+import { fallbackGameImage } from '../gamesData';
+import { useActiveGames } from '../../../hooks/useActiveGames';
 
 const GameGrid = () => {
   const navigate = useNavigate();
   const [showAllGames, setShowAllGames] = useState(false);
+  const { games: allGames } = useActiveGames();
 
-  const games = showAllGames ? gamesData : gamesData.slice(0, 7);
+  const games = showAllGames ? allGames : allGames.slice(0, 7);
 
   const handleGameClick = (game) => {
     navigate(`/games/${game.id}`);

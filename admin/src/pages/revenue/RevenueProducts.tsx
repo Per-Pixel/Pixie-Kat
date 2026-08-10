@@ -1,233 +1,48 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Package, DollarSign, TrendingUp, Eye, Edit, Trash2 } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AlertCircle, DollarSign, Package, RefreshCw, ShoppingCart } from 'lucide-react';
+import { useAdminReport } from '../../hooks/useAdminReport';
 
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  price: string;
-  revenue: string;
-  unitsSold: number;
-  growth: string;
-  growthType: 'increase' | 'decrease';
-  status: 'active' | 'inactive';
-}
-
-const products: Product[] = [
-  {
-    id: '1',
-    name: 'Gaming Mouse Pro',
-    category: 'Gaming Accessories',
-    price: '$49.99',
-    revenue: '$12,450',
-    unitsSold: 249,
-    growth: '+23%',
-    growthType: 'increase',
-    status: 'active',
-  },
-  {
-    id: '2',
-    name: 'Mechanical Keyboard',
-    category: 'Gaming Accessories',
-    price: '$89.99',
-    revenue: '$8,920',
-    unitsSold: 99,
-    growth: '+18%',
-    growthType: 'increase',
-    status: 'active',
-  },
-  {
-    id: '3',
-    name: 'Gaming Headset',
-    category: 'Audio',
-    price: '$79.99',
-    revenue: '$6,780',
-    unitsSold: 85,
-    growth: '+12%',
-    growthType: 'increase',
-    status: 'active',
-  },
-  {
-    id: '4',
-    name: 'Webcam HD',
-    category: 'Video',
-    price: '$59.99',
-    revenue: '$4,560',
-    unitsSold: 76,
-    growth: '-5%',
-    growthType: 'decrease',
-    status: 'active',
-  },
-];
+const money = (value: number, currency = 'PKS') => `${currency} ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
 const RevenueProducts: React.FC = () => {
+  const navigate = useNavigate();
+  const { data, loading, error, refresh } = useAdminReport();
+
+  const rows = useMemo(() => {
+    if (!data) return [];
+    return data.products.map((product) => {
+      const orders = data.orders.filter((order) =>
+        order.status === 'completed' &&
+        (order.product_id === product.id || (!order.product_id && order.product_name === product.name)),
+      );
+      return {
+        ...product,
+        units: orders.reduce((sum, order) => sum + Number(order.quantity || 1), 0),
+        revenue: orders.reduce((sum, order) => sum + Number(order.total_amount || 0), 0),
+        orders: orders.length,
+      };
+    }).sort((a, b) => b.revenue - a.revenue);
+  }, [data]);
+
+  if (loading && !data) return <div className="py-24 text-center text-gray-400"><RefreshCw className="w-7 h-7 animate-spin mx-auto mb-3" />Loading product revenue...</div>;
+  if (error || !data) return <div className="p-6 rounded-xl bg-red-50 border border-red-200 text-red-700"><AlertCircle className="w-5 h-5 mb-2" />{error}<button onClick={refresh} className="btn btn-outline btn-sm ml-4">Retry</button></div>;
+
+  const totalRevenue = rows.reduce((sum, row) => sum + row.revenue, 0);
+  const totalUnits = rows.reduce((sum, row) => sum + row.units, 0);
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Package className="w-8 h-8 text-primary-600 mr-3" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Revenue Products</h1>
-              <p className="text-gray-600">Track product performance and revenue contribution</p>
-            </div>
-          </div>
-          <button className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
-            Add Product
-          </button>
-        </div>
-      </motion.div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Products</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{products.length}</p>
-            </div>
-            <Package className="w-8 h-8 text-primary-600" />
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">$32,710</p>
-            </div>
-            <DollarSign className="w-8 h-8 text-green-600" />
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Avg. Growth</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">+12%</p>
-            </div>
-            <TrendingUp className="w-8 h-8 text-green-600" />
-          </div>
-        </motion.div>
+      <div className="flex items-center justify-between">
+        <div><h1 className="text-2xl font-bold">Product Revenue</h1><p className="text-sm text-gray-500 mt-1">Live completed-order performance by catalog product</p></div>
+        <button onClick={() => navigate('/products')} className="btn btn-primary btn-sm"><Package className="w-4 h-4 mr-2" />Manage Products</button>
       </div>
-
-      {/* Products Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="bg-white rounded-lg shadow-sm border border-gray-200"
-      >
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Product Performance</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Product
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Price
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Revenue
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Units Sold
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Growth
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {products.map((product, index) => (
-                <motion.tr
-                  key={product.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 + index * 0.1 }}
-                  className="hover:bg-gray-50"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                      <div className="text-sm text-gray-500">{product.category}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {product.price}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {product.revenue}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {product.unitsSold}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`text-sm font-medium ${
-                      product.growthType === 'increase' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {product.growth}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      product.status === 'active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {product.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <button className="text-primary-600 hover:text-primary-900">
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button className="text-gray-600 hover:text-gray-900">
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button className="text-red-600 hover:text-red-900">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[{ label: 'Catalog Products', value: rows.length, icon: Package }, { label: 'Completed Revenue', value: money(totalRevenue), icon: DollarSign }, { label: 'Units Sold', value: totalUnits, icon: ShoppingCart }].map(({ label, value, icon: Icon }) => <div key={label} className="bg-white border rounded-xl p-5"><Icon className="w-5 h-5 text-primary-600 mb-3" /><p className="text-xs text-gray-500">{label}</p><p className="text-2xl font-bold">{value}</p></div>)}
+      </div>
+      <div className="bg-white border rounded-xl overflow-hidden">
+        {rows.length === 0 ? <p className="p-12 text-center text-sm text-gray-400">No products found in Supabase.</p> : <div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50"><tr>{['Product', 'Game', 'Price', 'Orders', 'Units', 'Revenue', 'Status'].map((heading) => <th key={heading} className="px-5 py-3 text-left text-xs uppercase text-gray-500">{heading}</th>)}</tr></thead><tbody className="divide-y">{rows.map((row) => <tr key={row.id} className="hover:bg-gray-50"><td className="px-5 py-4 text-sm font-medium">{row.name}</td><td className="px-5 py-4 text-sm text-gray-500">{row.game?.name || 'Unknown'}</td><td className="px-5 py-4 text-sm">{money(Number(row.price), row.currency)}</td><td className="px-5 py-4 text-sm">{row.orders}</td><td className="px-5 py-4 text-sm">{row.units}</td><td className="px-5 py-4 text-sm font-semibold">{money(row.revenue, row.currency)}</td><td className="px-5 py-4"><span className={`px-2 py-1 rounded-full text-xs capitalize ${row.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{row.status}</span></td></tr>)}</tbody></table></div>}
+      </div>
     </div>
   );
 };

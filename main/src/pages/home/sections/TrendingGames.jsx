@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const trendingGames = [
+import { usePromoSection } from "../../../hooks/usePromoSection";
+
+const fallbackTrendingGames = [
   {
     title: "Black Myth Wukong",
     rating: 81,
@@ -56,6 +58,20 @@ const TrendingGames = () => {
   const containerRef = useRef(null);
   const navigate = useNavigate();
   const [active, setActive] = useState(0);
+  const { items: promoItems } = usePromoSection("trending");
+
+  const trendingGames =
+    promoItems.length > 0
+      ? promoItems.map((item) => ({
+          title: item.title,
+          rating: item.rating ?? 0,
+          oldPrice: item.compare_price ?? 0,
+          price: item.price ?? 0,
+          discount: item.discount_pct ?? 0,
+          image: item.image_url ?? "/img/games/mobile-legends.webp",
+          link: item.link_url || (item.game_id ? `/games/${item.game_id}` : "/games"),
+        }))
+      : fallbackTrendingGames;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -160,9 +176,9 @@ const TrendingGames = () => {
             </div>
 
             <button
-              onClick={() => navigate("/games")}
+              onClick={() => navigate(game.link ?? "/games")}
               className="group mt-1 flex w-full items-center justify-center gap-2 rounded border border-black bg-black py-1.5 font-semibold text-white transition-colors duration-300 hover:bg-white hover:text-black active:bg-white active:text-black"
-              aria-label="Buy Now - Go to All Games"
+              aria-label="Buy Now - Go to game page"
             >
               <span className="relative inline-flex overflow-hidden font-general text-xs uppercase">
                 <div className="translate-y-0 skew-y-0 transition duration-500 group-hover:translate-y-[-160%] group-hover:skew-y-12">

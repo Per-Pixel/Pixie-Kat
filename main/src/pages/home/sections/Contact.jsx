@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import AnimatedTitle from "../../../components/common/AnimatedTitle";
 import Button from "../../../components/common/Button";
 
@@ -8,6 +9,7 @@ const ImageClipBox = ({ src, clipClass }) => (
 );
 
 const Contact = () => {
+  const navigate = useNavigate();
   return (
     <div id="contact" className="my-20 min-h-96 w-screen  px-10">
       <div className="relative rounded-lg bg-black py-24 text-blue-50 sm:overflow-hidden">
@@ -35,15 +37,15 @@ const Contact = () => {
 
         <div className="flex flex-col items-center text-center">
           <p className="mb-10 font-general text-[10px] uppercase">
-            Join Zentry
+            Top up with Pixiekat
           </p>
 
           <AnimatedTitle
-            title="let&#39;s b<b>u</b>ild the <br /> new era of <br /> g<b>a</b>ming t<b>o</b>gether."
+            title="let&#39;s g<b>e</b>t you <br /> back <b>i</b>n <br /> the g<b>a</b>me."
             className="special-font !md:text-[6.2rem] w-full font-zentry !text-5xl !font-black !leading-[.9]"
           />
 
-          <Button title="contact us" containerClass="mt-10 cursor-pointer" />
+          <Button title="contact us" containerClass="mt-10 cursor-pointer" onClick={() => navigate("/support/contact-us")} />
         </div>
       </div>
     </div>

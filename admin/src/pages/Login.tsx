@@ -153,12 +153,6 @@ const Login: React.FC = () => {
                 </button>
               </div>
 
-              {/* Demo Credentials */}
-              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm font-medium text-blue-800 mb-2">Demo Credentials:</p>
-                <p className="text-xs text-blue-600">Email: admin@pixiekat.com</p>
-                <p className="text-xs text-blue-600">Password: admin123</p>
-              </div>
             </motion.form>
 
             {/* Error Message */}

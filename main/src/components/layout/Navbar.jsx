@@ -18,10 +18,10 @@ const navItems = [
   { name: "Support", path: "/support" }
 ];
 
-const darkTextTopRoutes = ["/games", "/pricing", "/support"];
+const darkTextTopRoutes = ["/games", "/pricing", "/how-it-works", "/faq", "/support"];
 
 const NavBar = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, profile } = useAuth();
   const [isAudioPlaying, setIsAudioPlaying] = useState(true);
   const [isIndicatorActive, setIsIndicatorActive] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -39,11 +39,12 @@ const NavBar = () => {
     currentScrollY === 0 &&
     darkTextTopRoutes.some((route) => location.pathname.startsWith(route));
 
-  const navTextColorClass = useDarkTextAtTop ? "text-black" : "text-white";
-  const navActiveBorderClass = useDarkTextAtTop ? "border-black" : "border-white";
+  const navTextColorClass = useDarkTextAtTop ? "!text-[#0E041D]" : "!text-white";
+  const navActiveBorderClass = useDarkTextAtTop ? "!border-[#0E041D]" : "!border-white";
   const authPanelClass = useDarkTextAtTop
     ? "bg-white/95 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.12)]"
     : "bg-white/90 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.22)]";
+  const walletBalance = Number(profile?.wallet_balance ?? 0);
 
   const toggleAudioIndicator = () => {
     setIsAudioPlaying((prev) => !prev);
@@ -162,7 +163,7 @@ const NavBar = () => {
               <span
                 className={clsx(
                   "ml-2 hidden text-xl font-bold sm:block",
-                  useDarkTextAtTop ? "text-black" : "text-white"
+                  useDarkTextAtTop ? "!text-[#0E041D]" : "!text-white"
                 )}
               >
                 PixieKat
@@ -199,7 +200,7 @@ const NavBar = () => {
               <Link to="/login" className="ml-6">
                 <Button
                   title="Login"
-                  containerClass="bg-neon-purple hover:bg-neon-purple/80 rounded-md px-4 py-2 text-black transition-colors duration-200"
+                  containerClass="bg-white hover:bg-[#0E041D] rounded-md px-4 py-2 !text-[#0E041D] hover:!text-white transition-colors duration-200"
                 />
               </Link>
             ) : (
@@ -215,7 +216,7 @@ const NavBar = () => {
                     PKS
                   </span>
                   <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-violet-100 px-2 text-xs font-semibold text-violet-700">
-                    0
+                    {walletBalance.toFixed(2)}
                   </span>
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white">
                     <Plus className="h-3.5 w-3.5" />

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, type FormEvent } from 'react';
 import { z } from 'zod';
 import { toast } from 'react-hot-toast';
 
@@ -36,7 +36,7 @@ export interface FormValidationReturn<T> {
   validateForm: () => boolean;
   handleChange: (field: keyof T) => (value: any) => void;
   handleBlur: (field: keyof T) => () => void;
-  handleSubmit: (e?: React.FormEvent) => Promise<void>;
+  handleSubmit: (e?: FormEvent) => Promise<void>;
   reset: (values?: Partial<T>) => void;
   getFieldProps: (field: keyof T) => {
     value: any;
@@ -67,6 +67,14 @@ export function useFormValidation<T extends Record<string, any>>(
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [initialValuesState] = useState(initialValues);
 
+  const getObjectFieldSchema = useCallback((field: keyof T) => {
+    if (schema instanceof z.ZodObject) {
+      return schema.shape[field as string];
+    }
+
+    return undefined;
+  }, [schema]);
+
   // Check if form is dirty (has changes)
   const isDirty = Object.keys(values).some(
     key => values[key] !== initialValuesState[key]
@@ -89,7 +97,7 @@ export function useFormValidation<T extends Record<string, any>>(
       
       // Validate the field
       try {
-        const fieldSchema = schema.shape?.[field as string];
+        const fieldSchema = getObjectFieldSchema(field);
         if (fieldSchema) {
           fieldSchema.parse(value);
         }
@@ -105,7 +113,7 @@ export function useFormValidation<T extends Record<string, any>>(
         }
       }
     }
-  }, [schema, validateOnChange]);
+  }, [getObjectFieldSchema, validateOnChange]);
 
   // Set multiple values
   const setValues = useCallback((newValues: Partial<T>) => {
@@ -149,7 +157,7 @@ export function useFormValidation<T extends Record<string, any>>(
   // Validate single field
   const validateField = useCallback((field: keyof T): boolean => {
     try {
-      const fieldSchema = schema.shape?.[field as string];
+      const fieldSchema = getObjectFieldSchema(field);
       if (fieldSchema) {
         fieldSchema.parse(values[field]);
         clearError(field);
@@ -166,10 +174,10 @@ export function useFormValidation<T extends Record<string, any>>(
       }
       return false;
     }
-  }, [schema, values, setError, clearError]);
+  }, [getObjectFieldSchema, values, setError, clearError]);
 
   // Validate entire form
-  const validateForm = useCallback(): boolean => {
+  const validateForm = useCallback((): boolean => {
     try {
       schema.parse(values);
       clearErrors();
@@ -212,7 +220,7 @@ export function useFormValidation<T extends Record<string, any>>(
   }, [setFieldTouched, validateOnBlur, validateField]);
 
   // Handle form submission
-  const handleSubmit = useCallback(async (e?: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e?: FormEvent) => {
     if (e) {
       e.preventDefault();
     }
@@ -344,7 +352,7 @@ export function useAsyncValidation<T>(
   // Debounced validation
   const debouncedValidate = useCallback(
     (() => {
-      let timeoutId: NodeJS.Timeout;
+      let timeoutId: ReturnType<typeof setTimeout>;
       return (value: T) => {
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => validate(value), debounceMs);

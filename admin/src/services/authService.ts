@@ -1,29 +1,41 @@
 import { LoginCredentials, AuthResponse, User, UserRole } from '../types/auth';
 import { ApiResponse } from '@/types/api';
 import { api } from './api';
+import { supabase } from '../lib/supabase';
+
+async function getProfileUser(userId: string): Promise<User> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, name, phone, role, status, avatar_url, bio, timezone, language, last_login_at, created_at, updated_at')
+    .eq('id', userId)
+    .single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    email: data.email,
+    name: data.name,
+    phone: data.phone ?? undefined,
+    role: data.role as UserRole,
+    avatar: data.avatar_url ?? undefined,
+    bio: data.bio ?? undefined,
+    timezone: data.timezone,
+    language: data.language,
+    isActive: data.status === 'active',
+    lastActiveAt: data.last_login_at ?? undefined,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      // Real API call - backend sets HTTP-only cookie
-      const response = await api.post('/auth/login', credentials);
-      
-      // Backend returns user data, cookie is set automatically
-      const { user } = response.data;
-      
-      // Return auth response (no tokens needed, using cookies)
+      const { data, error } = await supabase.auth.signInWithPassword(credentials);
+      if (error || !data.session) throw error ?? new Error('Login did not return a session');
       return {
-        user: {
-          id: user.id.toString(),
-          email: user.email,
-          name: user.name,
-          role: UserRole.ADMIN, // Default to admin for now
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        token: 'cookie-based', // Placeholder
-        refreshToken: 'cookie-based', // Placeholder
+        user: await getProfileUser(data.user.id),
+        token: data.session.access_token,
+        refreshToken: data.session.refresh_token,
       };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || error.message || 'Login failed');
@@ -32,29 +44,22 @@ export const authService = {
 
   async logout(): Promise<void> {
     try {
-      await api.post('/auth/logout');
-      // Cookie is cleared by backend
+      await supabase.auth.signOut();
     } catch (error) {
       // Ignore logout errors - user should be logged out locally regardless
       console.warn('Logout API call failed:', error);
+    } finally {
+      // Always clear local storage
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_refresh_token');
     }
   },
 
-  async validateToken(): Promise<User> {
+  async validateToken(token: string): Promise<User> {
     try {
-      // Real API call - validates cookie automatically
-      const response = await api.get('/auth/me');
-      const { user } = response.data;
-      
-      return {
-        id: user.id.toString(),
-        email: user.email,
-        name: user.name,
-        role: UserRole.ADMIN, // Default to admin for now
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      const { data, error } = await supabase.auth.getUser(token);
+      if (error || !data.user) throw error ?? new Error('Invalid token');
+      return getProfileUser(data.user.id);
     } catch (error: any) {
       throw new Error(error.response?.data?.message || error.message || 'Token validation failed');
     }
@@ -62,8 +67,13 @@ export const authService = {
 
   async refreshToken(refreshToken: string): Promise<AuthResponse> {
     try {
-      const response = await api.post<ApiResponse<AuthResponse>>('/auth/refresh', { refreshToken });
-      return response.data;
+      const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken });
+      if (error || !data.session || !data.user) throw error ?? new Error('Session refresh failed');
+      return {
+        user: await getProfileUser(data.user.id),
+        token: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+      };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || error.message || 'Token refresh failed');
     }
@@ -71,7 +81,10 @@ export const authService = {
 
   async forgotPassword(email: string): Promise<void> {
     try {
-      await api.post<ApiResponse<void>>('/auth/forgot-password', { email });
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login`,
+      });
+      if (error) throw error;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || error.message || 'Failed to send reset email');
     }
@@ -79,7 +92,13 @@ export const authService = {
 
   async resetPassword(token: string, password: string): Promise<void> {
     try {
-      await api.post<ApiResponse<void>>('/auth/reset-password', { token, password });
+      const { error: sessionError } = await supabase.auth.verifyOtp({
+        token_hash: token,
+        type: 'recovery',
+      });
+      if (sessionError) throw sessionError;
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || error.message || 'Failed to reset password');
     }
@@ -87,10 +106,9 @@ export const authService = {
 
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
     try {
-      await api.post<ApiResponse<void>>('/auth/change-password', {
-        currentPassword,
-        newPassword
-      });
+      void currentPassword;
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || error.message || 'Failed to change password');
     }

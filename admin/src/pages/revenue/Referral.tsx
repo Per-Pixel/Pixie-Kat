@@ -1,239 +1,33 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Users, DollarSign, TrendingUp, Share2, Gift, Copy } from 'lucide-react';
-
-interface ReferralData {
-  totalReferrals: number;
-  totalRevenue: string;
-  conversionRate: string;
-  averageValue: string;
-}
-
-interface ReferralUser {
-  id: string;
-  name: string;
-  email: string;
-  referrals: number;
-  revenue: string;
-  joinDate: string;
-  status: 'active' | 'inactive';
-}
-
-const referralData: ReferralData = {
-  totalReferrals: 156,
-  totalRevenue: '$23,450',
-  conversionRate: '12.5%',
-  averageValue: '$150.32',
-};
-
-const topReferrers: ReferralUser[] = [
-  {
-    id: '1',
-    name: 'Alice Johnson',
-    email: 'alice@example.com',
-    referrals: 23,
-    revenue: '$3,450',
-    joinDate: '2023-01-15',
-    status: 'active',
-  },
-  {
-    id: '2',
-    name: 'Bob Smith',
-    email: 'bob@example.com',
-    referrals: 18,
-    revenue: '$2,700',
-    joinDate: '2023-02-20',
-    status: 'active',
-  },
-  {
-    id: '3',
-    name: 'Carol Davis',
-    email: 'carol@example.com',
-    referrals: 15,
-    revenue: '$2,250',
-    joinDate: '2023-03-10',
-    status: 'active',
-  },
-];
+import React, { useMemo } from 'react';
+import { AlertCircle, DollarSign, RefreshCw, Share2, Users } from 'lucide-react';
+import { useAdminReport } from '../../hooks/useAdminReport';
 
 const Referral: React.FC = () => {
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Share2 className="w-8 h-8 text-primary-600 mr-3" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Referral Program</h1>
-              <p className="text-gray-600">Track referral performance and manage rewards</p>
-            </div>
-          </div>
-          <button className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center">
-            <Gift className="w-4 h-4 mr-2" />
-            Create Campaign
-          </button>
-        </div>
-      </motion.div>
+  const { data, loading, error, refresh } = useAdminReport();
+  const rows = useMemo(() => {
+    if (!data) return [];
+    const grouped = new Map<string, { id: string; name: string; email: string; referrals: number; active: number; commission: number }>();
+    data.referrals.forEach((referral) => {
+      const profile = data.profiles.find((item) => item.id === referral.referrer_id);
+      const current = grouped.get(referral.referrer_id) ?? { id: referral.referrer_id, name: profile?.name || 'Unknown user', email: profile?.email || '', referrals: 0, active: 0, commission: 0 };
+      current.referrals += 1;
+      if (['active', 'rewarded'].includes(referral.status)) current.active += 1;
+      current.commission += Number(referral.commission || 0);
+      grouped.set(referral.referrer_id, current);
+    });
+    return [...grouped.values()].sort((a, b) => b.referrals - a.referrals);
+  }, [data]);
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Referrals</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{referralData.totalReferrals}</p>
-            </div>
-            <Users className="w-8 h-8 text-primary-600" />
-          </div>
-        </motion.div>
+  if (loading && !data) return <div className="py-24 text-center text-gray-400"><RefreshCw className="w-7 h-7 animate-spin mx-auto mb-3" />Loading referrals...</div>;
+  if (error || !data) return <div className="p-6 rounded-xl bg-red-50 border border-red-200 text-red-700"><AlertCircle className="w-5 h-5 mb-2" />{error}<button onClick={refresh} className="btn btn-outline btn-sm ml-4">Retry</button></div>;
+  const commission = data.referrals.reduce((sum, item) => sum + Number(item.commission || 0), 0);
+  const converted = data.referrals.filter((item) => ['active', 'rewarded'].includes(item.status)).length;
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{referralData.totalRevenue}</p>
-            </div>
-            <DollarSign className="w-8 h-8 text-green-600" />
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Conversion Rate</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{referralData.conversionRate}</p>
-            </div>
-            <TrendingUp className="w-8 h-8 text-blue-600" />
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Average Value</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{referralData.averageValue}</p>
-            </div>
-            <Gift className="w-8 h-8 text-purple-600" />
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Referral Link */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-      >
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Referral Link</h3>
-        <div className="flex items-center space-x-3">
-          <div className="flex-1 bg-gray-50 rounded-lg p-3">
-            <code className="text-sm text-gray-700">https://pixiekat.com/ref/admin123</code>
-          </div>
-          <button className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center">
-            <Copy className="w-4 h-4 mr-2" />
-            Copy
-          </button>
-        </div>
-      </motion.div>
-
-      {/* Top Referrers */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-        className="bg-white rounded-lg shadow-sm border border-gray-200"
-      >
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Top Referrers</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Referrals
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Revenue
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Join Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {topReferrers.map((user, index) => (
-                <motion.tr
-                  key={user.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.7 + index * 0.1 }}
-                  className="hover:bg-gray-50"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {user.referrals}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {user.revenue}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {user.joinDate}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      user.status === 'active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {user.status}
-                    </span>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
-    </div>
-  );
+  return <div className="space-y-6">
+    <div className="flex items-center gap-3"><Share2 className="w-7 h-7 text-primary-600" /><div><h1 className="text-2xl font-bold">Referral Program</h1><p className="text-sm text-gray-500">Live referral relationships and commissions</p></div></div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">{[{ label: 'Total Referrals', value: data.referrals.length, icon: Users }, { label: 'Converted', value: converted, icon: Share2 }, { label: 'Commission Awarded', value: `PKS ${commission.toFixed(2)}`, icon: DollarSign }].map(({ label, value, icon: Icon }) => <div key={label} className="bg-white border rounded-xl p-5"><Icon className="w-5 h-5 text-primary-600 mb-3" /><p className="text-xs text-gray-500">{label}</p><p className="text-2xl font-bold">{value}</p></div>)}</div>
+    <div className="bg-white border rounded-xl overflow-hidden">{rows.length === 0 ? <p className="p-12 text-center text-sm text-gray-400">No referral records found.</p> : <table className="w-full"><thead className="bg-gray-50"><tr>{['Referrer', 'Referrals', 'Converted', 'Conversion', 'Commission'].map((heading) => <th key={heading} className="px-5 py-3 text-left text-xs uppercase text-gray-500">{heading}</th>)}</tr></thead><tbody className="divide-y">{rows.map((row) => <tr key={row.id}><td className="px-5 py-4"><p className="text-sm font-medium">{row.name}</p><p className="text-xs text-gray-500">{row.email}</p></td><td className="px-5 py-4 text-sm">{row.referrals}</td><td className="px-5 py-4 text-sm">{row.active}</td><td className="px-5 py-4 text-sm">{row.referrals ? ((row.active / row.referrals) * 100).toFixed(1) : 0}%</td><td className="px-5 py-4 text-sm font-semibold">PKS {row.commission.toFixed(2)}</td></tr>)}</tbody></table>}</div>
+  </div>;
 };
 
 export default Referral;
