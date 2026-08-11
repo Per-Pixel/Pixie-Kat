@@ -888,6 +888,145 @@ app.post('/api/verify-player', verifyLimiter, async (req, res) => {
   });
 });
 
+// ── Batch order pre-flight verification ───────────────────────────────────────
+// POST /api/batch-validate
+// Body: { items: [{ product_id, quantity }] }
+// Auth: authenticated user — identity verified via JWT
+// Checks:
+//   1. Customer wallet balance >= cart total
+//   2. For SmileCoin products, merchant Smile Points can cover each SKU
+//   3. Each product has a valid provider product id
+// Returns per-item and aggregate can_proceed without exposing merchant costs.
+const batchValidateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many verification attempts. Please wait a minute.' },
+});
+
+app.post('/api/batch-validate', batchValidateLimiter, async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ ok: false, error: 'Authorization required' });
+  }
+  const token = authHeader.slice(7);
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) {
+    return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
+  }
+
+  const { items } = req.body || {};
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ ok: false, error: 'items array is required' });
+  }
+
+  try {
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('wallet_balance')
+      .eq('id', user.id)
+      .single();
+    const wallet = Number(profile?.wallet_balance ?? 0);
+
+    const validatedItems = [];
+    const pointsCache = new Map();
+    let cartTotal = 0;
+
+    for (const it of items) {
+      const { product_id, quantity = 1 } = it;
+      const { data: product } = await supabaseAdmin
+        .from('products')
+        .select('id, name, price, currency, sku, provider_product_id, game_id, metadata')
+        .eq('id', product_id)
+        .single();
+
+      if (!product) {
+        validatedItems.push({
+          product_id,
+          product_name: null,
+          quantity: Math.max(1, Number(quantity)),
+          line_total: 0,
+          currency: 'PKS',
+          points_ok: false,
+          expected_provider_price: null,
+          error: 'Product not found',
+        });
+        continue;
+      }
+
+      const { data: game } = await supabaseAdmin
+        .from('games')
+        .select('id, provider, provider_game_code, metadata, status')
+        .eq('id', product.game_id)
+        .single();
+
+      const lineTotal = Number(product.price ?? 0) * Math.max(1, Number(quantity));
+      cartTotal += lineTotal;
+
+      let pointsOk = null;
+      let expectedProviderPrice = null;
+      let error = null;
+      const scProduct = game?.metadata?.smile_coin_product;
+
+      if (scProduct && smileCoin.isConfigured()) {
+        const productid = resolveOrderProductId(product);
+        if (!productid) {
+          error = 'No valid Provider Product ID for this product';
+          pointsOk = false;
+        } else {
+          const cacheKey = `${scProduct}:${productid}`;
+          let check = pointsCache.get(cacheKey);
+          if (!check) {
+            try {
+              check = await preFlightPointsCheck(scProduct, productid);
+              pointsCache.set(cacheKey, check);
+            } catch (err) {
+              pointsCache.set(cacheKey, { error: err.message });
+              check = pointsCache.get(cacheKey);
+            }
+          }
+
+          if (check.error) {
+            pointsOk = false;
+            error = check.error;
+          } else {
+            pointsOk = true;
+            const skuPrice = Number.isFinite(check.skuPrice) ? check.skuPrice : null;
+            expectedProviderPrice = product?.metadata?.expected_provider_price != null
+              ? Number(product.metadata.expected_provider_price)
+              : skuPrice;
+          }
+        }
+      }
+
+      validatedItems.push({
+        product_id,
+        product_name: product?.name,
+        quantity: Math.max(1, Number(quantity)),
+        line_total: lineTotal,
+        currency: product?.currency ?? 'PKS',
+        points_ok: pointsOk,
+        expected_provider_price: expectedProviderPrice,
+        error,
+      });
+    }
+
+    const canProceed = wallet >= cartTotal && validatedItems.every((i) => i.points_ok !== false);
+
+    res.json({
+      ok: true,
+      wallet_balance: wallet,
+      cart_total: cartTotal,
+      can_proceed: canProceed,
+      items: validatedItems,
+    });
+  } catch (err) {
+    console.error('[batch-validate]', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // ── Order placement (proxied RPC) ────────────────────────────────────────────
 // POST /api/place-order
 // Body: { product_id, product_name, total_amount, currency, metadata, payment_method? }
