@@ -1125,6 +1125,10 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
   const { orderId } = req.body || {};
   if (!orderId) return res.status(400).json({ ok: false, error: 'orderId is required' });
 
+  // Hoisted so the catch block can detect whether the provider already delivered
+  let fulfillResult = null;
+  let orderMetadata = null;
+
   try {
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
@@ -1137,6 +1141,7 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
     if (order.status !== 'processing') {
       return res.json({ ok: true, already: true, status: order.status });
     }
+    orderMetadata = order.metadata;
 
     const accountFields = order.metadata?.account_fields ?? {};
     const userId = accountFields.user_id || accountFields.userid || accountFields.uid || accountFields.player_id || accountFields.account_id;
@@ -1164,7 +1169,7 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
       product = data;
     }
 
-    let fulfillResult = null;
+    let preFlightSkuPrice = NaN;
 
     const scProduct = game.metadata?.smile_coin_product;
 
@@ -1185,7 +1190,7 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
       // Pre-flight: block the order when the merchant Smile Points balance can't
       // cover this SKU (e.g. balance is 0 or below the SKU's point cost).
       // Also returns the live productlist SKU price for mismatch detection.
-      const { skuPrice: preFlightSkuPrice } = await preFlightPointsCheck(scProduct, productid);
+      ({ skuPrice: preFlightSkuPrice } = await preFlightPointsCheck(scProduct, productid));
 
       const createParams = {
         userid:    String(userId),
@@ -1352,6 +1357,34 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
   } catch (err) {
     console.error('[fulfill-order]', err.message);
 
+    // ── CRITICAL: If the provider already delivered (fulfillResult is set),
+    // do NOT refund — the delivery went through on the provider side even if
+    // post-delivery bookkeeping (mismatch detection, DB update) failed.
+    // Mark as completed with an error note instead.
+    if (fulfillResult) {
+      console.warn(`[fulfill-order] Post-delivery error on order ${orderId} but provider DID deliver. NOT refunding. Error: ${err.message}`);
+      try {
+        const completedMeta = {
+          ...(orderMetadata ?? {}),
+          fulfill_result: fulfillResult,
+          fulfilled_at: new Date().toISOString(),
+          post_delivery_error: err.message,
+        };
+        await supabaseAdmin
+          .from('orders')
+          .update({
+            status: 'completed',
+            updated_at: new Date().toISOString(),
+            metadata: completedMeta,
+          })
+          .eq('id', orderId);
+      } catch (updateErr) {
+        console.error('[fulfill-order] Failed to mark delivered order as completed:', updateErr.message);
+      }
+      return res.json({ ok: true, orderId, result: fulfillResult, warning: 'Delivered but post-processing had an error: ' + err.message });
+    }
+
+    // Provider did NOT deliver — safe to refund.
     // Refund wallet + mark order failed atomically via the dedicated RPC.
     // Falls back to adjust_wallet_balance if the migration isn't applied yet.
     try {
