@@ -266,12 +266,15 @@ export default function BatchOrderPage() {
         body: JSON.stringify({ items }),
       });
       const body = await res.json();
-      setPreCheck(body.ok ? body : null);
+      // Keep failed responses — discarding them left `preCheck` null, which made
+      // the error banner unreachable and the batch fail silently.
+      setPreCheck(body);
       return body;
     } catch (err) {
       console.error("[batch-order] pre-check failed:", err.message);
-      setPreCheck(null);
-      return null;
+      const body = { ok: false, error: "Could not reach the verification server. Please try again." };
+      setPreCheck(body);
+      return body;
     } finally {
       setPreCheckLoading(false);
     }
@@ -728,6 +731,12 @@ export default function BatchOrderPage() {
                   )}
                   {preCheck?.ok === false && (
                     <p className="text-xs text-red-500">{preCheck.error || "Cannot process this batch."}</p>
+                  )}
+                  {preCheck?.ok && preCheck.can_proceed === false && canAfford
+                    && !preCheck.items?.some((it) => it.points_ok === false) && (
+                    <p className="text-xs text-red-500">
+                      Cannot process this batch right now. Please try again shortly.
+                    </p>
                   )}
                   {preCheck?.ok && preCheck.items && (
                     <div className="space-y-0.5">
