@@ -749,6 +749,26 @@ async function preFlightPointsCheck(product, productid) {
   return { balance, skuPrice: cost };
 }
 
+// Classify a failed getrole response into a customer-safe message.
+// Provider text is never echoed verbatim: Smile One returns order-oriented
+// copy ("the recharge has failed") for lookup failures, which wrongly implies
+// the customer was charged. Pure, mirrored in tests/verify-player.test.js.
+function classifyVerifyFailure(body, hasZoneId = false) {
+  const errMsg = String(body?.message ?? body?.msg ?? '');
+  const status = Number(body?.status);
+
+  const isPlayerNotFound = /role|user.?id|zone.?id|does not exist|not exist|invalid (?:user|role|zone)|player not found/i.test(errMsg);
+  const isConfigError = status === 20007 || /product does not exist|invalid product/i.test(errMsg);
+
+  if (isConfigError) {
+    return 'Player verification is unavailable for this game. You can still place your order.';
+  }
+  if (isPlayerNotFound) {
+    return `Player not found. Check your User ID${hasZoneId ? ' and Zone ID.' : '.'}`;
+  }
+  return 'Could not verify this account right now. You can still place your order.';
+}
+
 // Public player verification — POST /api/verify-player
 // No admin auth required (used by customer-facing game page).
 // Body: { user_id, zone_id?, api_game?, product?, product_id?, smile_coin_product? }
@@ -787,7 +807,18 @@ app.post('/api/verify-player', verifyLimiter, async (req, res) => {
       // smile_coin_product is only an override for the getrole product param itself.
       const resolvedProductId = product_id && product_id !== '1'
         ? String(product_id)
-        : (await resolveScProductId(product || scProduct)) ?? String(product_id || '1');
+        : await resolveScProductId(product || scProduct);
+
+      // productid '1' is never valid — calling getrole with it always fails and
+      // Smile One answers with misleading "recharge failed" copy. Bail out with a
+      // friendly message instead of making a doomed request.
+      if (!resolvedProductId || resolvedProductId === '1') {
+        console.warn('[verify-player] no valid productid resolved for product=%s (productlist lookup failed or empty)', product || scProduct);
+        return res.json({
+          success: false,
+          message: 'Player verification is unavailable for this game. You can still place your order.',
+        });
+      }
 
       console.log('[verify-player] SmileCoin getrole params:', { user_id, zone_id: String(zone_id || user_id), product: scProduct, productid: resolvedProductId });
 
@@ -803,18 +834,16 @@ app.post('/api/verify-player', verifyLimiter, async (req, res) => {
           return res.json({ success: true, username: name, source: 'smilecoin' });
         }
       }
-      // Surface SmileCoin's error only if it's a real player-not-found case;
-      // product-config errors and transient network errors get a friendly fallback.
-      const errMsg = body.message || body.msg || '';
-      const isConfigError = /product does not exist|invalid product|not found/i.test(errMsg);
-      const isNetworkError = /conex[aã]o|rede|network|timeout|tente novamente|try again|connection/i.test(errMsg);
+      // Never echo the provider's copy — log it for diagnosis, return safe text.
+      console.warn('[verify-player] getrole rejected:', {
+        status: body?.status,
+        message: body?.message ?? body?.msg,
+        product: scProduct,
+        productid: resolvedProductId,
+      });
       return res.json({
         success: false,
-        message: isConfigError
-          ? 'Player verification is unavailable for this game. You can still place your order.'
-          : isNetworkError
-          ? 'Could not reach verification server. You can still place your order.'
-          : (errMsg || 'Player not found. Check your User ID and Zone ID.'),
+        message: classifyVerifyFailure(body, Boolean(zone_id)),
       });
     } catch (err) {
       console.error('[verify-player] SmileCoin failed:', err.message);

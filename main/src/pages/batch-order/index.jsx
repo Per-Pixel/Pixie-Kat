@@ -27,7 +27,7 @@ const ZONE_ID_KEYS  = ["zone_id", "server_id", "zoneid"];
 
 // ─── sub-components ─────────────────────────────────────────────────────────
 
-function StatusBadge({ status, completed, total }) {
+function StatusBadge({ status, completed, total, actual, mixed, manual, failed }) {
   if (status === "processing")
     return (
       <span className="flex items-center gap-1 text-xs text-blue-600">
@@ -37,16 +37,24 @@ function StatusBadge({ status, completed, total }) {
     );
   if (status === "done")
     return (
-      <span className="flex items-center gap-1 text-xs text-emerald-600">
+      <span className="flex items-center gap-1 text-xs text-emerald-600" title="All units delivered as ordered">
         <CheckCircle2 className="h-3.5 w-3.5" />
-        {total > 1 ? `${total}/${total} done` : "Done"}
+        {total > 1 ? `${total}/${total} done` : "Done — actual order"}
       </span>
     );
   if (status === "partial")
     return (
-      <span className="flex items-center gap-1 text-xs text-amber-600">
+      <span className="flex items-center gap-1 text-xs text-amber-600" title={`Actual: ${actual ?? completed}, Mixed: ${mixed ?? 0}, Manual: ${manual ?? 0}, Failed: ${failed ?? 0}`}>
         <CheckCircle2 className="h-3.5 w-3.5" />
         {completed}/{total} done
+        {(mixed > 0 || manual > 0) && ` (${mixed > 0 ? `${mixed} mixed` : ""}${mixed > 0 && manual > 0 ? ", " : ""}${manual > 0 ? `${manual} manual` : ""})`}
+      </span>
+    );
+  if (status === "manual")
+    return (
+      <span className="flex items-center gap-1 text-xs text-slate-600" title="Order placed; manual fulfillment required">
+        <Loader2 className="h-3.5 w-3.5" />
+        {total > 1 ? `${manual}/${total} manual` : "Manual fulfillment"}
       </span>
     );
   if (status === "failed")
@@ -61,7 +69,7 @@ function StatusBadge({ status, completed, total }) {
 // ─── main page ───────────────────────────────────────────────────────────────
 
 export default function BatchOrderPage() {
-  const { user, profile, isLoading: authLoading } = useAuth();
+  const { user, profile, isLoading: authLoading, refreshProfile } = useAuth();
 
   // ── game catalog ──
   const [games, setGames]             = useState([]);
@@ -87,12 +95,20 @@ export default function BatchOrderPage() {
   const [results, setResults]       = useState({});
   const [done, setDone]             = useState(false);
 
+  // ── pre-order verification ──
+  const [preCheck, setPreCheck]   = useState(null);
+  const [preCheckLoading, setPreCheckLoading] = useState(false);
+
   // ── wallet balance (live) ──
   const [walletBalance, setWalletBalance] = useState(null);
 
   useEffect(() => {
     if (profile) setWalletBalance(Number(profile.wallet_balance ?? 0));
   }, [profile]);
+
+  useEffect(() => {
+    setPreCheck(null);
+  }, [cart]);
 
   // ── fetch all active games with their fields + products ──
   useEffect(() => {
@@ -177,6 +193,8 @@ export default function BatchOrderPage() {
   const cartTotal = cart.reduce((s, i) => s + Number(i.product.price) * i.quantity, 0);
   const totalOrders = cart.reduce((s, i) => s + i.quantity, 0);
   const canAfford = walletBalance !== null && walletBalance >= cartTotal && cartTotal > 0;
+  const preCheckOk = !preCheck || preCheck.can_proceed;
+  const canProceed = canAfford && preCheckOk;
 
   // ── handlers ──
   // ── default product per game (from game metadata set in admin) ──
@@ -235,8 +253,43 @@ export default function BatchOrderPage() {
     setCart((prev) => prev.filter((i) => i.localId !== localId));
   };
 
+  const runPreCheck = async () => {
+    if (cart.length === 0) return null;
+    setPreCheckLoading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const items = cart.map((i) => ({ product_id: i.product.id, quantity: i.quantity }));
+      const res = await fetch("/api/batch-validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ items }),
+      });
+      const body = await res.json();
+      // Keep failed responses — discarding them left `preCheck` null, which made
+      // the error banner unreachable and the batch fail silently.
+      setPreCheck(body);
+      return body;
+    } catch (err) {
+      console.error("[batch-order] pre-check failed:", err.message);
+      const body = { ok: false, error: "Could not reach the verification server. Please try again." };
+      setPreCheck(body);
+      return body;
+    } finally {
+      setPreCheckLoading(false);
+    }
+  };
+
   const handleProcessAll = async () => {
-    if (!canAfford || processing || cart.length === 0) return;
+    if (processing || cart.length === 0) return;
+
+    // Run pre-order verification (wallet + merchant points) first.
+    const pre = await runPreCheck();
+    if (!pre || !pre.ok || !pre.can_proceed) {
+      setProcessing(false);
+      return;
+    }
+
     setProcessing(true);
     setDone(false);
     setResults({});
@@ -250,6 +303,9 @@ export default function BatchOrderPage() {
       const qty = item.quantity;
       let completed = 0;
       let failed    = 0;
+      let manual    = 0;
+      let actual    = 0;
+      let mixed     = 0;
       const errors  = [];
       const mismatches = [];
 
@@ -259,6 +315,7 @@ export default function BatchOrderPage() {
       }));
 
       for (let i = 0; i < qty; i++) {
+        let orderId = null;
         try {
           const orderMeta = {
             game_id:       item.game.id,
@@ -281,7 +338,7 @@ export default function BatchOrderPage() {
           });
           const placeData = await placeRes.json();
           if (!placeRes.ok || !placeData.ok) throw new Error(placeData.error || "Order failed");
-          const orderId = placeData.orderId;
+          orderId = placeData.orderId;
 
           runningBalance -= Number(item.product.price);
           setWalletBalance(runningBalance);
@@ -298,21 +355,54 @@ export default function BatchOrderPage() {
             setWalletBalance(runningBalance);
             failed++;
             errors.push(body.error || "Delivery failed — refunded");
+          } else if (body.ok === false) {
+            if (body.provisioned === false) {
+              manual++;
+              errors.push(body.error || "Manual fulfillment");
+            } else {
+              runningBalance += Number(item.product.price);
+              setWalletBalance(runningBalance);
+              failed++;
+              errors.push(body.error || "Delivery failed — refunded");
+            }
           } else {
             completed++;
-            if (body.mismatch) mismatches.push(body.mismatch);
+            if (body.mismatch) {
+              mixed++;
+              mismatches.push(body.mismatch);
+              if (body.mismatch.refund_amount > 0) {
+                runningBalance += Number(body.mismatch.refund_amount);
+                setWalletBalance(runningBalance);
+              }
+            } else {
+              actual++;
+            }
           }
         } catch (err) {
           failed++;
           errors.push(err.message);
+          if (orderId) {
+            // place-order succeeded but fulfill call failed at network layer.
+            // The wallet was already deducted and the real refund will be reflected
+            // when we refresh the profile after the batch completes.
+          }
         }
 
         setResults((prev) => ({
           ...prev,
           [item.localId]: {
-            status:    failed > 0 && completed === 0 ? "failed" : failed > 0 ? "partial" : "processing",
+            status:
+              failed > 0 && completed === 0 && manual === 0
+                ? "failed"
+                : failed > 0 || manual > 0 || mixed > 0
+                ? "partial"
+                : "processing",
             completed,
             total:     qty,
+            actual,
+            mixed,
+            manual,
+            failed,
             error:     errors[errors.length - 1] ?? null,
             mismatches: mismatches.length > 0 ? [...mismatches] : null,
           },
@@ -322,15 +412,27 @@ export default function BatchOrderPage() {
       setResults((prev) => ({
         ...prev,
         [item.localId]: {
-          status:    failed === qty ? "failed" : failed > 0 ? "partial" : "done",
+          status:
+            failed === qty
+              ? "failed"
+              : manual === qty
+              ? "manual"
+              : failed > 0 || manual > 0 || mixed > 0
+              ? "partial"
+              : "done",
           completed,
           total:     qty,
+          actual,
+          mixed,
+          manual,
+          failed,
           error:     errors.length > 0 ? errors[0] : null,
           mismatches: mismatches.length > 0 ? [...mismatches] : null,
         },
       }));
     }
 
+    await refreshProfile();
     setProcessing(false);
     setDone(true);
   };
@@ -537,6 +639,7 @@ export default function BatchOrderPage() {
                           res?.status === "done"    ? "border-emerald-200 bg-emerald-50" :
                           res?.status === "partial" ? "border-amber-200 bg-amber-50"    :
                           res?.status === "failed"  ? "border-red-200 bg-red-50"        :
+                          res?.status === "manual"  ? "border-slate-200 bg-slate-50"    :
                           "border-[#e2e6ee]"
                         }`}
                       >
@@ -563,7 +666,17 @@ export default function BatchOrderPage() {
                             <span className="text-xs font-semibold text-violet-600">
                               {fmt(Number(item.product.price) * item.quantity, item.product.currency)}
                             </span>
-                            {res && <StatusBadge status={res.status} completed={res.completed} total={res.total} />}
+                            {res && (
+                              <StatusBadge
+                                status={res.status}
+                                completed={res.completed}
+                                total={res.total}
+                                actual={res.actual}
+                                mixed={res.mixed}
+                                manual={res.manual}
+                                failed={res.failed}
+                              />
+                            )}
                           </div>
                           {res?.error && (
                             <p className="mt-0.5 text-xs text-red-500">{res.error}</p>
@@ -602,15 +715,43 @@ export default function BatchOrderPage() {
                     <span className="font-bold">{fmt(cartTotal)}</span>
                   </div>
                   {walletBalance !== null && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-[#6d7480]">After deduction</span>
-                      <span className={`font-bold ${canAfford ? "text-emerald-600" : "text-red-500"}`}>
-                        {fmt(walletBalance - cartTotal)}
-                      </span>
-                    </div>
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-[#6d7480]">After deduction</span>
+                        <span className={`font-bold ${canAfford ? "text-emerald-600" : "text-red-500"}`}>
+                          {fmt(Math.max(0, walletBalance - cartTotal))}
+                        </span>
+                      </div>
+                      {!canAfford && (
+                        <p className="text-right text-xs text-red-500">
+                          Need {fmt(cartTotal - walletBalance)} more
+                        </p>
+                      )}
+                    </>
                   )}
-                  {!canAfford && cartTotal > 0 && (
-                    <p className="text-xs text-red-500">Insufficient wallet balance.</p>
+                  {preCheck?.ok === false && (
+                    <p className="text-xs text-red-500">{preCheck.error || "Cannot process this batch."}</p>
+                  )}
+                  {preCheck?.ok && preCheck.can_proceed === false && canAfford
+                    && !preCheck.items?.some((it) => it.points_ok === false) && (
+                    <p className="text-xs text-red-500">
+                      Cannot process this batch right now. Please try again shortly.
+                    </p>
+                  )}
+                  {preCheck?.ok && preCheck.items && (
+                    <div className="space-y-0.5">
+                      {preCheck.items.map((it, idx) =>
+                        it.points_ok === false ? (
+                          <p key={idx} className="text-xs text-red-500">
+                            {it.product_name}: {it.error || "Provider points insufficient"}
+                          </p>
+                        ) : it.points_ok === true ? (
+                          <p key={idx} className="text-xs text-emerald-600">
+                            {it.product_name}: Provider points OK
+                          </p>
+                        ) : null
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -620,11 +761,13 @@ export default function BatchOrderPage() {
             {!done ? (
               <button
                 type="button"
-                disabled={!canAfford || processing || cart.length === 0}
+                disabled={!canProceed || processing || preCheckLoading || cart.length === 0}
                 onClick={handleProcessAll}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition-opacity disabled:opacity-40 hover:bg-emerald-700"
               >
-                {processing ? (
+                {preCheckLoading ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Verifying…</>
+                ) : processing ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</>
                 ) : (
                   <><CheckCircle2 className="h-4 w-4" /> Process {totalOrders} Order{totalOrders !== 1 ? "s" : ""}</>
