@@ -1010,27 +1010,51 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
       };
       console.log('[fulfill-order] createorder params:', JSON.stringify(createParams));
 
-      const body = await smileCoin.callSmileCoin('createorder', createParams);
+      let body;
+      try {
+        body = await smileCoin.callSmileCoin('createorder', createParams);
+      } catch (scErr) {
+        // If createorder throws (timeout, non-JSON, network error), the order
+        // may still have been processed on SmileOne's side. Mark as uncertain.
+        console.error(`[fulfill-order] SmileCoin createorder threw but order may have been processed: ${scErr.message}`);
+        fulfillResult = { uncertain: true, error: scErr.message };
+        throw scErr;
+      }
       console.log('[fulfill-order] createorder response:', JSON.stringify(body).slice(0, 500));
+
+      // IMPORTANT: Set fulfillResult immediately after getting a response.
+      // Once createorder returns without a network/parse error, the provider
+      // may have already processed and delivered the order. We must never
+      // refund in this case — even if the status code is unexpected.
+      fulfillResult = body;
 
       // Accept both numeric and string status, and ok:true
       const statusOk = Number(body.status) === 200 || body.ok === true;
       if (!statusOk) {
         throw new Error(body.message || body.msg || `SmileCoin order failed (status ${body.status})`);
       }
-      fulfillResult = body;
     } else if (game.provider === 'smile_one' && smileOne.isConfigured() && game.provider_game_code) {
       const sku = product?.sku;
       const pid = product?.provider_product_id;
       if (!sku && !pid) throw new Error('No SKU or provider_product_id configured for this product');
       const userAccount = { user_id: String(userId) };
       if (zoneId) userAccount.server_id = String(zoneId);
-      const data = await smileOne.sendOrder(
-        game.provider_game_code,
-        [{ sku: sku || pid, qty: 1, pid: pid || sku }],
-        userAccount
-      );
-      fulfillResult = data.result;
+      let smileOneData;
+      try {
+        smileOneData = await smileOne.sendOrder(
+          game.provider_game_code,
+          [{ sku: sku || pid, qty: 1, pid: pid || sku }],
+          userAccount
+        );
+      } catch (smileOneErr) {
+        // If sendOrder throws (timeout, network, unexpected error code), we
+        // cannot know whether SmileOne actually processed the order. Treat as
+        // "possibly delivered" so the catch block won't blindly refund.
+        console.error(`[fulfill-order] SmileOne sendOrder threw but order may have been processed: ${smileOneErr.message}`);
+        fulfillResult = { uncertain: true, error: smileOneErr.message };
+        throw smileOneErr;
+      }
+      fulfillResult = smileOneData.result ?? smileOneData;
     } else {
       // No auto-fulfillment provider configured — order stays processing for manual fulfillment
       console.log(`[fulfill-order] No auto-fulfill provider for game ${gameId} (provider=${game.provider}, smile_coin_product=${scProduct || 'none'}). Order ${orderId} stays processing.`);
