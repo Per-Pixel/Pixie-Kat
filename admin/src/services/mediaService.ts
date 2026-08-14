@@ -460,3 +460,87 @@ export async function updateReferencingUrls(
 
   return count;
 }
+
+// ============================================================
+// Default export — adapter for MediaLibrary page
+// ============================================================
+function extractFolder(storagePath: string): string | undefined {
+  if (!storagePath.includes('/')) return undefined;
+  return storagePath.split('/').slice(0, -1).join('/') || undefined;
+}
+
+function recordToAsset(r: MediaRecord) {
+  return {
+    id: r.id,
+    filename: r.filename,
+    originalFilename: r.filename,
+    url: r.public_url,
+    mimeType: r.mime_type ?? 'application/octet-stream',
+    size: r.size_bytes ?? 0,
+    width: r.width ?? undefined,
+    height: r.height ?? undefined,
+    alt: r.alt_text ?? undefined,
+    uploadedBy: r.uploaded_by ?? '',
+    uploadedAt: r.created_at ?? '',
+    folder: extractFolder(r.storage_path),
+    tags: r.tags ?? [],
+  };
+}
+
+const mediaService = {
+  async getMedia(opts?: { folder?: string; search?: string }) {
+    const { data } = await listMedia({ search: opts?.search });
+    const assets = data.map(recordToAsset);
+    if (opts?.folder) {
+      return { assets: assets.filter((a) => a.folder === opts.folder) };
+    }
+    return { assets };
+  },
+
+  async getFolders(): Promise<string[]> {
+    const { data, error } = await supabase.storage.from(BUCKET).list('', { limit: 1000 });
+    if (error) throw error;
+    return (data ?? [])
+      .filter((item) => item.name && !item.id)
+      .map((item) => item.name);
+  },
+
+  async uploadMedia(opts: { file: File; folder?: string }) {
+    return uploadMedia(opts.file, opts.folder ?? '');
+  },
+
+  async uploadMultiple(files: File[], folder?: string) {
+    const results = await Promise.allSettled(
+      files.map((f) => uploadMedia(f, folder ?? ''))
+    );
+    const succeeded = results.filter((r) => r.status === 'fulfilled');
+    const failed = results.filter((r) => r.status === 'rejected');
+    if (failed.length && !succeeded.length) {
+      throw (failed[0] as PromiseRejectedResult).reason;
+    }
+    return succeeded.map((r) => (r as PromiseFulfilledResult<MediaRecord>).value);
+  },
+
+  async deleteMedia(id: string) {
+    const { data, error } = await supabase.from('media').select('*').eq('id', id).single();
+    if (error) {
+      if (error.code === 'PGRST116') return; // already gone
+      throw error;
+    }
+    return deleteMedia(data as MediaRecord);
+  },
+
+  async bulkDelete(ids: string[]) {
+    const { data, error } = await supabase.from('media').select('*').in('id', ids);
+    if (error) throw error;
+    const results = await Promise.allSettled(
+      (data as MediaRecord[]).map((r) => deleteMedia(r))
+    );
+    const failed = results.filter((r) => r.status === 'rejected');
+    if (failed.length) {
+      console.warn(`[mediaService] bulkDelete: ${failed.length}/${ids.length} deletions failed`);
+    }
+  },
+};
+
+export default mediaService;

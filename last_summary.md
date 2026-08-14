@@ -1,14 +1,14 @@
 # Last Summary
 
-## Session: Fix false-failure on successful provider deliveries
+## Session: Fix admin panel white screen & harden mediaService adapter
 
-Two bugs in `main/server/index.js` `/api/fulfill-order` caused successful SmileOne/SmileCoin deliveries to be reported as failed (with a wallet refund) even though the provider actually delivered and deducted points:
+Admin panel showed a blank white screen on load. Root cause: `MediaLibrary.tsx` imported a nonexistent default export from `mediaService.ts`. The default import resolved to `undefined` at runtime, causing `mediaService.getMedia(...)` to throw a TypeError that crashed React before any UI rendered.
 
-1. **Scoping bug**: `preFlightSkuPrice` was declared with `const` inside the SmileCoin `if` block (line ~1188) but referenced in the mismatch detection section outside that block (line ~1271). When the product didn't have `metadata.expected_provider_price` set, the ternary tried to evaluate `preFlightSkuPrice` and threw a `ReferenceError`. Fix: hoisted to `let preFlightSkuPrice = NaN` in the outer scope before the if/else-if/else, and used destructuring assignment `({ skuPrice: preFlightSkuPrice } = ...)` inside the block.
+Fix:
+- Added a default export adapter object in `mediaService.ts` mapping the page's expected methods (`getMedia`, `getFolders`, `uploadMedia`, `uploadMultiple`, `deleteMedia`, `bulkDelete`) to underlying functions.
+- Added `recordToAsset` mapping and `extractFolder` helper with empty-string guard.
+- Wired folder filtering into `getMedia`.
+- Switched `uploadMultiple` and `bulkDelete` to `Promise.allSettled`.
+- Made `deleteMedia` return cleanly on `PGRST116` (already deleted).
 
-2. **Refund-after-delivery bug**: The catch block unconditionally refunded the wallet and marked the order as failed — even when `fulfillResult` was already set (meaning the provider had delivered). Fix: hoisted `fulfillResult` and `orderMetadata` outside the `try` block. The catch now checks `if (fulfillResult)` — if the provider already delivered, it marks the order as completed (with a `post_delivery_error` note) and returns `{ ok: true }` instead of refunding. Only genuinely undelivered orders get refunded.
-
-- Verification:
-  - `node --check main/server/index.js` passed.
-  - `node --test main/server/tests/fulfill-order.price.test.js` passed (9/9).
-  - `npx vite build` in `main` completed successfully.
+- Verification: `npx vite build` succeeds cleanly; `mediaService.ts` and `MediaLibrary.tsx` have 0 compiler/linter errors. Dev stack running on `5174` (admin), `5175` (frontend), `3001` (backend proxy).
