@@ -176,7 +176,7 @@ test('resolveExpectedPrice uses metadata first, then productlist fallback, then 
 });
 
 test('proportional refund is near-full when wrong (cheap) product is delivered', () => {
-  // Customer orders 10000 diamonds (expected BRL 76), provider delivers elite pass (BRL 3.90)
+  // Customer orders 10000 diamonds (expected 76 Smile Points), provider delivers elite pass (3.9 Smile Points)
   const orderTotal = 500;
   const returned = 3.9;
   const expected = 76;

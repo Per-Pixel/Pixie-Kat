@@ -226,8 +226,8 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-sm">
-                      <DetailRow icon={Hash} label="Expected" value={String(order.metadata.provider_mismatch.expected_provider_price ?? '—')} />
-                      <DetailRow icon={Hash} label="Actual" value={String(order.metadata.provider_mismatch.actual_provider_price)} />
+                      <DetailRow icon={Hash} label="Expected (Smile Points)" value={String(order.metadata.provider_mismatch.expected_provider_price ?? '—')} />
+                      <DetailRow icon={Hash} label="Actual (Smile Points)" value={String(order.metadata.provider_mismatch.actual_provider_price)} />
                       {order.metadata.provider_mismatch.provider_order_id && (
                         <DetailRow icon={Hash} label="Provider Order" value={order.metadata.provider_mismatch.provider_order_id} />
                       )}

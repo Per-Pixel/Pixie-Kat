@@ -852,18 +852,20 @@ const GameEditor: React.FC = () => {
                             )}
                           </div>
                           <div>
-                            <label className="label mb-1.5 block text-xs">Expected Provider Price <span className="text-gray-400 font-normal">(BRL / local currency)</span></label>
+                            <label className="label mb-1.5 block text-xs">Expected Provider Price <span className="text-gray-400 font-normal">(Smile Points)</span></label>
                             <input
                               type="number"
                               step="0.01"
                               min="0"
                               className="input font-mono text-sm"
-                              placeholder="e.g., 4.00"
+                              placeholder="e.g., 39"
                               value={p.expected_provider_price}
                               onChange={(e) => updateProduct(p._key, { expected_provider_price: e.target.value })}
                             />
                             <p className="text-xs text-gray-500 mt-1">
-                              Used to detect provider substitution and auto-refund the difference.
+                              Smile Points cost of this SKU (from the Smilecoin productlist). Used to detect
+                              provider substitution and auto-refund the difference. Must match the unit the
+                              provider returns — Smile Points, not BRL.
                             </p>
                           </div>
                         </div>

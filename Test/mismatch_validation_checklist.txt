@@ -1,8 +1,13 @@
 Validation checklist: provider price mismatch refund
 
+All expected/actual prices are in Smile Points (the Smilecoin API's native
+unit), NOT BRL. Comparing across units (BRL 4 vs Smile Points 39) fires false
+mismatches.
+
 Server: main/server/index.js
-[ ] POST /api/fulfill-order with a SmileCoin createorder response containing price: 'BRL 3.90'
-    and product.metadata.expected_provider_price = 4.00
+[ ] POST /api/fulfill-order with a SmileCoin createorder response containing
+    price: '15' (a cheaper substituted SKU) and
+    product.metadata.expected_provider_price = 39 (Smile Points)
     → calls adjust_wallet_balance with a positive refund amount
     → stores provider_mismatch in order metadata with refund_status 'completed'
 [ ] POST /api/fulfill-order with no expected_provider_price set
@@ -11,12 +16,12 @@ Server: main/server/index.js
 [ ] POST /api/fulfill-order with price in data.price, product_price, amount, or total_amount
     → extracts the price correctly in each case
 [ ] POST /api/fulfill-order with a string containing spaces/currency symbols
-    → normalizes to a number before comparison
+    → normalizes to a number before comparison (defensive; provider may prefix a currency)
 
 Admin: admin/src/pages/products/GameEditor.tsx
-[ ] Open a game editor, set Expected Provider Price on a product, save
+[ ] Open a game editor, set Expected Provider Price (Smile Points) on a product, save
 [ ] Re-open the product and confirm the value is shown
-[ ] Check in Supabase that products.metadata contains expected_provider_price (numeric)
+[ ] Check in Supabase that products.metadata contains expected_provider_price (numeric, Smile Points)
 
 Main site: main/src/pages/games/GamePage.jsx
 [ ] Place a wallet order that triggers a mismatch
@@ -26,10 +31,12 @@ Main site: main/src/pages/games/GamePage.jsx
 
 Admin: admin/src/components/orders/OrderDrawer.tsx
 [ ] Open an order with provider_mismatch metadata
-[ ] Confirm the mismatch section shows expected/actual prices and refund status
+[ ] Confirm the mismatch section shows expected/actual prices (Smile Points) and refund status
 [ ] Click "Credit ... to wallet" on an order with a failed/skipped refund
 [ ] Confirm the wallet is credited and the order metadata updates to refund_status 'completed'
 
-Supabase: supabase/migrations/026_fix_mobilelegends_weekly_pass.sql
-[ ] Apply the migration to the target database
-[ ] Verify the Mobile Legends (Brazil) Weekly Pass product now has metadata.expected_provider_price = 4.00
+Supabase: supabase/migrations/026_fix_mobilelegends_weekly_pass.sql (fresh installs)
+          supabase/migrations/030_fix_expected_provider_price_to_smile_points.sql (existing prod)
+[ ] Apply 030 to the target database (026 already set 4.00 BRL in prod)
+[ ] Verify the Mobile Legends (Brazil) Weekly Pass product now has
+    metadata.expected_provider_price = 39 (Smile Points)

@@ -800,6 +800,19 @@ async function preFlightPointsCheck(product, productid) {
   return { balance, skuPrice: cost };
 }
 
+// Fetch merchant balance + productlist once per provider product.
+// Both provider calls depend only on `product`, never on the SKU, so batch
+// pre-check caches per product instead of per (product, SKU) — a cart holding
+// several SKUs of one game was costing 2 provider round-trips per SKU and
+// blowing the API Gateway 29s integration ceiling.
+async function fetchProviderPointsSnapshot(product) {
+  const ptsBody = await smileCoin.callSmileCoin('querypoints', { product });
+  const balance = extractPointsBalance(ptsBody);
+  const listBody = await smileCoin.callSmileCoin('productlist', { product });
+  const skus = listBody?.data?.product ?? listBody?.productList ?? listBody?.list ?? listBody?.skus ?? listBody?.product ?? [];
+  return { balance, skus };
+}
+
 // Classify a failed getrole response into a customer-safe message.
 // Provider text is never echoed verbatim: Smile One returns order-oriented
 // copy ("the recharge has failed") for lookup failures, which wrongly implies
@@ -1004,27 +1017,36 @@ app.post('/api/batch-validate', batchValidateLimiter, async (req, res) => {
           error = 'No valid Provider Product ID for this product';
           pointsOk = false;
         } else {
-          const cacheKey = `${scProduct}:${productid}`;
-          let check = pointsCache.get(cacheKey);
-          if (!check) {
+          let snapshot = pointsCache.get(scProduct);
+          if (!snapshot) {
             try {
-              check = await preFlightPointsCheck(scProduct, productid);
-              pointsCache.set(cacheKey, check);
+              snapshot = await fetchProviderPointsSnapshot(scProduct);
             } catch (err) {
-              pointsCache.set(cacheKey, { error: err.message });
-              check = pointsCache.get(cacheKey);
+              console.warn('[batch-validate] provider query failed for %s: %s', scProduct, err.message);
+              snapshot = { queryFailed: true };
             }
+            pointsCache.set(scProduct, snapshot);
           }
 
-          if (check.error) {
-            pointsOk = false;
-            error = check.error;
+          if (snapshot.queryFailed) {
+            // Fail open, matching preFlightPointsCheck: a transient provider
+            // hiccup must not block the cart (createorder still rejects if
+            // truly short). Left as null rather than true so the UI doesn't
+            // claim "Provider points OK" on an unanswered query.
+            pointsOk = null;
           } else {
-            pointsOk = true;
-            const skuPrice = Number.isFinite(check.skuPrice) ? check.skuPrice : null;
-            expectedProviderPrice = product?.metadata?.expected_provider_price != null
-              ? Number(product.metadata.expected_provider_price)
-              : skuPrice;
+            const cost = extractSkuPrice(snapshot.skus, productid);
+            const deficiency = pointsDeficiency(snapshot.balance, cost);
+            if (deficiency) {
+              pointsOk = false;
+              error = deficiency;
+            } else {
+              pointsOk = true;
+              const skuPrice = Number.isFinite(cost) ? cost : null;
+              expectedProviderPrice = product?.metadata?.expected_provider_price != null
+                ? Number(product.metadata.expected_provider_price)
+                : skuPrice;
+            }
           }
         }
       }
@@ -1282,10 +1304,13 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
 
     // ── Provider price mismatch detection ──
     // Compare the provider-returned price against the expected provider price
-    // stored in product.metadata.expected_provider_price. If the provider
-    // fulfilled a different product (e.g. Elite Bundle instead of Weekly Pass),
-    // the price will differ — auto-refund the proportional difference and flag
-    // it for admin review.
+    // stored in product.metadata.expected_provider_price. Both values must be
+    // in Smile Points — the Smilecoin API's native unit (returned by
+    // createorder and productlist, debited from the querypoints balance). NOT
+    // BRL/local currency: comparing across units (e.g. BRL 4 vs Smile Points
+    // 39) fires false mismatches. If the provider fulfilled a different product
+    // (e.g. Elite Bundle instead of Weekly Pass), the Smile Points price will
+    // differ — auto-refund the proportional difference and flag it for review.
     function normalizeProviderPrice(raw) {
       if (raw == null) return null;
       const str = String(raw).trim().toUpperCase();
@@ -1320,10 +1345,10 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
     let mismatch = null;
     let refundAmount = 0;
     const returnedPrice = extractReturnedPrice(fulfillResult);
-    // Expected price fallback chain:
+    // Expected price fallback chain (both in Smile Points):
     //   1. metadata.expected_provider_price (manually set in admin — most reliable)
-    //   2. preFlightSkuPrice (live from productlist — auto-detected, same currency
-    //      as createorder since both go through the same SC_COUNTRY endpoint)
+    //   2. preFlightSkuPrice (live from productlist — auto-detected, same Smile
+    //      Points unit as createorder since both come from the Smilecoin API)
     const expectedPrice = product?.metadata?.expected_provider_price != null
       ? Number(product.metadata.expected_provider_price)
       : Number.isFinite(preFlightSkuPrice) ? preFlightSkuPrice : null;
@@ -1345,7 +1370,7 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
       } else if (returnedPrice !== expectedPrice) {
         // Calculate proportional refund: if provider delivered a cheaper product,
         // refund the fraction of the order amount that wasn't delivered.
-        // e.g. expected 76 BRL, got 39 BRL → refund (1 - 39/76) * 155 PKS ≈ 75.46 PKS
+        // e.g. expected 76, got 39 (Smile Points) → refund (1 - 39/76) * 155 PKS ≈ 75.46 PKS
         if (returnedPrice < expectedPrice) {
           const ratio = 1 - (returnedPrice / expectedPrice);
           refundAmount = Math.round(Number(order.total_amount) * ratio * 100) / 100;

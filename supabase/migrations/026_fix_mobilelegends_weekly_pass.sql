@@ -1,9 +1,11 @@
--- Backfill expected_provider_price for the Mobile Legends (Brazil) Weekly Pass product
--- so mismatch detection can detect provider substitutions like the reported case
--- where the provider fulfilled an Elite Weekly Pass at BRL 3.90 instead of the
--- expected BRL 4.00.
+-- Backfill expected_provider_price for the Mobile Legends (Brazil) Weekly Pass
+-- product so mismatch detection can detect provider substitutions. The value
+-- is in Smile Points — the Smilecoin API's native unit, returned by createorder
+-- and productlist and debited from the querypoints balance — NOT BRL. The
+-- Weekly Pass SKU costs 39 Smile Points; an Elite Weekly Pass substitution
+-- would return a different Smile Points price.
 UPDATE products
-SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('expected_provider_price', 4.00)
+SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('expected_provider_price', 39)
 WHERE id = (
   SELECT p.id
   FROM products p
