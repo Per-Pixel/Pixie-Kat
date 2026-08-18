@@ -19,30 +19,58 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const SERVER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const REPO_ROOT = path.resolve(SERVER_DIR, '../..');
 
-// `shell` is only needed on Windows to resolve the `eb` batch shim. It must stay
-// off for git: with a shell, an argument containing a space (e.g. `--format=%h %s`)
-// gets re-split and git reads the tail as a revision.
-function run(cmd, args, { cwd = SERVER_DIR, shell = false } = {}) {
+function runCmd(cmd, args, { cwd = SERVER_DIR } = {}) {
+  if (process.platform === 'win32') {
+    return execFileSync('cmd.exe', ['/c', cmd, ...args], {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+  }
   return execFileSync(cmd, args, {
     cwd,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
-    shell,
   }).trim();
 }
 
-// `app-260808_150415623113` -> Date (label timestamp is UTC)
+function runGit(args, { cwd = REPO_ROOT } = {}) {
+  return execFileSync('git', args, {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+}
+
+// `app-260818_131925792604` -> Date (EB CLI stamps label using local machine time)
 function parseVersionLabel(label) {
   const m = /app-(\d{2})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/.exec(label);
   if (!m) return null;
   const [, yy, mm, dd, hh, mi, ss] = m.map(Number);
-  return new Date(Date.UTC(2000 + yy, mm - 1, dd, hh, mi, ss));
+  // Construct as local time (same timezone as the machine running eb deploy)
+  return new Date(2000 + yy, mm - 1, dd, hh, mi, ss);
+}
+
+function getDeployedTimestamp(label) {
+  try {
+    const awsOut = runCmd('aws', ['elasticbeanstalk', 'describe-application-versions', '--version-labels', label]);
+    const parsed = JSON.parse(awsOut);
+    const dateStr = parsed?.ApplicationVersions?.[0]?.DateCreated;
+    if (dateStr) {
+      const d = new Date(dateStr);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+  } catch {
+    // AWS CLI not configured or network unavailable; fall back to label parsing
+  }
+  return parseVersionLabel(label);
 }
 
 let ebStatus;
 try {
-  ebStatus = run('eb', ['status'], { shell: process.platform === 'win32' });
+  ebStatus = runCmd('eb', ['status']);
 } catch (err) {
   console.error('Could not run `eb status`. Is the EB CLI installed and configured?');
   console.error(String(err.stderr || err.message).trim());
@@ -56,18 +84,17 @@ if (!labelMatch) {
 }
 
 const label = labelMatch[1];
-const deployedAt = parseVersionLabel(label);
+const deployedAt = getDeployedTimestamp(label);
 if (!deployedAt) {
   console.error(`Unrecognized version label "${label}" — cannot infer a deploy time.`);
   console.error('If deploys stopped using the default app-YYMMDD_HHMMSS labels, this check needs updating.');
   process.exit(2);
 }
 
-const REPO_ROOT = path.resolve(SERVER_DIR, '../..');
 let lastCommitIso, lastCommitSubject;
 try {
-  lastCommitIso = run('git', ['log', '-1', '--format=%cI', '--', 'main/server'], { cwd: REPO_ROOT });
-  lastCommitSubject = run('git', ['log', '-1', '--format=%h %s', '--', 'main/server'], { cwd: REPO_ROOT });
+  lastCommitIso = runGit(['log', '-1', '--format=%cI', '--', 'main/server']);
+  lastCommitSubject = runGit(['log', '-1', '--format=%h %s', '--', 'main/server']);
 } catch (err) {
   console.error('Could not read git history for main/server.');
   console.error(String(err.stderr || err.message).trim());

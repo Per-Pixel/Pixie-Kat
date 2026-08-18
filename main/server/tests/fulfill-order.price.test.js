@@ -91,6 +91,29 @@ function extractSkuPrice(skus, productid) {
   return NaN;
 }
 
+function extractSkuPoints(skus, productid) {
+  if (!Array.isArray(skus)) return NaN;
+  const sku = skus.find(s => s && String(s.id) === String(productid));
+  if (!sku) return NaN;
+  const candidates = [sku.smile_points, sku.smile_point, sku.point, sku.points, sku.smile_price];
+  for (const c of candidates) {
+    if (c == null) continue;
+    const n = parseFloat(String(c));
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return NaN;
+}
+
+function resolvePointsCost(product, skus, productid) {
+  if (product?.metadata?.expected_provider_price != null) {
+    const n = Number(product.metadata.expected_provider_price);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  const skuPoints = extractSkuPoints(skus, productid);
+  if (Number.isFinite(skuPoints) && skuPoints > 0) return skuPoints;
+  return NaN;
+}
+
 function pointsDeficiency(balance, cost) {
   if (!Number.isFinite(balance)) return null;
   if (balance <= 0) {
@@ -133,6 +156,34 @@ test('extractSkuPrice matches SKU by id and parses the price', () => {
   assert.ok(Number.isNaN(extractSkuPrice(skus, '999')));     // not found
   assert.ok(Number.isNaN(extractSkuPrice(skus, '99')));      // non-numeric price
   assert.ok(Number.isNaN(extractSkuPrice(null, '1')));
+});
+
+test('extractSkuPoints extracts points-only fields and ignores fiat price', () => {
+  const skus = [
+    { id: '1', price: '4.00', smile_points: '39' },
+    { id: '2', price: '8.00', points: 76 },
+    { id: '3', price: '4.00' }, // fiat price only — no points field
+  ];
+  assert.strictEqual(extractSkuPoints(skus, '1'), 39);
+  assert.strictEqual(extractSkuPoints(skus, '2'), 76);
+  assert.ok(Number.isNaN(extractSkuPoints(skus, '3'))); // ignores fiat price 4.00
+  assert.ok(Number.isNaN(extractSkuPoints(skus, '999')));
+});
+
+test('resolvePointsCost prioritizes product metadata Smile Points over SKU fields', () => {
+  const productWithMeta = { metadata: { expected_provider_price: 39 } };
+  const productWithoutMeta = { metadata: {} };
+  const skus = [
+    { id: '10', price: '4.00', smile_points: 35 },
+    { id: '20', price: '4.00' }, // fiat only
+  ];
+
+  // Metadata wins when present
+  assert.strictEqual(resolvePointsCost(productWithMeta, skus, '10'), 39);
+  // SKU points used when no metadata
+  assert.strictEqual(resolvePointsCost(productWithoutMeta, skus, '10'), 35);
+  // Returns NaN when neither metadata nor SKU points exist (fiat price ignored)
+  assert.ok(Number.isNaN(resolvePointsCost(productWithoutMeta, skus, '20')));
 });
 
 test('pointsDeficiency blocks zero/insufficient balance, fails open when unknown', () => {

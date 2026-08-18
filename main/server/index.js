@@ -686,9 +686,58 @@ app.get('/api/smilecoin/mismatches', requireAdmin, async (req, res) => {
       .limit(limit);
 
     if (error) throw error;
-    res.json({ ok: true, count: data?.length ?? 0, orders: data ?? [] });
+    const validMismatches = (data || []).filter(o => {
+      const mm = o.metadata?.provider_mismatch;
+      if (!mm) return false;
+      if (mm.refund_status === 'skipped_no_expected_price') return false;
+      const refundAmt = Number(mm.refund_amount || 0);
+      const expected = Number(mm.expected_provider_price);
+      const actual = Number(mm.actual_provider_price);
+      if (refundAmt === 0 && Number.isFinite(actual) && Number.isFinite(expected) && actual >= expected) {
+        return false;
+      }
+      return true;
+    });
+    res.json({ ok: true, count: validMismatches.length, orders: validMismatches });
   } catch (err) {
     console.error('[smilecoin/mismatches]', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// POST /api/smilecoin/mismatches/cleanup
+// Cleans up stale false provider_mismatch entries (refund_amount: 0) from orders metadata.
+app.post('/api/smilecoin/mismatches/cleanup', requireAdmin, async (req, res) => {
+  try {
+    const { data: orders, error } = await supabaseAdmin
+      .from('orders')
+      .select('id, metadata')
+      .not('metadata->provider_mismatch', 'is', null);
+
+    if (error) throw error;
+
+    let cleaned = 0;
+    for (const order of (orders || [])) {
+      const mm = order.metadata?.provider_mismatch;
+      if (!mm) continue;
+      const refundAmt = Number(mm.refund_amount || 0);
+      const expected = Number(mm.expected_provider_price);
+      const actual = Number(mm.actual_provider_price);
+      const isStale = refundAmt === 0 || mm.refund_status === 'skipped_no_expected_price' || mm.refund_amount == null || (Number.isFinite(actual) && Number.isFinite(expected) && actual >= expected);
+      if (isStale) {
+        const newMeta = { ...order.metadata };
+        delete newMeta.provider_mismatch;
+        const { error: updateErr } = await supabaseAdmin
+          .from('orders')
+          .update({ metadata: newMeta })
+          .eq('id', order.id);
+        if (!updateErr) cleaned++;
+      }
+    }
+
+    res.json({ ok: true, cleaned, total_scanned: orders?.length ?? 0 });
+  } catch (err) {
+    console.error('[smilecoin/mismatches/cleanup]', err.message);
     res.status(500).json({ ok: false, error: err.message });
   }
 });
@@ -763,6 +812,38 @@ function extractSkuPrice(skus, productid) {
   return NaN;
 }
 
+// Extract points-denominated price from productlist SKU if explicitly provided
+// by the provider API (e.g. `smile_points`, `points`, `point`, `smile_price`).
+// Fiat fields (`price`, `cost_price`, `sell_price`, `amount`) are in BRL/local currency
+// and are not points.
+function extractSkuPoints(skus, productid) {
+  if (!Array.isArray(skus)) return NaN;
+  const sku = skus.find(s => s && String(s.id) === String(productid));
+  if (!sku) return NaN;
+  const candidates = [sku.smile_points, sku.smile_point, sku.point, sku.points, sku.smile_price];
+  for (const c of candidates) {
+    if (c == null) continue;
+    const n = parseFloat(String(c));
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return NaN;
+}
+
+// Resolve the Smile Points cost for a product and SKU.
+// Order of precedence:
+// 1. product.metadata.expected_provider_price (Smile Points configured in admin)
+// 2. Points field from provider productlist SKU (extractSkuPoints)
+// 3. NaN if no Smile Points cost source is available (fiat price is never compared to points).
+function resolvePointsCost(product, skus, productid) {
+  if (product?.metadata?.expected_provider_price != null) {
+    const n = Number(product.metadata.expected_provider_price);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  const skuPoints = extractSkuPoints(skus, productid);
+  if (Number.isFinite(skuPoints) && skuPoints > 0) return skuPoints;
+  return NaN;
+}
+
 // Returns an error message when the merchant can't afford the SKU, else null.
 // Fail-open (null) when balance can't be determined; fail-closed when the
 // balance is zero or provably below the SKU cost.
@@ -780,30 +861,29 @@ function pointsDeficiency(balance, cost) {
 // Pre-flight: block fulfillment when the merchant Smile Points balance can't
 // cover the SKU. Fail-open on provider query errors so a transient hiccup
 // doesn't block all orders (createorder will still reject if truly short).
-// NOTE: `cost` (from extractSkuPrice) is in BRL while `balance` is in Smile
-// Points, so the per-SKU sufficiency check is best-effort only — the
-// balance>0 guard is the meaningful part. Returns { balance, skuPrice };
-// skuPrice is no longer used for mismatch detection (see fulfill-order).
-async function preFlightPointsCheck(product, productid) {
+// Uses resolvePointsCost so balance (Smile Points) is compared strictly against
+// Smile Points cost (from product.metadata or provider points fields).
+// When cost is unknown (NaN), pointsDeficiency only enforces balance > 0.
+async function preFlightPointsCheck(productCode, productid, product = null) {
   let balance = NaN;
-  let cost = NaN;
+  let pointsCost = NaN;
   try {
-    const ptsBody = await smileCoin.callSmileCoin('querypoints', { product });
+    const ptsBody = await smileCoin.callSmileCoin('querypoints', { product: productCode });
     balance = extractPointsBalance(ptsBody);
-    const listBody = await smileCoin.callSmileCoin('productlist', { product });
+    const listBody = await smileCoin.callSmileCoin('productlist', { product: productCode });
     const skus = listBody?.data?.product ?? listBody?.productList ?? listBody?.list ?? listBody?.skus ?? listBody?.product ?? [];
-    cost = extractSkuPrice(skus, productid);
+    pointsCost = resolvePointsCost(product, skus, productid);
   } catch (err) {
     console.warn('[fulfill-order] Points pre-flight query failed; proceeding to createorder:', err.message);
-    return { balance: NaN, skuPrice: NaN };
+    return { balance: NaN, pointsCost: NaN };
   }
-  const deficiency = pointsDeficiency(balance, cost);
+  const deficiency = pointsDeficiency(balance, pointsCost);
   if (deficiency) {
     console.warn(`[fulfill-order] ${deficiency}`);
     throw new Error(deficiency);
   }
-  console.log(`[fulfill-order] Points pre-flight OK: balance ${balance}, SKU ${productid} cost ${Number.isFinite(cost) ? cost : 'unknown'}`);
-  return { balance, skuPrice: cost };
+  console.log(`[fulfill-order] Points pre-flight OK: balance ${balance}, SKU ${productid} cost ${Number.isFinite(pointsCost) ? pointsCost : 'unknown'}`);
+  return { balance, pointsCost };
 }
 
 // Fetch merchant balance + productlist once per provider product.
@@ -1041,17 +1121,14 @@ app.post('/api/batch-validate', batchValidateLimiter, async (req, res) => {
             // claim "Provider points OK" on an unanswered query.
             pointsOk = null;
           } else {
-            const cost = extractSkuPrice(snapshot.skus, productid);
-            const deficiency = pointsDeficiency(snapshot.balance, cost);
+            const pointsCost = resolvePointsCost(product, snapshot.skus, productid);
+            const deficiency = pointsDeficiency(snapshot.balance, pointsCost);
             if (deficiency) {
               pointsOk = false;
               error = deficiency;
             } else {
               pointsOk = true;
-              const skuPrice = Number.isFinite(cost) ? cost : null;
-              expectedProviderPrice = product?.metadata?.expected_provider_price != null
-                ? Number(product.metadata.expected_provider_price)
-                : skuPrice;
+              expectedProviderPrice = Number.isFinite(pointsCost) ? pointsCost : null;
             }
           }
         }
@@ -1244,7 +1321,7 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
 
       // Pre-flight: block the order when the merchant Smile Points balance can't
       // cover this SKU (e.g. balance is 0 or below the SKU's point cost).
-      await preFlightPointsCheck(scProduct, productid);
+      await preFlightPointsCheck(scProduct, productid, product);
 
       const createParams = {
         userid:    String(userId),
