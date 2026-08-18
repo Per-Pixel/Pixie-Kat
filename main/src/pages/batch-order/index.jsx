@@ -265,13 +265,28 @@ export default function BatchOrderPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ items }),
       });
-      const body = await res.json();
+
+      // Read as text first: gateway errors (504/502/403) return HTML, and calling
+      // res.json() on those threw into the catch below, hiding the real status.
+      const raw = await res.text();
+      let body;
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        console.error("[batch-order] pre-check non-JSON response:", res.status, raw.slice(0, 300));
+        body = {
+          ok: false,
+          error: res.status === 504 || res.status === 502
+            ? "Verification timed out. Try processing fewer items at once."
+            : `Verification failed (HTTP ${res.status}). Please try again.`,
+        };
+      }
       // Keep failed responses — discarding them left `preCheck` null, which made
       // the error banner unreachable and the batch fail silently.
       setPreCheck(body);
       return body;
     } catch (err) {
-      console.error("[batch-order] pre-check failed:", err.message);
+      console.error("[batch-order] pre-check request failed:", err);
       const body = { ok: false, error: "Could not reach the verification server. Please try again." };
       setPreCheck(body);
       return body;
