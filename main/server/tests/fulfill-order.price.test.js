@@ -153,32 +153,26 @@ test('pointsDeficiency blocks zero/insufficient balance, fails open when unknown
   assert.strictEqual(pointsDeficiency(NaN, 100), null);
 });
 
-// ── Expected price fallback chain ──────────────────────────────────────────────
-// Mirrors the logic in ../index.js: the live productlist SKU price (Smile
-// Points, from pre-flight) first, then metadata.expected_provider_price as a
-// fallback, then null. Productlist is preferred because it's fetched live from
-// the provider in the same unit as createorder — it can never be a wrong-unit
-// value the way a manually-entered BRL metadata amount was.
+// ── Expected price resolution ─────────────────────────────────────────────────
+// Mirrors ../index.js: the ONLY valid expected price is
+// metadata.expected_provider_price, and it must be in Smile Points — the unit
+// createorder returns. The productlist SKU `price` field is BRL (a different
+// unit), so it is never used as an expected value; the earlier auto-fallback to
+// the productlist price fired the false "expected 4, got 39" mismatch. No
+// metadata → null (the substitution check is skipped, no false positive).
 
-function resolveExpectedPrice(metadataExpected, preFlightSkuPrice) {
-  if (Number.isFinite(preFlightSkuPrice)) return preFlightSkuPrice;
-  if (metadataExpected != null) return Number(metadataExpected);
-  return null;
+function resolveExpectedPrice(metadataExpected) {
+  return metadataExpected != null ? Number(metadataExpected) : null;
 }
 
-test('resolveExpectedPrice prefers live productlist (Smile Points), then metadata, then null', () => {
-  // Productlist (live Smile Points) available → always wins, even over metadata.
-  // Unit-safety: a manually-entered BRL metadata value (e.g. 4) must never
-  // override the provider's live Smile Points price (e.g. 39) — that exact case
-  // fired the false "expected 4, got 39" mismatch.
-  assert.strictEqual(resolveExpectedPrice(4, 39), 39);
-  assert.strictEqual(resolveExpectedPrice(76, 39), 39);
-  // No productlist price (lookup failed) → fall back to metadata
-  assert.strictEqual(resolveExpectedPrice(76, NaN), 76);
-  assert.strictEqual(resolveExpectedPrice('76', undefined), 76);
-  // Neither → null (skipped_no_expected_price)
-  assert.strictEqual(resolveExpectedPrice(null, NaN), null);
-  assert.strictEqual(resolveExpectedPrice(undefined, undefined), null);
+test('resolveExpectedPrice uses metadata (Smile Points) only, else null', () => {
+  // Metadata set → used as the Smile Points expected price
+  assert.strictEqual(resolveExpectedPrice(39), 39);
+  assert.strictEqual(resolveExpectedPrice('76'), 76);
+  assert.strictEqual(resolveExpectedPrice(0), 0);
+  // No metadata → null (substitution check skipped — no cross-unit false positive)
+  assert.strictEqual(resolveExpectedPrice(null), null);
+  assert.strictEqual(resolveExpectedPrice(undefined), null);
 });
 
 test('proportional refund is near-full when wrong (cheap) product is delivered', () => {

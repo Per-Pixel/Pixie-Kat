@@ -745,7 +745,11 @@ function extractPointsBalance(body) {
   return Number.isFinite(n) ? n : NaN;
 }
 
-// Parse a single SKU's point cost from a productlist, matching by id.
+// Parse a single SKU's price from a productlist, matching by id.
+// NOTE: the Smilecoin productlist SKU `price`/`cost_price` fields are in fiat
+// (BRL on the /br/ endpoint), NOT Smile Points — the productlist has no Smile
+// Points field. createorder, by contrast, returns `price` in Smile Points. So
+// this value must never be compared against a createorder price.
 function extractSkuPrice(skus, productid) {
   if (!Array.isArray(skus)) return NaN;
   const sku = skus.find(s => s && String(s.id) === String(productid));
@@ -776,8 +780,10 @@ function pointsDeficiency(balance, cost) {
 // Pre-flight: block fulfillment when the merchant Smile Points balance can't
 // cover the SKU. Fail-open on provider query errors so a transient hiccup
 // doesn't block all orders (createorder will still reject if truly short).
-// Returns { balance, skuPrice } so the caller can reuse the productlist SKU
-// price as an automatic expected-price fallback for mismatch detection.
+// NOTE: `cost` (from extractSkuPrice) is in BRL while `balance` is in Smile
+// Points, so the per-SKU sufficiency check is best-effort only — the
+// balance>0 guard is the meaningful part. Returns { balance, skuPrice };
+// skuPrice is no longer used for mismatch detection (see fulfill-order).
 async function preFlightPointsCheck(product, productid) {
   let balance = NaN;
   let cost = NaN;
@@ -1220,8 +1226,6 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
       product = data;
     }
 
-    let preFlightSkuPrice = NaN;
-
     const scProduct = game.metadata?.smile_coin_product;
 
     if (scProduct && smileCoin.isConfigured()) {
@@ -1240,8 +1244,7 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
 
       // Pre-flight: block the order when the merchant Smile Points balance can't
       // cover this SKU (e.g. balance is 0 or below the SKU's point cost).
-      // Also returns the live productlist SKU price for mismatch detection.
-      ({ skuPrice: preFlightSkuPrice } = await preFlightPointsCheck(scProduct, productid));
+      await preFlightPointsCheck(scProduct, productid);
 
       const createParams = {
         userid:    String(userId),
@@ -1345,31 +1348,24 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
     let mismatch = null;
     let refundAmount = 0;
     const returnedPrice = extractReturnedPrice(fulfillResult);
-    // Expected price fallback chain (all in Smile Points):
-    //   1. preFlightSkuPrice (live from productlist — authoritative Smile Points
-    //      price of the exact ordered SKU, same unit as createorder since both
-    //      come from the Smilecoin API. Preferred because it can never be a
-    //      wrong-unit value the way a manually-entered BRL amount was.)
-    //   2. metadata.expected_provider_price (admin override — fallback only when
-    //      the productlist lookup failed)
-    const expectedPrice = Number.isFinite(preFlightSkuPrice)
-      ? preFlightSkuPrice
-      : product?.metadata?.expected_provider_price != null ? Number(product.metadata.expected_provider_price) : null;
+    // Expected price: ONLY product.metadata.expected_provider_price, and it must
+    // be in Smile Points — the unit createorder returns (confirmed in prod logs:
+    // the merchant Smile Points balance drops by exactly the createorder price).
+    // The productlist SKU `price` field is BRL — a different unit (~9.5x) — so
+    // it is NOT a valid expected value. Using it as a fallback fired false
+    // "expected 4, got 39" mismatches on every metadata-less order.
+    const expectedPrice = product?.metadata?.expected_provider_price != null
+      ? Number(product.metadata.expected_provider_price)
+      : null;
 
     if (returnedPrice != null) {
       if (expectedPrice == null) {
-        // Provider reported a price but we have nothing to compare it with.
-        // Flag the order so admins can backfill the expected price.
-        mismatch = {
-          expected_provider_price: null,
-          actual_provider_price: returnedPrice,
-          product_name: product?.name || order.metadata?.product_name,
-          provider_order_id: fulfillResult?.order_id,
-          refund_amount: 0,
-          refund_currency: order.currency || 'PKS',
-          refund_status: 'skipped_no_expected_price',
-        };
-        console.warn(`[fulfill-order] No expected price for product ${product?.id || 'unknown'} (order ${orderId}). Provider reported ${returnedPrice}. Flagged for admin review.`);
+        // No Smile Points reference price configured for this product, so we
+        // cannot detect a substitution. Skip silently (log-only) — do NOT create
+        // a provider_mismatch entry, which would surface as a false
+        // "substitution" alert in the batch UI. Set
+        // metadata.expected_provider_price (Smile Points) to enable monitoring.
+        console.log(`[fulfill-order] No expected_provider_price (Smile Points) for product ${product?.id || 'unknown'}; skipping substitution check on order ${orderId}. Provider charged ${returnedPrice} Smile Points.`);
       } else if (returnedPrice !== expectedPrice) {
         // Calculate proportional refund: if provider delivered a cheaper product,
         // refund the fraction of the order amount that wasn't delivered.
@@ -1379,9 +1375,7 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
           refundAmount = Math.round(Number(order.total_amount) * ratio * 100) / 100;
         }
 
-        const expectedSource = Number.isFinite(preFlightSkuPrice)
-          ? 'productlist (live)'
-          : 'metadata.expected_provider_price';
+        const expectedSource = 'metadata.expected_provider_price (Smile Points)';
         mismatch = {
           expected_provider_price: expectedPrice,
           actual_provider_price: returnedPrice,

@@ -863,9 +863,10 @@ const GameEditor: React.FC = () => {
                               onChange={(e) => updateProduct(p._key, { expected_provider_price: e.target.value })}
                             />
                             <p className="text-xs text-gray-500 mt-1">
-                              Smile Points cost of this SKU (from the Smilecoin productlist). Used to detect
-                              provider substitution and auto-refund the difference. Must match the unit the
-                              provider returns — Smile Points, not BRL.
+                              Smile Points the provider charges for this SKU — the <code>price</code> in a
+                              createorder response (find it via a test order or the Smile One dashboard; the
+                              productlist shows BRL, not Smile Points). Compared against the createorder charge
+                              to detect substitution and auto-refund. Leave blank to disable monitoring.
                             </p>
                           </div>
                         </div>

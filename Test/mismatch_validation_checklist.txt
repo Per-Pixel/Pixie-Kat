@@ -1,42 +1,56 @@
 Validation checklist: provider price mismatch refund
 
-All expected/actual prices are in Smile Points (the Smilecoin API's native
-unit), NOT BRL. Comparing across units (BRL 4 vs Smile Points 39) fires false
-mismatches.
+UNIT FACTS (verified against prod logs):
+- createorder returns `price` in Smile Points (e.g. 39) — the merchant Smile
+  Points balance drops by exactly that amount.
+- productlist SKU `price`/`cost_price` is in BRL (e.g. 4.00) — the productlist
+  has NO Smile Points field. BRL and Smile Points differ by ~9.5x.
+- Therefore the ONLY valid expected price is metadata.expected_provider_price
+  set in Smile Points. The productlist BRL price is never used as an expected
+  value (doing so fired the false "expected 4, got 39" mismatch).
 
 Server: main/server/index.js
-[ ] POST /api/fulfill-order with a SmileCoin createorder response containing
-    price: '15' (a cheaper substituted SKU) and
-    product.metadata.expected_provider_price = 39 (Smile Points)
+[ ] POST /api/fulfill-order with product.metadata.expected_provider_price = 39
+    (Smile Points) and a createorder response of price '15' (cheaper substituted SKU)
     → calls adjust_wallet_balance with a positive refund amount
-    → stores provider_mismatch in order metadata with refund_status 'completed'
-[ ] POST /api/fulfill-order with no expected_provider_price set
-    → does NOT crash, logs a warning
-    → stores provider_mismatch with refund_status 'skipped_no_expected_price'
+    → stores provider_mismatch with refund_status 'completed'
+[ ] POST /api/fulfill-order with NO expected_provider_price set
+    → does NOT crash, does NOT flag a mismatch, does NOT create a
+      provider_mismatch entry (silent skip, log-only)
+    → order completes normally
+[ ] POST /api/fulfill-order where createorder price equals metadata.expected_provider_price
+    → no mismatch, order completes cleanly
 [ ] POST /api/fulfill-order with price in data.price, product_price, amount, or total_amount
     → extracts the price correctly in each case
 [ ] POST /api/fulfill-order with a string containing spaces/currency symbols
-    → normalizes to a number before comparison (defensive; provider may prefix a currency)
+    → normalizes to a number before comparison (defensive)
 
 Admin: admin/src/pages/products/GameEditor.tsx
 [ ] Open a game editor, set Expected Provider Price (Smile Points) on a product, save
+[ ] The help text points to the createorder `price` (test order / Smile One
+    dashboard), NOT the productlist (which is BRL)
 [ ] Re-open the product and confirm the value is shown
 [ ] Check in Supabase that products.metadata contains expected_provider_price (numeric, Smile Points)
+[ ] Leave it blank → that product is NOT monitored for substitution (no alerts)
 
-Main site: main/src/pages/games/GamePage.jsx
-[ ] Place a wallet order that triggers a mismatch
-[ ] Confirm the success screen shows the partial refund message and credited amount
-[ ] Place a wallet order where refund fails
-[ ] Confirm the success screen warns that the refund could not be credited
+Main site: main/src/pages/games/GamePage.jsx + batch-order/index.jsx
+[ ] Place a wallet order for a product with NO expected_provider_price
+    → NO "Provider price mismatch" warning appears (this was the bug)
+[ ] Place a wallet order for a product WITH expected_provider_price (Smile Points)
+    where the provider substitutes a cheaper product
+    → mismatch warning shows with correct Smile Points expected/actual
+[ ] Confirm a refund is credited when returned < expected
 
 Admin: admin/src/components/orders/OrderDrawer.tsx
 [ ] Open an order with provider_mismatch metadata
 [ ] Confirm the mismatch section shows expected/actual prices (Smile Points) and refund status
-[ ] Click "Credit ... to wallet" on an order with a failed/skipped refund
+[ ] Click "Credit ... to wallet" on an order with a failed refund
 [ ] Confirm the wallet is credited and the order metadata updates to refund_status 'completed'
 
-Supabase: supabase/migrations/026_fix_mobilelegends_weekly_pass.sql (fresh installs)
-          supabase/migrations/030_fix_expected_provider_price_to_smile_points.sql (existing prod)
-[ ] Apply 030 to the target database (026 already set 4.00 BRL in prod)
-[ ] Verify the Mobile Legends (Brazil) Weekly Pass product now has
-    metadata.expected_provider_price = 39 (Smile Points)
+Supabase: supabase/migrations/026_fix_mobilelegends_weekly_pass.sql
+          supabase/migrations/030_fix_expected_provider_price_to_smile_points.sql
+[ ] Optional data cleanup: set expected_provider_price (Smile Points) on products
+    you want monitored (e.g. the Weekly Pass from the original substitution report).
+    NOTE: migration 030's WHERE targets the Weekly Pass by name — verify the product
+    name/region actually match (a BR product may be named in Portuguese, which the
+    ILIKE '%Weekly Pass%' pattern would miss).
