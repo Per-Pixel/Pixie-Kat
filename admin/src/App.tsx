@@ -152,7 +152,7 @@ const AppRoutes: React.FC = () => {
         <Route path="pages/legal" element={<LegalPagesEditor />} />
         {/* CMS Routes */}
         <Route path="trash" element={<Trash />} />
-        <Route path="media" element={<MediaLibrary />} />
+        <Route path="media" element={<Navigate to="/storage" replace />} />
         {/* Quick Action Routes */}
         <Route path="quick/add-product" element={<AddProduct />} />
         <Route path="quick/manage-users" element={<ManageUsers />} />
