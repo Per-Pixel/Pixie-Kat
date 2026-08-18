@@ -20,11 +20,24 @@ export interface MediaRecord {
   updated_at?: string;
 }
 
+export type UsageCategory =
+  | 'homepage'
+  | 'games'
+  | 'products'
+  | 'events'
+  | 'cms'
+  | 'branding'
+  | 'profiles'
+  | 'other';
+
 export interface MediaUsage {
+  category: UsageCategory;
+  subCategory?: string;
   table: string;
   recordId: string;
   recordName: string;
   field: string;
+  adminLink?: string;
 }
 
 export type MediaSort =
@@ -36,6 +49,35 @@ export type MediaSort =
   | 'size-asc';
 
 export type ImageOutputFormat = 'image/webp' | 'image/png' | 'image/jpeg';
+
+export function normalizePath(str?: string | null): string {
+  if (!str) return '';
+  return str
+    .trim()
+    .replace(/^https?:\/\/[^\/]+\/storage\/v1\/object\/public\/[^\/]+\//, '')
+    .replace(/^\/+/, '')
+    .toLowerCase();
+}
+
+export function matchMediaUrl(candidate?: string | null, record?: MediaRecord | null): boolean {
+  if (!candidate || !record) return false;
+  const rawCand = candidate.trim().toLowerCase();
+  const rawUrl = (record.public_url || '').trim().toLowerCase();
+  const rawPath = (record.storage_path || '').trim().toLowerCase();
+  const rawName = (record.filename || '').trim().toLowerCase();
+
+  if (rawCand === rawUrl || rawCand === rawPath || rawCand === rawName) return true;
+
+  const normCand = normalizePath(rawCand);
+  const normPath = normalizePath(rawPath);
+  const normUrl = normalizePath(rawUrl);
+
+  if (normCand && (normCand === normPath || normCand === normUrl)) return true;
+  if (normPath && normCand.endsWith(normPath)) return true;
+  if (rawName && (rawCand.endsWith('/' + rawName) || rawCand === rawName)) return true;
+
+  return false;
+}
 
 function getPublicUrl(path: string): string {
   const clean = path.replace(/^media\//, '');
@@ -393,42 +435,330 @@ export async function downloadMedia(record: MediaRecord): Promise<Blob> {
 // ============================================================
 // Usage scan — find every record referencing this media URL
 // ============================================================
-export async function scanMediaUsage(record: MediaRecord): Promise<MediaUsage[]> {
-  const usages: MediaUsage[] = [];
+export interface AllRawUsages {
+  settings?: any;
+  games: any[];
+  products: any[];
+  promoItems: any[];
+  profiles: any[];
+}
 
-  // Helper: find matches in a table
-  const scanTable = async (
-    table: string,
-    fields: string[],
-    nameField: string
-  ): Promise<void> => {
-    for (const field of fields) {
-      // Use ilike for fuzzy match on URL suffix
-      const { data, error } = await supabase
-        .from(table)
-        .select(`id, ${nameField}, ${field}`)
-        .ilike(field, `%${record.storage_path}%`);
-
-      if (error) continue;
-      (data ?? []).forEach((row: any) => {
-        usages.push({
-          table,
-          recordId: row.id,
-          recordName: row[nameField] ?? '—',
-          field,
-        });
-      });
-    }
-  };
-
-  await Promise.all([
-    scanTable('games', ['image_url', 'banner_url'], 'name'),
-    scanTable('promotional_items', ['image_url'], 'title'),
-    scanTable('products', ['image_url'], 'name'),
-    scanTable('profiles', ['avatar_url'], 'name'),
+export async function fetchRawUsageData(): Promise<AllRawUsages> {
+  const [settingsRes, gamesRes, productsRes, promoRes, profilesRes] = await Promise.all([
+    supabase.from('store_settings').select('*').maybeSingle(),
+    supabase.from('games').select('id, name, slug, image_url, banner_url'),
+    supabase.from('products').select('id, name, game_id, image_url'),
+    supabase.from('promotional_items').select('id, title, section, image_url, link_url'),
+    supabase.from('profiles').select('id, name, email, avatar_url').not('avatar_url', 'is', null),
   ]);
 
+  return {
+    settings: settingsRes.data || {},
+    games: gamesRes.data || [],
+    products: productsRes.data || [],
+    promoItems: promoRes.data || [],
+    profiles: profilesRes.data || [],
+  };
+}
+
+export function computeMediaUsages(record: MediaRecord, rawData: AllRawUsages): MediaUsage[] {
+  const usages: MediaUsage[] = [];
+  const { settings, games, products, promoItems, profiles } = rawData;
+
+  // 1. Homepage & Store Settings
+  if (settings) {
+    // Hero Section
+    const hero = settings.hero_settings;
+    if (hero) {
+      if (matchMediaUrl(hero.background_video, record)) {
+        usages.push({
+          category: 'homepage',
+          subCategory: 'Hero Section (Video)',
+          table: 'store_settings',
+          recordId: 'hero_settings',
+          recordName: 'Homepage Hero Video',
+          field: 'background_video',
+          adminLink: '/pages/homepage/hero',
+        });
+      }
+      if (hero.images) {
+        if (matchMediaUrl(hero.images.jinx?.url, record)) {
+          usages.push({
+            category: 'homepage',
+            subCategory: 'Hero Section (Jinx)',
+            table: 'store_settings',
+            recordId: 'hero_settings',
+            recordName: 'Hero Image 1 (Jinx)',
+            field: 'images.jinx.url',
+            adminLink: '/pages/homepage/hero',
+          });
+        }
+        if (matchMediaUrl(hero.images.faze?.url, record)) {
+          usages.push({
+            category: 'homepage',
+            subCategory: 'Hero Section (Center)',
+            table: 'store_settings',
+            recordId: 'hero_settings',
+            recordName: 'Hero Image 2 (Center Logo)',
+            field: 'images.faze.url',
+            adminLink: '/pages/homepage/hero',
+          });
+        }
+        if (matchMediaUrl(hero.images.melissa?.url, record)) {
+          usages.push({
+            category: 'homepage',
+            subCategory: 'Hero Section (Melissa)',
+            table: 'store_settings',
+            recordId: 'hero_settings',
+            recordName: 'Hero Image 3 (Melissa)',
+            field: 'images.melissa.url',
+            adminLink: '/pages/homepage/hero',
+          });
+        }
+        // Check any dynamic image keys in hero
+        Object.entries(hero.images).forEach(([key, imgObj]: [string, any]) => {
+          if (!['jinx', 'faze', 'melissa'].includes(key) && matchMediaUrl(imgObj?.url, record)) {
+            usages.push({
+              category: 'homepage',
+              subCategory: `Hero Section (${key})`,
+              table: 'store_settings',
+              recordId: 'hero_settings',
+              recordName: `Hero Image (${key})`,
+              field: `images.${key}.url`,
+              adminLink: '/pages/homepage/hero',
+            });
+          }
+        });
+      }
+    }
+
+    // About Section
+    const about = settings.about_settings;
+    if (about && matchMediaUrl(about.image?.url, record)) {
+      usages.push({
+        category: 'homepage',
+        subCategory: 'About Section',
+        table: 'store_settings',
+        recordId: 'about_settings',
+        recordName: 'Homepage About Section Art',
+        field: 'image.url',
+        adminLink: '/pages/homepage/about',
+      });
+    }
+
+    // Products Page Settings (Banner Slides)
+    const prodPage = settings.products_page_settings;
+    if (prodPage && Array.isArray(prodPage.slides)) {
+      prodPage.slides.forEach((slide: any, idx: number) => {
+        if (matchMediaUrl(slide?.image, record)) {
+          usages.push({
+            category: 'cms',
+            subCategory: 'Products Page Slider',
+            table: 'store_settings',
+            recordId: `products_slide_${slide.id || idx}`,
+            recordName: slide.title ? `Products Slide: ${slide.title}` : `Products Page Slide #${idx + 1}`,
+            field: `slides[${idx}].image`,
+            adminLink: '/pages/products',
+          });
+        }
+      });
+    }
+
+    // JJK Cheaper Event Settings
+    const jjk = settings.event_jjk_cheaper_settings;
+    if (jjk) {
+      if (matchMediaUrl(jjk.placement?.promo_image, record)) {
+        usages.push({
+          category: 'events',
+          subCategory: 'JJK Event Banner',
+          table: 'store_settings',
+          recordId: 'event_jjk_cheaper_settings',
+          recordName: 'JJK Cheaper Event Promo Banner',
+          field: 'placement.promo_image',
+          adminLink: '/pages/events/jjk-cheaper',
+        });
+      }
+      if (Array.isArray(jjk.skins)) {
+        jjk.skins.forEach((skin: any) => {
+          if (matchMediaUrl(skin?.portrait, record)) {
+            usages.push({
+              category: 'events',
+              subCategory: 'JJK Skin Portrait',
+              table: 'store_settings',
+              recordId: skin.id || 'skin',
+              recordName: `JJK Skin: ${skin.hero || skin.sorcerer || 'Skin'} (Portrait)`,
+              field: 'skins.portrait',
+              adminLink: '/pages/events/jjk-cheaper',
+            });
+          }
+          if (matchMediaUrl(skin?.thumbnail, record)) {
+            usages.push({
+              category: 'events',
+              subCategory: 'JJK Skin Thumbnail',
+              table: 'store_settings',
+              recordId: skin.id || 'skin',
+              recordName: `JJK Skin: ${skin.hero || skin.sorcerer || 'Skin'} (Thumbnail)`,
+              field: 'skins.thumbnail',
+              adminLink: '/pages/events/jjk-cheaper',
+            });
+          }
+        });
+      }
+    }
+
+    // Appearance / Branding Settings
+    const app = settings.appearance_settings;
+    if (app) {
+      if (matchMediaUrl(app.logo_url, record)) {
+        usages.push({
+          category: 'branding',
+          subCategory: 'Brand Logo',
+          table: 'store_settings',
+          recordId: 'appearance_settings',
+          recordName: 'Storefront Brand Logo',
+          field: 'logo_url',
+          adminLink: '/settings',
+        });
+      }
+      if (matchMediaUrl(app.favicon_url, record)) {
+        usages.push({
+          category: 'branding',
+          subCategory: 'Favicon',
+          table: 'store_settings',
+          recordId: 'appearance_settings',
+          recordName: 'Browser Favicon',
+          field: 'favicon_url',
+          adminLink: '/settings',
+        });
+      }
+      if (matchMediaUrl(app.icon_url, record)) {
+        usages.push({
+          category: 'branding',
+          subCategory: 'App Icon',
+          table: 'store_settings',
+          recordId: 'appearance_settings',
+          recordName: 'App / PWA Icon',
+          field: 'icon_url',
+          adminLink: '/settings',
+        });
+      }
+      if (matchMediaUrl(app.music_url, record)) {
+        usages.push({
+          category: 'branding',
+          subCategory: 'Background Audio',
+          table: 'store_settings',
+          recordId: 'appearance_settings',
+          recordName: 'Background Music Track',
+          field: 'music_url',
+          adminLink: '/settings',
+        });
+      }
+    }
+  }
+
+  // 2. Promotional Items (Homepage Trending & Offers)
+  promoItems.forEach((item: any) => {
+    if (matchMediaUrl(item.image_url, record)) {
+      const isTrending = item.section === 'trending';
+      const isExclusive = item.section === 'exclusive_offers';
+      usages.push({
+        category: 'homepage',
+        subCategory: isTrending
+          ? 'Trending Games'
+          : isExclusive
+          ? 'Exclusive Offers'
+          : 'Homepage Promo',
+        table: 'promotional_items',
+        recordId: item.id,
+        recordName: `${item.title || 'Promo Card'} (${isTrending ? 'Trending' : isExclusive ? 'Exclusive Offers' : 'Promo'})`,
+        field: 'image_url',
+        adminLink: isTrending
+          ? `/pages/homepage/trending-games/${item.id}`
+          : isExclusive
+          ? `/pages/homepage/exclusive-offers/${item.id}`
+          : '/pages/homepage',
+      });
+    }
+  });
+
+  // 3. Games Catalog
+  games.forEach((game: any) => {
+    if (matchMediaUrl(game.image_url, record)) {
+      usages.push({
+        category: 'games',
+        subCategory: 'Game Card',
+        table: 'games',
+        recordId: game.id,
+        recordName: `${game.name} (Game Card)`,
+        field: 'image_url',
+        adminLink: `/products/games/${game.id}`,
+      });
+    }
+    if (matchMediaUrl(game.banner_url, record)) {
+      usages.push({
+        category: 'games',
+        subCategory: 'Game Banner',
+        table: 'games',
+        recordId: game.id,
+        recordName: `${game.name} (Banner)`,
+        field: 'banner_url',
+        adminLink: `/products/games/${game.id}`,
+      });
+    }
+  });
+
+  // 4. Products
+  products.forEach((prod: any) => {
+    if (matchMediaUrl(prod.image_url, record)) {
+      usages.push({
+        category: 'products',
+        subCategory: 'Product Package',
+        table: 'products',
+        recordId: prod.id,
+        recordName: `${prod.name} (Product Sku)`,
+        field: 'image_url',
+        adminLink: prod.game_id ? `/products/games/${prod.game_id}` : '/products',
+      });
+    }
+  });
+
+  // 5. Profiles
+  profiles.forEach((prof: any) => {
+    if (matchMediaUrl(prof.avatar_url, record)) {
+      usages.push({
+        category: 'profiles',
+        subCategory: 'User Avatar',
+        table: 'profiles',
+        recordId: prof.id,
+        recordName: `${prof.name || prof.email || 'User Avatar'}`,
+        field: 'avatar_url',
+        adminLink: `/users/${prof.id}`,
+      });
+    }
+  });
+
   return usages;
+}
+
+export async function fetchAllMediaUsages(records: MediaRecord[]): Promise<Record<string, MediaUsage[]>> {
+  try {
+    const rawData = await fetchRawUsageData();
+    const map: Record<string, MediaUsage[]> = {};
+
+    records.forEach((record) => {
+      map[record.id] = computeMediaUsages(record, rawData);
+    });
+
+    return map;
+  } catch (err) {
+    console.error('Failed to index media usages:', err);
+    return {};
+  }
+}
+
+export async function scanMediaUsage(record: MediaRecord): Promise<MediaUsage[]> {
+  const rawData = await fetchRawUsageData();
+  return computeMediaUsages(record, rawData);
 }
 
 // ============================================================

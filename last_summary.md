@@ -1,17 +1,32 @@
 # Last Summary
 
-## Session: Fix RLS recursion on profiles (stack depth limit exceeded)
+## Session: Admin Storage Folder System, Interactive Video Previews, & Real-time Usage Mapping
 
-Admin dashboard on Amplify showed "Could not load dashboard data" with the database error `Profiles: stack depth limit exceeded`.
+**1. Media Usage Categorization & Cross-System Indexing (`mediaService.ts`):**
+- Built `fetchAllMediaUsages()` and enhanced `scanMediaUsage()` to batch scan and map media references across:
+  - Homepage Hero (`hero_settings.background_video`, `hero_settings.images.jinx`, `faze`, `melissa`, and custom character slots).
+  - Homepage About section (`about_settings.image.url`).
+  - Homepage Promotional items (`promotional_items` for Trending Games & Exclusive Offers).
+  - Games Catalog (`games.image_url`, `games.banner_url`).
+  - Products & Packages (`products.image_url`).
+  - Events & CMS (`event_jjk_cheaper_settings`, `products_page_settings.slides`).
+  - Branding & Appearance (`appearance_settings.logo_url`, `favicon_url`, `icon_url`, `music_url`).
+  - Customer / Admin Avatars (`profiles.avatar_url`).
+- Added URL and storage path normalization (`normalizePath`, `matchMediaUrl`) supporting full CDN URLs, relative paths (`/videos/...`, `/img/...`), and filename matches.
 
-Root cause: migration `019_security_linter_definitive.sql` converted `is_admin()` and `is_admin_or_support()` from `SECURITY DEFINER` to `SECURITY INVOKER` to silence the Supabase linter. That reintroduced infinite recursion — the `profiles` RLS policy `"admin/support reads all"` calls `is_admin_or_support()`, which reads `profiles`, which evaluates RLS again under INVOKER, which calls `is_admin_or_support()` again, until the stack overflows. Migration `026` only restored anon EXECUTE grants; it did not fix the recursion.
+**2. Interactive Video Previews & Fullscreen Lightbox Modal:**
+- Added responsive video playback previews directly in the media grid cards with hover-to-play, duration/video badges, and audio indicators.
+- Created `VideoModal` fullscreen lightbox preview dialog allowing video playback, playback rate adjustment, path inspection, and direct links to editor pages.
+- Embedded video and audio player widgets inside the asset detail panel.
 
-Fix (migration `029_fix_rls_recursion.sql`):
-- Restored `SECURITY DEFINER` on `is_admin()` and `is_admin_or_support()` so the inner `profiles` read bypasses RLS and terminates.
-- Reaffirmed `EXECUTE` grants to `anon` and `authenticated` on all three RLS helpers.
-- Left `can_access_support_conversation()` as `SECURITY INVOKER` (its inner `is_admin_or_support()` is now recursion-safe, and its `support_conversations` read is guarded by `customer_id = auth.uid()`).
-- The linter warning is an accepted false positive (already documented in `018`).
+**3. Folder Navigation & Usage Filter System (`StoragePage.tsx`):**
+- Added a dual-mode folder sidebar:
+  - **Where Used (Usage Folders)**: All Media, In Use (Active), Unused Assets, Homepage (Hero, About, Trending, Offers), Games Catalog, Products & SKUs, Events & CMS, Branding & Theme, User Avatars.
+  - **Storage Paths**: Dynamic subdirectories (`root`, `videos/`, `hero/`, `games/`, `banners/`, `avatars/`, `admin/`, etc.) with upload target support.
+- Added live usage pill badges on grid cards and list rows with single-click navigation links to the exact section editor (Hero Editor, Game Editor, Promo Editor, Settings, etc.).
+- Unified `/media` route to redirect seamlessly to `/storage`.
 
-Note: this is a DB migration — it must be run in the Supabase SQL editor (or via `supabase db push`) for the live project. The repo only ships the file.
+**Verification:**
+- `admin`: TypeScript compilation and production bundle build (`npm run build`) succeeded with 0 errors.
+- `main`: Storefront build (`npm run build`) succeeded with 0 errors.
 
-Verification: migration file ships in repo on both `main` and `admin` branches. No frontend code changed; the dashboard query in `reportingService.ts` is correct once RLS stops recursing.
