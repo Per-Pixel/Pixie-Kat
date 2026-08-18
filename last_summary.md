@@ -1,36 +1,29 @@
 # Last Summary
 
-## Session: Provider price-mismatch false positive — unit standardization (BRL → Smile Points)
+## Session: Provider price-mismatch — REAL root cause found in prod logs, corrected + deployed
 
-**Problem.** Admin saw "Provider price mismatch on 1 order — expected 4, got 39. The provider may have substituted a different product." The user diagnosed it correctly: the check was comparing across currency units.
+**Trigger.** The "Provider price mismatch — expected 4, got 39" alert kept firing even after the previous session's fix. Investigation of prod EB logs (`eb logs`) overturned the earlier diagnosis.
 
-**Root cause.** The mismatch detector in `fulfill-order` (`main/server/index.js`, ~L1305) compares `product.metadata.expected_provider_price` against the price returned by the Smilecoin `createorder` response. These were in *different units*:
-- `expected_provider_price` was stored in **BRL** — migration `026` set it to `4.00`, and the admin `GameEditor` field was labeled `Expected Provider Price (BRL / local currency)`, placeholder `e.g., 4.00`.
-- The `createorder` returned price (`extractReturnedPrice`) is in **Smile Points** — the Smilecoin API's native unit, the same unit `querypoints`/`productlist` speak and that gets debited from the merchant balance.
+**What the previous session got wrong.** It assumed `expected_provider_price = 4` was a BRL value stored in `metadata` by migration 026, and "standardized on Smile Points" by making the live productlist price authoritative. **Wrong on two counts**, proven by the logs:
+1. The "expected 4" did NOT come from metadata — the log line read `expected provider price 4 (productlist (auto-detected))`, i.e. `metadata.expected_provider_price` was **null** and it fell back to the productlist. And the flagged order `02c81de3` was a **55-Diamond SKU (22590)**, not the Weekly Pass migration 026/030 targets — so the blast radius was every metadata-less product.
+2. The productlist fallback was itself the wrong unit. Prod `productlist` response for `mobilelegends` (BR) SKUs has only `price`/`cost_price` in **BRL** (e.g. `{"id":"22590","spu":"...55 Diamond","price":"4.00"}`) — **no Smile Points field exists**. Meanwhile `createorder` returns `price` in **Smile Points** (e.g. `39.0`), confirmed by the merchant Smile Points balance dropping exactly 76 on SKU 16642. BRL vs Smile Points differ by ~9.5x.
 
-`4 BRL ≈ 39 Smile Points` (the rate the user described), so `4 !== 39` fired a false mismatch. The fallback chain was self-contradictory too: the metadata path was BRL, but the auto-fallback (`preFlightSkuPrice` from `extractSkuPrice` reading `sku.price/point/points`) was Smile Points — so setting the "reliable" manual field *broke* detection while leaving it blank (auto-fallback) worked. That inversion was the tell that the unit assumption was wrong.
+So `extractSkuPrice` fed a BRL number into a Smile Points comparison. The intermediate "productlist-first" deploy (commit `4720372`, app `app-260818_124132800888`) made it WORSE by locking the BRL fallback in as authoritative.
 
-**Good news — no money mis-moved.** Because `39 > 4`, the refund branch (`if (returnedPrice < expectedPrice)`) was skipped and `refundAmount` stayed `0`. The falsely-flagged order has `refund_amount: 0, refund_status: 'completed'` — no wallet debit. Only noise in the `/api/smilecoin/mismatches` feed and a scary admin alert.
+**The corrected fix (commit `8d12aa1`, deployed `app-260818_131925792604`, health Ok/Green):**
+- `fulfill-order` expected price now comes ONLY from `metadata.expected_provider_price`, which must be in Smile Points (the unit createorder returns). The productlist BRL price is no longer used as an expected value.
+- When no Smile Points metadata is set, the substitution check is **skipped silently (log-only)** — no `provider_mismatch` entry is created, so nothing surfaces as a false "substitution" alert in the batch UI (`batch-order/index.jsx` reads `body.mismatch`).
+- Real substitution detection still works for products with a Smile Points metadata value: createorder price ≠ expected → flag + proportional refund.
+- Corrected comments on `extractSkuPrice` / `preFlightPointsCheck` (productlist price is BRL → the balance-sufficiency check is best-effort; the `balance>0` guard is the meaningful part). Fixed the `GameEditor` help text — it now points to the createorder `price` (test order / Smile One dashboard), NOT the productlist.
+- Updated `main/server/tests/fulfill-order.price.test.js` (`resolveExpectedPrice` is now metadata-only) and `Test/mismatch_validation_checklist.txt`.
 
-**Fix — standardize the whole check on Smile Points (user-approved direction).** The provider's native accounting unit across `querypoints`/`productlist`/`createorder` is Smile Points; comparing in that unit makes metadata, the auto-fallback, and the returned price all apples-to-apples, with no drifting fiat conversion rate to maintain. Code logic is unit-agnostic and unchanged — the fix is data + labels + comments:
-- `supabase/migrations/026_fix_mobilelegends_weekly_pass.sql`: fresh installs now store `39` (Smile Points) with corrected comments.
-- `supabase/migrations/030_fix_expected_provider_price_to_smile_points.sql` (NEW): corrects already-applied prod from `4` → `39`, scoped to the ML BR Weekly Pass, idempotent (`where (metadata->>'expected_provider_price')::numeric = 4`).
-- `admin/.../GameEditor.tsx`: label `(Smile Points)`, placeholder `e.g., 39`, help text notes it must match the provider's unit.
-- `admin/.../OrderDrawer.tsx`: Expected/Actual labels now read `(Smile Points)`.
-- `main/server/index.js`: mismatch-block + fallback-chain comments corrected to Smile Points (no logic change).
-- `Test/mismatch_validation_checklist.txt`: rewritten for Smile Points scenarios.
-- `main/server/tests/fulfill-order.price.test.js`: comment framing updated; assertions unchanged (normalizer still strips currency codes defensively).
+**Net effect.** No more false "expected 4, got 39" alerts on metadata-less products. Substitution monitoring is now opt-in per product: set `metadata.expected_provider_price` to the SKU's Smile Points cost.
 
-**Verification.** `npm test` (main/server): 14/14 pass.
-
-**To make the fix live:**
-1. Apply migration `030` to prod Supabase — this is what actually stops the false mismatches (the code logic was already correct; only the stored unit was wrong).
-2. Admin UI label change auto-deploys via Amplify.
-3. Backend `eb deploy` not required for behavior (comments only), but harmless to ship with the comment updates.
+**Verification.** `node --check` OK; `npm test` 14/14 pass. `eb status`/`eb health`: version `app-260818_131925792604`, Status Ready, Ok/Green.
 
 **Still open / follow-ups:**
-- [ ] Apply `030` to prod Supabase and verify ML BR Weekly Pass `metadata.expected_provider_price = 39`.
-- [ ] Audit other products: any other `expected_provider_price` values still stored in BRL will keep false-mismatching. Only one order was reported, but other products may carry BRL values from before this fix — convert them to Smile Points (or clear to let the auto-fallback work).
-- [ ] The falsely-flagged order has a harmless `provider_mismatch` entry (`refund_amount: 0`); clear it from metadata if the admin view should drop the alert.
-- [ ] Confirm which `createorder` field carries the Smile Points price — pull a CloudWatch `[smilecoin] response:` log line to verify `extractReturnedPrice`'s candidate ordering (`result.price / data.price / product_price / amount / total_amount`) picks the right field and isn't grabbing a points field when a fiat field exists. (Carried over from prior session.)
+- [ ] To actually catch substitutions (the original Weekly Pass concern), set `metadata.expected_provider_price` in **Smile Points** on those products. Get the Smile Points cost from a test order's createorder `price` or the Smile One dashboard. Migration 030 is still valid for this but its `WHERE` targets the Weekly Pass by name — verify the BR product name/region actually match (a Portuguese product name would evade `ILIKE '%Weekly Pass%'`).
+- [ ] Clear the stale false `provider_mismatch` entries already stored on past orders (they have `refund_amount: 0`, harmless, but they linger in the admin mismatches feed).
+- [ ] Known minor unit issue (left as-is, harmless): the pre-flight `pointsDeficiency` balance-vs-cost check compares Smile Points balance to a BRL cost, so it only meaningfully guards `balance<=0`. Fixing it properly needs a Smile Points cost source.
+- [ ] Prior-session uncommitted changes still in the working tree (NOT mine, left untouched): `main/server/package.json` + `main/server/scripts/check-deploy-drift.mjs` (deploy tooling), `main/src/pages/batch-order/index.jsx` (gateway non-JSON resilience fix).
 - [ ] EB env cleanup + `app.set('trust proxy', 1)` (carried over, unrelated).
