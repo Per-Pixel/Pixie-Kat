@@ -1345,13 +1345,16 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
     let mismatch = null;
     let refundAmount = 0;
     const returnedPrice = extractReturnedPrice(fulfillResult);
-    // Expected price fallback chain (both in Smile Points):
-    //   1. metadata.expected_provider_price (manually set in admin — most reliable)
-    //   2. preFlightSkuPrice (live from productlist — auto-detected, same Smile
-    //      Points unit as createorder since both come from the Smilecoin API)
-    const expectedPrice = product?.metadata?.expected_provider_price != null
-      ? Number(product.metadata.expected_provider_price)
-      : Number.isFinite(preFlightSkuPrice) ? preFlightSkuPrice : null;
+    // Expected price fallback chain (all in Smile Points):
+    //   1. preFlightSkuPrice (live from productlist — authoritative Smile Points
+    //      price of the exact ordered SKU, same unit as createorder since both
+    //      come from the Smilecoin API. Preferred because it can never be a
+    //      wrong-unit value the way a manually-entered BRL amount was.)
+    //   2. metadata.expected_provider_price (admin override — fallback only when
+    //      the productlist lookup failed)
+    const expectedPrice = Number.isFinite(preFlightSkuPrice)
+      ? preFlightSkuPrice
+      : product?.metadata?.expected_provider_price != null ? Number(product.metadata.expected_provider_price) : null;
 
     if (returnedPrice != null) {
       if (expectedPrice == null) {
@@ -1376,9 +1379,9 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
           refundAmount = Math.round(Number(order.total_amount) * ratio * 100) / 100;
         }
 
-        const expectedSource = product?.metadata?.expected_provider_price != null
-          ? 'metadata.expected_provider_price'
-          : 'productlist (auto-detected)';
+        const expectedSource = Number.isFinite(preFlightSkuPrice)
+          ? 'productlist (live)'
+          : 'metadata.expected_provider_price';
         mismatch = {
           expected_provider_price: expectedPrice,
           actual_provider_price: returnedPrice,

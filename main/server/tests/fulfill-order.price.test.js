@@ -154,22 +154,28 @@ test('pointsDeficiency blocks zero/insufficient balance, fails open when unknown
 });
 
 // ── Expected price fallback chain ──────────────────────────────────────────────
-// Mirrors the logic in ../index.js: metadata.expected_provider_price first,
-// then the live productlist SKU price from pre-flight, then null.
+// Mirrors the logic in ../index.js: the live productlist SKU price (Smile
+// Points, from pre-flight) first, then metadata.expected_provider_price as a
+// fallback, then null. Productlist is preferred because it's fetched live from
+// the provider in the same unit as createorder — it can never be a wrong-unit
+// value the way a manually-entered BRL metadata amount was.
 
 function resolveExpectedPrice(metadataExpected, preFlightSkuPrice) {
-  if (metadataExpected != null) return Number(metadataExpected);
   if (Number.isFinite(preFlightSkuPrice)) return preFlightSkuPrice;
+  if (metadataExpected != null) return Number(metadataExpected);
   return null;
 }
 
-test('resolveExpectedPrice uses metadata first, then productlist fallback, then null', () => {
-  // Metadata set → always wins
-  assert.strictEqual(resolveExpectedPrice(76, 3.9), 76);
-  assert.strictEqual(resolveExpectedPrice('76', 3.9), 76);
-  // No metadata, productlist available → use productlist
-  assert.strictEqual(resolveExpectedPrice(null, 3.9), 3.9);
-  assert.strictEqual(resolveExpectedPrice(undefined, 100), 100);
+test('resolveExpectedPrice prefers live productlist (Smile Points), then metadata, then null', () => {
+  // Productlist (live Smile Points) available → always wins, even over metadata.
+  // Unit-safety: a manually-entered BRL metadata value (e.g. 4) must never
+  // override the provider's live Smile Points price (e.g. 39) — that exact case
+  // fired the false "expected 4, got 39" mismatch.
+  assert.strictEqual(resolveExpectedPrice(4, 39), 39);
+  assert.strictEqual(resolveExpectedPrice(76, 39), 39);
+  // No productlist price (lookup failed) → fall back to metadata
+  assert.strictEqual(resolveExpectedPrice(76, NaN), 76);
+  assert.strictEqual(resolveExpectedPrice('76', undefined), 76);
   // Neither → null (skipped_no_expected_price)
   assert.strictEqual(resolveExpectedPrice(null, NaN), null);
   assert.strictEqual(resolveExpectedPrice(undefined, undefined), null);
