@@ -186,9 +186,9 @@ export async function uploadMedia(
 
   const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
     contentType: file.type,
-    upsert: false,
+    upsert: true,
   });
-  if (upErr) throw upErr;
+  if (upErr) throw new Error(`Supabase Storage Upload Error: ${upErr.message}`);
 
   const publicUrl = getPublicUrl(path);
 
@@ -222,7 +222,7 @@ export async function uploadMedia(
     .select('*')
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(`Database Insert Error: ${error.message}`);
   return data as MediaRecord;
 }
 

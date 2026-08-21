@@ -39,6 +39,7 @@ import PricingCopyEditor from './pages/content/PricingCopyEditor';
 import ProductsPageEditor from './pages/content/ProductsPageEditor';
 import PromoEditor from './pages/content/PromoEditor';
 import StoragePage from './pages/storage/StoragePage';
+import PinterestGrepperPage from './pages/storage/PinterestGrepperPage';
 import PermissionsPage from './pages/PermissionsPage';
 import DocumentationPage from './pages/DocumentationPage';
 import TasksPage from './pages/TasksPage';
@@ -79,6 +80,7 @@ const AppRoutes: React.FC = () => {
         <Route path="products/legacy" element={<Products />} />
         <Route path="products/games" element={<GamesList title="All Games" />} />
         <Route path="storage" element={<StoragePage />} />
+        <Route path="storage/pinterest" element={<PinterestGrepperPage />} />
         <Route path="content/trending" element={<Navigate to="/pages/homepage/trending-games" replace />} />
         <Route path="content/trending/new" element={<PromoEditor section="trending" backPath="/pages/homepage/trending-games" sectionLabel="Trending Games" />} />
         <Route path="content/trending/:id" element={<PromoEditor section="trending" backPath="/pages/homepage/trending-games" sectionLabel="Trending Games" />} />

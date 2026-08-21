@@ -514,6 +514,15 @@ const StoragePage: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-2">
           <button
+            onClick={() => navigate('/storage/pinterest')}
+            className="btn btn-sm bg-gradient-to-r from-pink-600 to-rose-600 text-white hover:from-pink-500 hover:to-rose-500 border-none shadow-sm"
+            title="Grep photos and videos from Pinterest boards"
+          >
+            <Wand2 className="w-4 h-4 mr-1.5" />
+            Pinterest Grepper
+          </button>
+
+          <button
             onClick={handleSyncBucket}
             disabled={syncing}
             className="btn btn-outline btn-sm"

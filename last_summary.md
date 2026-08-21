@@ -1,32 +1,18 @@
 # Last Summary
 
-## Session: Admin Storage Folder System, Interactive Video Previews, & Real-time Usage Mapping
+## Session: Fixed Animated GIF Resolution & Priority Deduplication
 
-**1. Media Usage Categorization & Cross-System Indexing (`mediaService.ts`):**
-- Built `fetchAllMediaUsages()` and enhanced `scanMediaUsage()` to batch scan and map media references across:
-  - Homepage Hero (`hero_settings.background_video`, `hero_settings.images.jinx`, `faze`, `melissa`, and custom character slots).
-  - Homepage About section (`about_settings.image.url`).
-  - Homepage Promotional items (`promotional_items` for Trending Games & Exclusive Offers).
-  - Games Catalog (`games.image_url`, `games.banner_url`).
-  - Products & Packages (`products.image_url`).
-  - Events & CMS (`event_jjk_cheaper_settings`, `products_page_settings.slides`).
-  - Branding & Appearance (`appearance_settings.logo_url`, `favicon_url`, `icon_url`, `music_url`).
-  - Customer / Admin Avatars (`profiles.avatar_url`).
-- Added URL and storage path normalization (`normalizePath`, `matchMediaUrl`) supporting full CDN URLs, relative paths (`/videos/...`, `/img/...`), and filename matches.
+**1. Root Cause Analysis:**
+- Pinterest pins with animated GIFs output both static JPEG frame thumbnails (`.../736x/hash.jpg`) AND the animated GIF source (`.../originals/hash.gif`).
+- When thumbnail URLs were upgraded to `/originals/`, static `.jpg` thumbnails and animated `.gif` files shared the same 32-character asset hash.
+- Previously, static `.jpg` thumbnails were saved in `seenIds` before the `.gif` URL could be processed, causing the parser to output a static JPEG photo instead of the active animated GIF.
 
-**2. Interactive Video Previews & Fullscreen Lightbox Modal:**
-- Added responsive video playback previews directly in the media grid cards with hover-to-play, duration/video badges, and audio indicators.
-- Created `VideoModal` fullscreen lightbox preview dialog allowing video playback, playback rate adjustment, path inspection, and direct links to editor pages.
-- Embedded video and audio player widgets inside the asset detail panel.
+**2. GIF Priority & Hash Deduplication (`pinterestService.ts`):**
+- **Document-wide GIF Hash Scanning**: Scans raw HTML for `.gif` URLs and builds a document-wide `gifHashes` map.
+- **Schema.org `SocialMediaPosting` Extraction**: Parses `application/ld+json` image payloads for `.gif` links and enforces `.gif` URLs when a matching GIF hash is present.
+- **Priority Replacement**: When mapping image assets by hash, if a `.gif` variant exists for a given asset hash, all static `.jpg` or `.png` thumbnails for that hash are automatically superseded and replaced by the `.gif` URL (`https://i.pinimg.com/originals/hash.gif`).
+- **MimeType & Canvas Safeguards**: Enforces `image/gif` MIME type on file uploads and skips single-frame HTML Canvas exports for GIF assets to prevent animation stripping.
 
-**3. Folder Navigation & Usage Filter System (`StoragePage.tsx`):**
-- Added a dual-mode folder sidebar:
-  - **Where Used (Usage Folders)**: All Media, In Use (Active), Unused Assets, Homepage (Hero, About, Trending, Offers), Games Catalog, Products & SKUs, Events & CMS, Branding & Theme, User Avatars.
-  - **Storage Paths**: Dynamic subdirectories (`root`, `videos/`, `hero/`, `games/`, `banners/`, `avatars/`, `admin/`, etc.) with upload target support.
-- Added live usage pill badges on grid cards and list rows with single-click navigation links to the exact section editor (Hero Editor, Game Editor, Promo Editor, Settings, etc.).
-- Unified `/media` route to redirect seamlessly to `/storage`.
-
-**Verification:**
-- `admin`: TypeScript compilation and production bundle build (`npm run build`) succeeded with 0 errors.
-- `main`: Storefront build (`npm run build`) succeeded with 0 errors.
-
+**3. Verification:**
+- Tested `https://pin.it/67O0mnpAh` $\rightarrow$ Correctly extracted and deduplicated the animated GIF (`de799cbf7550f044970b5415770d3d5a.gif`) with `ANIMATED GIF` badge.
+- Tested `https://pin.it/1rXFSVjVd` $\rightarrow$ Retained 1080p MP4 Video stream extraction.
