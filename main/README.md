@@ -248,6 +248,7 @@ Tailwind font families in `tailwind.config.js` map to those local font names.
 
 Primary usage:
 
+- `src/animations/useDummyAnimations.js` (PixieKat System intro, clip-path reveals, scroll-linked parallax, staggered groups, and count-up metrics)
 - `src/pages/home/sections/Hero.jsx` (clip-path reveal, floating image loops, parallax hook)
 - `src/pages/home/sections/About.jsx` (scroll-driven mask/clip behavior)
 - `src/components/common/AnimatedTitle.jsx` (scroll-triggered word reveal)
@@ -280,7 +281,7 @@ Defined mainly in `index.css` and `src/animations/styles/animations.css`:
 
 ### Accessibility Note
 
-Reduced motion gating exists in `Hero.jsx` (`prefers-reduced-motion`) for parallax behavior. Most other motion remains active by default.
+Reduced motion gating exists in `useDummyAnimations.js` and `Hero.jsx` through `prefers-reduced-motion`; the PixieKat System site keeps content visible and disables decorative movement when requested.
 
 ## Key UI Flows
 
