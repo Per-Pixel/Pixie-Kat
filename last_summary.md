@@ -1,9 +1,9 @@
 # Last Summary
 
-## Session: PixieKat System Motion Pass
+## Session: Production Entry Point Restored
 
-- Added a route-aware GSAP/ScrollTrigger animation hook for the dummy studio site with a staged hero intro, clip-path wipes, staggered section/card reveals, parallax drift, metric count-ups, and tactile motion details.
-- Preserved visible content defaults and disabled JavaScript motion when `prefers-reduced-motion` is enabled; anchor scrolling now follows the same preference.
-- Renamed the dummy brand from Northstar to PixieKat System across the page metadata, navigation/hero/footer copy, legal copy, contact address, and command-center label.
-- Documented the new animation hook in `main/README.md`.
-- Verification: targeted frontend ESLint passes, `npm run build` passes, `git diff --check` passes, and Playwright checks pass for hero/reveal behavior, route transitions, filtering, mobile navigation/overflow, reduced motion, and browser console errors. Full `npm run lint` remains blocked by pre-existing server/config errors outside this frontend change.
+- Moved the PixieKat System dummy website into `main/dummy-site/` with its App, entrypoint, stylesheet, motion hook, metadata, and work images; its demo page remains available at `/dummy-site/index.html` during local Vite development.
+- Restored the actual PixieKat production entrypoint at `main/index.html`, `main/src/main.jsx`, `main/src/App.jsx`, and `main/index.css`, including Supabase configuration gating, real routes, authentication, catalog pages, wallet flows, and the existing production shell.
+- Updated `main/README.md` so the isolated demo is documented separately from the production animation system.
+- Verification: production `npm run build` passed; actual entrypoint browser smoke test showed no dummy root and zero browser errors; isolated dummy entrypoint rendered with its hero and zero browser errors; `npx eslint src/main.jsx src/App.jsx` passed with 0 errors and 4 pre-existing warnings; `git diff --check` passed.
+- `Staurn.json` appeared as an unrelated untracked file and was left untouched and out of the commit.

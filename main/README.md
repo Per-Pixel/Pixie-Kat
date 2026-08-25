@@ -201,6 +201,8 @@ src/
           page.tsx
 ```
 
+The experimental PixieKat System site is preserved under `dummy-site/` and is not imported by the production `src/main.jsx` entrypoint.
+
 ## Design System
 
 ### Palette Tokens (`tailwind.config.js`)
@@ -248,7 +250,7 @@ Tailwind font families in `tailwind.config.js` map to those local font names.
 
 Primary usage:
 
-- `src/animations/useDummyAnimations.js` (PixieKat System intro, clip-path reveals, scroll-linked parallax, staggered groups, and count-up metrics)
+- `dummy-site/useDummyAnimations.js` (isolated PixieKat System demo intro, clip-path reveals, scroll-linked parallax, staggered groups, and count-up metrics)
 - `src/pages/home/sections/Hero.jsx` (clip-path reveal, floating image loops, parallax hook)
 - `src/pages/home/sections/About.jsx` (scroll-driven mask/clip behavior)
 - `src/components/common/AnimatedTitle.jsx` (scroll-triggered word reveal)
@@ -281,7 +283,7 @@ Defined mainly in `index.css` and `src/animations/styles/animations.css`:
 
 ### Accessibility Note
 
-Reduced motion gating exists in `useDummyAnimations.js` and `Hero.jsx` through `prefers-reduced-motion`; the PixieKat System site keeps content visible and disables decorative movement when requested.
+Reduced motion gating exists in `Hero.jsx` and `hooks/useReducedMotion.js` through `prefers-reduced-motion`; the isolated dummy site keeps its own motion fallback without affecting the production app.
 
 ## Key UI Flows
 
