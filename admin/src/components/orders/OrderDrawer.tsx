@@ -22,6 +22,7 @@ interface OrderRow {
   status: OrderStatus;
   payment_method?: string | null;
   payment_id?: string | null;
+  razorpay_order_id?: string | null;
   metadata?: {
     account_fields?: Record<string, string>;
     game_name?: string;
@@ -208,6 +209,9 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
                   )}
                   {order.payment_id && (
                     <DetailRow icon={Hash} label="Payment ID" value={order.payment_id} onCopy={() => copyToClipboard(order.payment_id!, 'Payment ID')} />
+                  )}
+                  {order.razorpay_order_id && (
+                    <DetailRow icon={Hash} label="Razorpay Order" value={order.razorpay_order_id} onCopy={() => copyToClipboard(order.razorpay_order_id!, 'Razorpay Order ID')} />
                   )}
                   <DetailRow icon={Calendar} label="Placed" value={formatDate(order.created_at)} />
                 </div>

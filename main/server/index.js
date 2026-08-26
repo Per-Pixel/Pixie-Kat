@@ -30,11 +30,17 @@
  *   GET    /api/catalog/games                  Active games list
  *   GET    /api/catalog/games/:slug            Active game + fields + products
  *
+ * Payments:
+ *   POST   /api/place-order                    Place wallet or Razorpay order
+ *   POST   /api/razorpay/verify-payment        Verify a Checkout payment signature
+ *   POST   /api/webhooks/razorpay              Receive signed payment webhooks
+ *
  * Proxied RPCs (service_role only — functions no longer callable by anon/authenticated):
- *   POST   /api/place-order                    Place wallet or pending order
  *   POST   /api/admin/analytics                Get admin analytics dashboard data
  */
 
+import process from 'node:process';
+import { Buffer } from 'node:buffer';
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
@@ -43,6 +49,7 @@ import dotenv from 'dotenv';
 import { supabaseAdmin, verifyAdminRequest } from './supabase-admin.js';
 import * as smileOne from './smileone.js';
 import * as smileCoin from './smilecoin.js';
+import * as razorpay from './razorpay.js';
 
 dotenv.config();
 
@@ -50,7 +57,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(helmet());
-app.use(express.json());
+app.use(express.json({
+  verify(req, _res, buffer) {
+    if (req.originalUrl.startsWith('/api/webhooks/razorpay')) req.rawBody = Buffer.from(buffer);
+  },
+}));
 
 const productionOrigins = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
   .split(',')
@@ -1161,6 +1172,90 @@ app.post('/api/batch-validate', batchValidateLimiter, async (req, res) => {
   }
 });
 
+async function getActiveProductForPayment(productId) {
+  const { data: product, error: productError } = await supabaseAdmin
+    .from('products')
+    .select('id, name, currency, status, game_id')
+    .eq('id', productId)
+    .maybeSingle();
+  if (productError) throw productError;
+  if (!product || product.status !== 'active') throw new Error('Product is not available');
+
+  const { data: game, error: gameError } = await supabaseAdmin
+    .from('games')
+    .select('id, status')
+    .eq('id', product.game_id)
+    .maybeSingle();
+  if (gameError) throw gameError;
+  if (!game || game.status !== 'active') throw new Error('Game is not available');
+
+  return product;
+}
+
+function supportedRazorpayCurrency(currency) {
+  const configured = String(process.env.RAZORPAY_SUPPORTED_CURRENCIES || 'INR')
+    .split(',')
+    .map((value) => value.trim().toUpperCase())
+    .filter(Boolean);
+  return configured.includes(currency);
+}
+
+function razorpayPaymentMetadata(payment) {
+  return {
+    id: String(payment.id),
+    status: String(payment.status || 'captured'),
+    method: payment.method || null,
+    verified_at: new Date().toISOString(),
+  };
+}
+
+async function markRazorpayPaymentCaptured(order, payment) {
+  const paymentId = String(payment.id).trim();
+  if (order.status === 'completed' || order.status === 'processing') {
+    if (order.payment_id !== paymentId) throw new Error('Order is already linked to another payment');
+    return { already: true, status: order.status, paymentId };
+  }
+  if (order.status !== 'pending') throw new Error(`Order cannot be paid in status: ${order.status}`);
+
+  const metadata = {
+    ...(order.metadata || {}),
+    razorpay_payment: razorpayPaymentMetadata(payment),
+  };
+  const { data: updated, error: updateError } = await supabaseAdmin
+    .from('orders')
+    .update({
+      status: 'processing',
+      payment_id: paymentId,
+      updated_at: new Date().toISOString(),
+      metadata,
+    })
+    .eq('id', order.id)
+    .eq('status', 'pending')
+    .select('id, status, payment_id')
+    .maybeSingle();
+  if (updateError) throw updateError;
+  if (updated) return { already: false, status: updated.status, paymentId: updated.payment_id };
+
+  const { data: current, error: currentError } = await supabaseAdmin
+    .from('orders')
+    .select('status, payment_id')
+    .eq('id', order.id)
+    .maybeSingle();
+  if (currentError) throw currentError;
+  if (current?.payment_id === paymentId && ['processing', 'completed'].includes(current.status)) {
+    return { already: true, status: current.status, paymentId };
+  }
+  throw new Error('Order is already being processed');
+}
+
+function assertCapturedRazorpayPayment(order, payment) {
+  const expectedAmount = razorpay.toSubunits(order.total_amount, order.currency);
+  if (String(payment.order_id) !== String(order.razorpay_order_id)) throw new Error('Payment does not belong to this order');
+  if (Number(payment.amount) !== expectedAmount) throw new Error('Payment amount does not match the order');
+  if (String(payment.currency).toUpperCase() !== String(order.currency).toUpperCase()) throw new Error('Payment currency does not match the order');
+  if (payment.status !== 'captured') throw new Error('Payment has not been captured yet');
+}
+
 // ── Order placement (proxied RPC) ────────────────────────────────────────────
 // POST /api/place-order
 // Body: { product_id, product_name, total_amount, currency, metadata, payment_method? }
@@ -1185,19 +1280,98 @@ app.post('/api/place-order', placeOrderLimiter, async (req, res) => {
   }
 
   const { product_id, product_name, total_amount, currency, metadata, payment_method } = req.body || {};
+  const paymentMethod = payment_method ? String(payment_method).trim().toLowerCase() : null;
   if (!product_id || !product_name || total_amount == null || !currency) {
     return res.status(400).json({ ok: false, error: 'Missing required fields' });
   }
 
   try {
-    if (payment_method && payment_method !== 'wallet') {
+    if (paymentMethod === 'razorpay') {
+      if (!razorpay.isConfigured()) throw new Error('Razorpay is not configured on the payment server');
+
+      const product = await getActiveProductForPayment(product_id);
+      const productCurrency = String(product.currency || '').trim().toUpperCase();
+      const requestedCurrency = String(currency).trim().toUpperCase();
+      if (!productCurrency || requestedCurrency !== productCurrency) {
+        throw new Error('Product price or currency changed. Refresh and try again.');
+      }
+      if (!supportedRazorpayCurrency(productCurrency)) {
+        throw new Error(`Razorpay is not enabled for ${productCurrency} payments`);
+      }
+
+      const totalAmount = Number(total_amount);
+      const amountInSubunits = razorpay.toSubunits(totalAmount, productCurrency);
+      const orderMetadata = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
+      let orderId = null;
+
+      try {
+        const { data, error: rpcError } = await supabaseAdmin.rpc('place_pending_order', {
+          p_user_id: user.id,
+          p_product_id: product.id,
+          p_product_name: product.name,
+          p_total_amount: totalAmount,
+          p_currency: productCurrency,
+          p_payment_method: 'razorpay',
+          p_metadata: orderMetadata,
+        });
+        if (rpcError) throw rpcError;
+        orderId = data;
+
+        const providerOrder = await razorpay.createOrder({
+          amount: totalAmount,
+          currency: productCurrency,
+          receipt: orderId,
+          notes: { pixiekat_order_id: orderId },
+        });
+        if (!providerOrder?.id || Number(providerOrder.amount) !== amountInSubunits || String(providerOrder.currency).toUpperCase() !== productCurrency) {
+          throw new Error('Razorpay returned an invalid order');
+        }
+
+        const { error: updateError } = await supabaseAdmin
+          .from('orders')
+          .update({
+            razorpay_order_id: providerOrder.id,
+            metadata: { ...orderMetadata, razorpay_order_id: providerOrder.id },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', orderId)
+          .eq('status', 'pending');
+        if (updateError) throw updateError;
+
+        return res.json({
+          ok: true,
+          orderId,
+          razorpay: {
+            keyId: razorpay.getKeyId(),
+            orderId: providerOrder.id,
+            amount: amountInSubunits,
+            currency: productCurrency,
+          },
+        });
+      } catch (err) {
+        if (orderId) {
+          await supabaseAdmin
+            .from('orders')
+            .update({
+              status: 'failed',
+              metadata: { ...orderMetadata, payment_error: 'Razorpay order creation failed', payment_error_at: new Date().toISOString() },
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', orderId)
+            .eq('status', 'pending');
+        }
+        throw err;
+      }
+    }
+
+    if (paymentMethod && paymentMethod !== 'wallet') {
       const { data: orderId, error: rpcError } = await supabaseAdmin.rpc('place_pending_order', {
         p_user_id: user.id,
         p_product_id: product_id,
         p_product_name: product_name,
         p_total_amount: total_amount,
         p_currency: currency,
-        p_payment_method: payment_method,
+        p_payment_method: paymentMethod,
         p_metadata: metadata || {},
       });
       if (rpcError) throw rpcError;
@@ -1217,6 +1391,101 @@ app.post('/api/place-order', placeOrderLimiter, async (req, res) => {
   } catch (err) {
     console.error('[place-order]', err.message);
     return res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+const razorpayVerifyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many payment verification attempts. Please wait a minute.' },
+});
+
+app.post('/api/razorpay/verify-payment', razorpayVerifyLimiter, async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ ok: false, error: 'Authorization required' });
+  }
+  const token = authHeader.slice(7);
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) {
+    return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
+  }
+
+  const { orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
+  if (!orderId || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    return res.status(400).json({ ok: false, error: 'Payment verification fields are required' });
+  }
+  if (!razorpay.isConfigured()) {
+    return res.status(503).json({ ok: false, error: 'Razorpay is not configured on the payment server' });
+  }
+
+  try {
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from('orders')
+      .select('id, user_id, total_amount, currency, status, payment_method, payment_id, razorpay_order_id, metadata')
+      .eq('id', orderId)
+      .maybeSingle();
+    if (orderError || !order) throw new Error('Order not found');
+    if (order.user_id !== user.id) return res.status(403).json({ ok: false, error: 'Access denied' });
+    if (order.payment_method !== 'razorpay') throw new Error('Order is not a Razorpay order');
+    if (String(order.razorpay_order_id) !== String(razorpay_order_id)) throw new Error('Payment does not belong to this order');
+    if (!razorpay.verifyPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature)) {
+      return res.status(400).json({ ok: false, error: 'Payment signature verification failed' });
+    }
+
+    if (['processing', 'completed'].includes(order.status) && order.payment_id === razorpay_payment_id) {
+      return res.json({ ok: true, orderId: order.id, status: order.status, paymentId: order.payment_id, already: true });
+    }
+
+    const payment = await razorpay.fetchPayment(razorpay_payment_id);
+    if (String(payment.id) !== String(razorpay_payment_id)) throw new Error('Razorpay returned an unexpected payment');
+    assertCapturedRazorpayPayment(order, payment);
+
+    const confirmation = await markRazorpayPaymentCaptured(order, payment);
+    return res.json({
+      ok: true,
+      orderId: order.id,
+      status: confirmation.status,
+      paymentId: confirmation.paymentId,
+      already: confirmation.already,
+    });
+  } catch (err) {
+    console.error('[razorpay/verify-payment]', err.message);
+    return res.status(400).json({ ok: false, error: 'Payment verification failed. Please contact support if your account was debited.' });
+  }
+});
+
+app.post('/api/webhooks/razorpay', async (req, res) => {
+  const signature = req.headers['x-razorpay-signature'];
+  if (!razorpay.verifyWebhookSignature(req.rawBody, signature)) {
+    return res.status(400).json({ ok: false, error: 'Invalid webhook signature' });
+  }
+
+  const event = String(req.body?.event || '');
+  if (event !== 'payment.captured') return res.json({ ok: true, ignored: true });
+
+  const payment = req.body?.payload?.payment?.entity;
+  const providerOrderId = payment?.order_id;
+  if (!payment?.id || !providerOrderId) return res.status(400).json({ ok: false, error: 'Invalid payment webhook payload' });
+
+  try {
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from('orders')
+      .select('id, user_id, total_amount, currency, status, payment_method, payment_id, razorpay_order_id, metadata')
+      .eq('razorpay_order_id', providerOrderId)
+      .maybeSingle();
+    if (orderError) throw orderError;
+    if (!order) return res.json({ ok: true, ignored: true });
+    if (order.payment_method !== 'razorpay') return res.json({ ok: true, ignored: true });
+
+    assertCapturedRazorpayPayment(order, payment);
+    const confirmation = await markRazorpayPaymentCaptured(order, payment);
+    return res.json({ ok: true, orderId: order.id, status: confirmation.status, already: confirmation.already });
+  } catch (err) {
+    console.error('[webhooks/razorpay]', err.message);
+    return res.status(500).json({ ok: false, error: 'Webhook processing failed' });
   }
 });
 
@@ -1262,11 +1531,15 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
   // Hoisted so the catch block can detect whether the provider already delivered
   let fulfillResult = null;
   let orderMetadata = null;
+  let orderPaymentMethod = null;
+  let orderPaymentId = null;
+  let orderTotalAmount = null;
+  let orderCurrency = null;
 
   try {
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
-      .select('id, user_id, product_id, total_amount, currency, status, metadata')
+      .select('id, user_id, product_id, total_amount, currency, status, payment_method, payment_id, metadata')
       .eq('id', orderId)
       .single();
 
@@ -1275,7 +1548,14 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
     if (order.status !== 'processing') {
       return res.json({ ok: true, already: true, status: order.status });
     }
+    if (order.payment_method === 'razorpay' && !order.payment_id) {
+      return res.status(409).json({ ok: false, error: 'Payment has not been confirmed yet' });
+    }
     orderMetadata = order.metadata;
+    orderPaymentMethod = order.payment_method;
+    orderPaymentId = order.payment_id;
+    orderTotalAmount = order.total_amount;
+    orderCurrency = order.currency;
 
     const accountFields = order.metadata?.account_fields ?? {};
     const userId = accountFields.user_id || accountFields.userid || accountFields.uid || accountFields.player_id || accountFields.account_id;
@@ -1534,6 +1814,65 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
         console.error('[fulfill-order] Failed to mark delivered order as completed:', updateErr.message);
       }
       return res.json({ ok: true, orderId, result: fulfillResult, warning: 'Delivered but post-processing had an error: ' + err.message });
+    }
+
+    if (orderPaymentMethod === 'razorpay') {
+      let orderStatus = 'on_hold';
+      let refunded = false;
+      const errorMeta = { fulfill_error: err.message, failed_at: new Date().toISOString() };
+
+      if (orderPaymentId) {
+        try {
+          const refund = await razorpay.refundPayment(orderPaymentId, orderTotalAmount, orderCurrency);
+          orderStatus = 'refunded';
+          refunded = true;
+          errorMeta.razorpay_refund = {
+            id: refund?.id || null,
+            status: refund?.status || 'processed',
+            refunded_at: new Date().toISOString(),
+          };
+        } catch (refundErr) {
+          errorMeta.razorpay_refund = { status: 'failed', error: refundErr.message };
+          console.error(`[fulfill-order] Razorpay refund failed for order ${orderId}:`, refundErr.message);
+        }
+      }
+
+      const { error: updateError } = await supabaseAdmin
+        .from('orders')
+        .update({
+          status: orderStatus,
+          updated_at: new Date().toISOString(),
+          metadata: { ...(orderMetadata ?? {}), ...errorMeta },
+        })
+        .eq('id', orderId)
+        .eq('status', 'processing');
+      if (updateError) console.error('[fulfill-order] Failed to update Razorpay order status:', updateError.message);
+
+      return res.status(500).json({
+        ok: false,
+        orderId,
+        refunded,
+        paymentReceived: true,
+        provisioned: false,
+        error: refunded
+          ? 'Delivery failed. Your Razorpay payment was refunded.'
+          : 'Payment received, but delivery needs manual review. Please contact support.',
+      });
+    }
+
+    if (orderPaymentMethod && orderPaymentMethod !== 'wallet') {
+      const errorMeta = { fulfill_error: err.message, failed_at: new Date().toISOString() };
+      const { error: updateError } = await supabaseAdmin
+        .from('orders')
+        .update({
+          status: 'on_hold',
+          updated_at: new Date().toISOString(),
+          metadata: { ...(orderMetadata ?? {}), ...errorMeta },
+        })
+        .eq('id', orderId)
+        .eq('status', 'processing');
+      if (updateError) console.error('[fulfill-order] Failed to update payment order status:', updateError.message);
+      return res.status(500).json({ ok: false, orderId, paymentReceived: true, provisioned: false, error: 'Payment received, but delivery needs manual review. Please contact support.' });
     }
 
     // Provider did NOT deliver — safe to refund.

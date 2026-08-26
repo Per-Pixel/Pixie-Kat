@@ -19,7 +19,9 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { sanitizeRichText } from "../../utils/sanitizeRichText";
 import { buildWhatsAppUrl, fetchContactSettings } from "../../lib/storeContent";
+import { loadRazorpayCheckout } from "../../lib/razorpay";
 
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
 const defaultBanner = "/img/hero/game-mlbb-card.webp";
 
 const COUNTRY_DIAL_CODES = [
@@ -280,7 +282,6 @@ const GamePage = () => {
   const [dialCountry, setDialCountry] = useState("IN");
   const [supportWhatsAppUrl, setSupportWhatsAppUrl] = useState("/support/contact-us");
   const [checkoutError, setCheckoutError] = useState("");
-  const [checkoutSuccess, setCheckoutSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [showCartReview, setShowCartReview] = useState(false);
@@ -372,7 +373,7 @@ const GamePage = () => {
           localStorage.removeItem(`pixiekat_fields_${slug}`);
         }
       }
-    } catch {}
+    } catch (error) { void error; }
     try {
       const raw = localStorage.getItem("pixiekat_contact");
       if (raw) {
@@ -384,7 +385,7 @@ const GamePage = () => {
           localStorage.removeItem("pixiekat_contact");
         }
       }
-    } catch {}
+    } catch (error) { void error; }
   }, [slug]);
 
   // Auto-fill contact from profile only when fields are still empty
@@ -429,8 +430,7 @@ const GamePage = () => {
     verifyTimer.current = setTimeout(async () => {
       setVerifying(true);
       try {
-        const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/api\/?$/, "");
-        const res = await fetch(`${apiBaseUrl}/api/verify-player`, {
+        const res = await fetch(`${API_BASE}/verify-player`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -518,7 +518,6 @@ const GamePage = () => {
 
   const handlePay = async () => {
     setCheckoutError("");
-    setCheckoutSuccess("");
 
     if (!selectedPackage) {
       setCheckoutError("Please select a package before checkout.");
@@ -546,6 +545,9 @@ const GamePage = () => {
       return;
     }
 
+    const dialCode = COUNTRY_DIAL_CODES.find((country) => country.code === dialCountry)?.dial ?? "+91";
+    const orderContact = `${dialCode} ${contact.whatsapp.trim()}`.slice(0, 32);
+    const prefillContact = orderContact.replace(/[^\d+]/g, "");
     const orderMeta = {
       game_id: game.id,
       game_slug: game.slug,
@@ -564,82 +566,168 @@ const GamePage = () => {
       },
       contact: {
         email: contact.email.trim().slice(0, 254),
-        whatsapp: `${COUNTRY_DIAL_CODES.find((c) => c.code === dialCountry)?.dial ?? "+91"} ${contact.whatsapp.trim()}`.slice(0, 32),
+        whatsapp: orderContact,
       },
     };
 
     setIsSubmitting(true);
+    let paymentModalOpen = false;
 
-    if (selectedPayment.id === "wallet") {
+    try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch("/api/place-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
-        body: JSON.stringify({
-          product_id: selectedPackage.id,
-          product_name: selectedPackage.name,
-          total_amount: totalAmount,
-          currency: selectedPackage.currency,
-          metadata: orderMeta,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        setIsSubmitting(false);
-        setCheckoutError(data.error || "Could not place this order. Please try again.");
-        return;
-      }
-      const orderId = data.orderId;
-      let fulfilled = false;
-      let provisioned = true;
-      let refunded = false;
-      let fulfillError = null;
-      let mismatch = null;
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const res = await fetch("/api/fulfill-order", {
+      if (!session?.access_token) throw new Error("Your session expired. Please log in again.");
+      const authHeaders = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      };
+      const postApi = async (path, body) => {
+        const response = await fetch(`${API_BASE}${path}`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
-          body: JSON.stringify({ orderId }),
+          headers: authHeaders,
+          body: JSON.stringify(body),
         });
-        const data = await res.json();
-        fulfilled = Boolean(data.ok || data.already);
-        provisioned = data.provisioned !== false;
-        refunded = res.status === 500; // provider rejected — wallet was refunded
-        mismatch = data.mismatch || null;
-        if (!fulfilled) fulfillError = data.error || null;
-      } catch {
-        // Server unreachable — order placed, delivery is manual
-        provisioned = false;
-      }
-      setIsSubmitting(false);
-      setOrderComplete({ orderId, method: "wallet", amount: paymentTotalLabel, package: selectedPackage.name, fulfilled, provisioned, refunded, mismatch, fulfillError });
-      return;
-    }
+        const data = await response.json().catch(() => ({}));
+        return { response, data };
+      };
 
-    // Non-wallet: create pending order via server-proxied RPC
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch("/api/place-order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
-      body: JSON.stringify({
+      const placeOrder = async (paymentMethod) => postApi("/place-order", {
         product_id: selectedPackage.id,
         product_name: selectedPackage.name,
         total_amount: totalAmount,
         currency: selectedPackage.currency,
-        payment_method: selectedPayment.id,
+        ...(paymentMethod ? { payment_method: paymentMethod } : {}),
         metadata: orderMeta,
-      }),
-    });
-    const data = await res.json();
-    setIsSubmitting(false);
+      });
 
-    if (!res.ok || !data.ok) {
-      setCheckoutError(data.error || "Could not place this order. Please try again.");
-      return;
+      if (selectedPayment.id === "wallet") {
+        const { response, data } = await placeOrder(null);
+        if (!response.ok || !data.ok) throw new Error(data.error || "Could not place this order. Please try again.");
+
+        const orderId = data.orderId;
+        let fulfilled = false;
+        let provisioned = true;
+        let refunded = false;
+        let fulfillError = null;
+        let mismatch = null;
+        try {
+          const { response: fulfillResponse, data: fulfillData } = await postApi("/fulfill-order", { orderId });
+          fulfilled = Boolean(fulfillData.ok || fulfillData.already);
+          provisioned = fulfillData.provisioned !== false;
+          refunded = fulfillResponse.status === 500;
+          mismatch = fulfillData.mismatch || null;
+          if (!fulfilled) fulfillError = fulfillData.error || null;
+        } catch {
+          provisioned = false;
+        }
+        setOrderComplete({ orderId, method: "wallet", amount: paymentTotalLabel, package: selectedPackage.name, fulfilled, provisioned, refunded, mismatch, fulfillError });
+        return;
+      }
+
+      if (selectedPayment.id === "razorpay") {
+        const Razorpay = await loadRazorpayCheckout();
+        const { response, data } = await placeOrder("razorpay");
+        if (!response.ok || !data.ok) throw new Error(data.error || "Could not start Razorpay checkout. Please try again.");
+        if (!data.razorpay?.keyId || !data.razorpay?.orderId) throw new Error("Razorpay checkout details are missing. Please try again.");
+
+        const orderId = data.orderId;
+        let paymentHandled = false;
+        const finishPayment = async (paymentResponse) => {
+          paymentHandled = true;
+          setCheckoutError("");
+          try {
+            const { response: verifyResponse, data: verifyData } = await postApi("/razorpay/verify-payment", {
+              orderId,
+              razorpay_order_id: paymentResponse.razorpay_order_id,
+              razorpay_payment_id: paymentResponse.razorpay_payment_id,
+              razorpay_signature: paymentResponse.razorpay_signature,
+            });
+            if (!verifyResponse.ok || !verifyData.ok) {
+              setOrderComplete({
+                orderId,
+                method: "razorpay",
+                amount: paymentTotalLabel,
+                package: selectedPackage.name,
+                paymentReceived: true,
+                paymentPending: true,
+                fulfillError: "Payment was received, but confirmation is still processing. Please contact support with your Order ID.",
+              });
+              return;
+            }
+
+            const { response: fulfillResponse, data: fulfillData } = await postApi("/fulfill-order", { orderId });
+            const fulfilled = Boolean(fulfillData.ok || fulfillData.already);
+            const refunded = fulfillResponse.status === 500 && Boolean(fulfillData.refunded);
+            setOrderComplete({
+              orderId,
+              method: "razorpay",
+              amount: paymentTotalLabel,
+              package: selectedPackage.name,
+              fulfilled,
+              provisioned: fulfillData.provisioned !== false,
+              refunded,
+              paymentReceived: true,
+              paymentPending: !fulfilled && !refunded,
+              mismatch: fulfillData.mismatch || null,
+              fulfillError: fulfilled || refunded ? null : fulfillData.error || null,
+            });
+          } catch {
+            setOrderComplete({
+              orderId,
+              method: "razorpay",
+              amount: paymentTotalLabel,
+              package: selectedPackage.name,
+              paymentReceived: true,
+              paymentPending: true,
+              fulfillError: "Payment was received, but confirmation is still processing. Please contact support with your Order ID.",
+            });
+          } finally {
+            setIsSubmitting(false);
+          }
+        };
+
+        const checkout = new Razorpay({
+          key: data.razorpay.keyId,
+          amount: data.razorpay.amount,
+          currency: data.razorpay.currency,
+          name: "PixieKat",
+          description: `PixieKat ${game.name} - ${selectedPackage.name}`,
+          order_id: data.razorpay.orderId,
+          prefill: {
+            name: profile?.name || user.user_metadata?.name || "",
+            email: contact.email.trim(),
+            contact: prefillContact,
+          },
+          notes: { pixiekat_order_id: orderId },
+          theme: { color: "#6d4cff" },
+          modal: {
+            ondismiss: () => {
+              if (!paymentHandled) {
+                setIsSubmitting(false);
+                setCheckoutError("Payment window closed. Your order was not charged.");
+              }
+            },
+          },
+          handler: finishPayment,
+        });
+        checkout.on("payment.failed", () => {
+          paymentHandled = true;
+          setIsSubmitting(false);
+          setCheckoutError("Payment failed. Please try again or choose another payment method.");
+        });
+        setShowCartReview(false);
+        checkout.open();
+        paymentModalOpen = true;
+        return;
+      }
+
+      const { response, data } = await placeOrder(selectedPayment.id);
+      if (!response.ok || !data.ok) throw new Error(data.error || "Could not place this order. Please try again.");
+      setOrderComplete({ orderId: data.orderId, method: selectedPayment.id, amount: paymentTotalLabel, package: selectedPackage.name });
+    } catch (error) {
+      setCheckoutError(error.message || "Could not place this order. Please try again.");
+    } finally {
+      if (selectedPayment.id !== "razorpay" || !paymentModalOpen) setIsSubmitting(false);
     }
-    const orderId = data.orderId;
-    setOrderComplete({ orderId, method: selectedPayment.id, amount: paymentTotalLabel, package: selectedPackage.name });
   };
 
   if (orderComplete) {
@@ -657,23 +745,27 @@ const GamePage = () => {
                 : "Order Placed!"}
           </h2>
           <p className="mt-2 text-sm text-[#5f6977]">
-            {orderComplete.method === "wallet"
-              ? orderComplete.refunded
+            {orderComplete.refunded
+              ? orderComplete.method === "wallet"
                 ? "The top-up could not be delivered. Your wallet has been refunded."
-                : orderComplete.mismatch?.refund_status === "completed"
-                  ? "Top-up delivered with a partial refund — the provider sent a different package and we credited your wallet."
-                  : orderComplete.mismatch?.refund_status === "failed"
-                    ? `Top-up delivered, but the refund of ${formatPrice(orderComplete.mismatch.refund_amount, orderComplete.mismatch.refund_currency || "PKS")} could not be credited. Contact support.`
-                    : orderComplete.fulfilled
+                : "The top-up could not be delivered. Your Razorpay payment has been refunded."
+              : orderComplete.mismatch
+                ? "Top-up delivered with a partial refund — the provider sent a different package and we credited your wallet."
+                : orderComplete.paymentPending
+                  ? "Payment received. Your order is still being confirmed — please keep your Order ID for support."
+                  : orderComplete.method === "wallet"
+                    ? orderComplete.fulfilled
                       ? "Payment confirmed and your top-up has been delivered!"
                       : orderComplete.provisioned
                         ? "Top-up is being processed — please allow a few minutes."
                         : "Payment confirmed. Our team will process your order shortly."
-              : "Your order has been received. Our team will process it after payment confirmation."}
+                    : orderComplete.fulfilled
+                      ? "Payment confirmed and your top-up has been delivered!"
+                      : "Payment confirmed. Our team will process your order shortly."}
           </p>
-          {orderComplete.refunded && orderComplete.fulfillError && (
-            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 border border-amber-200 text-left">
-              <span className="font-semibold">Reason:</span> {orderComplete.fulfillError}
+          {orderComplete.fulfillError && (
+            <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs text-amber-700">
+              <span className="font-semibold">Details:</span> {orderComplete.fulfillError}
             </p>
           )}
           <div className="mt-6 rounded-xl bg-[#f5f3ff] p-4 text-left space-y-2 text-sm">
@@ -702,9 +794,9 @@ const GamePage = () => {
               </div>
             )}
           </div>
-          {orderComplete.method !== "wallet" && (
+          {orderComplete.paymentPending && (
             <p className="mt-4 text-xs text-[#9aa2ad]">
-              Send payment via Razorpay and share the screenshot with support to complete processing.
+              If your order does not update shortly, contact support with the full Order ID above.
             </p>
           )}
           <button
