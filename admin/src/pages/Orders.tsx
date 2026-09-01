@@ -23,6 +23,7 @@ interface OrderRow {
   status: OrderStatus;
   payment_method?: string | null;
   payment_id?: string | null;
+  razorpay_order_id?: string | null;
   metadata?: {
     account_fields?: Record<string, string>;
     game_name?: string;
@@ -61,11 +62,11 @@ function formatDate(ts: string) {
 
 function downloadCsv(orders: OrderRow[]) {
   const rows = [
-    ['Order ID', 'Customer', 'Email', 'Product', 'Quantity', 'Amount', 'Currency', 'Status', 'Payment Method', 'Date'],
+    ['Order ID', 'Customer', 'Email', 'Product', 'Quantity', 'Amount', 'Currency', 'Status', 'Payment Method', 'Payment ID', 'Razorpay Order ID', 'Date'],
     ...orders.map((o) => [
       o.id, o.profiles?.name ?? 'Unknown', o.profiles?.email ?? '',
       o.product_name, String(o.quantity), String(o.total_amount),
-      o.currency, o.status, o.payment_method ?? '', o.created_at,
+      o.currency, o.status, o.payment_method ?? '', o.payment_id ?? '', o.razorpay_order_id ?? '', o.created_at,
     ]),
   ];
   const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -96,7 +97,7 @@ const Orders: React.FC = () => {
     setError(null);
     const { data, error: ordersError } = await supabase
       .from('orders')
-      .select(`id, user_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, metadata, created_at, updated_at, profiles:user_id (id, name, email)`)
+      .select(`id, user_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, razorpay_order_id, metadata, created_at, updated_at, profiles:user_id (id, name, email)`)
       .order('created_at', { ascending: false })
       .limit(500);
     if (ordersError) { setError(ordersError.message); setOrders([]); }
@@ -117,7 +118,7 @@ const Orders: React.FC = () => {
     let list = orders.filter((o) => {
       if (status !== 'all' && o.status !== status) return false;
       if (!term) return true;
-      return [o.id, o.product_name, o.payment_id ?? '', o.profiles?.name ?? '', o.profiles?.email ?? '']
+      return [o.id, o.product_name, o.payment_id ?? '', o.razorpay_order_id ?? '', o.profiles?.name ?? '', o.profiles?.email ?? '']
         .some((v) => v.toLowerCase().includes(term));
     });
     list = [...list].sort((a, b) => {

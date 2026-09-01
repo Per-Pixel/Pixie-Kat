@@ -852,18 +852,21 @@ const GameEditor: React.FC = () => {
                             )}
                           </div>
                           <div>
-                            <label className="label mb-1.5 block text-xs">Expected Provider Price <span className="text-gray-400 font-normal">(BRL / local currency)</span></label>
+                            <label className="label mb-1.5 block text-xs">Expected Provider Price <span className="text-gray-400 font-normal">(Smile Points)</span></label>
                             <input
                               type="number"
                               step="0.01"
                               min="0"
                               className="input font-mono text-sm"
-                              placeholder="e.g., 4.00"
+                              placeholder="e.g., 39"
                               value={p.expected_provider_price}
                               onChange={(e) => updateProduct(p._key, { expected_provider_price: e.target.value })}
                             />
                             <p className="text-xs text-gray-500 mt-1">
-                              Used to detect provider substitution and auto-refund the difference.
+                              Smile Points the provider charges for this SKU — the <code>price</code> in a
+                              createorder response (find it via a test order or the Smile One dashboard; the
+                              productlist shows BRL, not Smile Points). Compared against the createorder charge
+                              to detect substitution and auto-refund. Leave blank to disable monitoring.
                             </p>
                           </div>
                         </div>

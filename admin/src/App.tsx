@@ -22,6 +22,8 @@ import SalesOverview from './pages/revenue/SalesOverview';
 import Referral from './pages/revenue/Referral';
 import Compose from './pages/messages/Compose';
 import Clients from './pages/auth/Clients';
+import Trash from './pages/Trash';
+import MediaLibrary from './pages/MediaLibrary';
 import AddProduct from './pages/AddProduct';
 import ManageUsers from './pages/ManageUsers';
 import UserDetail from './pages/users/UserDetail';
@@ -38,8 +40,10 @@ import ContactEditor from './pages/content/ContactEditor';
 import PricingCopyEditor from './pages/content/PricingCopyEditor';
 import ProductsPageEditor from './pages/content/ProductsPageEditor';
 import PromoEditor from './pages/content/PromoEditor';
+import JjkCheaperEditor from './pages/content/events/JjkCheaperEditor';
+import FooterEditor from './pages/content/FooterEditor';
+import LegalPagesEditor from './pages/content/LegalPagesEditor';
 import StoragePage from './pages/storage/StoragePage';
-import PinterestGrepperPage from './pages/storage/PinterestGrepperPage';
 import PermissionsPage from './pages/PermissionsPage';
 import DocumentationPage from './pages/DocumentationPage';
 import TasksPage from './pages/TasksPage';
@@ -80,7 +84,6 @@ const AppRoutes: React.FC = () => {
         <Route path="products/legacy" element={<Products />} />
         <Route path="products/games" element={<GamesList title="All Games" />} />
         <Route path="storage" element={<StoragePage />} />
-        <Route path="storage/pinterest" element={<PinterestGrepperPage />} />
         <Route path="content/trending" element={<Navigate to="/pages/homepage/trending-games" replace />} />
         <Route path="content/trending/new" element={<PromoEditor section="trending" backPath="/pages/homepage/trending-games" sectionLabel="Trending Games" />} />
         <Route path="content/trending/:id" element={<PromoEditor section="trending" backPath="/pages/homepage/trending-games" sectionLabel="Trending Games" />} />
@@ -140,10 +143,16 @@ const AppRoutes: React.FC = () => {
         <Route path="pages/homepage/exclusive-offers/new" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="pages/homepage/exclusive-offers/:id" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="pages/products" element={<ProductsPageEditor />} />
+        <Route path="pages/events/jjk-cheaper" element={<JjkCheaperEditor />} />
         <Route path="pages/how-it-works" element={<HowItWorksEditor />} />
         <Route path="pages/faq" element={<FaqEditor />} />
         <Route path="pages/contact" element={<ContactEditor />} />
         <Route path="pages/pricing" element={<PricingCopyEditor />} />
+        <Route path="pages/footer" element={<FooterEditor />} />
+        <Route path="pages/legal" element={<LegalPagesEditor />} />
+        {/* CMS Routes */}
+        <Route path="trash" element={<Trash />} />
+        <Route path="media" element={<Navigate to="/storage" replace />} />
         {/* Quick Action Routes */}
         <Route path="quick/add-product" element={<AddProduct />} />
         <Route path="quick/manage-users" element={<ManageUsers />} />

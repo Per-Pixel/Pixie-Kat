@@ -5,7 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, RefreshCw, Terminal, CheckCircle2, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, RefreshCw, Terminal, CheckCircle2, XCircle, Trash2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
   smilecoin, extractSmSkus, SM_CATALOG, SmSku, SmMismatchOrder,
@@ -130,6 +130,24 @@ const SmileCoinApiConsolePage: React.FC = () => {
       const msg = e instanceof Error ? e.message : String(e);
       setResp({ error: msg });
       toast.error(`mismatches failed: ${msg}`);
+    } finally {
+      setMismatchLoading(false);
+    }
+  }
+
+  async function cleanupStaleMismatches() {
+    setMismatchLoading(true);
+    try {
+      const r = await smilecoin.cleanupMismatches();
+      setResp(r);
+      toast.success(`Cleaned ${r.cleaned} stale mismatch records (scanned ${r.total_scanned})`);
+      setLog(l => [{ id: Date.now(), endpoint: 'mismatches/cleanup', ok: true, ms: 0, at: new Date().toLocaleTimeString() }, ...l].slice(0, 15));
+      await loadMismatches();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setResp({ error: msg });
+      toast.error(`Cleanup failed: ${msg}`);
+      setLog(l => [{ id: Date.now(), endpoint: 'mismatches/cleanup', ok: false, ms: 0, at: new Date().toLocaleTimeString() }, ...l].slice(0, 15));
     } finally {
       setMismatchLoading(false);
     }
@@ -361,7 +379,18 @@ const SmileCoinApiConsolePage: React.FC = () => {
             {tab === 'mismatches' && (
               <>
                 <PanelHeader title="GET /api/smilecoin/mismatches" desc="Orders where the provider returned a different price than expected — possible product substitution." />
-                <RunButton busy={mismatchLoading} label="Load mismatches" onClick={loadMismatches} />
+                <div className="flex items-center gap-2">
+                  <RunButton busy={mismatchLoading} label="Load mismatches" onClick={loadMismatches} />
+                  <button
+                    type="button"
+                    disabled={mismatchLoading}
+                    onClick={cleanupStaleMismatches}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-lg disabled:opacity-50 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Clean stale (refund = 0)
+                  </button>
+                </div>
 
                 {mismatchOrders.length > 0 && (
                   <div className="space-y-2 mt-2">
