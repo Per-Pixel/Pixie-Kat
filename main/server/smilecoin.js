@@ -19,7 +19,8 @@ import dotenv from 'dotenv';
 dotenv.config(); // safe to call multiple times; won't override already-set vars
 
 export const ALLOW_TEST_ORDER =
-  String(process.env.SC_ALLOW_TEST_ORDER || 'false').toLowerCase() === 'true';
+  process.env.NODE_ENV !== 'production'
+  && String(process.env.SC_ALLOW_TEST_ORDER || 'false').toLowerCase() === 'true';
 
 // ── Signing ──────────────────────────────────────────────────────────────────
 

@@ -37,6 +37,15 @@ export const AuthProvider = ({ children }) => {
     }
 
     const p = await fetchProfile(newSession.user.id);
+    if (!p || p.status !== 'active') {
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      setIsLoading(false);
+      await supabase.auth.signOut();
+      return;
+    }
+
     setUser(newSession.user);
     setProfile(p);
     setSession(newSession);

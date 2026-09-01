@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, Save, RefreshCw, ShoppingBag, Wallet, Clock, AlertTriangle, Trash2, X } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
-import { useAuth } from '../../../contexts/AuthContext';
 import { api } from '../../../services/api';
 import { toast } from 'react-hot-toast';
 import type { UserDetailData } from '../useUserDetail';
@@ -75,7 +74,6 @@ function getAvatarErrorMessage(err: unknown) {
 
 export default function OverviewTab({ data, refetch }: Props) {
   const { profile } = data;
-  const { user: adminUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState({
@@ -262,17 +260,6 @@ export default function OverviewTab({ data, refetch }: Props) {
       toast.error(error.message || 'Failed to save profile');
     } else {
       toast.success('Profile saved');
-      if (form.role !== profile.role) {
-        supabase.rpc('log_activity', {
-          p_user_id: profile.id,
-          p_action: 'profile_update',
-          p_description: `Role changed from ${profile.role} to ${form.role}`,
-          p_actor_id: adminUser?.id ?? null,
-          p_metadata: { old_role: profile.role, new_role: form.role },
-        }).then(({ error: logErr }) => {
-          if (logErr) console.warn('[log_activity] role change log failed:', logErr.message);
-        });
-      }
       refetch();
     }
     setSaving(false);

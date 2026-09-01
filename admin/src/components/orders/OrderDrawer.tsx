@@ -6,6 +6,7 @@ import {
   PauseCircle, RotateCcw, Hash, Copy, ExternalLink, Coins,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import clsx from 'clsx';
 import api from '../../services/api';
@@ -64,8 +65,8 @@ const statusConfig: Record<OrderStatus, { label: string; icon: React.ComponentTy
 
 const statusTransitions: Record<OrderStatus, OrderStatus[]> = {
   pending: ['processing', 'cancelled', 'on_hold'],
-  processing: ['completed', 'failed', 'on_hold', 'cancelled'],
-  completed: ['refunded'],
+  processing: ['failed', 'on_hold', 'cancelled'],
+  completed: [],
   failed: ['pending'],
   refunded: [],
   cancelled: ['pending'],
@@ -80,6 +81,7 @@ function formatDate(ts: string) {
 }
 
 const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onStatusChange }) => {
+  const { user } = useAuth();
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [confirmStatus, setConfirmStatus] = useState<OrderStatus | null>(null);
   const [crediting, setCrediting] = useState(false);
@@ -307,7 +309,7 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
               )}
 
               {/* Status Change */}
-              {allowedTransitions.length > 0 && (
+              {user?.role === 'admin' && allowedTransitions.length > 0 && (
                 <section>
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Change Status</h3>
                   <div className="grid grid-cols-2 gap-2">

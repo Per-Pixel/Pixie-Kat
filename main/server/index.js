@@ -46,7 +46,8 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { supabaseAdmin, verifyAdminRequest } from './supabase-admin.js';
+import { supabaseAdmin, verifyAdminRequest, verifyUserRequest } from './supabase-admin.js';
+import { validateEmail } from './utils/validation.js';
 import * as smileOne from './smileone.js';
 import * as smileCoin from './smilecoin.js';
 import * as razorpay from './razorpay.js';
@@ -58,6 +59,7 @@ const PORT = process.env.PORT || 3001;
 
 app.use(helmet());
 app.use(express.json({
+  limit: '64kb',
   verify(req, _res, buffer) {
     if (req.originalUrl.startsWith('/api/webhooks/razorpay')) req.rawBody = Buffer.from(buffer);
   },
@@ -116,23 +118,29 @@ const fulfillLimiter = rateLimit({
   message: { ok: false, error: 'Too many requests. Please wait a minute.' },
 });
 
-// Auth middleware — verifies Supabase JWT and checks admin/support role
-const requireAdmin = async (req, res, next) => {
-  const { error, profile } = await verifyAdminRequest(req.headers.authorization);
+// Auth middleware — verifies Supabase JWT and checks active roles.
+const requireUser = async (req, res, next) => {
+  const { error, user, profile } = await verifyUserRequest(req.headers.authorization);
   if (error) return res.status(401).json({ success: false, message: error });
-  req.adminProfile = profile;
+  req.user = user;
+  req.profile = profile;
   next();
 };
 
-const requireSuperAdmin = async (req, res, next) => {
+const requireAdmin = async (req, res, next) => {
   const { error, profile } = await verifyAdminRequest(req.headers.authorization);
-  if (error) return res.status(401).json({ success: false, message: error });
+  if (error) {
+    const status = error.startsWith('Access denied') ? 403 : 401;
+    return res.status(status).json({ success: false, message: error });
+  }
   if (profile.role !== 'admin') {
     return res.status(403).json({ success: false, message: 'Requires admin role' });
   }
   req.adminProfile = profile;
   next();
 };
+
+const requireSuperAdmin = requireAdmin;
 
 // Fire-and-forget audit log — failures must never abort a successful primary operation
 function fireLog(params) {
@@ -190,6 +198,34 @@ function findPlayerName(payload) {
   return null;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const CHECKOUT_PAYMENT_METHODS = new Set(['binance', 'mobikwik', 'paytm', 'upi']);
+const MAX_CHECKOUT_FIELD_LENGTH = 256;
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function getClientIp(req) {
+  return (req.socket.remoteAddress || '').replace(/^::ffff:/, '').slice(0, 45) || null;
+}
+
+function getDeviceType(userAgent) {
+  const value = userAgent.toLowerCase();
+  if (/ipad|tablet|kindle|playbook|silk/.test(value)) return 'tablet';
+  if (/mobi|iphone|android|phone/.test(value)) return 'mobile';
+  return 'desktop';
+}
+
+function getBrowser(userAgent) {
+  if (/edg\//i.test(userAgent)) return 'Microsoft Edge';
+  if (/opr\//i.test(userAgent)) return 'Opera';
+  if (/chrome|crios/i.test(userAgent) && !/edg\//i.test(userAgent)) return 'Chrome';
+  if (/firefox|fxios/i.test(userAgent)) return 'Firefox';
+  if (/safari/i.test(userAgent) && !/chrome|crios|android/i.test(userAgent)) return 'Safari';
+  return 'Unknown browser';
+}
+
 // Health check
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'pixiekat-admin-proxy', timestamp: new Date().toISOString() });
@@ -239,6 +275,189 @@ app.get('/api/catalog/games/:slug', async (req, res) => {
   } catch (err) {
     console.error('[catalog/games/:slug]', err);
     res.status(500).json({ ok: false, error: err.message || 'Failed to load game' });
+  }
+});
+
+app.post('/api/auth/login-session', requireUser, async (req, res) => {
+  try {
+    const userAgent = String(req.get('user-agent') || '').slice(0, 500);
+    const now = new Date().toISOString();
+    const { error } = await supabaseAdmin.from('user_login_history').insert({
+      user_id: req.user.id,
+      ip_address: getClientIp(req),
+      user_agent: userAgent || null,
+      device_type: getDeviceType(userAgent),
+      browser: getBrowser(userAgent),
+      success: true,
+      used_2fa: false,
+      created_at: now,
+    });
+    if (error) throw error;
+
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .update({ last_login_at: now, updated_at: now })
+      .eq('id', req.user.id);
+    if (profileError) console.error('[login-session] profile update failed:', profileError.message);
+
+    res.status(204).end();
+  } catch (err) {
+    console.error('login-session error:', err);
+    res.status(500).json({ success: false, message: 'Failed to record login session' });
+  }
+});
+
+const checkoutLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/orders', checkoutLimiter);
+
+app.post('/api/orders', requireUser, async (req, res) => {
+  try {
+    const { productId, paymentMethod, accountFields, contact } = req.body ?? {};
+    const idempotencyKey = String(req.get('Idempotency-Key') || '').trim();
+
+    if (!UUID_PATTERN.test(String(productId || ''))) {
+      return res.status(400).json({ success: false, message: 'A valid productId is required' });
+    }
+    if (!CHECKOUT_PAYMENT_METHODS.has(String(paymentMethod || '').trim().toLowerCase())) {
+      return res.status(400).json({ success: false, message: 'Unsupported payment method' });
+    }
+    if (!isPlainObject(accountFields) || !isPlainObject(contact)) {
+      return res.status(400).json({ success: false, message: 'Account fields and contact details are required' });
+    }
+    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/.test(idempotencyKey)) {
+      return res.status(400).json({ success: false, message: 'A valid Idempotency-Key header is required' });
+    }
+
+    const { data: existingOrder, error: existingError } = await supabaseAdmin
+      .from('orders')
+      .select('id, user_id, product_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, metadata, created_at, updated_at')
+      .eq('user_id', req.user.id)
+      .eq('idempotency_key', idempotencyKey)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    if (existingOrder) {
+      return res.status(200).json({ success: true, order: existingOrder, duplicate: true });
+    }
+
+    const { data: product, error: productError } = await supabaseAdmin
+      .from('products')
+      .select('id, name, price, currency, game_id, status, stock')
+      .eq('id', productId)
+      .maybeSingle();
+    if (productError) throw productError;
+    if (!product || product.status !== 'active') {
+      return res.status(400).json({ success: false, message: 'Product is unavailable' });
+    }
+    if (product.stock !== null && Number(product.stock) < 1) {
+      return res.status(409).json({ success: false, message: 'Product is out of stock' });
+    }
+
+    const { data: game, error: gameError } = await supabaseAdmin
+      .from('games')
+      .select('id, slug, name, status')
+      .eq('id', product.game_id)
+      .maybeSingle();
+    if (gameError) throw gameError;
+    if (!game || game.status !== 'active') {
+      return res.status(400).json({ success: false, message: 'Game is unavailable' });
+    }
+
+    const { data: fields, error: fieldsError } = await supabaseAdmin
+      .from('game_fields')
+      .select('field_key, label, is_required, validation_regex')
+      .eq('game_id', game.id)
+      .order('sort_order', { ascending: true });
+    if (fieldsError) throw fieldsError;
+
+    const fieldMap = new Map((fields ?? []).map((field) => [field.field_key, field]));
+    const sanitizedFields = Object.create(null);
+    for (const [key, value] of Object.entries(accountFields)) {
+      const field = fieldMap.get(key);
+      if (!field || typeof value !== 'string' || value.length > MAX_CHECKOUT_FIELD_LENGTH) {
+        return res.status(400).json({ success: false, message: 'Invalid account details' });
+      }
+      const normalizedValue = value.trim();
+      if (field.validation_regex && normalizedValue) {
+        if (field.validation_regex.length > MAX_CHECKOUT_FIELD_LENGTH) {
+          return res.status(500).json({ success: false, message: 'Game field validation is unavailable' });
+        }
+        let matches;
+        try {
+          matches = new RegExp(field.validation_regex).test(normalizedValue);
+        } catch {
+          return res.status(500).json({ success: false, message: 'Game field validation is unavailable' });
+        }
+        if (!matches) {
+          return res.status(400).json({ success: false, message: `Invalid ${field.label}` });
+        }
+      }
+      sanitizedFields[key] = normalizedValue;
+    }
+    for (const field of fields ?? []) {
+      if (field.is_required && !String(sanitizedFields[field.field_key] || '').trim()) {
+        return res.status(400).json({ success: false, message: `${field.label} is required` });
+      }
+    }
+
+    const email = typeof contact.email === 'string' ? contact.email.trim().toLowerCase() : '';
+    const whatsapp = typeof contact.whatsapp === 'string' ? contact.whatsapp.trim() : '';
+    if (!validateEmail(email) || email.length > 254 || !/^\+?[0-9][0-9\s().-]{6,31}$/.test(whatsapp)) {
+      return res.status(400).json({ success: false, message: 'Valid contact details are required' });
+    }
+
+    const price = Number(product.price);
+    if (!Number.isFinite(price) || price < 0) {
+      return res.status(500).json({ success: false, message: 'Product pricing is unavailable' });
+    }
+
+    const orderPayload = {
+      user_id: req.user.id,
+      product_id: product.id,
+      product_name: product.name,
+      quantity: 1,
+      total_amount: price,
+      currency: product.currency,
+      status: 'pending',
+      payment_method: String(paymentMethod).trim().toLowerCase(),
+      idempotency_key: idempotencyKey,
+      metadata: {
+        game_id: game.id,
+        game_slug: game.slug,
+        game_name: game.name,
+        account_fields: sanitizedFields,
+        contact: { email, whatsapp },
+      },
+    };
+
+    const { data: order, error: insertError } = await supabaseAdmin
+      .from('orders')
+      .insert(orderPayload)
+      .select('id, user_id, product_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, metadata, created_at, updated_at')
+      .single();
+
+    if (insertError) {
+      if (insertError.code === '23505') {
+        const { data: duplicateOrder, error: duplicateError } = await supabaseAdmin
+          .from('orders')
+          .select('id, user_id, product_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, metadata, created_at, updated_at')
+          .eq('user_id', req.user.id)
+          .eq('idempotency_key', idempotencyKey)
+          .single();
+        if (duplicateError) throw duplicateError;
+        return res.status(200).json({ success: true, order: duplicateOrder, duplicate: true });
+      }
+      throw insertError;
+    }
+
+    res.status(201).json({ success: true, order });
+  } catch (err) {
+    console.error('checkout order error:', err);
+    res.status(500).json({ success: false, message: 'Could not create order' });
   }
 });
 
@@ -375,14 +594,33 @@ app.post('/api/admin/users/:id/change-email', requireSuperAdmin, async (req, res
 app.post('/api/admin/users/:id/status', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, reason } = req.body;
+    const { status, reason } = req.body ?? {};
 
     const allowed = ['active', 'inactive', 'suspended', 'banned'];
     if (!allowed.includes(status)) {
       return res.status(400).json({ success: false, message: `status must be one of: ${allowed.join(', ')}` });
     }
-    if (!reason || String(reason).trim().length < 3) {
-      return res.status(400).json({ success: false, message: 'reason is required (min 3 chars)' });
+    if (!reason || String(reason).trim().length < 3 || String(reason).trim().length > 500) {
+      return res.status(400).json({ success: false, message: 'reason is required (3-500 chars)' });
+    }
+    if (!UUID_PATTERN.test(id)) {
+      return res.status(400).json({ success: false, message: 'A valid user id is required' });
+    }
+    if (id === req.adminProfile.id) {
+      return res.status(400).json({ success: false, message: 'Admins cannot change their own account status' });
+    }
+
+    const { data: targetProfile, error: targetError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, role, status')
+      .eq('id', id)
+      .maybeSingle();
+    if (targetError) throw targetError;
+    if (!targetProfile) {
+      return res.status(404).json({ success: false, message: 'User profile not found' });
+    }
+    if (targetProfile.role === 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin accounts require separate elevated approval' });
     }
 
     const { data, error } = await supabaseAdmin.rpc('update_user_status', {
@@ -430,9 +668,9 @@ app.delete('/api/admin/users/:id', requireSuperAdmin, async (req, res) => {
 // Wallet adjustment — atomic, via Postgres function (super admin only)
 app.post('/api/admin/wallet/adjust', requireSuperAdmin, async (req, res) => {
   try {
-    const { userId, amount, type, reference } = req.body;
+    const { userId, amount, type, reference } = req.body ?? {};
 
-    if (!userId || typeof amount !== 'number' || !type || !reference) {
+    if (!UUID_PATTERN.test(String(userId || '')) || typeof amount !== 'number' || !Number.isFinite(amount) || !type || typeof reference !== 'string') {
       return res.status(400).json({
         success: false,
         message: 'userId, amount (number), type, and reference are all required',
@@ -444,8 +682,21 @@ app.post('/api/admin/wallet/adjust', requireSuperAdmin, async (req, res) => {
       return res.status(400).json({ success: false, message: `type must be one of: ${allowedTypes.join(', ')}` });
     }
 
-    if (Math.abs(amount) > 1_000_000) {
-      return res.status(400).json({ success: false, message: 'Amount exceeds maximum (1,000,000)' });
+    if (amount <= 0 || amount > 1_000_000 || reference.trim().length === 0 || reference.trim().length > 200) {
+      return res.status(400).json({ success: false, message: 'Amount or reference is invalid' });
+    }
+
+    const { data: targetProfile, error: targetError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, role')
+      .eq('id', userId)
+      .maybeSingle();
+    if (targetError) throw targetError;
+    if (!targetProfile) {
+      return res.status(404).json({ success: false, message: 'User profile not found' });
+    }
+    if (targetProfile.role === 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin wallet balances require separate approval' });
     }
 
     const adjustedAmount = type === 'debit' ? -Math.abs(amount) : Math.abs(amount);
@@ -543,20 +794,13 @@ app.post('/api/smileone/validate', requireAdmin, async (req, res) => {
   }
 });
 
-// Place order — POST /api/smileone/send-order
-// Body: { apiGame, items: [{ sku, qty, pid }], userAccount }
-app.post('/api/smileone/send-order', requireAdmin, async (req, res) => {
-  try {
-    const { apiGame, items, userAccount } = req.body;
-    if (!apiGame || !items?.length || !userAccount) {
-      return res.status(400).json({ success: false, message: 'apiGame, items, and userAccount are required' });
-    }
-    const data = await smileOne.sendOrder(apiGame, items, userAccount);
-    res.json({ success: true, result: data.result });
-  } catch (err) {
-    console.error('[smileone/send-order]', err.message);
-    res.status(500).json({ success: false, message: err.message });
-  }
+// Raw provider order placement is intentionally disabled. Customer checkout must
+// create a pending local order and wait for verified payment before fulfillment.
+app.post('/api/smileone/send-order', requireAdmin, (_req, res) => {
+  res.status(410).json({
+    success: false,
+    message: 'Raw provider order placement is disabled; use the verified checkout flow',
+  });
 });
 
 // Order detail — GET /api/smileone/order-detail?orderId=SC...

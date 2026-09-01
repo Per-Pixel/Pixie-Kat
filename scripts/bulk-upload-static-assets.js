@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Bulk-upload static assets from main/public/ into Supabase Storage 'media' bucket.
+ * Bulk-upload static assets from main/public/ into Supabase Storage 'public-media' bucket.
  * Run: node scripts/bulk-upload-static-assets.js
  *
  * Requires:
@@ -30,12 +30,12 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-const BUCKET = 'media';
+const BUCKET = 'public-media';
 const PUBLIC_DIR = path.resolve(__dirname, '..', 'main', 'public');
 
 const ALLOWED = new Set([
-  '.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg',
-  '.mp4', '.webm', '.pdf', '.zip', '.txt', '.csv'
+  '.jpg', '.jpeg', '.png', '.webp', '.gif',
+  '.mp4', '.webm'
 ]);
 
 const MIME_MAP = {

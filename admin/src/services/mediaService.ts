@@ -1,6 +1,15 @@
 import { supabase } from '../lib/supabase';
 
-const BUCKET = 'media';
+const PRIVATE_BUCKET = 'media';
+const PUBLIC_BUCKET = 'public-media';
+const PUBLIC_MEDIA_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'video/mp4',
+  'video/webm',
+]);
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 
 export interface MediaRecord {
@@ -79,49 +88,66 @@ export function matchMediaUrl(candidate?: string | null, record?: MediaRecord | 
   return false;
 }
 
-function getPublicUrl(path: string): string {
-  const clean = path.replace(/^media\//, '');
-  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${clean}`;
+function getObjectUrl(bucket: string, path: string): string {
+  const prefix = `${bucket}/`;
+  const clean = path.startsWith(prefix) ? path.slice(prefix.length) : path;
+  const encodedPath = clean.split('/').map((part) => encodeURIComponent(part)).join('/');
+  return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodedPath}`;
+}
+
+async function decorateRecord(record: MediaRecord): Promise<MediaRecord> {
+  const bucket = record.bucket || PRIVATE_BUCKET;
+  if (bucket === PUBLIC_BUCKET) {
+    return { ...record, public_url: getObjectUrl(bucket, record.storage_path) };
+  }
+
+  const { data } = await supabase.storage.from(bucket).createSignedUrl(record.storage_path, 3600);
+  return {
+    ...record,
+    public_url: data?.signedUrl || getObjectUrl(bucket, record.storage_path),
+  };
 }
 
 // ============================================================
 // Sync: list objects in the bucket and create missing DB rows
 // ============================================================
 export async function syncBucketToTable(): Promise<{ created: number; skipped: number }> {
-  const { data: objects, error: listErr } = await supabase.storage
-    .from(BUCKET)
-    .list('', { limit: 1000 });
-  if (listErr) throw listErr;
-
   let created = 0;
   let skipped = 0;
 
-  for (const obj of objects ?? []) {
-    if (!obj.name) continue;
+  for (const bucket of [PRIVATE_BUCKET, PUBLIC_BUCKET]) {
+    const { data: objects, error: listErr } = await supabase.storage
+      .from(bucket)
+      .list('', { limit: 1000 });
+    if (listErr) throw listErr;
 
-    const path = obj.name;
-    const { data: existing } = await supabase
-      .from('media')
-      .select('id')
-      .eq('storage_path', path)
-      .single();
+    for (const obj of objects ?? []) {
+      if (!obj.name) continue;
 
-    if (existing) {
-      skipped++;
-      continue;
+      const path = obj.name;
+      const { data: existing } = await supabase
+        .from('media')
+        .select('id')
+        .eq('bucket', bucket)
+        .eq('storage_path', path)
+        .maybeSingle();
+
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      const { error } = await supabase.from('media').insert({
+        filename: obj.name,
+        storage_path: path,
+        bucket,
+        mime_type: obj.metadata?.mimetype ?? null,
+        size_bytes: obj.metadata?.size ?? null,
+        public_url: getObjectUrl(bucket, path),
+      });
+
+      if (!error) created++;
     }
-
-    const publicUrl = getPublicUrl(path);
-    const { error } = await supabase.from('media').insert({
-      filename: obj.name,
-      storage_path: path,
-      bucket: BUCKET,
-      mime_type: obj.metadata?.mimetype ?? null,
-      size_bytes: obj.metadata?.size ?? null,
-      public_url: publicUrl,
-    });
-
-    if (!error) created++;
   }
 
   return { created, skipped };
@@ -168,7 +194,8 @@ export async function listMedia(options?: {
 
   const { data, error, count } = await query;
   if (error) throw error;
-  return { data: (data ?? []) as MediaRecord[], count: count ?? 0 };
+  const records = await Promise.all((data ?? []).map((record) => decorateRecord(record as MediaRecord)));
+  return { data: records, count: count ?? 0 };
 }
 
 // ============================================================
@@ -179,18 +206,22 @@ export async function uploadMedia(
   folder: string = '',
   meta?: { alt_text?: string; tags?: string[] }
 ): Promise<MediaRecord> {
+  if (!PUBLIC_MEDIA_TYPES.has(file.type)) {
+    throw new Error('Only public images and videos can be uploaded here');
+  }
+
   const ext = file.name.split('.').pop() ?? '';
   const base = file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
   const timestamp = Date.now();
   const path = folder ? `${folder}/${base}_${timestamp}.${ext}` : `${base}_${timestamp}.${ext}`;
 
-  const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
+  const { error: upErr } = await supabase.storage.from(PUBLIC_BUCKET).upload(path, file, {
     contentType: file.type,
     upsert: false,
   });
   if (upErr) throw upErr;
 
-  const publicUrl = getPublicUrl(path);
+  const publicUrl = getObjectUrl(PUBLIC_BUCKET, path);
 
   // Try to get image dimensions
   let width: number | null = null;
@@ -210,7 +241,7 @@ export async function uploadMedia(
     .insert({
       filename: file.name,
       storage_path: path,
-      bucket: BUCKET,
+      bucket: PUBLIC_BUCKET,
       mime_type: file.type,
       size_bytes: file.size,
       width,
@@ -223,7 +254,7 @@ export async function uploadMedia(
     .single();
 
   if (error) throw error;
-  return data as MediaRecord;
+  return decorateRecord(data as MediaRecord);
 }
 
 function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
@@ -246,7 +277,8 @@ function getImageDimensions(file: File): Promise<{ width: number; height: number
 // Delete
 // ============================================================
 export async function deleteMedia(record: MediaRecord): Promise<void> {
-  const { error: storErr } = await supabase.storage.from(BUCKET).remove([record.storage_path]);
+  const bucket = record.bucket || PRIVATE_BUCKET;
+  const { error: storErr } = await supabase.storage.from(bucket).remove([record.storage_path]);
   if (storErr) throw storErr;
 
   const { error } = await supabase.from('media').delete().eq('id', record.id);
@@ -261,6 +293,7 @@ export async function renameMedia(
   newFilename: string,
   renameStorageObject = false
 ): Promise<MediaRecord> {
+  const bucket = record.bucket || PRIVATE_BUCKET;
   let newPath = record.storage_path;
 
   if (renameStorageObject) {
@@ -272,7 +305,7 @@ export async function renameMedia(
     newPath = folder ? `${folder}/${cleanName}.${ext}` : `${cleanName}.${ext}`;
 
     const { error: moveErr } = await supabase.storage
-      .from(BUCKET)
+      .from(bucket)
       .move(record.storage_path, newPath);
     if (moveErr) throw moveErr;
   }
@@ -282,14 +315,14 @@ export async function renameMedia(
     .update({
       filename: newFilename,
       storage_path: newPath,
-      public_url: getPublicUrl(newPath),
+      public_url: getObjectUrl(bucket, newPath),
     })
     .eq('id', record.id)
     .select('*')
     .single();
 
   if (error) throw error;
-  return data as MediaRecord;
+  return decorateRecord(data as MediaRecord);
 }
 
 // ============================================================
@@ -299,8 +332,13 @@ export async function replaceMedia(
   record: MediaRecord,
   file: File
 ): Promise<MediaRecord> {
+  const bucket = record.bucket || PRIVATE_BUCKET;
+  if (bucket === PUBLIC_BUCKET && !PUBLIC_MEDIA_TYPES.has(file.type)) {
+    throw new Error('Only public images and videos can replace public media');
+  }
+
   // Overwrite existing storage path
-  const { error: upErr } = await supabase.storage.from(BUCKET).upload(record.storage_path, file, {
+  const { error: upErr } = await supabase.storage.from(bucket).upload(record.storage_path, file, {
     contentType: file.type,
     upsert: true,
   });
@@ -326,14 +364,14 @@ export async function replaceMedia(
       size_bytes: file.size,
       width,
       height,
-      public_url: getPublicUrl(record.storage_path),
+      public_url: getObjectUrl(bucket, record.storage_path),
     })
     .eq('id', record.id)
     .select('*')
     .single();
 
   if (error) throw error;
-  return data as MediaRecord;
+  return decorateRecord(data as MediaRecord);
 }
 
 // ============================================================
@@ -427,7 +465,8 @@ function compressImage(
 // Download
 // ============================================================
 export async function downloadMedia(record: MediaRecord): Promise<Blob> {
-  const { data, error } = await supabase.storage.from(BUCKET).download(record.storage_path);
+  const bucket = record.bucket || PRIVATE_BUCKET;
+  const { data, error } = await supabase.storage.from(bucket).download(record.storage_path);
   if (error) throw error;
   return data;
 }
@@ -828,7 +867,7 @@ const mediaService = {
   },
 
   async getFolders(): Promise<string[]> {
-    const { data, error } = await supabase.storage.from(BUCKET).list('', { limit: 1000 });
+    const { data, error } = await supabase.storage.from(PUBLIC_BUCKET).list('', { limit: 1000 });
     if (error) throw error;
     return (data ?? [])
       .filter((item) => item.name && !item.id)

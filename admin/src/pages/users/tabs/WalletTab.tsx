@@ -37,6 +37,7 @@ function formatTs(ts: string) {
 export default function WalletTab({ data, refetch }: Props) {
   const { profile } = data;
   const { user: adminUser } = useAuth();
+  const canAdjust = adminUser?.role === 'admin';
 
   const [transactions, setTransactions] = useState<TxRow[]>([]);
   const [txLoading, setTxLoading]       = useState(true);
@@ -68,12 +69,14 @@ export default function WalletTab({ data, refetch }: Props) {
 
     setSubmitting(true);
     try {
-      await api.post('/admin/wallet/adjust', {
+      const { data: result } = await api.post('/admin/wallet/adjust', {
         userId: profile.id,
         amount: parsed,
         type: adjustType,
         reference: reference.trim(),
       });
+
+      if (!result?.success) throw new Error(result?.message || 'Wallet adjustment failed');
 
       toast.success('Wallet adjusted successfully');
       setAmount('');
@@ -138,17 +141,21 @@ export default function WalletTab({ data, refetch }: Props) {
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-gray-900">Manual Adjustment</h3>
-          <button
-            onClick={() => setShowAdjust(s => !s)}
-            className="btn btn-outline btn-sm"
-          >
-            {showAdjust ? <X className="w-4 h-4 mr-1.5" /> : <Plus className="w-4 h-4 mr-1.5" />}
-            {showAdjust ? 'Cancel' : 'Adjust'}
-          </button>
+          {canAdjust ? (
+            <button
+              onClick={() => setShowAdjust(s => !s)}
+              className="btn btn-outline btn-sm"
+            >
+              {showAdjust ? <X className="w-4 h-4 mr-1.5" /> : <Plus className="w-4 h-4 mr-1.5" />}
+              {showAdjust ? 'Cancel' : 'Adjust'}
+            </button>
+          ) : (
+            <span className="text-xs text-gray-500">Admin-only operation</span>
+          )}
         </div>
 
         <AnimatePresence>
-          {showAdjust && (
+          {canAdjust && showAdjust && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}

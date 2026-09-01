@@ -8,11 +8,19 @@ const path = require('path');
 const CONFIG = {
   API_BASE: 'https://www.smile.one/smilecode/api/',
   WEBSITE: 'https://www.smile.one/',
-  API_KEY: 'SmileCode-7f6b-7a96-4487dc7c2348',
-  CLIENT_ID: 'SmileCode-6a2fc820de5db',
-  SECRET_KEY: 'SmileCode-0d1f265980ed4c8b-9d318e1da900e36e',
-  PORT: 3000
+  API_KEY: process.env.SMILECODE_API_KEY,
+  CLIENT_ID: process.env.SMILECODE_CLIENT_ID,
+  SECRET_KEY: process.env.SMILECODE_SECRET,
+  PORT: Number(process.env.TEST_PORT || 3000),
+  HOST: '127.0.0.1',
 };
+
+const missingConfig = ['API_KEY', 'CLIENT_ID', 'SECRET_KEY']
+  .filter((key) => !CONFIG[key]);
+if (missingConfig.length > 0) {
+  console.error(`Missing SmileCode environment variables: ${missingConfig.map((key) => ({ API_KEY: 'SMILECODE_API_KEY', CLIENT_ID: 'SMILECODE_CLIENT_ID', SECRET_KEY: 'SMILECODE_SECRET' })[key]).join(', ')}`);
+  process.exit(1);
+}
 
 function b64url(d){let s=(typeof d==='string')?Buffer.from(d,'utf-8').toString('base64'):d.toString('base64');return s.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function makeJWT(method,params,iat,exp){var rid=Date.now().toString(36)+Math.random().toString(36).substr(2,9);var hdr={alg:'HS256',typ:'JWT','sc-api-key':CONFIG.API_KEY,'sc-api-version':'2.0'};var pay={jsonrpc:'2.0',id:rid,method:method,'sc-client-id':CONFIG.CLIENT_ID,iat:iat,exp:exp,params:Object.assign({},params||{},{iat:iat,exp:exp})};var eH=b64url(JSON.stringify(hdr)),eP=b64url(JSON.stringify(pay)),uns=eH+'.'+eP;var sig=crypto.createHmac('sha256',CONFIG.SECRET_KEY).update(uns).digest('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');return{jwt:uns+'.'+sig,rid:rid}}
@@ -151,7 +159,9 @@ async function discoverAllProducts(){
 
 var cached=null,dPromise=null;
 var server=http.createServer(function(req,res){
-  res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');
+  var origin=req.headers.origin;
+  if(origin==='http://localhost:'+CONFIG.PORT||origin==='http://127.0.0.1:'+CONFIG.PORT){res.setHeader('Access-Control-Allow-Origin',origin)}
+  res.setHeader('Vary','Origin');res.setHeader('Access-Control-Allow-Methods','GET,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');res.setHeader('X-Content-Type-Options','nosniff');
   if(req.method==='OPTIONS'){res.writeHead(204);res.end();return}
   if(req.url==='/favicon.ico'){res.writeHead(204);res.end();return}
 
@@ -177,4 +187,4 @@ var server=http.createServer(function(req,res){
   res.writeHead(404);res.end('Not found');
 });
 
-server.listen(CONFIG.PORT,function(){console.log('\n  SmileCode Discovery http://localhost:'+CONFIG.PORT+'\n')});
+server.listen(CONFIG.PORT,CONFIG.HOST,function(){console.log('\n  SmileCode Discovery http://'+CONFIG.HOST+':'+CONFIG.PORT+'\n')});

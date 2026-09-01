@@ -1619,7 +1619,7 @@ const DetailPanel: React.FC<{
 
         {/* Public URL */}
         <div>
-          <span className="label mb-1 block text-xs text-gray-500 font-semibold">Public CDN URL</span>
+          <span className="label mb-1 block text-xs text-gray-500">Access URL</span>
           <div className="flex gap-2">
             <input readOnly value={record.public_url} className="input text-xs flex-1" />
             <button

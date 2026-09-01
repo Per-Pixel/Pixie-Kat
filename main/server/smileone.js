@@ -104,7 +104,6 @@ async function call(method, params = {}) {
   const jwt = buildJWT(payload);
 
   console.log(`[SmileCode] ${method} iat=${iat} id=${payload.id}`);
-  console.log(`[SmileCode] JWT header:`, JSON.stringify(JSON.parse(Buffer.from(jwt.split('.')[0], 'base64url').toString())));
 
   const res = await fetch(BASE_URL, {
     method:  'POST',
@@ -119,7 +118,7 @@ async function call(method, params = {}) {
   });
 
   const text = await res.text();
-  console.log(`[SmileCode] HTTP ${res.status} response:`, text.slice(0, 500));
+  console.log(`[SmileCode] HTTP ${res.status}`);
 
   let data;
   try {
