@@ -9,6 +9,18 @@ export default [
   ...tailwind.configs["flat/recommended"],
   { ignores: ["dist"] },
   {
+    files: ["server/**/*.js", "vite.config.js"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        __dirname: "readonly",
+        __filename: "readonly",
+      },
+      parserOptions: { sourceType: "module" },
+    },
+    rules: { "no-unused-vars": "warn" },
+  },
+  {
     files: ["**/*.{js,jsx}"],
     languageOptions: {
       ecmaVersion: 2020,
@@ -36,6 +48,11 @@ export default [
         { allowConstantExport: true },
       ],
       "react/prop-types": "off",
+      "react/no-unknown-property": "warn",
+      "react/no-unescaped-entities": "warn",
+      "no-unused-vars": "warn",
+      "no-constant-binary-expression": "warn",
+      "tailwindcss/no-contradicting-classname": "warn",
     },
   },
 ];
