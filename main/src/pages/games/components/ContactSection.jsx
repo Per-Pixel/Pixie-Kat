@@ -32,15 +32,6 @@ const ContactSection = () => {
     }
   ];
 
-  const paymentMethods = [
-    { name: 'Visa', color: 'bg-blue-600' },
-    { name: 'MC', color: 'bg-red-500' },
-    { name: 'PayPal', color: 'bg-blue-500' },
-    { name: 'Skrill', color: 'bg-purple-600' },
-    { name: 'OVO', color: 'bg-blue-400' },
-    { name: 'DANA', color: 'bg-blue-500' }
-  ];
-
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {

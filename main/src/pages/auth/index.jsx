@@ -141,7 +141,7 @@ const Auth = () => {
             </div>
           </div>
           <p className="mt-4 text-center text-lg" style={{ color: '#1a1a2e99' }}>
-            The refill store that will always be at your disposal.
+            Fast, secure game top-ups — ready whenever you are.
           </p>
         </motion.div>
       </div>

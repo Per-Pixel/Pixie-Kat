@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, ShoppingBag, DollarSign, Award,
@@ -32,9 +32,36 @@ function formatMoney(amount: number, currency = 'PKS') {
   return `${currency} ${amount.toFixed(2)}`;
 }
 
+type RangeFilter = '1d' | '7d' | '30d' | '90d' | '1y' | 'all';
+
+const RANGE_OPTIONS: Array<{ value: RangeFilter; label: string }> = [
+  { value: '1d', label: 'Day' },
+  { value: '7d', label: '7 Days' },
+  { value: '30d', label: 'Month' },
+  { value: '90d', label: '3 Months' },
+  { value: '1y', label: 'Year' },
+  { value: 'all', label: 'Lifetime' },
+];
+
+const STATUS_ORDER = ['completed', 'processing', 'pending', 'on_hold', 'refunded', 'failed', 'cancelled'];
+
+function rangeStart(range: RangeFilter): Date | null {
+  const now = new Date();
+  switch (range) {
+    case '1d': return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    case '7d': return new Date(now.getTime() - 7 * 86_400_000);
+    case '30d': return new Date(now.getTime() - 30 * 86_400_000);
+    case '90d': return new Date(now.getTime() - 90 * 86_400_000);
+    case '1y': return new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    default: return null;
+  }
+}
+
 export default function SpendingTab({ data }: Props) {
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState<RangeFilter>('all');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -44,7 +71,7 @@ export default function SpendingTab({ data }: Props) {
         .select('id, product_name, total_amount, currency, status, created_at')
         .eq('user_id', data.profile.id)
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(500);
       if (error) {
         setOrders([]);
         toast.error(`Failed to load spending: ${error.message}`);
@@ -65,9 +92,25 @@ export default function SpendingTab({ data }: Props) {
     return () => { void supabase.removeChannel(channel); };
   }, [data.profile.id]);
 
+  const statusOptions = useMemo(() => {
+    const present = new Set(orders.map((o) => o.status));
+    const known = STATUS_ORDER.filter((s) => present.has(s));
+    const extras = [...present].filter((s) => !STATUS_ORDER.includes(s));
+    return [...known, ...extras];
+  }, [orders]);
+
+  const filtered = useMemo(() => {
+    const start = rangeStart(range);
+    return orders.filter((o) => {
+      if (statusFilter !== 'all' && o.status !== statusFilter) return false;
+      if (start && new Date(o.created_at) < start) return false;
+      return true;
+    });
+  }, [orders, range, statusFilter]);
+
   // Compute analytics
-  const completed = orders.filter((o) => o.status === 'completed');
-  const failed = orders.filter((o) => o.status === 'failed' || o.status === 'cancelled');
+  const completed = filtered.filter((o) => o.status === 'completed');
+  const failed = filtered.filter((o) => o.status === 'failed' || o.status === 'cancelled');
   const totalSpent = completed.reduce((s, o) => s + Number(o.total_amount || 0), 0);
   const avgOrder = completed.length > 0 ? totalSpent / completed.length : 0;
   const currency = completed[0]?.currency || 'PKS';
@@ -158,6 +201,35 @@ export default function SpendingTab({ data }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Filters */}
+      <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-gray-400">Period</span>
+          {RANGE_OPTIONS.map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => setRange(value)}
+              className={clsx('rounded-lg px-3 py-1.5 text-sm', range === value ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+          Status
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium normal-case tracking-normal text-gray-700"
+          >
+            <option value="all">All statuses</option>
+            {statusOptions.map((s) => (
+              <option key={s} value={s} className="capitalize">{s.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((s, i) => {
@@ -253,7 +325,7 @@ export default function SpendingTab({ data }: Props) {
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
         className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-gray-100">
-          <h3 className="font-semibold text-sm text-gray-900">Order History ({orders.length} orders)</h3>
+          <h3 className="font-semibold text-sm text-gray-900">Order History ({filtered.length} of {orders.length} orders)</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -265,7 +337,14 @@ export default function SpendingTab({ data }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {orders.slice(0, 20).map((o) => (
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-400">
+                    No orders match the selected filters.
+                  </td>
+                </tr>
+              )}
+              {filtered.slice(0, 20).map((o) => (
                 <tr key={o.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 text-sm text-gray-900 font-medium max-w-xs truncate">{o.product_name}</td>
                   <td className="px-4 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">

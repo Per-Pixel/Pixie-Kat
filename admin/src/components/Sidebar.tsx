@@ -114,6 +114,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { label: 'Overview', path: '/revenue/sales-overview' },
         { label: 'Products', path: '/revenue/products' },
         { label: 'Orders', path: '/revenue/orders' },
+        { label: 'Profit & Loss', path: '/revenue/profit-loss' },
         { label: 'Brokers', path: '/revenue/brokers' },
         { label: 'Referral', path: '/revenue/referral' },
       ],

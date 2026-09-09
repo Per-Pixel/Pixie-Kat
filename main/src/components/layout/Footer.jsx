@@ -137,7 +137,7 @@ const Footer = () => {
           <div className="footer-cta-label">
             <img
               src="/img/logo4.png"
-              alt="Pixie Kat"
+              alt="PixieKat"
               className="footer-cta-label-icon"
             />
             <span>{footerData.cta_label_text || "Get In Touch"}</span>
@@ -178,7 +178,7 @@ const Footer = () => {
         <div className="footer-brand">
           <img
             src="/img/logo4.png"
-            alt="Pixie Kat Store"
+            alt="PixieKat Store"
             className="footer-brand-logo"
           />
           <LetterSpans text={footerData.brand_name_text || "pixie kat store"} />
@@ -191,7 +191,7 @@ const Footer = () => {
       {/* ——— Bottom bar ——— */}
       <div className="footer-bottom">
         <p className="footer-copyright">
-          {footerData.copyright_text || `© ${new Date().getFullYear()} Pixie Kat Store. All rights reserved.`}
+          {footerData.copyright_text || `© ${new Date().getFullYear()} PixieKat Store. All rights reserved.`}
         </p>
 
         <div className="footer-socials">

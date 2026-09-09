@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Check, Plus } from 'lucide-react';
+import { TiLocationArrow } from 'react-icons/ti';
 import PageWrapper from '../../components/common/PageWrapper';
+import AnimatedTitle from '../../components/common/AnimatedTitle';
+import Button from '../../components/common/Button';
+import { BentoTilt } from '../home/sections/Features';
 import { supabase } from '../../lib/supabase';
 import { fetchJsonSetting } from '../../lib/storeContent';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 const currencySymbols = { INR: '₹', USD: '$', EUR: '€', BRL: 'R$' };
 
@@ -28,9 +34,9 @@ const formatDuration = (days) => {
 };
 
 const defaultPricingCopy = {
-  heading: 'Membership Plans',
+  heading: 'membersh<b>i</b>p pl<b>a</b>ns',
   subheading:
-    'Unlock exclusive benefits and save more on your gaming top-ups with our premium membership plans',
+    'One small plan, cheaper top-ups all month. Members save on every recharge across 100+ supported games.',
   empty_message: 'No membership plans are available right now. Check back soon.',
   faqs: [
     {
@@ -56,32 +62,203 @@ const defaultPricingCopy = {
   ],
 };
 
-const tierVisuals = [
-  {
-    icon: '🥈',
-    color: 'from-gray-400 to-gray-600',
-    borderColor: 'border-gray-400',
-    glowColor: 'shadow-gray-400/20',
-  },
-  {
-    icon: '🥇',
-    color: 'from-yellow-400 to-yellow-600',
-    borderColor: 'border-yellow-400',
-    glowColor: 'shadow-yellow-400/30',
-  },
-  {
-    icon: '💎',
-    color: 'from-purple-400 to-pink-600',
-    borderColor: 'border-purple-400',
-    glowColor: 'shadow-purple-400/40',
-  },
-];
+const easeOutExpo = [0.16, 1, 0.3, 1];
+
+const riseIn = (reduced, delay = 0) => ({
+  initial: reduced ? false : { opacity: 0, y: 24 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: '-40px' },
+  transition: { duration: 0.6, delay, ease: easeOutExpo },
+});
+
+const PlanCard = ({ plan, index, featured, reduced, onChoose }) => {
+  const benefits = Array.isArray(plan.benefits) ? plan.benefits : [];
+  const discount = Number(plan.discount_percent) || 0;
+  const duration = formatDuration(plan.duration_days);
+
+  const surface = featured
+    ? 'bg-violet-300 text-white'
+    : 'bg-[#0c0c10] text-blue-50 border-hsla';
+
+  return (
+    <motion.div
+      {...riseIn(reduced, 0.1 + index * 0.12)}
+      className={`w-full max-w-sm ${featured && !reduced ? 'lg:-translate-y-4' : ''}`}
+    >
+      <BentoTilt className="h-full">
+        <article
+          className={`relative flex h-full flex-col justify-between overflow-hidden rounded-md p-6 sm:p-8 ${surface}`}
+        >
+          <div>
+            <div className="flex items-center justify-between gap-3">
+              <span
+                className={`font-general text-[10px] uppercase tracking-[0.2em] ${
+                  featured ? 'text-white/60' : 'text-white/60'
+                }`}
+              >
+                Tier {String(index + 1).padStart(2, '0')}
+              </span>
+              {featured ? (
+                <span className="rounded-full bg-black px-3 py-1 font-general text-[10px] font-semibold uppercase tracking-wide text-yellow-300">
+                  Best value
+                </span>
+              ) : null}
+            </div>
+
+            <h3 className="special-font mt-6 font-zentry text-4xl font-black uppercase leading-none sm:text-5xl">
+              {plan.name}
+            </h3>
+
+            <div className="mt-4 flex items-baseline gap-2">
+              <span className="font-zentry text-5xl font-black leading-none sm:text-6xl">
+                {formatPrice(plan.price, plan.currency)}
+              </span>
+              <span
+                className={`font-circular-web text-sm ${
+                  featured ? 'text-white/80' : 'text-white/70'
+                }`}
+              >
+                / {duration}
+              </span>
+            </div>
+
+            {discount > 0 ? (
+              <div className="mt-4">
+                <span className="rounded-full bg-yellow-300 px-3 py-1 font-general text-xs font-semibold text-black">
+                  {discount}% off every top-up
+                </span>
+              </div>
+            ) : null}
+
+            {plan.description ? (
+              <p
+                className={`mt-5 max-w-xs font-circular-web text-sm leading-relaxed ${
+                  featured ? 'text-white/80' : 'text-white/70'
+                }`}
+              >
+                {plan.description}
+              </p>
+            ) : null}
+
+            {benefits.length > 0 ? (
+              <ul className="mt-6 space-y-3">
+                {benefits.map((benefit, idx) => (
+                  <li
+                    key={idx}
+                    className={`flex items-start gap-3 font-circular-web text-sm ${
+                      featured ? 'text-white/90' : 'text-white/80'
+                    }`}
+                  >
+                    <Check
+                      className={`mt-0.5 h-4 w-4 shrink-0 ${
+                        featured ? 'text-yellow-300' : 'text-yellow-300'
+                      }`}
+                      strokeWidth={3}
+                    />
+                    <span>{benefit}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+
+          <div className="mt-8">
+            <Button
+              title={`Choose ${plan.name}`}
+              rightIcon={<TiLocationArrow />}
+              containerClass={`w-full flex-center gap-2 ${
+                featured ? 'bg-yellow-300' : 'bg-blue-50'
+              }`}
+              onClick={() => onChoose(plan)}
+            />
+          </div>
+        </article>
+      </BentoTilt>
+    </motion.div>
+  );
+};
+
+const SavingsStrip = ({ plans, reduced }) => {
+  const rows = plans
+    .map((plan) => ({
+      name: plan.name,
+      discount: Number(plan.discount_percent) || 0,
+    }))
+    .filter((row) => row.discount > 0);
+
+  if (rows.length === 0) return null;
+
+  const exampleBase = 1000;
+
+  return (
+    <motion.div
+      {...riseIn(reduced)}
+      className="border-hsla mt-12 grid grid-cols-1 divide-y divide-white/10 rounded-md sm:mt-16 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)] sm:divide-x sm:divide-y-0"
+    >
+      <div className="p-5 sm:p-6">
+        <p className="font-general text-[10px] uppercase tracking-[0.2em] text-white/60">
+          The math is simple
+        </p>
+        <p className="mt-2 font-circular-web text-sm leading-relaxed text-white/70">
+          Every {formatPrice(exampleBase)} top-up costs less the moment your plan
+          is active.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 divide-y divide-white/5 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+        {rows.map((row) => (
+          <div key={row.name} className="p-5 sm:p-6">
+            <p className="font-general text-xs uppercase tracking-wide text-yellow-300">
+              {formatPrice((exampleBase * row.discount) / 100)} cheaper
+            </p>
+            <p className="mt-2 font-circular-web text-sm text-white/70">
+              on every {formatPrice(exampleBase)} with{' '}
+              <span className="font-semibold uppercase text-blue-50">{row.name}</span>
+            </p>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+};
+
+const FaqItem = ({ faq, open, onToggle }) => (
+  <div className="border-b border-black/10">
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className="flex w-full items-center justify-between gap-4 py-5 text-left"
+    >
+      <span className="font-general text-base font-semibold text-black md:text-lg">
+        {faq.question}
+      </span>
+      <Plus
+        className={`h-5 w-5 shrink-0 text-black/60 transition-transform duration-300 ease-out ${
+          open ? 'rotate-45' : ''
+        }`}
+      />
+    </button>
+    <div
+      className={`grid transition-all duration-300 ease-out ${
+        open ? 'grid-rows-[1fr] pb-5 opacity-100' : 'grid-rows-[0fr] opacity-0'
+      }`}
+    >
+      <div className="overflow-hidden">
+        <p className="max-w-2xl font-circular-web text-sm leading-relaxed text-black/70 md:text-base">
+          {faq.answer}
+        </p>
+      </div>
+    </div>
+  </div>
+);
 
 const Pricing = () => {
   const navigate = useNavigate();
+  const reduced = useReducedMotion();
   const [plans, setPlans] = useState([]);
   const [copy, setCopy] = useState(defaultPricingCopy);
   const [loading, setLoading] = useState(true);
+  const [openFaq, setOpenFaq] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,158 +298,101 @@ const Pricing = () => {
     return plans[mid]?.slug ?? plans[0]?.slug;
   }, [plans]);
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.2 } },
-  };
-
-  const cardVariants = {
-    hidden: { y: 50, opacity: 0 },
-    visible: { y: 0, opacity: 1, transition: { duration: 0.6, ease: 'easeOut' } },
-  };
-
   return (
     <PageWrapper>
-      <div className="container mx-auto px-4">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
-        >
-          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
-            <span className="bg-gradient-to-r from-violet-600 to-blue-500 bg-clip-text text-transparent">
-              {copy.heading}
-            </span>
-          </h1>
-          <p className="text-gray-600 text-lg md:text-xl max-w-3xl mx-auto mb-8">
+      <section className="mx-auto max-w-7xl px-4 md:px-10">
+        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="mb-4 font-general text-[10px] uppercase tracking-[0.2em] text-black/60">
+              PixieKat Membership
+            </p>
+            <AnimatedTitle
+              title={copy.heading}
+              containerClass="!mt-0 !items-start !gap-0 !px-0 !text-left !text-5xl !leading-[0.9] md:!text-7xl lg:!text-8xl"
+              textColor="#000000"
+            />
+          </div>
+          <p className="max-w-sm font-circular-web text-sm leading-relaxed text-black/70 md:text-right md:text-base">
             {copy.subheading}
           </p>
-        </motion.div>
+        </div>
+      </section>
 
-        {loading ? (
-          <div className="py-20 text-center text-gray-400">Loading plans…</div>
-        ) : plans.length === 0 ? (
-          <div className="py-20 text-center text-gray-400">{copy.empty_message}</div>
-        ) : (
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto"
-          >
-            {plans.map((plan, index) => {
-              const visual = tierVisuals[index % tierVisuals.length];
-              const popular = plan.slug === popularSlug;
-              const benefits = Array.isArray(plan.benefits) ? plan.benefits : [];
-              const discount = Number(plan.discount_percent) || 0;
+      <section className="relative mx-2 mt-14 overflow-hidden rounded-[28px] bg-[#000101] py-16 text-blue-50 sm:mx-4 sm:mt-20 sm:rounded-[36px] sm:py-20 md:mx-6 md:rounded-[44px] md:py-24">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-32 left-1/2 h-72 w-[80%] -translate-x-1/2 rounded-full bg-violet-300/20 blur-[90px]"
+        />
 
-              return (
-                <motion.div
+        <div className="relative mx-auto max-w-7xl px-4 md:px-10">
+          <SavingsStrip plans={plans} reduced={reduced} />
+
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <div className="three-body" aria-label="Loading plans" />
+            </div>
+          ) : plans.length === 0 ? (
+            <div className="mx-auto mt-12 max-w-md rounded-md border-hsla p-10 text-center">
+              <p className="font-circular-web text-sm text-white/70">
+                {copy.empty_message}
+              </p>
+              <Button
+                title="Browse games"
+                rightIcon={<TiLocationArrow />}
+                containerClass="mt-8 bg-blue-50 flex-center mx-auto"
+                onClick={() => navigate('/games')}
+              />
+            </div>
+          ) : (
+            <div className="mt-12 flex flex-wrap items-stretch justify-center gap-6 sm:mt-16 md:gap-7">
+              {plans.map((plan, index) => (
+                <PlanCard
                   key={plan.id}
-                  variants={cardVariants}
-                  whileHover={{ scale: 1.02, y: -10 }}
-                  className={`relative bg-gradient-to-br ${visual.color} rounded-2xl p-8 border-2 ${visual.borderColor} ${visual.glowColor} shadow-2xl overflow-hidden ${
-                    popular ? 'ring-4 ring-violet-400/50' : ''
-                  }`}
-                >
-                  {popular && (
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-violet-600 to-blue-500 text-white px-6 py-2 rounded-full text-sm font-bold shadow-lg">
-                      MOST POPULAR
-                    </div>
-                  )}
+                  plan={plan}
+                  index={index}
+                  featured={plan.slug === popularSlug}
+                  reduced={reduced}
+                  onChoose={() => navigate('/games')}
+                />
+              ))}
+            </div>
+          )}
 
-                  <div className="text-center mb-8">
-                    <div className="text-6xl mb-4">{visual.icon}</div>
-                    <h3 className="text-2xl font-bold text-white mb-2">{plan.name}</h3>
-                    <div className="text-center">
-                      <div className="flex items-center justify-center mb-2">
-                        <span className="text-4xl font-bold text-white">
-                          {formatPrice(plan.price, plan.currency)}
-                        </span>
-                        <span className="text-gray-300 ml-2">
-                          /{formatDuration(plan.duration_days)}
-                        </span>
-                      </div>
-                      {discount > 0 && (
-                        <div className="flex items-center justify-center space-x-2">
-                          <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                            {discount}% off top-ups
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    {plan.description ? (
-                      <p className="mt-4 text-sm text-gray-200">{plan.description}</p>
-                    ) : null}
-                  </div>
-
-                  <div className="mb-8">
-                    <h4 className="text-white font-semibold mb-4">Features Included:</h4>
-                    <ul className="space-y-3">
-                      {benefits.map((feature, idx) => (
-                        <li key={idx} className="flex items-start text-gray-200">
-                          <span className="text-green-400 mr-3 mt-1">✓</span>
-                          <span className="text-sm">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="mb-8">
-                    <h4 className="text-white font-semibold mb-4">Plan Details:</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-300">Duration:</span>
-                        <span className="text-white font-medium">{formatDuration(plan.duration_days)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-300">Top-up discount:</span>
-                        <span className="text-white font-medium">{discount}%</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <motion.button
-                    type="button"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate('/games')}
-                    className={`w-full bg-gradient-to-r from-violet-600 to-blue-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-violet-400/50 transition-shadow duration-300 ${
-                      popular ? 'animate-glow' : ''
-                    }`}
-                  >
-                    Choose {plan.name}
-                  </motion.button>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        )}
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.8 }}
-          className="mt-16 text-center"
-        >
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Frequently Asked Questions</h2>
-          <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
-            {copy.faqs.map((faq) => (
-              <div key={faq.question} className="bg-white/80 rounded-xl p-6 text-left shadow-sm">
-                <h3 className="text-violet-600 font-semibold mb-2">{faq.question}</h3>
-                <p className="text-gray-600 text-sm">{faq.answer}</p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-8 text-sm text-gray-500">
-            Looking for more answers?{' '}
-            <Link to="/faq" className="text-violet-600 underline">
-              Visit the full FAQ
-            </Link>
+          <p className="mt-12 text-center font-circular-web text-sm text-white/60">
+            Savings apply automatically at checkout while your plan is active.
           </p>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-4xl px-4 py-16 md:px-10 md:py-24">
+        <motion.div
+          {...riseIn(reduced)}
+          className="mb-8 flex items-end justify-between gap-4 md:mb-10"
+        >
+          <AnimatedTitle
+            title="quest<b>i</b>ons"
+            textColor="#000000"
+            containerClass="!mt-0 !items-start !gap-0 !px-0 !text-left !text-4xl !leading-[0.9] md:!text-6xl"
+          />
+          <Link
+            to="/faq"
+            className="whitespace-nowrap pb-1 font-general text-xs font-semibold uppercase tracking-wide text-black/70 transition-colors hover:text-violet-300"
+          >
+            Full FAQ →
+          </Link>
         </motion.div>
-      </div>
+
+        <motion.div {...riseIn(reduced, 0.1)} className="border-t border-black/10">
+          {copy.faqs.map((faq, index) => (
+            <FaqItem
+              key={faq.question}
+              faq={faq}
+              open={openFaq === index}
+              onToggle={() => setOpenFaq(openFaq === index ? -1 : index)}
+            />
+          ))}
+        </motion.div>
+      </section>
     </PageWrapper>
   );
 };

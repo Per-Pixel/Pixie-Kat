@@ -580,7 +580,7 @@ export default function BatchOrderPage() {
 
                 {/* quantity + add button row */}
                 {selectedGame && (
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     {/* quantity stepper */}
                     <div className="flex items-center rounded-xl border border-[#e2e6ee] bg-[#f9f8ff]">
                       <button

@@ -108,7 +108,7 @@ const FloatingImage = () => {
         <div className="-mt-80 flex w-full justify-center md:-mt-64 md:me-44 md:justify-end">
           <div className="flex h-full w-fit flex-col items-center md:items-start">
             <p className="mt-3 max-w-sm text-center font-circular-web text-violet-50 md:text-start">
-              Where every gamer comes to power up. Pixiekat offers the safest,
+              Where every gamer comes to power up. PixieKat offers the safest,
               fastest, and most affordable way to top up diamonds, coins, and
               in-game credits — no account login required.
             </p>

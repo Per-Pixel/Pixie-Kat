@@ -284,10 +284,9 @@ export const DEFAULT_CONTACT = {
   hours_primary: "Mon – Sat: 10am – 7pm",
   hours_secondary: "Sunday: Closed",
   office_lines: [
-    "Pixiekat HQ",
-    "123 Gaming Street, Tech Park",
-    "Bangalore, Karnataka 560001",
-    "India",
+    "PixieKat",
+    "Online game top-up store",
+    "Serving gamers across India",
   ],
   map_embed_url: "",
   whatsapp_message: "Hi PixieKat support!",
@@ -297,11 +296,11 @@ export const DEFAULT_PRODUCTS_PAGE = {
   slides: [
     {
       id: 1,
-      title: "PIXIEKAT STORE",
-      subtitle: "Official Gaming Platform",
+      title: "PIXIEKAT",
+      subtitle: "Instant Gaming Credits",
       description:
-        "PIXIEKAT STORE is a practical solution for every game lover to buy game vouchers without having to go to a physical store.",
-      cta: "WWW.PIXIEKATSTORE.COM",
+        "Top up diamonds, coins, and credits for your favorite games — fast, secure, and delivered straight to your account.",
+      cta: "TOP UP NOW",
       bgGradient: "from-blue-700 via-violet-700 to-indigo-900",
       image: "/img/hero/game-hero-card.gif",
     },
@@ -458,7 +457,7 @@ export const DEFAULT_FOOTER = {
   cta_heading_light: 'Top up your favorite titles instantly or explore our premium membership plans.',
   contact_email: 'support@pixiekatstore.com',
   contact_label: 'Reach us at:',
-  copyright_text: '© 2026 Pixie Kat Store. All rights reserved.',
+  copyright_text: '© 2026 PixieKat Store. All rights reserved.',
   brand_name_text: 'pixie kat store',
   nav_links: [
     { label: 'How It Works', href: '/how-it-works' },
@@ -479,20 +478,20 @@ export const DEFAULT_FOOTER = {
 export const DEFAULT_LEGAL = {
   terms: {
     title: 'Terms of Service',
-    subtitle: 'Please read these terms carefully before using Pixie Kat Store services.',
+    subtitle: 'Please read these terms carefully before using PixieKat services.',
     last_updated: '2026-08-01',
     sections: [
       {
         heading: '1. Acceptance of Terms',
-        content: 'By accessing or using Pixie Kat Store, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree, you are prohibited from using our services.',
+        content: 'By accessing or using PixieKat, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree, you are prohibited from using our services.',
       },
       {
         heading: '2. Account & Top-Up Services',
-        content: 'You are responsible for ensuring correct user IDs, zone IDs, and account info when making digital game top-up transactions. Pixie Kat Store is not responsible for incorrect details submitted by the buyer.',
+        content: 'You are responsible for ensuring correct user IDs, zone IDs, and account info when making digital game top-up transactions. PixieKat is not responsible for incorrect details submitted by the buyer.',
       },
       {
         heading: '3. Modifications to Service',
-        content: 'Pixie Kat Store reserves the right to modify prices, product availability, or terms at any time without prior notice.',
+        content: 'PixieKat reserves the right to modify prices, product availability, or terms at any time without prior notice.',
       },
     ],
   },
@@ -526,7 +525,7 @@ export const DEFAULT_LEGAL = {
       },
       {
         heading: '2. Failed Orders & Wallet Refunds',
-        content: 'If an order fails or cannot be delivered due to system errors, the payment amount will be automatically refunded back to your Pixie Kat Wallet balance.',
+        content: 'If an order fails or cannot be delivered due to system errors, the payment amount will be automatically refunded back to your PixieKat Wallet balance.',
       },
       {
         heading: '3. Support Requests',

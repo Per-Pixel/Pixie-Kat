@@ -3,10 +3,12 @@ import { Navigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
   ArrowLeft,
+  Check,
   CheckCircle2,
   ChevronDown,
   CreditCard,
   FileText,
+  Gem,
   Info,
   Lightbulb,
   MessageCircle,
@@ -69,6 +71,74 @@ const SectionTitle = ({ number, children }) => (
     </span>
     <h2 className="text-xl font-bold text-[#10141f] md:text-2xl">{children}</h2>
   </div>
+);
+
+const CompactPackageCard = ({ item, selected, onSelect }) => (
+  <button
+    type="button"
+    onClick={onSelect}
+    className={`relative flex min-h-[84px] w-full flex-col items-stretch justify-between rounded-lg border bg-white p-3 text-left shadow-sm transition sm:min-h-[96px] sm:p-3.5 ${
+      selected ? "border-[#7152ff] bg-[#f6f3ff]" : "border-[#dfe4ec] hover:border-[#c5ccd8]"
+    }`}
+  >
+    {selected ? (
+      <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#7152ff] text-white">
+        <Check className="h-3 w-3" strokeWidth={3} />
+      </span>
+    ) : null}
+    {item.popular ? (
+      <span className="absolute -top-2 left-2 rounded-full bg-[#ff7a45] px-2 py-0.5 text-[10px] font-bold text-white">
+        Popular
+      </span>
+    ) : null}
+    <div className="flex w-full items-start justify-between gap-1.5">
+      <p className={`min-w-0 text-base font-black sm:text-lg ${selected ? "text-[#6d4cff]" : "text-[#141923]"}`}>
+        {item.priceLabel}
+      </p>
+      {item.image ? (
+        <img src={item.image} alt="" className="h-6 w-6 shrink-0 rounded object-cover sm:h-7 sm:w-7" />
+      ) : (
+        <Gem className="h-5 w-5 shrink-0 text-[#8b6dff] sm:h-6 sm:w-6" />
+      )}
+    </div>
+    <p className="mt-4 text-[11px] font-medium leading-tight text-[#3b4350] sm:text-xs">
+      {item.amount || item.name}
+    </p>
+  </button>
+);
+
+const FeaturedPackageCard = ({ item, selected, onSelect }) => (
+  <button
+    type="button"
+    onClick={onSelect}
+    className={`relative flex min-h-[112px] w-full flex-col items-stretch justify-between rounded-lg border bg-white p-4 text-left shadow-sm transition ${
+      selected ? "border-[#7152ff] bg-[#f6f3ff]" : "border-[#dfe4ec] hover:border-[#c5ccd8]"
+    }`}
+  >
+    {selected ? (
+      <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#7152ff] text-white">
+        <Check className="h-3 w-3" strokeWidth={3} />
+      </span>
+    ) : null}
+    <div className="flex w-full items-start justify-between gap-1.5">
+      <p className={`min-w-0 text-base font-black sm:text-lg ${selected ? "text-[#6d4cff]" : "text-[#141923]"}`}>
+        {item.priceLabel}
+      </p>
+      {item.image ? (
+        <img src={item.image} alt="" className="h-6 w-9 shrink-0 rounded object-cover sm:h-7 sm:w-10" />
+      ) : (
+        <Gem className="h-5 w-5 shrink-0 text-[#8b6dff] sm:h-6 sm:w-6" />
+      )}
+    </div>
+    <div className="mt-4">
+      <p className="text-[11px] font-bold leading-tight text-[#141923] sm:text-xs">{item.name}</p>
+      {item.description ? (
+        <p className="mt-0.5 line-clamp-2 text-[11px] font-medium leading-tight text-[#6d7480]">
+          {item.description}
+        </p>
+      ) : null}
+    </div>
+  </button>
 );
 
 const PaymentLogo = ({ children }) => (
@@ -298,6 +368,7 @@ const GamePage = () => {
         id: p.id,
         name: p.name,
         amount: p.amount,
+        description: p.description ?? null,
         image: p.image_url,
         popular: p.is_popular,
         currency: p.currency,
@@ -308,6 +379,64 @@ const GamePage = () => {
       })),
     [products]
   );
+
+  // Package section presentation: "compact" (dense 3-column grid with pinned
+  // featured packs) is opted in per game via admin → metadata.package_layout.
+  const packageLayout =
+    game?.metadata?.package_layout === "compact" || slug === "mobile-legends"
+      ? "compact"
+      : "default";
+  const packageNoteTop = game?.metadata?.package_note_top ?? null;
+  const packageNoteBottom = game?.metadata?.package_note_bottom ?? null;
+  const featuredIds = game?.metadata?.package_featured;
+
+  const featuredPackages = useMemo(() => {
+    if (packageLayout !== "compact") return [];
+    if (Array.isArray(featuredIds) && featuredIds.length > 0) {
+      return packages.filter((p) => featuredIds.includes(p.id));
+    }
+    // No admin pinning yet: heuristically surface weekly/monthly pass-style packs.
+    return packages.filter((p) => /weekly|monthly|pass|bundle/i.test(p.name)).slice(0, 2);
+  }, [packages, packageLayout, featuredIds]);
+
+  const featuredIdSet = useMemo(() => new Set(featuredPackages.map((p) => p.id)), [featuredPackages]);
+  const gridPackages = useMemo(
+    () => (packageLayout === "compact" ? packages.filter((p) => !featuredIdSet.has(p.id)) : packages),
+    [packages, featuredIdSet, packageLayout]
+  );
+
+  // Optional admin-defined section order (metadata.package_sections). When set it
+  // fully describes the compact layout: note text blocks, featured wide cards,
+  // and titled card groups. Packages not assigned anywhere are appended as a
+  // trailing grid.
+  const packageSections = useMemo(() => {
+    const raw = game?.metadata?.package_sections;
+    if (packageLayout !== "compact" || !Array.isArray(raw) || raw.length === 0) return null;
+
+    const byId = new Map(packages.map((p) => [p.id, p]));
+    const used = new Set();
+    const resolved = raw
+      .filter((s) => s && typeof s === "object")
+      .map((s) => {
+        const type = s.type === "featured" || s.type === "grid" ? s.type : "note";
+        if (type === "note") {
+          return { type, text: String(s.text ?? ""), items: [] };
+        }
+        const ids = Array.isArray(s.product_ids) ? s.product_ids : [];
+        const items = ids.map((id) => byId.get(id)).filter(Boolean);
+        items.forEach((it) => used.add(it.id));
+        return { type, title: String(s.title ?? ""), items };
+      })
+      .filter((s) => (s.type === "note" ? s.text.trim() : s.items.length > 0));
+
+    if (resolved.length === 0 && raw.length > 0) {
+      // Sections configured but every product reference is stale — ignore them.
+      if (!packages.some((p) => used.has(p.id))) return null;
+    }
+    const leftover = packages.filter((p) => !used.has(p.id));
+    if (leftover.length > 0) resolved.push({ type: "grid", title: "", items: leftover });
+    return resolved;
+  }, [packages, packageLayout, game?.metadata?.package_sections]);
 
   useEffect(() => {
     let cancelled = false;
@@ -882,8 +1011,8 @@ const GamePage = () => {
           </div>
         </div>
       )}
-      <div className="mx-auto grid max-w-[1480px] gap-10 px-4 md:grid-cols-[394px_minmax(0,1fr)] md:px-8 md:pt-10 lg:px-12">
-        <aside className="space-y-8 md:sticky md:top-24 md:self-start">
+      <div className="mx-auto grid max-w-[1480px] gap-10 px-4 md:px-8 md:pt-10 lg:grid-cols-[360px_minmax(0,1fr)] lg:px-12">
+        <aside className="space-y-8 lg:sticky lg:top-24 lg:self-start">
           <img
             src={bannerImage}
             alt={game.name}
@@ -964,49 +1093,136 @@ const GamePage = () => {
             <SectionTitle number="2">Select the Package</SectionTitle>
             {packages.length === 0 ? (
               <p className="text-sm text-[#6d7480]">No packages available right now.</p>
-            ) : (
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                {packages.map((item) => {
-                  const selected = selectedPackageId === item.id;
-
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setSelectedPackageId(item.id)}
-                      className={`relative min-h-[100px] rounded-lg border bg-white p-3 text-left shadow-sm transition ${
-                        selected ? "border-[#7152ff] bg-[#f6f3ff]" : "border-[#dfe4ec] hover:border-[#c5ccd8]"
-                      }`}
-                    >
-                      {item.popular ? (
-                        <span className="absolute -top-2 right-2 rounded-full bg-[#ff7a45] px-2 py-0.5 text-[10px] font-bold text-white">
-                          Popular
-                        </span>
-                      ) : null}
-                      <div className="flex items-start justify-between gap-2">
-                        {item.image ? (
-                          <img src={item.image} alt="" className="h-7 w-12 rounded object-cover" />
-                        ) : (
-                          <span className="text-xs font-bold text-[#9aa2ad]">{game.currency_label}</span>
-                        )}
-                        <div className="text-right">
-                          <p className={`text-lg font-black ${selected ? "text-[#6d4cff]" : "text-[#141923]"}`}>{item.priceLabel}</p>
-                          {item.oldPriceLabel ? <p className="text-xs text-[#777f8c] line-through">{item.oldPriceLabel}</p> : null}
+            ) : packageLayout === "compact" ? (
+              packageSections ? (
+                <div className="space-y-5">
+                  {packageSections.map((section, index) => {
+                    if (section.type === "note") {
+                      return (
+                        <p key={index} className="whitespace-pre-line text-xs leading-relaxed text-[#3b4350]">
+                          {section.text}
+                        </p>
+                      );
+                    }
+                    if (section.type === "featured") {
+                      return (
+                        <div key={index} className="grid grid-cols-3 gap-2.5 sm:gap-3">
+                          {section.items.map((item) => (
+                            <FeaturedPackageCard
+                              key={item.id}
+                              item={item}
+                              selected={selectedPackageId === item.id}
+                              onSelect={() => setSelectedPackageId(item.id)}
+                            />
+                          ))}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={index}>
+                        {section.title ? (
+                          <h3 className="mb-3 text-lg font-extrabold text-[#10141f]">{section.title}</h3>
+                        ) : null}
+                        <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+                          {section.items.map((item) => (
+                            <CompactPackageCard
+                              key={item.id}
+                              item={item}
+                              selected={selectedPackageId === item.id}
+                              onSelect={() => setSelectedPackageId(item.id)}
+                            />
+                          ))}
                         </div>
                       </div>
-                      <p className="mt-5 text-sm font-medium text-[#3b4350]">{item.name}</p>
-                    </button>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              ) : (
+                <div>
+                  {packageNoteTop ? (
+                    <p className="mb-3 text-xs leading-relaxed text-[#3b4350]">{packageNoteTop}</p>
+                  ) : null}
+
+                  {featuredPackages.length > 0 ? (
+                    <div className="mb-3 grid grid-cols-3 gap-2.5 sm:gap-3">
+                      {featuredPackages.map((item) => (
+                        <FeaturedPackageCard
+                          key={item.id}
+                          item={item}
+                          selected={selectedPackageId === item.id}
+                          onSelect={() => setSelectedPackageId(item.id)}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+                    {gridPackages.map((item) => (
+                      <CompactPackageCard
+                        key={item.id}
+                        item={item}
+                        selected={selectedPackageId === item.id}
+                        onSelect={() => setSelectedPackageId(item.id)}
+                      />
+                    ))}
+                  </div>
+
+                  {packageNoteBottom ? (
+                    <p className="mt-3 text-xs leading-relaxed text-[#6d7480]">{packageNoteBottom}</p>
+                  ) : null}
+                </div>
+              )
+            ) : (
+              <div>
+                {packageNoteTop ? (
+                  <p className="mb-3 text-xs leading-relaxed text-[#3b4350]">{packageNoteTop}</p>
+                ) : null}
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  {packages.map((item) => {
+                    const selected = selectedPackageId === item.id;
+
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setSelectedPackageId(item.id)}
+                        className={`relative min-h-[100px] rounded-lg border bg-white p-3 text-left shadow-sm transition ${
+                          selected ? "border-[#7152ff] bg-[#f6f3ff]" : "border-[#dfe4ec] hover:border-[#c5ccd8]"
+                        }`}
+                      >
+                        {item.popular ? (
+                          <span className="absolute -top-2 right-2 rounded-full bg-[#ff7a45] px-2 py-0.5 text-[10px] font-bold text-white">
+                            Popular
+                          </span>
+                        ) : null}
+                        <div className="flex items-start justify-between gap-2">
+                          {item.image ? (
+                            <img src={item.image} alt="" className="h-7 w-12 rounded object-cover" />
+                          ) : (
+                            <span className="text-xs font-bold text-[#9aa2ad]">{game.currency_label}</span>
+                          )}
+                          <div className="text-right">
+                            <p className={`text-lg font-black ${selected ? "text-[#6d4cff]" : "text-[#141923]"}`}>{item.priceLabel}</p>
+                            {item.oldPriceLabel ? <p className="text-xs text-[#777f8c] line-through">{item.oldPriceLabel}</p> : null}
+                          </div>
+                        </div>
+                        <p className="mt-5 text-sm font-medium text-[#3b4350]">{item.name}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+                {packageNoteBottom ? (
+                  <p className="mt-3 text-xs leading-relaxed text-[#6d7480]">{packageNoteBottom}</p>
+                ) : null}
               </div>
             )}
           </section>
         </main>
       </div>
 
-      <div className="mx-auto mt-10 grid max-w-[1480px] gap-10 px-4 md:grid-cols-[394px_minmax(0,1fr)] md:px-8 lg:px-12">
-        <div className="hidden md:block" />
-        <main className="rounded-[28px] bg-white/75 px-4 py-7 shadow-[0_24px_70px_rgba(15,23,42,0.12)] backdrop-blur md:col-start-2 md:px-8 lg:px-9">
+      <div className="mx-auto mt-10 grid max-w-[1480px] gap-10 px-4 md:px-8 lg:grid-cols-[360px_minmax(0,1fr)] lg:px-12">
+        <div className="hidden lg:block" />
+        <main className="rounded-[28px] bg-white/75 px-4 py-7 shadow-[0_24px_70px_rgba(15,23,42,0.12)] backdrop-blur md:px-8 lg:col-start-2 lg:px-9">
           <section className="mt-7">
             <SectionTitle number="3">Choose the Payment Method</SectionTitle>
             <MembershipOffer
@@ -1067,7 +1283,7 @@ const GamePage = () => {
               </label>
               <div>
                 <span className="text-xs font-bold text-[#6d7480]">WHATSAPP NUMBER</span>
-                <div className="mt-2 grid grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] gap-3">
+                <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
                   <label className="relative block">
                     <span className="sr-only">Country dial code</span>
                     <select

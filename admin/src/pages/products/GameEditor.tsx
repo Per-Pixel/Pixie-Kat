@@ -5,7 +5,7 @@ import {
   ArrowLeft, Save, Gamepad2, ListChecks, Package, Plus, Trash2,
   GripVertical, Info, ExternalLink, ChevronUp, ChevronDown,
   Eye, Globe, TrendingUp, Star, X, Monitor, Tablet, Smartphone, Layers, ListFilter, Link2,
-  Search, LayoutGrid, List, HelpCircle,
+  Search, LayoutGrid, List, HelpCircle, Pin,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
@@ -34,6 +34,7 @@ interface ProductDraft {
   is_popular: boolean; status: ProductStatus;
   currency_prices: CurrencyPrices;
   is_default: boolean;
+  is_featured: boolean;
 }
 
 interface PageSections {
@@ -64,6 +65,17 @@ const keyify = (value: string) =>
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
+type PackageLayout = 'default' | 'compact';
+
+type PackageSectionType = 'note' | 'featured' | 'grid';
+interface PackageSectionDraft {
+  _key: string;
+  type: PackageSectionType;
+  title: string;
+  text: string;
+  productKeys: string[];
+}
+
 interface GameForm {
   slug: string;
   name: string;
@@ -80,6 +92,9 @@ interface GameForm {
   status: GameStatus;
   is_featured: boolean;
   instructions: string;
+  package_layout: PackageLayout;
+  package_note_top: string;
+  package_note_bottom: string;
 }
 
 const REGIONS = [
@@ -99,6 +114,7 @@ const emptyForm: GameForm = {
   slug: '', name: '', subtitle: '', description: '', image_url: '', banner_url: '',
   category: '', currency_label: 'Diamonds', provider: 'manual', provider_game_code: '',
   smile_coin_product: '', region: '', status: 'draft', is_featured: false, instructions: '',
+  package_layout: 'default', package_note_top: '', package_note_bottom: '',
 };
 
 const defaultCurrencyPrices = (price?: number, costPrice?: number | null, currency?: string): CurrencyPrices => {
@@ -143,6 +159,7 @@ const productFromDB = (p: Product): ProductDraft => ({
   is_popular: p.is_popular ?? false, status: p.status ?? 'active',
   currency_prices: hydrateCurrencyPrices(defaultCurrencyPrices(p.price, p.cost_price, p.currency), p.metadata),
   is_default: false,
+  is_featured: false,
 });
 
 const emptyProductDraft = (): ProductDraft => ({
@@ -153,6 +170,7 @@ const emptyProductDraft = (): ProductDraft => ({
   is_popular: false, status: 'active',
   currency_prices: defaultCurrencyPrices(),
   is_default: false,
+  is_featured: false,
 });
 
 const defaultPageSections: PageSections = { trending: false, exclusive_offers: false, trendingItemId: null, exclusiveItemId: null };
@@ -169,6 +187,7 @@ const GameEditor: React.FC = () => {
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
 
   const [form, setForm] = useState<GameForm>(emptyForm);
+  const [loadedMetadata, setLoadedMetadata] = useState<Record<string, unknown>>({});
   const [steps, setSteps] = useState<HowToStep[]>([]);
   const [fields, setFields] = useState<FieldDraft[]>([]);
   const [products, setProducts] = useState<ProductDraft[]>([]);
@@ -180,6 +199,7 @@ const GameEditor: React.FC = () => {
   const [collapsedPrices, setCollapsedPrices] = useState<Set<string>>(new Set());
   const [packageSearch, setPackageSearch] = useState('');
   const [packageViewMode, setPackageViewMode] = useState<'list' | 'grid'>('list');
+  const [packageSections, setPackageSections] = useState<PackageSectionDraft[]>([]);
 
   const change = <K extends keyof GameForm>(key: K, value: GameForm[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -192,24 +212,52 @@ const GameEditor: React.FC = () => {
         getGameWithRelations(id),
         listPromoItemsByGame(id),
       ]);
+      const meta = (game.metadata ?? {}) as Record<string, unknown>;
+      setLoadedMetadata(meta);
       setForm({
         slug: game.slug, name: game.name, subtitle: game.subtitle ?? '',
         description: game.description ?? '', image_url: game.image_url ?? '',
         banner_url: game.banner_url ?? '', category: game.category ?? '',
         currency_label: game.currency_label, provider: game.provider,
         provider_game_code: game.provider_game_code ?? '',
-        smile_coin_product: String((game.metadata as Record<string, unknown>)?.smile_coin_product ?? ''),
+        smile_coin_product: String(meta.smile_coin_product ?? ''),
         region: game.region ?? '',
         status: game.status, is_featured: game.is_featured, instructions: game.instructions ?? '',
+        package_layout: meta.package_layout === 'compact' ? 'compact' : 'default',
+        package_note_top: String(meta.package_note_top ?? ''),
+        package_note_bottom: String(meta.package_note_bottom ?? ''),
       });
       setSteps(game.how_to_steps ?? []);
       setFields((game.game_fields ?? []).map((f) => ({ ...f, _key: uid() })));
-      const defaultProductId = String((game.metadata as Record<string, unknown>)?.default_product_id ?? '');
+      const defaultProductId = String(meta.default_product_id ?? '');
+      const featuredProductIds = Array.isArray(meta.package_featured)
+        ? (meta.package_featured as unknown[]).map(String)
+        : [];
       const productDrafts = (game.products ?? []).map((p) => {
         const draft = productFromDB(p);
         draft.is_default = Boolean(defaultProductId && p.id === defaultProductId);
+        draft.is_featured = featuredProductIds.includes(p.id);
         return draft;
       });
+      const keyByProductId = new Map(
+        productDrafts.filter((d) => d.id).map((d) => [d.id as string, d._key]),
+      );
+      const rawSections = Array.isArray(meta.package_sections)
+        ? (meta.package_sections as Array<Record<string, unknown>>)
+        : [];
+      setPackageSections(
+        rawSections
+          .filter((s) => s && typeof s === 'object')
+          .map((s) => ({
+            _key: uid(),
+            type: s.type === 'featured' || s.type === 'grid' ? (s.type as PackageSectionType) : 'note',
+            title: String(s.title ?? ''),
+            text: String(s.text ?? ''),
+            productKeys: (Array.isArray(s.product_ids) ? s.product_ids.map(String) : [])
+              .map((pid) => keyByProductId.get(pid))
+              .filter((k): k is string => Boolean(k)),
+          })),
+      );
       setProducts(productDrafts);
       setCollapsedPackages(new Set(productDrafts.map((draft) => draft._key)));
       setCollapsedPrices(new Set(productDrafts.map((draft) => draft._key)));
@@ -263,6 +311,40 @@ const GameEditor: React.FC = () => {
 
   const updateProduct = (key: string, patch: Partial<Omit<ProductDraft, 'currency_prices'>>) =>
     setProducts((prev) => prev.map((p) => (p._key === key ? { ...p, ...patch } : p)));
+
+  // ---- Package section builder (compact layout grouping) ----
+  const addPackageSection = (type: PackageSectionType) =>
+    setPackageSections((prev) => [...prev, { _key: uid(), type, title: '', text: '', productKeys: [] }]);
+
+  const updatePackageSection = (key: string, patch: Partial<PackageSectionDraft>) =>
+    setPackageSections((prev) => prev.map((s) => (s._key === key ? { ...s, ...patch } : s)));
+
+  const removePackageSection = (key: string) =>
+    setPackageSections((prev) => prev.filter((s) => s._key !== key));
+
+  const movePackageSection = (key: string, dir: -1 | 1) =>
+    setPackageSections((prev) => {
+      const idx = prev.findIndex((s) => s._key === key);
+      const target = idx + dir;
+      if (idx < 0 || target < 0 || target >= prev.length) return prev;
+      const copy = [...prev];
+      [copy[idx], copy[target]] = [copy[target], copy[idx]];
+      return copy;
+    });
+
+  const togglePackageSectionProduct = (sectionKey: string, productKey: string) =>
+    setPackageSections((prev) =>
+      prev.map((s) =>
+        s._key === sectionKey
+          ? {
+              ...s,
+              productKeys: s.productKeys.includes(productKey)
+                ? s.productKeys.filter((k) => k !== productKey)
+                : [...s.productKeys, productKey],
+            }
+          : s,
+      ),
+    );
 
   const updateCurrencyPrice = (key: string, code: CurrencyCode, patch: Partial<CurrencyPriceRow>) =>
     setProducts((prev) => prev.map((p) =>
@@ -324,6 +406,16 @@ const GameEditor: React.FC = () => {
     if (err) { toast.error(err); return; }
     setSaving(true);
     try {
+      const baseMetadata: Record<string, unknown> = { ...loadedMetadata };
+      if (form.smile_coin_product) baseMetadata.smile_coin_product = form.smile_coin_product;
+      else delete baseMetadata.smile_coin_product;
+      if (form.package_layout !== 'default') baseMetadata.package_layout = form.package_layout;
+      else delete baseMetadata.package_layout;
+      if (form.package_note_top.trim()) baseMetadata.package_note_top = form.package_note_top.trim();
+      else delete baseMetadata.package_note_top;
+      if (form.package_note_bottom.trim()) baseMetadata.package_note_bottom = form.package_note_bottom.trim();
+      else delete baseMetadata.package_note_bottom;
+
       const payload: Partial<Game> = {
         slug: slugify(form.slug), name: form.name.trim(),
         subtitle: form.subtitle || null, description: form.description ? sanitizeRichText(form.description) : null,
@@ -332,9 +424,7 @@ const GameEditor: React.FC = () => {
         provider: form.provider, provider_game_code: form.provider_game_code || null,
         region: form.region || null, status: form.status, is_featured: form.is_featured,
         instructions: form.instructions || null, how_to_steps: steps.filter((s) => s.title.trim()),
-        metadata: {
-          ...(form.smile_coin_product ? { smile_coin_product: form.smile_coin_product } : {}),
-        },
+        metadata: baseMetadata,
       };
       const game = isEdit && id ? await updateGame(id, payload) : await createGame(payload);
 
@@ -376,7 +466,7 @@ const GameEditor: React.FC = () => {
         };
       }));
 
-      // Update game metadata with default_product_id using the NEW product IDs
+      // Update game metadata with default/featured product IDs using the NEW product IDs
       // (replaceProducts deletes and re-creates products with new UUIDs)
       const defaultDraft = products.find((p) => p.is_default);
       let newDefaultProductId: string | undefined;
@@ -384,12 +474,38 @@ const GameEditor: React.FC = () => {
         const defaultIdx = products.indexOf(defaultDraft);
         newDefaultProductId = savedProducts[defaultIdx]?.id;
       }
-      await updateGame(game.id, {
-        metadata: {
-          ...(form.smile_coin_product ? { smile_coin_product: form.smile_coin_product } : {}),
-          ...(newDefaultProductId ? { default_product_id: newDefaultProductId } : {}),
-        },
+      const newFeaturedIds = products
+        .map((p, i) => (p.is_featured ? savedProducts[i]?.id : undefined))
+        .filter((v): v is string => Boolean(v));
+
+      // Section builder: remap draft product keys to the freshly created product IDs
+      const savedIdByKey = new Map<string, string>();
+      products.forEach((p, i) => {
+        const saved = savedProducts[i];
+        if (saved?.id) savedIdByKey.set(p._key, saved.id);
       });
+      const sectionPayload = packageSections
+        .map((s): Record<string, unknown> => {
+          if (s.type === 'note') return { type: 'note', text: s.text };
+          const product_ids = s.productKeys
+            .map((k) => savedIdByKey.get(k))
+            .filter((v): v is string => Boolean(v));
+          const out: Record<string, unknown> = { type: s.type, product_ids };
+          if (s.type === 'grid' && s.title.trim()) out.title = s.title.trim();
+          return out;
+        })
+        .filter((s) => (s.type === 'note' ? String(s.text ?? '').trim() : (s.product_ids as string[]).length > 0));
+
+      const finalMetadata: Record<string, unknown> = { ...baseMetadata };
+      if (newDefaultProductId) finalMetadata.default_product_id = newDefaultProductId;
+      else delete finalMetadata.default_product_id;
+      if (newFeaturedIds.length > 0) finalMetadata.package_featured = newFeaturedIds;
+      else delete finalMetadata.package_featured;
+      if (sectionPayload.length > 0) finalMetadata.package_sections = sectionPayload;
+      else delete finalMetadata.package_sections;
+
+      await updateGame(game.id, { metadata: finalMetadata });
+      setLoadedMetadata(finalMetadata);
 
       // Sync page sections
       if (pageSections.trending && !pageSections.trendingItemId) {
@@ -672,6 +788,127 @@ const GameEditor: React.FC = () => {
               <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <span><strong>Package Name</strong> is the product title shown to customers (e.g., "Diamonds 100 + 10"). <strong>In-Game Name</strong> is the display label on the card (e.g., "110 Diamonds" or "Weekly Pass"). Set selling prices per currency below.</span>
             </div>
+
+            {/* Storefront layout settings */}
+            <div className="mb-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <LayoutGrid className="h-4 w-4 text-primary-600" />
+                <h3 className="text-sm font-semibold text-gray-800">Storefront Package Layout</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                  <label className="label mb-1.5 block text-xs">Card layout</label>
+                  <select
+                    className="input"
+                    value={form.package_layout}
+                    onChange={(e) => change('package_layout', e.target.value as PackageLayout)}
+                  >
+                    <option value="default">Default — roomy 2/4-column cards</option>
+                    <option value="compact">Compact — dense 3-column grid</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label mb-1.5 block text-xs">Note above packages <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    className="input"
+                    placeholder="e.g., First purchase of select packs grants bonus diamonds"
+                    value={form.package_note_top}
+                    onChange={(e) => change('package_note_top', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="label mb-1.5 block text-xs">Note below packages <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    className="input"
+                    placeholder="e.g., Diamond bonuses apply to first purchase per day"
+                    value={form.package_note_bottom}
+                    onChange={(e) => change('package_note_bottom', e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="mt-4 border-t border-gray-200 pt-4">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="text-xs font-semibold text-gray-700">
+                    Section order <span className="font-normal text-gray-400">(compact layout — leave empty for featured pins on top, then one grid)</span>
+                  </h4>
+                  <div className="flex gap-1.5">
+                    <button type="button" onClick={() => addPackageSection('note')} className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100">+ Note text</button>
+                    <button type="button" onClick={() => addPackageSection('featured')} className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100">+ Featured row</button>
+                    <button type="button" onClick={() => addPackageSection('grid')} className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100">+ Card grid</button>
+                  </div>
+                </div>
+                {packageSections.length > 0 && (
+                  <div className="space-y-2">
+                    {packageSections.map((section, si) => (
+                      <div key={section._key} className="rounded-lg border border-gray-200 bg-white p-3">
+                        <div className="mb-2 flex items-center gap-2">
+                          <select
+                            className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700"
+                            value={section.type}
+                            onChange={(e) => updatePackageSection(section._key, { type: e.target.value as PackageSectionType })}
+                          >
+                            <option value="note">Note text</option>
+                            <option value="featured">Featured cards row</option>
+                            <option value="grid">Card grid</option>
+                          </select>
+                          <span className="text-xs text-gray-400">Section {si + 1}</span>
+                          <div className="ml-auto flex items-center gap-1">
+                            <button type="button" onClick={() => movePackageSection(section._key, -1)} disabled={si === 0} className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30" title="Move up"><ChevronUp className="h-3.5 w-3.5" /></button>
+                            <button type="button" onClick={() => movePackageSection(section._key, 1)} disabled={si === packageSections.length - 1} className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30" title="Move down"><ChevronDown className="h-3.5 w-3.5" /></button>
+                            <button type="button" onClick={() => removePackageSection(section._key)} className="p-1 text-red-500 hover:text-red-700" title="Delete section"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </div>
+                        </div>
+                        {section.type === 'note' ? (
+                          <textarea
+                            rows={2}
+                            className="input h-auto resize-none text-xs"
+                            placeholder="Small note text shown between card groups…"
+                            value={section.text}
+                            onChange={(e) => updatePackageSection(section._key, { text: e.target.value })}
+                          />
+                        ) : (
+                          <div className="space-y-2">
+                            {section.type === 'grid' && (
+                              <input
+                                className="input w-full py-1.5 text-xs sm:w-64"
+                                placeholder="Group heading (optional, e.g., Package)"
+                                value={section.title}
+                                onChange={(e) => updatePackageSection(section._key, { title: e.target.value })}
+                              />
+                            )}
+                            <div className="flex flex-wrap gap-1.5">
+                              {products.map((pr) => {
+                                const active = section.productKeys.includes(pr._key);
+                                return (
+                                  <button
+                                    key={pr._key}
+                                    type="button"
+                                    onClick={() => togglePackageSectionProduct(section._key, pr._key)}
+                                    className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${active ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'}`}
+                                  >
+                                    {pr.name || 'Unnamed package'}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {section.productKeys.length === 0 && (
+                              <p className="text-[11px] text-gray-400">This section is hidden until at least one package is selected.</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="mt-2 text-[11px] text-gray-400">
+                  Packages not placed in any section are appended in a final grid. Sections apply only with the compact layout.
+                </p>
+              </div>
+
+              <p className="mt-2 text-xs text-gray-400">
+                Compact shows dense price-first cards in 3 columns, like regional top-up sites. Pin packages with <strong>Featured</strong> to show them as wide cards above the grid (weekly/monthly passes, bundles). Package <strong>Description</strong> becomes the subtitle on featured cards.
+              </p>
+            </div>
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="relative w-full sm:max-w-sm">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -716,6 +953,10 @@ const GameEditor: React.FC = () => {
                         <button type="button" title={p.is_popular ? 'Remove popular badge' : 'Mark as popular'} onClick={() => updateProduct(p._key, { is_popular: !p.is_popular })} className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${p.is_popular ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500 hover:bg-amber-50'}`}>
                           <Star className="w-3 h-3" fill={p.is_popular ? 'currentColor' : 'none'} />
                           Popular
+                        </button>
+                        <button type="button" title={p.is_featured ? 'Remove featured pin' : 'Pin as featured pack (wide card on top in Compact layout)'} onClick={() => updateProduct(p._key, { is_featured: !p.is_featured })} className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${p.is_featured ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500 hover:bg-emerald-50'}`}>
+                          <Pin className="w-3 h-3" fill={p.is_featured ? 'currentColor' : 'none'} />
+                          Featured
                         </button>
                         <select className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-400" value={p.status} onChange={(e) => updateProduct(p._key, { status: e.target.value as ProductStatus })}>
                           <option value="active">Active</option>
@@ -901,6 +1142,7 @@ const GameEditor: React.FC = () => {
                     <thead>
                       <tr className="bg-white border-b border-gray-200">
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 min-w-[160px]">#&nbsp;Name</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 min-w-[130px]">Card Label</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 min-w-[110px]">INR Sell ₹</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 min-w-[110px]">INR Cost ₹</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 min-w-[110px]">Compare ₹</th>
@@ -916,6 +1158,7 @@ const GameEditor: React.FC = () => {
                         <td className="px-3 py-1.5">
                           <span className="text-xs text-amber-700 font-semibold">Apply to all visible →</span>
                         </td>
+                        <td className="px-3 py-1.5" />
                         {[
                           { placeholder: '₹ sell all', field: 'inr_sell' },
                           { placeholder: '₹ cost all', field: 'inr_cost' },
@@ -983,6 +1226,14 @@ const GameEditor: React.FC = () => {
                                     onChange={(e) => updateProduct(p._key, { name: e.target.value })}
                                   />
                                 </div>
+                              </td>
+                              <td className="px-3 py-1.5">
+                                <input
+                                  className="input py-1 text-xs w-full min-w-[110px]"
+                                  placeholder="e.g., Diamond=50+5"
+                                  value={p.amount}
+                                  onChange={(e) => updateProduct(p._key, { amount: e.target.value })}
+                                />
                               </td>
                               <td className="px-3 py-1.5">
                                 <input type="number" step="0.01" min="0" className="input py-1 text-xs w-full" value={inr.selling_price} onChange={(e) => updateCurrencyPrice(p._key, 'INR', { selling_price: e.target.value })} />

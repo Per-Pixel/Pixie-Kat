@@ -213,7 +213,7 @@ const ContactUsPage = () => {
               Contact Us
             </h1>
             <p className="text-gray-500 text-sm md:text-[0.9375rem] max-w-md leading-relaxed">
-              For bulk orders, partnerships, or any general inquiries — the Pixiekat team is here for you.
+              For bulk orders, partnerships, or any general inquiries — the PixieKat team is here for you.
             </p>
           </motion.div>
         </div>

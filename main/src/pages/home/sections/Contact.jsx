@@ -37,7 +37,7 @@ const Contact = () => {
 
         <div className="flex flex-col items-center text-center">
           <p className="mb-10 font-general text-[10px] uppercase">
-            Top up with Pixiekat
+            Top up with PixieKat
           </p>
 
           <AnimatedTitle

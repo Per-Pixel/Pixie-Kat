@@ -1,0 +1,141 @@
+{
+  "game": {
+    "id": "8620af8a-e3d6-443a-91cd-334e0b2c547b",
+    "slug": "mobile-legends",
+    "instructions": "Double Diamonds Alert\nNote:-\n* One-Time Benefit: Double Diamonds benefits are a one-time offer for each eligible pack, irrespective of the platform or medium used for purchase.\n\n* Already Claimed?: If you have already claimed the Double Diamonds offer for a specific pack through in-game purchases or any other source, you will not be eligible to claim the same benefit again from any platform.",
+    "metadata": {
+      "default_product_id": "c79b7f2c-c690-407d-8ac3-e0533bf0b1a7",
+      "smile_coin_product": "mobilelegends"
+    }
+  },
+  "products": [
+    {
+      "id": "5f47d732-e892-4218-b6da-413b40c4525b",
+      "name": "Weekly Elite Bundle",
+      "amount": "Weekly Elite Bundle",
+      "description": null,
+      "price": 85,
+      "sort_order": 1
+    },
+    {
+      "id": "792140e4-a149-4500-a54f-4ba86c384dcd",
+      "name": "Monthly Epic Bundle",
+      "amount": "275 Diamonds & 180 COA",
+      "description": "275 Diamonds & 180 COA",
+      "price": 415,
+      "sort_order": 2
+    },
+    {
+      "id": "6df2a266-a15f-4ca3-b62e-2ecfa51cc750",
+      "name": "55 Diamond",
+      "amount": "mobilelegends BR 55 Diamond",
+      "description": null,
+      "price": 80,
+      "sort_order": 3
+    },
+    {
+      "id": "f20814c0-d364-435f-9346-8d928e3de06b",
+      "name": "165 Diamond",
+      "amount": "mobilelegends BR 165 Diamond",
+      "description": null,
+      "price": 240,
+      "sort_order": 4
+    },
+    {
+      "id": "467baaa5-1b89-43c1-8e86-5538e6424713",
+      "name": "275 Diamonds",
+      "amount": "mobilelegends BR 275 Diamond",
+      "description": null,
+      "price": 390,
+      "sort_order": 5
+    },
+    {
+      "id": "283e41b0-26d2-49f6-a065-1f578ced0c70",
+      "name": "565 Diamonds",
+      "amount": "mobilelegends BR 565 Diamond",
+      "description": null,
+      "price": 799,
+      "sort_order": 6
+    },
+    {
+      "id": "35b3b42c-5048-435d-a532-0c85a53652f1",
+      "name": "78&8 Diamonds",
+      "amount": "mobilelegends BR 78&8 Diamond",
+      "description": null,
+      "price": 129,
+      "sort_order": 7
+    },
+    {
+      "id": "05468d2d-2c6a-49d2-aa62-b6114e99cd8d",
+      "name": "156&16 Diamonds",
+      "amount": "mobilelegends BR 156&16 Diamond",
+      "description": null,
+      "price": 255,
+      "sort_order": 8
+    },
+    {
+      "id": "c79b7f2c-c690-407d-8ac3-e0533bf0b1a7",
+      "name": "mobilelegends BR 234&23 Diamond",
+      "amount": "mobilelegends BR 234&23 Diamond",
+      "description": null,
+      "price": 370,
+      "sort_order": 9
+    },
+    {
+      "id": "a9b02e34-315c-44dc-9fce-c682ac011b0b",
+      "name": "625&81 Diamonds",
+      "amount": "mobilelegends BR 625&81 Diamond",
+      "description": null,
+      "price": 985,
+      "sort_order": 10
+    },
+    {
+      "id": "8c5a0c97-6eff-4298-aa53-2fd004572399",
+      "name": "1860&335 Diamonds",
+      "amount": "mobilelegends BR 1860&335 Diamond",
+      "description": null,
+      "price": 2990,
+      "sort_order": 11
+    },
+    {
+      "id": "a7287695-3a72-4cc9-8a06-a07d63ee811d",
+      "name": "3099&589 Diamonds",
+      "amount": "mobilelegends BR 3099&589 Diamond",
+      "description": null,
+      "price": 4980,
+      "sort_order": 12
+    },
+    {
+      "id": "f8a93b34-f057-4e8f-8efc-55a5b19845e4",
+      "name": "4649&883 Diamonds",
+      "amount": "mobilelegends BR 4649&883 Diamond",
+      "description": null,
+      "price": 7499,
+      "sort_order": 13
+    },
+    {
+      "id": "9dae8598-7daf-4b39-8bcc-a95b16817a6e",
+      "name": "7740&1548 Diamonds",
+      "amount": "mobilelegends BR 7740&1548 Diamond",
+      "description": null,
+      "price": 12430,
+      "sort_order": 14
+    },
+    {
+      "id": "76b6354c-5e33-4ea8-9b97-90a176a750d0",
+      "name": "Twilight Pass",
+      "amount": "mobilelegends BR Passagem do crepúsculo",
+      "description": "The Twilight Pass is a premium MLBB event pass that unlocks exclusive rewards, including event items, bonus tokens, and valuable resources to help you progress faster in limited-time events.\n✨ A great choice for players who want maximum event rewards with the best overall value.",
+      "price": 850,
+      "sort_order": 15
+    },
+    {
+      "id": "49345cf7-a2fb-4597-b3a2-56597d20a75b",
+      "name": "Weekly Diamond Pass",
+      "amount": "Mobile Legends BR - Passe Semanal de Diamante",
+      "description": "Weekly Diamond Pass\nThe best-value MLBB recharge. Receive Diamonds daily for 7 days. Limited to 10 active passes at a time and cannot be gifted immediately after purchase.",
+      "price": 155,
+      "sort_order": 16
+    }
+  ]
+}

@@ -25,15 +25,15 @@ const Support = () => {
         </svg>
       ),
       title: 'Contact Us',
-      description: 'For bulk orders or any inquiries, talk to the Pixiekat team.',
+      description: 'For bulk orders or any inquiries, talk to the PixieKat team.',
       link: '/support/contact-us',
     },
   ];
 
   const categories = [
     {
-      title: 'About Pixiekat',
-      description: 'Discover the basics of what Pixiekat does and how our instant game top-up service can level up your experience.',
+      title: 'About PixieKat',
+      description: 'Discover the basics of what PixieKat does and how our instant game top-up service can level up your experience.',
     },
     {
       title: 'Game Top-Up Guides',
@@ -66,7 +66,7 @@ const Support = () => {
                 place.
               </h1>
               <p className="text-gray-500 text-sm md:text-[0.9375rem] max-w-xs leading-relaxed">
-                Pick from the categories to find advice and answers from the Pixiekat Team.
+                Pick from the categories to find advice and answers from the PixieKat team.
               </p>
             </motion.div>
 

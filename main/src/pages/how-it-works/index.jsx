@@ -289,23 +289,23 @@ const HowItWorks = () => {
               transition={{ duration: 0.4 }}
               className="max-w-4xl mx-auto mb-16"
             >
-              <div className="bg-white rounded-2xl p-8 shadow-md border border-gray-100">
-                <div className="flex items-center mb-6">
+              <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-md border border-gray-100">
+                <div className="flex flex-wrap items-center gap-4 mb-6">
                   <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center text-3xl mr-6 border-2"
+                    className="w-16 h-16 shrink-0 rounded-full flex items-center justify-center text-3xl border-2"
                     style={{ backgroundColor: POWDER_BLUE_BG, borderColor: POWDER_BLUE }}
                   >
                     {currentStep.icon}
                   </div>
-                  <div>
-                    <h2 className="text-3xl font-bold text-gray-900">
+                  <div className="min-w-0">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
                       Step {currentStep.id ?? safeActiveStep + 1}
                     </h2>
-                    <h3 className="text-xl font-semibold" style={{ color: POWDER_BLUE_DARK }}>
+                    <h3 className="text-lg sm:text-xl font-semibold" style={{ color: POWDER_BLUE_DARK }}>
                       {currentStep.title}
                     </h3>
                   </div>
-                  <div className="ml-auto text-5xl">{currentStep.image}</div>
+                  <div className="ml-auto shrink-0 text-4xl sm:text-5xl">{currentStep.image}</div>
                 </div>
 
                 <p className="text-gray-600 text-lg mb-6">{currentStep.description}</p>

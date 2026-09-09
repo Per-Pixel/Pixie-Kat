@@ -19,6 +19,7 @@ import Wallets from './pages/Wallets';
 import Memberships from './pages/Memberships';
 import RevenueProducts from './pages/revenue/RevenueProducts';
 import SalesOverview from './pages/revenue/SalesOverview';
+import ProfitLoss from './pages/revenue/ProfitLoss';
 import Referral from './pages/revenue/Referral';
 import Compose from './pages/messages/Compose';
 import Clients from './pages/auth/Clients';
@@ -113,6 +114,7 @@ const AppRoutes: React.FC = () => {
         {/* Revenue Routes */}
         <Route path="revenue/sales-overview" element={<SalesOverview />} />
         <Route path="revenue/products" element={<RevenueProducts />} />
+        <Route path="revenue/profit-loss" element={<ProfitLoss />} />
         <Route path="revenue/orders" element={<Orders />} />
         <Route path="revenue/brokers" element={<Resellers />} />
         <Route path="revenue/referral" element={<Referral />} />

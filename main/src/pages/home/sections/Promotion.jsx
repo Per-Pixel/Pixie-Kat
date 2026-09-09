@@ -6,20 +6,20 @@ import { BentoTilt } from "./Features";
 
 const promotions = [
   {
-    title: "MLBB Festive TopUp Rewards: Earn 5% Coda Reward",
+    title: "MLBB Festive Top-Up Rewards: Earn 5% Back",
     description:
-      "Celebrate this festive season by topping up MLBB Diamonds with GCash on Codashop and earn 5% Coda Rewards.",
+      "Celebrate the season on PixieKat — top up Mobile Legends diamonds and earn 5% back with every pack.",
     details:
-      "How to earn? Make a minimum purchase of 70 Diamonds and pay with GCash to enjoy extra rewards for your next top up.",
+      "How it works: buy any pack of 70 diamonds or more and the bonus lands with your order. No codes, no extra steps.",
     image: "/img/promotion/leomord.webp",
     discount: "5%",
   },
   {
-    title: "2x Recharge Bonus is Back + 10% Coda Rewards!",
+    title: "2x Recharge Bonus Is Back + 10% Member Rewards",
     description:
-      "Great news, Commanders. The 2x Recharge Bonus in Magic Chess: Go Go has been reset.",
+      "Great news, Commanders. The 2x recharge bonus in Magic Chess: Go Go has been reset.",
     details:
-      "Even if you bought it before, you can buy it again now. Enjoy double Diamonds on eligible first recharge bundles and extra 10% rewards.",
+      "Even if you claimed it before, you can claim it again — double diamonds on eligible first-recharge bundles, plus extra member rewards on top.",
     image: "/img/promotion/eternal.webp",
     discount: "10%",
   },

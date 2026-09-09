@@ -56,8 +56,8 @@ const MobileHelpSection = () => {
         <h4 className="text-lg font-bold text-black mb-4">You might also play these games</h4>
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-black rounded-xl p-4 text-white">
-            <div className="text-2xl mb-2">🎮</div>
-            <h5 className="font-bold text-sm">CORPORATE</h5>
+            <div className="text-2xl mb-2">🔥</div>
+            <h5 className="font-bold text-sm">Free Fire</h5>
           </div>
           <div className="bg-red-500 rounded-xl p-4 text-white">
             <div className="text-2xl mb-2">⚔️</div>

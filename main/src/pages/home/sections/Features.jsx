@@ -112,7 +112,7 @@ const Features = () => (
           Power Up Your Game
         </p>
         <p className="max-w-md font-circular-web text-lg text-blue-50 opacity-50">
-          From mobile legends to battle royales, Pixiekat lets you recharge
+          From mobile legends to battle royales, PixieKat lets you recharge
           diamonds, credits, and coins across every major title — instantly and
           securely, all in one place.
         </p>

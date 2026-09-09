@@ -83,7 +83,7 @@ const AddMoneyPage = () => {
                   <p className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">Selected game</p>
                   <h2 className="mt-2 text-2xl font-bold">{game.name}</h2>
                   <p className="mt-2 max-w-2xl text-sm text-slate-300">
-                    Add {game.coinName.toLowerCase()} fast and continue checkout in a focused payment flow inspired by your reference design.
+                    Add {game.coinName.toLowerCase()} to your wallet, then head straight to a quick, focused checkout.
                   </p>
                 </div>
                 <Link
@@ -151,7 +151,7 @@ const AddMoneyPage = () => {
                           : "border-slate-200 hover:border-slate-300"
                       }`}
                     >
-                      <div className="grid grid-cols-[96px_minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-row sm:items-center">
+                      <div className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-row sm:items-center">
                         <div className="flex h-12 w-full items-center justify-center rounded-[12px] border border-slate-200 bg-white px-3 text-lg font-bold text-slate-500 shadow-sm sm:w-auto sm:min-w-28">
                           {method.logo}
                         </div>
@@ -161,7 +161,7 @@ const AddMoneyPage = () => {
                         </div>
                         <div className="min-w-0 text-right">
                           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">You pay</p>
-                          <p className={`text-2xl font-black tracking-tight ${method.accent ?? "text-slate-900"}`}>
+                          <p className={`text-lg font-black tracking-tight sm:text-2xl ${method.accent ?? "text-slate-900"}`}>
                             {method.priceLabel}
                           </p>
                           {method.note ? <p className="text-xs text-slate-400">{method.note}</p> : null}

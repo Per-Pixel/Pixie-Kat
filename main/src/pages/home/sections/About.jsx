@@ -8,11 +8,11 @@ import { supabase } from "../../../lib/supabase";
 gsap.registerPlugin(ScrollTrigger);
 
 const defaultCopy = {
-  welcome_text: "Welcome to Pixiekat",
+  welcome_text: "Welcome to PixieKat",
   title_html: "T<b>o</b>p up your <br /> fav<b>o</b>rite games",
   subtext_line1: "Fast credits, instant delivery — game more, wait less",
   subtext_line2:
-    "Pixiekat brings you the quickest way to top up diamonds, coins, and credits across all your favorite mobile and PC titles",
+    "PixieKat brings you the quickest way to top up diamonds, coins, and credits across all your favorite mobile and PC titles",
   image_url: "/img/about.webp",
   image_alt: "Background",
 };

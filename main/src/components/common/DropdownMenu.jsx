@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { TiLocationArrow } from "react-icons/ti";
 import { createPortal } from 'react-dom';
@@ -22,6 +22,7 @@ const cardData = [
     id: 'home',
     title: 'Welcome to PixieKat',
     description: 'Your trusted gaming top-up partner',
+    path: '/',
     image: '/videos/feature-1.mp4',
     buttonText: 'Get Started',
     gradient: 'from-violet-500 to-blue-500'
@@ -30,6 +31,7 @@ const cardData = [
     id: 'games',
     title: 'Popular Games',
     description: 'Top up MLBB, PUBG, Free Fire & more',
+    path: '/games',
     image: '/videos/feature-2.mp4',
     buttonText: 'Browse Games',
     gradient: 'from-blue-500 to-cyan-500'
@@ -38,6 +40,7 @@ const cardData = [
     id: 'pricing',
     title: 'Membership Plans',
     description: 'Get exclusive benefits and bonuses',
+    path: '/pricing',
     image: '/videos/feature-3.mp4',
     buttonText: 'View Plans',
     gradient: 'from-cyan-500 to-pink-500'
@@ -46,6 +49,7 @@ const cardData = [
     id: 'howitworks',
     title: 'How It Works',
     description: 'Simple 5-step process for instant top-ups',
+    path: '/how-it-works',
     image: '/videos/feature-4.mp4',
     buttonText: 'Learn More',
     gradient: 'from-pink-500 to-violet-500'
@@ -54,6 +58,7 @@ const cardData = [
     id: 'faq',
     title: 'FAQ',
     description: 'Find answers to common questions',
+    path: '/faq',
     image: '/videos/feature-5.mp4',
     buttonText: 'Read FAQ',
     gradient: 'from-violet-500 to-blue-500'
@@ -62,6 +67,7 @@ const cardData = [
     id: 'support',
     title: 'Customer Support',
     description: '24/7 support via WhatsApp & more',
+    path: '/support',
     image: '/videos/feature-1.mp4',
     buttonText: 'Get Help',
     gradient: 'from-blue-500 to-cyan-500'
@@ -71,6 +77,7 @@ const cardData = [
 const DropdownMenu = ({ onClose }) => {
   const [activeCard, setActiveCard] = useState('home');
   const menuRef = useRef(null);
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const reduced = useReducedMotion();
 
@@ -148,14 +155,14 @@ const DropdownMenu = ({ onClose }) => {
       }}
     >
       <div className="m-0 flex h-full w-full p-0">
-        <div className="w-1/3 border-r border-white/10 p-16">
-          <h2 className="mb-12 text-4xl font-bold text-white">Menu</h2>
-          <ul className="space-y-8">
+        <div className="w-full overflow-y-auto border-r border-white/10 p-6 sm:p-10 lg:w-1/3 lg:p-16">
+          <h2 className="mb-8 text-3xl font-bold text-white lg:mb-12 lg:text-4xl">Menu</h2>
+          <ul className="space-y-5 lg:space-y-8">
             {menuItems.map((item) => (
               <li key={item.title}>
                 <Link
                   to={item.path}
-                  className="group flex items-center gap-3 text-2xl text-white/70 transition-colors duration-300 hover:text-white"
+                  className="group flex items-center gap-3 text-xl text-white/70 transition-colors duration-300 hover:text-white lg:text-2xl"
                   onMouseEnter={() => handleMenuItemHover(item.title)}
                   onClick={handleClose}
                 >
@@ -169,7 +176,7 @@ const DropdownMenu = ({ onClose }) => {
               <li>
                 <Link
                   to="/login"
-                  className="group flex items-center gap-3 text-2xl text-white/70 transition-colors duration-300 hover:text-white"
+                  className="group flex items-center gap-3 text-xl text-white/70 transition-colors duration-300 hover:text-white lg:text-2xl"
                   onClick={handleClose}
                 >
                   <span className="h-0.5 w-0 bg-violet-500 transition-all duration-300 group-hover:w-4"></span>
@@ -180,7 +187,7 @@ const DropdownMenu = ({ onClose }) => {
           </ul>
         </div>
 
-        <div className="w-2/3 p-16">
+        <div className="hidden w-2/3 p-16 lg:block">
           <div className="relative h-full overflow-hidden rounded-lg">
             <div className={`absolute inset-0 bg-gradient-to-br ${currentCard.gradient} opacity-80`}></div>
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
@@ -196,7 +203,10 @@ const DropdownMenu = ({ onClose }) => {
                 title={currentCard.buttonText}
                 leftIcon={<TiLocationArrow />}
                 containerClass="bg-white text-sm py-3 px-8 text-violet-600 flex-center gap-2 hover:bg-gray-100 transition-colors duration-200"
-                onClick={() => {}}
+                onClick={() => {
+                  handleClose();
+                  navigate(currentCard.path);
+                }}
               />
             </div>
           </div>
