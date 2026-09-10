@@ -5,6 +5,7 @@ import { TiLocationArrow } from "react-icons/ti";
 import { createPortal } from 'react-dom';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { publicMediaUrl } from '../../lib/supabase';
 import SlideTextButton from "../../animations/components/SlideTextButton";
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
@@ -23,7 +24,7 @@ const cardData = [
     title: 'Welcome to PixieKat',
     description: 'Your trusted gaming top-up partner',
     path: '/',
-    image: '/videos/feature-1.mp4',
+    image: publicMediaUrl('/videos/feature-1.mp4'),
     buttonText: 'Get Started',
     gradient: 'from-violet-500 to-blue-500'
   },
@@ -32,7 +33,7 @@ const cardData = [
     title: 'Popular Games',
     description: 'Top up MLBB, PUBG, Free Fire & more',
     path: '/games',
-    image: '/videos/feature-2.mp4',
+    image: publicMediaUrl('/videos/feature-2.mp4'),
     buttonText: 'Browse Games',
     gradient: 'from-blue-500 to-cyan-500'
   },
@@ -41,7 +42,7 @@ const cardData = [
     title: 'Membership Plans',
     description: 'Get exclusive benefits and bonuses',
     path: '/pricing',
-    image: '/videos/feature-3.mp4',
+    image: publicMediaUrl('/videos/feature-3.mp4'),
     buttonText: 'View Plans',
     gradient: 'from-cyan-500 to-pink-500'
   },
@@ -50,7 +51,7 @@ const cardData = [
     title: 'How It Works',
     description: 'Simple 5-step process for instant top-ups',
     path: '/how-it-works',
-    image: '/videos/feature-4.mp4',
+    image: publicMediaUrl('/videos/feature-4.mp4'),
     buttonText: 'Learn More',
     gradient: 'from-pink-500 to-violet-500'
   },
@@ -59,7 +60,7 @@ const cardData = [
     title: 'FAQ',
     description: 'Find answers to common questions',
     path: '/faq',
-    image: '/videos/feature-5.mp4',
+    image: publicMediaUrl('/videos/feature-5.mp4'),
     buttonText: 'Read FAQ',
     gradient: 'from-violet-500 to-blue-500'
   },
@@ -68,7 +69,7 @@ const cardData = [
     title: 'Customer Support',
     description: '24/7 support via WhatsApp & more',
     path: '/support',
-    image: '/videos/feature-1.mp4',
+    image: publicMediaUrl('/videos/feature-1.mp4'),
     buttonText: 'Get Help',
     gradient: 'from-blue-500 to-cyan-500'
   }

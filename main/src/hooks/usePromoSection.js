@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { supabase } from "../lib/supabase";
+import { resolveMediaUrls, supabase } from "../lib/supabase";
 
 // Fetches active promotional_items for a given homepage section
 // ("trending" or "exclusive_offers"), ordered by sort_order.
@@ -28,7 +28,7 @@ export function usePromoSection(section) {
       if (supaErr) {
         setError(supaErr.message);
       } else {
-        setItems(data ?? []);
+        setItems(resolveMediaUrls(data ?? []));
       }
 
       setLoading(false);

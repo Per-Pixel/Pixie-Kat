@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 
-import { supabase } from "../lib/supabase";
+import { publicMediaUrl, resolveMediaUrls, supabase } from "../lib/supabase";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 function mapGameRow(g) {
+  const resolved = resolveMediaUrls(g);
   return {
     id: g.slug,
     slug: g.slug,
     name: g.name,
     subtitle: g.subtitle ?? g.name,
-    image: g.image_url ?? "/img/games/mobile-legends.webp",
+    image: resolved.image_url || publicMediaUrl("/img/games/mobile-legends.webp"),
     currency_label: g.currency_label,
   };
 }

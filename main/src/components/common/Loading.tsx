@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { motion, AnimatePresence } from "framer-motion";
+import { publicMediaUrl } from "../../lib/supabase";
 
 const Loading = ({ 
   onComplete, 
@@ -24,15 +25,15 @@ const Loading = ({
 
   // Define the images array
   const images = [
-    "/img/loading/1.jpg",
-    "/img/loading/2.jpg",
-    "/img/loading/3.jpg",
-    "/img/loading/4.jpg",
-    "/img/loading/9.jpg",
-    "/img/loading/6.jpg",
-    "/img/loading/7.jpg",
-    "/img/loading/8.jpg",
-    "/img/loading/1.jpg",
+    publicMediaUrl("/img/loading/1.jpg"),
+    publicMediaUrl("/img/loading/2.jpg"),
+    publicMediaUrl("/img/loading/3.jpg"),
+    publicMediaUrl("/img/loading/4.jpg"),
+    publicMediaUrl("/img/loading/9.jpg"),
+    publicMediaUrl("/img/loading/6.jpg"),
+    publicMediaUrl("/img/loading/7.jpg"),
+    publicMediaUrl("/img/loading/8.jpg"),
+    publicMediaUrl("/img/loading/1.jpg"),
   ];
 
   useEffect(() => {

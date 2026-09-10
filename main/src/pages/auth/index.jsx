@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, UserRound, ArrowLeft } from 'lucide-react';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { publicMediaUrl } from '../../lib/supabase';
 
 const Auth = () => {
   const [formData, setFormData] = useState({
@@ -129,13 +130,13 @@ const Auth = () => {
         >
           <div className="mb-8 text-center">
             <img
-              src="/img/swordman.webp"
+              src={publicMediaUrl("/img/swordman.webp")}
               alt="PixieKat"
               className="mx-auto mb-6 h-64 w-64 rounded-3xl object-cover shadow-2xl"
             />
             <div className="flex items-center justify-center gap-2">
               <div className="h-12 w-12 rounded-lg bg-white p-2">
-                <img src="/img/logo.png" alt="Logo" className="h-full w-full object-contain" />
+                <img src={publicMediaUrl("/img/logo.png")} alt="Logo" className="h-full w-full object-contain" />
               </div>
               <h2 className="text-3xl font-bold" style={{ color: '#1a1a2e' }}>PixieKat</h2>
             </div>
@@ -168,14 +169,14 @@ const Auth = () => {
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
             >
               <img
-                src="/img/swordman.webp"
+                src={publicMediaUrl("/img/swordman.webp")}
                 alt="PixieKat"
                 className="h-52 w-full object-cover object-center"
               />
               {/* Logo strip inside card */}
               <div className="flex items-center justify-center gap-2 py-3">
                 <div className="h-8 w-8 rounded-md bg-white p-1 shadow">
-                  <img src="/img/logo.png" alt="Logo" className="h-full w-full object-contain" />
+                  <img src={publicMediaUrl("/img/logo.png")} alt="Logo" className="h-full w-full object-contain" />
                 </div>
                 <span className="text-base font-bold text-white">PixieKat</span>
               </div>

@@ -1,81 +1,82 @@
 import { useNavigate } from "react-router-dom";
 
+import { publicMediaUrl } from "../../../lib/supabase";
 import { usePromoSection } from "../../../hooks/usePromoSection";
 import { useJjkCheaperPlacement } from "../../../hooks/useJjkCheaperPlacement";
 
 const fallbackExclusiveOffers = [
   {
     title: "Mobile Legend Bang Bang",
-    image: "/img/hero/game-mlbb-card.webp",
+    image: publicMediaUrl("/img/hero/game-mlbb-card.webp"),
   },
   {
     title: "PUBG Mobile Top Up",
-    image: "/img/hero/game-pubg-card.webp",
+    image: publicMediaUrl("/img/hero/game-pubg-card.webp"),
   },
   {
     title: "Genshin Impact Genesis Crystals",
-    image: "/img/hero/game-genshin-card.webp",
+    image: publicMediaUrl("/img/hero/game-genshin-card.webp"),
     flag: "🇮🇳",
   },
   {
     title: "Honor of Kings Tokens",
-    image: "/img/games/honor-of-kings.jpg",
+    image: publicMediaUrl("/img/games/honor-of-kings.jpg"),
   },
   {
     title: "Mobile Legends Diamonds",
-    image: "/img/games/mobile-legends.webp",
+    image: publicMediaUrl("/img/games/mobile-legends.webp"),
   },
   {
     title: "MLBB Leomord Special Pack",
-    image: "/img/promotion/leomord.webp",
+    image: publicMediaUrl("/img/promotion/leomord.webp"),
   },
   {
     title: "Magic Chess: Go Go Bundle",
-    image: "/img/promotion/eternal.webp",
+    image: publicMediaUrl("/img/promotion/eternal.webp"),
   },
   {
     title: "Starlight Pass Top Up",
-    image: "/img/promotion/starlight.webp",
+    image: publicMediaUrl("/img/promotion/starlight.webp"),
   },
   {
     title: "Jinx Champion Bundle",
-    image: "/img/hero/Jinx.webp",
+    image: publicMediaUrl("/img/hero/Jinx.webp"),
   },
   {
     title: "Faze Clan Promo Pack",
-    image: "/img/hero/Faze.webp",
+    image: publicMediaUrl("/img/hero/Faze.webp"),
   },
   {
     title: "Melissa Character Pack",
-    image: "/img/hero/melissa.webp",
+    image: publicMediaUrl("/img/hero/melissa.webp"),
   },
   {
     title: "Hero Special Top Up",
-    image: "/img/hero/game-hero-card.gif",
+    image: publicMediaUrl("/img/hero/game-hero-card.gif"),
   },
   {
     title: "Battle Arena Premium Pack",
-    image: "/img/loading/1.jpg",
+    image: publicMediaUrl("/img/loading/1.jpg"),
   },
   {
     title: "Dragon Quest Crystals",
-    image: "/img/loading/2.jpg",
+    image: publicMediaUrl("/img/loading/2.jpg"),
   },
   {
     title: "Fantasy Realm Credits",
-    image: "/img/loading/3.jpg",
+    image: publicMediaUrl("/img/loading/3.jpg"),
   },
   {
     title: "Shadow Warriors Bundle",
-    image: "/img/loading/4.jpg",
+    image: publicMediaUrl("/img/loading/4.jpg"),
   },
   {
     title: "Cyber Strike Coin Pack",
-    image: "/img/loading/6.jpg",
+    image: publicMediaUrl("/img/loading/6.jpg"),
   },
   {
     title: "Valor Points Top Up",
-    image: "/img/loading/7.jpg",
+    image: publicMediaUrl("/img/loading/7.jpg"),
   },
 ];
 
@@ -122,7 +123,7 @@ const ExclusiveOffers = () => {
     promoItems.length > 0
       ? promoItems.map((item) => ({
           title: item.title,
-          image: item.image_url ?? "/img/games/mobile-legends.webp",
+          image: item.image_url || publicMediaUrl("/img/games/mobile-legends.webp"),
           flag: item.flag ?? undefined,
           link: item.link_url || (item.game_id ? `/games/${item.game_id}` : "/games"),
         }))

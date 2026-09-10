@@ -2,6 +2,7 @@ import gsap from "gsap";
 import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { publicMediaUrl } from "../../../lib/supabase";
 import Button from "../../../components/common/Button";
 import AnimatedTitle from "../../../components/common/AnimatedTitle";
 
@@ -69,7 +70,7 @@ const FloatingImage = () => {
                   onMouseLeave={handleMouseLeave}
                   onMouseUp={handleMouseLeave}
                   onMouseEnter={handleMouseLeave}
-                  src="/img/entrance.webp"
+                  src={publicMediaUrl("/img/entrance.webp")}
                   alt="entrance.webp"
                   className="object-contain"
                 />

@@ -46,7 +46,7 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { supabaseAdmin, verifyAdminRequest, verifyUserRequest } from './supabase-admin.js';
+import { supabaseAdmin, verifyAdminRequest, verifyUserRequest, isSuperAdmin } from './supabase-admin.js';
 import { validateEmail } from './utils/validation.js';
 import * as smileOne from './smileone.js';
 import * as smileCoin from './smilecoin.js';
@@ -695,7 +695,7 @@ app.post('/api/admin/wallet/adjust', requireSuperAdmin, async (req, res) => {
     if (!targetProfile) {
       return res.status(404).json({ success: false, message: 'User profile not found' });
     }
-    if (targetProfile.role === 'admin') {
+    if (targetProfile.role === 'admin' && !isSuperAdmin(req.adminProfile)) {
       return res.status(403).json({ success: false, message: 'Admin wallet balances require separate approval' });
     }
 

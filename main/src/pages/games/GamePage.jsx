@@ -18,13 +18,13 @@ import {
 import { fallbackGameImage } from "./gamesData";
 import { useGameCatalog } from "./useGameCatalog";
 import { useAuth } from "../../contexts/AuthContext";
-import { supabase } from "../../lib/supabase";
+import { publicMediaUrl, supabase } from "../../lib/supabase";
 import { sanitizeRichText } from "../../utils/sanitizeRichText";
 import { buildWhatsAppUrl, fetchContactSettings } from "../../lib/storeContent";
 import { loadRazorpayCheckout } from "../../lib/razorpay";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
-const defaultBanner = "/img/hero/game-mlbb-card.webp";
+const defaultBanner = publicMediaUrl("/img/hero/game-mlbb-card.webp");
 
 const COUNTRY_DIAL_CODES = [
   { code: "IN", label: "India", dial: "+91" },

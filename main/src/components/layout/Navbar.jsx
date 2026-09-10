@@ -6,6 +6,7 @@ import { TiLocationArrow } from "react-icons/ti";
 import { Plus, UserRound } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
+import { publicMediaUrl } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { useAppearance } from "../../contexts/AppearanceContext";
 import { useJjkCheaperPlacement } from "../../hooks/useJjkCheaperPlacement";
@@ -35,9 +36,9 @@ const NavBar = () => {
   const navContainerRef = useRef(null);
   const location = useLocation();
 
-  const logoUrl = appearance.logo_url || "/img/logo.png";
+  const logoUrl = publicMediaUrl(appearance.logo_url) || publicMediaUrl("/img/logo.png");
   const brandText = appearance.header_brand_text || "PixieKat";
-  const musicUrl = appearance.music_url || "/audio/loop.mp3";
+  const musicUrl = publicMediaUrl(appearance.music_url) || publicMediaUrl("/audio/loop.mp3");
   const musicRate = Number(appearance.music_playback_rate) || 1;
   const musicVolume = Number(appearance.music_volume);
 

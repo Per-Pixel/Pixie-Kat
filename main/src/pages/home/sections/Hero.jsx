@@ -11,7 +11,7 @@ import FlipCard from "../../../components/common/FlipCard";
 import { useParallaxScroll } from "../../../animations/hooks/useParallaxScroll";
 import MobileSquareButton from "../../../components/common/MobileSquareButton";
 import Loading from "../../../components/common/Loading";
-import { supabase } from "../../../lib/supabase";
+import { publicMediaUrl, resolveMediaUrls, supabase } from "../../../lib/supabase";
 
 const defaultHeroSettings = {
   heading: "PixieKat",
@@ -19,24 +19,24 @@ const defaultHeroSettings = {
   tagline: "Fast, Secure, Affordable",
   button_text: "Topup Now",
   button_link: "/games",
-  background_video: "/videos/hero-1.mp4",
+  background_video: publicMediaUrl("/videos/hero-1.mp4"),
   images: {
     jinx: {
-      url: "/img/hero/Jinx.webp",
+      url: publicMediaUrl("/img/hero/Jinx.webp"),
       show_on_phone: false,
       desktop: { scale: 120, rotate: 0, x: 0, y: 0, pos_left: "43%", pos_top: "60%" },
       tablet:  { scale: 100, rotate: 0, x: 0, y: 0, pos_left: "30%", pos_top: "69%" },
       mobile:  { scale: 80,  rotate: 0, x: 0, y: 0, pos_left: "30%", pos_top: "69%" },
     },
     faze: {
-      url: "/img/hero/Faze.webp",
+      url: publicMediaUrl("/img/hero/Faze.webp"),
       show_on_phone: true,
       desktop: { scale: 150, rotate: 0, x: 0, y: 0, pos_left: "50%", pos_top: "70%" },
       tablet:  { scale: 130, rotate: 0, x: 0, y: 0, pos_left: "50%", pos_top: "70%" },
       mobile:  { scale: 110, rotate: 0, x: 0, y: 0, pos_left: "50%", pos_top: "70%" },
     },
     melissa: {
-      url: "/img/hero/melissa.webp",
+      url: publicMediaUrl("/img/hero/melissa.webp"),
       show_on_phone: false,
       desktop: { scale: 150, rotate: 0, x: 0, y: 0, pos_left: "59%", pos_top: "65%" },
       tablet:  { scale: 120, rotate: 0, x: 0, y: 0, pos_left: "70%", pos_top: "69%" },
@@ -72,11 +72,13 @@ const Hero = () => {
       .maybeSingle()
       .then(({ data }) => {
         if (data?.hero_settings && Object.keys(data.hero_settings).length > 0) {
-          setHeroSettings((prev) => ({
-            ...prev,
-            ...data.hero_settings,
-            images: { ...prev.images, ...(data.hero_settings.images ?? {}) },
-          }));
+          setHeroSettings((prev) =>
+            resolveMediaUrls({
+              ...prev,
+              ...data.hero_settings,
+              images: { ...prev.images, ...(data.hero_settings.images ?? {}) },
+            })
+          );
         }
       });
   }, []);
@@ -224,7 +226,7 @@ const Hero = () => {
       >
         <div>
           <video
-            src={heroSettings.background_video || "/videos/hero-1.mp4"}
+            src={publicMediaUrl(heroSettings.background_video) || publicMediaUrl("/videos/hero-1.mp4")}
             autoPlay
             loop
             muted
@@ -234,7 +236,7 @@ const Hero = () => {
             controls={false}
             controlsList="nodownload noplaybackrate nofullscreen"
             disablePictureInPicture
-            poster="/img/hero/Jinx.webp"
+            poster={publicMediaUrl("/img/hero/Jinx.webp")}
             className="absolute left-0 top-0 size-full object-cover object-center"
             onLoadedData={handleVideoLoad}
           />
@@ -246,7 +248,7 @@ const Hero = () => {
             <div className="relative size-full rounded-lg overflow-hidden">
               <video
                 ref={featureVideoRef}
-                src="/videos/feature-4.mp4" 
+                src={publicMediaUrl("/videos/feature-4.mp4")} 
                 autoPlay
                 loop
                 muted
@@ -256,7 +258,7 @@ const Hero = () => {
                 controls={false}
                 controlsList="nodownload noplaybackrate nofullscreen"
                 disablePictureInPicture
-                poster="/img/hero/Faze.webp"
+                poster={publicMediaUrl("/img/hero/Faze.webp")}
                 className="absolute left-0 top-0 size-full object-cover object-center"
               />
               <div className="relative z-20 flex size-full flex-col justify-between p-5">
@@ -276,9 +278,9 @@ const Hero = () => {
         {/* Desktop view: right side card with flip animation */}
         {false && !isMobile && (
           <div className="absolute bottom-64 right-8 z-50 h-48 w-80 md:h-64 md:w-96 pointer-events-auto">
-            <FlipCard 
-              frontVideo="/videos/feature-2.mp4"
-              backVideo="/videos/feature-3.mp4"
+            <FlipCard
+              frontVideo={publicMediaUrl("/videos/feature-2.mp4")}
+              backVideo={publicMediaUrl("/videos/feature-3.mp4")}
               title="Popular Games"
               description="Top up your favorite games instantly"
               buttonText="View All Games"
@@ -292,7 +294,7 @@ const Hero = () => {
             <BentoTilt className="h-full w-full rounded-lg overflow-hidden shadow-[0_0_15px_rgba(79,183,221,0.5)]">
               <div className="relative size-full rounded-lg overflow-hidden">
                 <video
-                  src="/videos/feature-4.mp4" 
+                  src={publicMediaUrl("/videos/feature-4.mp4")} 
                   autoPlay
                   loop
                   muted
@@ -342,9 +344,9 @@ const Hero = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              <FlipCard 
-                frontVideo="/videos/feature-2.mp4"
-                backVideo="/videos/feature-3.mp4"
+              <FlipCard
+                frontVideo={publicMediaUrl("/videos/feature-2.mp4")}
+                backVideo={publicMediaUrl("/videos/feature-3.mp4")}
                 title="Popular Games"
                 description="Top up your favorite games instantly"
                 buttonText="View All Games"

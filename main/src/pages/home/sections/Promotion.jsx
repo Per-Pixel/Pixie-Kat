@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { useRef, useState } from "react";
 
+import { publicMediaUrl } from "../../../lib/supabase";
 import AnimatedTitle from "../../../components/common/AnimatedTitle";
 import { BentoTilt } from "./Features";
 
@@ -11,7 +12,7 @@ const promotions = [
       "Celebrate the season on PixieKat — top up Mobile Legends diamonds and earn 5% back with every pack.",
     details:
       "How it works: buy any pack of 70 diamonds or more and the bonus lands with your order. No codes, no extra steps.",
-    image: "/img/promotion/leomord.webp",
+    image: publicMediaUrl("/img/promotion/leomord.webp"),
     discount: "5%",
   },
   {
@@ -20,7 +21,7 @@ const promotions = [
       "Great news, Commanders. The 2x recharge bonus in Magic Chess: Go Go has been reset.",
     details:
       "Even if you claimed it before, you can claim it again — double diamonds on eligible first-recharge bundles, plus extra member rewards on top.",
-    image: "/img/promotion/eternal.webp",
+    image: publicMediaUrl("/img/promotion/eternal.webp"),
     discount: "10%",
   },
   {
@@ -29,7 +30,7 @@ const promotions = [
       "Power up faster with bonus value and unlock more in-game rewards while the promotion lasts.",
     details:
       "Top up during the active period to receive bonus credits and seasonal perks. Limited-time offer, terms and conditions apply.",
-    image: "/img/promotion/starlight.webp",
+    image: publicMediaUrl("/img/promotion/starlight.webp"),
     discount: "15%",
   },
 ];
@@ -166,7 +167,7 @@ const Promotion = () => {
             ref={promoFrameRef}
             className="pointer-events-none absolute inset-0 rounded-3xl"
             style={{
-              backgroundImage: "url('/img/hero/promotion-art.png')",
+              backgroundImage: `url('${publicMediaUrl("/img/hero/promotion-art.png")}')`,
               backgroundSize: "cover",
               backgroundPosition: "center",
             }}

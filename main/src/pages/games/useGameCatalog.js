@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 
-import { supabase } from "../../lib/supabase";
+import { resolveMediaUrls, supabase } from "../../lib/supabase";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 async function fetchViaApi(slug) {
   const res = await fetch(`${API_BASE}/catalog/games/${encodeURIComponent(slug)}`);
@@ -50,11 +50,12 @@ export function useGameCatalog(slug) {
       if (cancelled) return;
 
       if (!error && data) {
-        const fields = (data.game_fields ?? [])
+        const resolvedGame = resolveMediaUrls(data);
+        const fields = (resolvedGame.game_fields ?? [])
           .slice()
           .sort((a, b) => a.sort_order - b.sort_order);
 
-        const products = (data.products ?? [])
+        const products = (resolvedGame.products ?? [])
           .filter((p) => p.status === "active")
           .sort((a, b) => a.sort_order - b.sort_order);
 
@@ -62,7 +63,7 @@ export function useGameCatalog(slug) {
           loading: false,
           notFound: false,
           error: null,
-          game: data,
+          game: resolvedGame,
           fields,
           products,
         });
@@ -89,9 +90,9 @@ export function useGameCatalog(slug) {
             loading: false,
             notFound: false,
             error: null,
-            game: api.game,
+            game: resolveMediaUrls(api.game),
             fields: api.fields,
-            products: api.products,
+            products: resolveMediaUrls(api.products),
           });
         } catch (apiErr) {
           if (cancelled) return;
@@ -129,9 +130,9 @@ export function useGameCatalog(slug) {
           loading: false,
           notFound: false,
           error: null,
-          game: api.game,
+          game: resolveMediaUrls(api.game),
           fields: api.fields,
-          products: api.products,
+          products: resolveMediaUrls(api.products),
         });
       } catch (apiErr) {
         if (cancelled) return;

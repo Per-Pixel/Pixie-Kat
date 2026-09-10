@@ -1,3 +1,4 @@
+import { publicMediaUrl } from "./supabase";
 import { fetchJsonSetting } from "./storeContent";
 
 export const JJK_CHEAPER_COLUMN = "event_jjk_cheaper_settings";
@@ -27,7 +28,7 @@ export const DEFAULT_JJK_CHEAPER = {
     navbar: false,
     direct_url_only: true,
     promo_title: "Jujutsu Kaisen - Cheaper Guide",
-    promo_image: "/img/games/mobile-legends.webp",
+    promo_image: publicMediaUrl("/img/games/mobile-legends.webp"),
   },
   nav: {
     file_code: "PK / FILE 081",

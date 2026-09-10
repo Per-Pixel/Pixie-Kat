@@ -6,6 +6,7 @@ import {
   isJjkCheaperPublished,
   sectionVisible,
 } from "../../../lib/eventJjkCheaper";
+import { publicMediaUrl } from "../../../lib/supabase";
 import "./jjk-cheaper.css";
 
 function prefersReducedMotion() {
@@ -110,7 +111,7 @@ function EventNav({ settings, activeId }) {
       <div className="jjk-nav-progress" aria-hidden="true" />
       <Link to="/" className="jjk-logo-link" aria-label="Back to PixieKat">
         <span className="jjk-logo-core">
-          <img src="/img/logo.png" alt="PixieKat" width={120} height={48} />
+          <img src={publicMediaUrl("/img/logo.png")} alt="PixieKat" width={120} height={48} />
         </span>
         <span className="jjk-logo-meta">
           <small>{settings.nav.file_code}</small>
@@ -648,7 +649,7 @@ function CtaSection({ cta }) {
   return (
     <section className="jjk-footer jjk-scroll-reveal" data-jjk-reveal>
       <div>
-        <img src="/img/logo.png" alt="PixieKat" width={74} height={40} />
+        <img src={publicMediaUrl("/img/logo.png")} alt="PixieKat" width={74} height={40} />
         <span>{cta.heading}</span>
       </div>
       <div>

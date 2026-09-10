@@ -54,6 +54,22 @@ export async function verifyAdminRequest(authHeader) {
   return { error: null, user, profile };
 }
 
+function parseSuperAdminList(envVar = '') {
+  return envVar
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+export function isSuperAdmin(profile) {
+  if (!profile) return false;
+  const superIds = parseSuperAdminList(process.env.SUPER_ADMIN_IDS);
+  const superEmails = parseSuperAdminList(
+    process.env.SUPER_ADMIN_EMAILS ?? 'admin@pixiekat.com'
+  ).map((s) => s.toLowerCase());
+  return superIds.includes(profile.id) || (profile.email && superEmails.includes(profile.email.toLowerCase()));
+}
+
 export async function verifyUserRequest(authHeader) {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return { error: 'Missing or malformed Authorization header', user: null, profile: null };

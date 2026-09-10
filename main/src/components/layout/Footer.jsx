@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import MouseGlow from "../common/MouseGlow";
+import { publicMediaUrl } from "../../lib/supabase";
 import { fetchFooterSettings, DEFAULT_FOOTER } from "../../lib/storeContent";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -136,7 +137,7 @@ const Footer = () => {
         <div className="footer-cta">
           <div className="footer-cta-label">
             <img
-              src="/img/logo4.png"
+              src={publicMediaUrl("/img/logo4.png")}
               alt="PixieKat"
               className="footer-cta-label-icon"
             />
@@ -177,7 +178,7 @@ const Footer = () => {
         {/* Large branding */}
         <div className="footer-brand">
           <img
-            src="/img/logo4.png"
+            src={publicMediaUrl("/img/logo4.png")}
             alt="PixieKat Store"
             className="footer-brand-logo"
           />

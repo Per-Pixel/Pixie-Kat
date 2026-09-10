@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { publicMediaUrl, resolveMediaUrls, supabase } from "./supabase";
 
 export const DEFAULT_HOW_IT_WORKS = {
   headings: {
@@ -302,7 +302,7 @@ export const DEFAULT_PRODUCTS_PAGE = {
         "Top up diamonds, coins, and credits for your favorite games — fast, secure, and delivered straight to your account.",
       cta: "TOP UP NOW",
       bgGradient: "from-blue-700 via-violet-700 to-indigo-900",
-      image: "/img/hero/game-hero-card.gif",
+      image: publicMediaUrl("/img/hero/game-hero-card.gif"),
     },
     {
       id: 2,
@@ -312,7 +312,7 @@ export const DEFAULT_PRODUCTS_PAGE = {
         "Get instant diamonds for Mobile Legends. Fast, secure, and reliable top-up service with 24/7 support.",
       cta: "TOP UP NOW",
       bgGradient: "from-indigo-700 via-fuchsia-700 to-violet-900",
-      image: "/img/hero/game-mlbb-card.webp",
+      image: publicMediaUrl("/img/hero/game-mlbb-card.webp"),
     },
     {
       id: 3,
@@ -322,7 +322,7 @@ export const DEFAULT_PRODUCTS_PAGE = {
         "Purchase UC coins for PUBG Mobile Global. Instant delivery and competitive prices guaranteed.",
       cta: "BUY UC COINS",
       bgGradient: "from-orange-600 via-rose-700 to-red-900",
-      image: "/img/hero/game-pubg-card.webp",
+      image: publicMediaUrl("/img/hero/game-pubg-card.webp"),
     },
     {
       id: 4,
@@ -332,7 +332,7 @@ export const DEFAULT_PRODUCTS_PAGE = {
         "Top up Genesis Crystals for Genshin Impact. Safe transactions with instant delivery to your account.",
       cta: "GET CRYSTALS",
       bgGradient: "from-cyan-700 via-sky-700 to-indigo-900",
-      image: "/img/hero/game-genshin-card.webp",
+      image: publicMediaUrl("/img/hero/game-genshin-card.webp"),
     },
   ],
 };
@@ -340,11 +340,11 @@ export const DEFAULT_PRODUCTS_PAGE = {
 export const DEFAULT_APPEARANCE = {
   favicon_url: "",
   icon_url: "",
-  logo_url: "/img/logo.png",
+  logo_url: publicMediaUrl("/img/logo.png"),
   header_brand_text: "PixieKat",
   tab_title_active: "PixieKat",
   tab_title_inactive: "Come back to PixieKat!",
-  music_url: "/audio/loop.mp3",
+  music_url: publicMediaUrl("/audio/loop.mp3"),
   music_playback_rate: 1,
   music_volume: 0.5,
 };
@@ -359,7 +359,7 @@ export function mergeProductsPageSettings(raw) {
         description: s?.description || "",
         cta: s?.cta || "",
         bgGradient: s?.bgGradient || "from-blue-700 via-violet-700 to-indigo-900",
-        image: s?.image || "",
+        image: s?.image ? publicMediaUrl(s.image) : "",
       }))
     : DEFAULT_PRODUCTS_PAGE.slides;
   return { slides };
@@ -372,6 +372,10 @@ export function mergeAppearanceSettings(raw) {
   return {
     ...DEFAULT_APPEARANCE,
     ...raw,
+    logo_url: publicMediaUrl(raw.logo_url || DEFAULT_APPEARANCE.logo_url),
+    icon_url: publicMediaUrl(raw.icon_url || DEFAULT_APPEARANCE.icon_url),
+    favicon_url: publicMediaUrl(raw.favicon_url || DEFAULT_APPEARANCE.favicon_url),
+    music_url: publicMediaUrl(raw.music_url || DEFAULT_APPEARANCE.music_url),
     music_playback_rate: Number.isFinite(rate) ? Math.min(2, Math.max(0.5, rate)) : 1,
     music_volume: Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.5,
   };
@@ -440,15 +444,15 @@ export async function fetchJsonSetting(column, fallback) {
 
   if (error) {
     console.error(`Failed to load ${column}:`, error.message);
-    return fallback;
+    return resolveMediaUrls(fallback);
   }
 
   const value = data?.[column];
   if (value && typeof value === "object" && Object.keys(value).length > 0) {
-    return { ...fallback, ...value };
+    return resolveMediaUrls({ ...fallback, ...value });
   }
 
-  return fallback;
+  return resolveMediaUrls(fallback);
 }
 
 export const DEFAULT_FOOTER = {

@@ -1,6 +1,8 @@
 import { useState, useRef } from "react";
 import { TiLocationArrow } from "react-icons/ti";
 
+import { publicMediaUrl } from "../../../lib/supabase";
+
 export const BentoTilt = ({ children, className = "" }) => {
   const [transformStyle, setTransformStyle] = useState("");
   const itemRef = useRef(null);
@@ -120,7 +122,7 @@ const Features = () => (
 
       <BentoTilt className="border-hsla relative mb-7 h-96 w-full overflow-hidden rounded-md md:h-[65vh]">
         <BentoCard
-          src="/videos/feature-1.mp4"
+          src={publicMediaUrl("/videos/feature-1.mp4")}
           title={
             <>
               Pixie<b>K</b>at
@@ -144,7 +146,7 @@ const Features = () => (
 
         <BentoTilt className="bento-tilt_2">
           <video
-            src="/videos/feature-5.mp4"
+            src={publicMediaUrl("/videos/feature-5.mp4")}
             loop
             muted
             autoPlay

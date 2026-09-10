@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import SlideTextButton from "../../animations/components/SlideTextButton";
 import { TiLocationArrow } from "react-icons/ti";
+import { publicMediaUrl } from "../../lib/supabase";
 
-const FlipCard = ({ 
-  frontVideo = "/videos/feature-2.mp4", 
-  backVideo = "/videos/feature-3.mp4", 
+const FlipCard = ({
+  frontVideo = publicMediaUrl("/videos/feature-2.mp4"),
+  backVideo = publicMediaUrl("/videos/feature-3.mp4"), 
   title = "Popular Games", 
   description = "Explore our collection of top games",
   buttonText = "View All Games",

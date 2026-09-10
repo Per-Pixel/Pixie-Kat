@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { publicMediaUrl } from "../lib/supabase";
 import {
   fetchJjkCheaperSettings,
   isJjkCheaperPublished,
@@ -27,7 +28,7 @@ export function useJjkCheaperPlacement(slot) {
       }
       setPromo({
         title: placement.promo_title || "Jujutsu Kaisen - Cheaper Guide",
-        image: placement.promo_image || "/img/games/mobile-legends.webp",
+        image: publicMediaUrl(placement.promo_image) || publicMediaUrl("/img/games/mobile-legends.webp"),
         link: JJK_CHEAPER_PATH,
         flag: "NEW",
       });

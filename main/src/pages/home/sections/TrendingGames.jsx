@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { publicMediaUrl } from "../../../lib/supabase";
 import { usePromoSection } from "../../../hooks/usePromoSection";
 
 const fallbackTrendingGames = [
@@ -10,7 +11,7 @@ const fallbackTrendingGames = [
     oldPrice: 699,
     price: 594,
     discount: 15,
-    image: "/img/hero/game-hero-card.gif",
+    image: publicMediaUrl("/img/hero/game-hero-card.gif"),
   },
   {
     title: "Alan Wake 2",
@@ -18,7 +19,7 @@ const fallbackTrendingGames = [
     oldPrice: 499,
     price: 399,
     discount: 20,
-    image: "/img/games/mobile-legends.webp",
+    image: publicMediaUrl("/img/games/mobile-legends.webp"),
   },
   {
     title: "Mortal Kombat 11",
@@ -26,7 +27,7 @@ const fallbackTrendingGames = [
     oldPrice: 629,
     price: 503,
     discount: 20,
-    image: "/img/hero/game-pubg-card.webp",
+    image: publicMediaUrl("/img/hero/game-pubg-card.webp"),
   },
   {
     title: "Spider-Man 2",
@@ -34,7 +35,7 @@ const fallbackTrendingGames = [
     oldPrice: 599,
     price: 419,
     discount: 30,
-    image: "/img/hero/game-genshin-card.webp",
+    image: publicMediaUrl("/img/hero/game-genshin-card.webp"),
   },
   {
     title: "The Witcher 3",
@@ -42,7 +43,7 @@ const fallbackTrendingGames = [
     oldPrice: 449,
     price: 359,
     discount: 20,
-    image: "/img/games/honor-of-kings.jpg",
+    image: publicMediaUrl("/img/games/honor-of-kings.jpg"),
   },
   {
     title: "Honor of Kings",
@@ -50,7 +51,7 @@ const fallbackTrendingGames = [
     oldPrice: 399,
     price: 259,
     discount: 35,
-    image: "/img/games/honor-of-kings.jpg",
+    image: publicMediaUrl("/img/games/honor-of-kings.jpg"),
   },
 ];
 
@@ -68,7 +69,7 @@ const TrendingGames = () => {
           oldPrice: item.compare_price ?? 0,
           price: item.price ?? 0,
           discount: item.discount_pct ?? 0,
-          image: item.image_url ?? "/img/games/mobile-legends.webp",
+          image: item.image_url || publicMediaUrl("/img/games/mobile-legends.webp"),
           link: item.link_url || (item.game_id ? `/games/${item.game_id}` : "/games"),
         }))
       : fallbackTrendingGames;

@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { fallbackGameImage, gamesData } from "../games/gamesData";
+import { publicMediaUrl } from "../../lib/supabase";
 
 const paymentMethods = [
   { id: "binance", name: "Binance", description: "Secure online crypto payment", priceLabel: "10.42 USDT", note: "(~ Rs 1000)", accent: "text-[#6542ff]", logo: "BINANCE" },
@@ -189,7 +190,7 @@ const AddMoneyPage = () => {
       <div className="mx-auto mt-8 w-full max-w-[1400px]">
         <footer className="overflow-hidden rounded-[28px] bg-[#1f1f1f] px-4 py-8 text-white shadow-[0_24px_60px_rgba(0,0,0,0.22)] sm:px-6 md:px-8">
           <div className="flex flex-col items-center text-center">
-            <img src="/img/logo.png" alt="PixieKat logo" className="h-14 w-auto object-contain" />
+            <img src={publicMediaUrl("/img/logo.png")} alt="PixieKat logo" className="h-14 w-auto object-contain" />
             <p className="mt-4 text-sm text-white/70 sm:text-base">
               Seamless game top-ups and digital vouchers.
             </p>
