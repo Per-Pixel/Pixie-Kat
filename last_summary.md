@@ -36,9 +36,10 @@ The goal was to make the Amplify-hosted `main` storefront resolve all storefront
 - `node scripts/bulk-upload-static-assets.js` ran successfully: ensured `public-media` bucket and made it public, found 38 already-indexed assets.
 - `node scripts/rewrite-media-urls.mjs --dry-run` and then without `--dry-run` completed successfully: rewrote 11 text columns, 4 JSONB columns, and copied 5 objects from `media` to `public-media`.
 - Probed live Supabase public URLs: `public-media` objects now return 200.
+- Commit `668a98d` pushed to `origin/main`.
+- `eb deploy pixiekat-api-prod` completed; `deploy:check` reports "Up to date".
 
 ### Follow-up
 
-- Commit, push, and `eb deploy` the API so the server super-admin changes take effect.
-- Amplify will redeploy `main` and `admin` from the pushed `main` branch.
+- Amplify will redeploy `main` and `admin` from the pushed `main` branch. Monitor the Amplify console for build completion.
 - Existing Supabase seed migration files still contain relative paths; they will be rewritten at runtime by the resolver. If a future database reset should contain absolute URLs directly, provide the Supabase project URL and update the seed values.
