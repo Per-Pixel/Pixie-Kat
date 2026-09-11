@@ -21,8 +21,16 @@ export async function recordLoginSession(session: Session | null) {
   if (window.localStorage.getItem(storageKey)) return;
 
   try {
-    const apiBase = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api').replace(/\/$/, '');
-    const response = await fetch(`${apiBase}/auth/login-session`, {
+    const rawBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '';
+    const fallback = import.meta.env.PROD
+      ? ''
+      : 'http://localhost:3001/api';
+    const baseUrl = (rawBase || fallback).replace(/\/$/, '');
+    if (!baseUrl) {
+      console.warn('[sessionTelemetry] Missing VITE_API_BASE_URL; skipping login telemetry.');
+      return;
+    }
+    const response = await fetch(`${baseUrl}/auth/login-session`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${session.access_token}` },
     });

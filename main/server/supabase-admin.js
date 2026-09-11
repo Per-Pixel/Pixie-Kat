@@ -65,7 +65,7 @@ export function isSuperAdmin(profile) {
   if (!profile) return false;
   const superIds = parseSuperAdminList(process.env.SUPER_ADMIN_IDS);
   const superEmails = parseSuperAdminList(
-    process.env.SUPER_ADMIN_EMAILS ?? 'admin@pixiekat.com'
+    process.env.SUPER_ADMIN_EMAILS ?? ''
   ).map((s) => s.toLowerCase());
   return superIds.includes(profile.id) || (profile.email && superEmails.includes(profile.email.toLowerCase()));
 }

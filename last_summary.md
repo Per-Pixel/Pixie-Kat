@@ -1,45 +1,35 @@
 # Last Summary
 
-## Session: Force main storefront media to Supabase Storage
+## Session: v1.0 launch-hardening audit
 
-The goal was to make the Amplify-hosted `main` storefront resolve all storefront media through the Supabase `public-media` bucket instead of local `/img/`, `/videos/`, and `/audio/` paths.
+Ran a full production-readiness audit across the Pixie-Kat repo to answer why the project still feels like a prototype after ~14 months in production.
 
-### What changed
+### Key findings
 
-- Added two shared helpers in `main/src/lib/supabase.js`:
-  - `publicMediaUrl(path)` builds canonical `public-media` Storage URLs from local paths or passes through existing absolute URLs.
-  - `resolveMediaUrls(value)` recursively walks objects/arrays and rewrites only local media paths.
-- Replaced hardcoded local media literals in components and default data with `publicMediaUrl(...)`. This covers hero videos/characters, promotions, features, contact images, loading gallery, game fallbacks, JJK event, auth page, footer, navbar, and wallet page.
-- Wrapped data-fetch boundaries with `resolveMediaUrls` so CMS/database values are coerced at the edges:
-  - `storeContent.js` (`fetchJsonSetting`, `mergeProductsPageSettings`, `mergeAppearanceSettings`)
-  - `useActiveGames`, `usePromoSection`, `useJjkCheaperPlacement`
-  - `useGameCatalog` (game, products)
-  - `Hero.jsx`, `About.jsx` (`pickCopy`)
-- Updated `scripts/bulk-upload-static-assets.js` to upload audio (`.mp3`/`.ogg`/`.wav`/etc.) and more asset types, encode public URL path segments, scope the duplicate check by `bucket`, create the `public-media` bucket if missing, set its `public` flag, and widen `allowed_mime_types`. It now auto-loads `main/server/.env` so it can be run without manually exporting env vars.
-- Added `scripts/rewrite-media-urls.mjs` for a one-time/idempotent rewrite of existing database records. It rewrites `games.image_url`/`banner_url`, `products.image_url`, `promotional_items.image_url`, and all JSONB columns on `store_settings` from local paths **or `media/` bucket URLs** to `public-media` URLs, and copies any objects that only exist in `media`. Supports `--dry-run`. It also auto-loads `main/server/.env`.
-- Fixed the live-site "Access other apps and services on this device" Chrome permission prompt by changing the `VITE_API_BASE_URL` fallback from `http://localhost:3001/api` to `/api` in `useActiveGames.js`, `useGameCatalog.js`, and `sessionTelemetry.js`.
-- Updated `scripts/bulk-upload-static-assets.js` to create the `public-media` bucket if missing, set its `public` flag, and widen `allowed_mime_types` to include audio.
-- Added `supabase/migrations/033_public_media_audio.sql` to create/update the `public-media` bucket and grant public read access.
-- Confirmed via direct HTTP probes that the live project has **not** applied migration `010`: the `media` bucket is still public and contains images/videos, but `public-media` does not exist at all (404 "Bucket not found"). The storefront will 404 until the `public-media` bucket is created and populated.
-- Added an env-based super-admin bypass (`SUPER_ADMIN_IDS` / `SUPER_ADMIN_EMAILS`) in `main/server/supabase-admin.js`. A caller who matches this list can adjust another admin's wallet balance; other admins still get the "Admin wallet balances require separate approval" error. If neither env var is set, `admin@pixiekat.com` is treated as the default super-admin. Documented in `.env.example` and `.env.example.aws`.
+- `main` and `admin` are still `version: 0.0.0`; `main/server` is `1.0.0`. No git tags or CHANGELOG.
+- Core transaction flow is real (auth, Razorpay, wallet, orders, fulfillment), but admin operations and configuration are largely non-functional.
+- Launch blockers identified:
+  - `main/server/supabase-admin.js` falls back to `admin@pixiekat.com` as super-admin.
+  - `admin/src/pages/Settings.tsx` only persists the Appearance tab; Store, Payment, Notifications, and Security tabs are local state with fake saves.
+  - `admin/src/pages/users/tabs/SecurityTab.tsx` and `KycTab.tsx` are read-only placeholders.
+  - Admin API client and session telemetry fall back to `http://localhost:3001/api`.
+  - Server password-reset redirect falls back to `http://localhost:5173`.
+  - No frontend/admin test suite; server has 21 passing tests.
+  - `npm run typecheck` in `admin` fails with 79 TypeScript errors.
+  - Console logging across `main/src` (10), `admin/src` (30), and `main/server` (91).
+  - Hardcoded support placeholders in `GamePage.jsx`.
+  - `.env.example` files contain dangerous dev defaults and no startup validation.
+- Quality metrics:
+  - `main` lint: 729 warnings, 0 errors.
+  - `admin` lint: 150 warnings, 0 errors.
+  - `main` build: passes.
+  - `admin` build: passes, but emits a 1.77MB chunk and chunk-size warning.
+  - `main/server` tests: 21/21 pass.
 
-### Design choices
+### Proposed v1.0 scope
 
-- The helper only rewrites strings that start with `/img/`, `/videos/`, or `/audio/` (or the same without a leading slash). Routes, anchors, external URLs, and data URLs are left untouched.
-- If `VITE_SUPABASE_URL` is missing at build time, `publicMediaUrl` falls back to the original relative path so local development still works.
-- No Supabase service-role key is exposed in any frontend code; the script and upload tool are the only places that use the server-side env var.
+Customer: browse, order, pay, account dashboard, wallet. Admin: login with roles, manage games/products/prices/providers, orders, users (detail, wallet, status, activity, sessions, notes), homepage content, media, and basic security. Post-launch: memberships, revenue analytics, referrals, CMS page builder, crypto/bank payments, advanced KYC, data export.
 
-### Verification
+### Next step
 
-- `npm run build` in `main` passed (19.95s after localhost fix).
-- `npm run lint` in `main` passed with 0 errors and 729 warnings (pre-existing warning count unchanged).
-- `node scripts/bulk-upload-static-assets.js` ran successfully: ensured `public-media` bucket and made it public, found 38 already-indexed assets.
-- `node scripts/rewrite-media-urls.mjs --dry-run` and then without `--dry-run` completed successfully: rewrote 11 text columns, 4 JSONB columns, and copied 5 objects from `media` to `public-media`.
-- Probed live Supabase public URLs: `public-media` objects now return 200.
-- Commit `668a98d` pushed to `origin/main`.
-- `eb deploy pixiekat-api-prod` completed; `deploy:check` reports "Up to date".
-
-### Follow-up
-
-- Amplify will redeploy `main` and `admin` from the pushed `main` branch. Monitor the Amplify console for build completion.
-- Existing Supabase seed migration files still contain relative paths; they will be rewritten at runtime by the resolver. If a future database reset should contain absolute URLs directly, provide the Supabase project URL and update the seed values.
+User approved a single v1.0 hardening sprint to fix the launch blockers, add env validation, wire admin Settings/Security/KYC tabs, and add regression tests.

@@ -45,17 +45,15 @@ import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
+import { config } from './config.js';
 import { supabaseAdmin, verifyAdminRequest, verifyUserRequest, isSuperAdmin } from './supabase-admin.js';
 import { validateEmail } from './utils/validation.js';
 import * as smileOne from './smileone.js';
 import * as smileCoin from './smilecoin.js';
 import * as razorpay from './razorpay.js';
 
-dotenv.config();
-
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = config.port;
 
 app.use(helmet());
 app.use(express.json({
@@ -65,13 +63,8 @@ app.use(express.json({
   },
 }));
 
-const productionOrigins = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
-const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? productionOrigins
+const allowedOrigins = config.isProduction
+  ? config.corsOrigins.split(',').map((origin) => origin.trim()).filter(Boolean)
   : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'];
 
 function isLocalNetworkOrigin(origin) {
@@ -82,7 +75,7 @@ function isLocalNetworkOrigin(origin) {
 
 app.use(cors({
   origin(origin, cb) {
-    if (process.env.NODE_ENV === 'production') {
+    if (config.isProduction) {
       if (origin && allowedOrigins.includes(origin)) return cb(null, true);
       return cb(null, false);
     }
@@ -534,9 +527,12 @@ app.post('/api/admin/users/:id/reset-password', requireAdmin, async (req, res) =
       return res.status(404).json({ success: false, message: 'User not found in auth' });
     }
 
+    if (!config.frontendUrl) {
+      return res.status(500).json({ success: false, message: 'FRONTEND_URL is not configured' });
+    }
     const { error } = await supabaseAdmin.auth.resetPasswordForEmail(
       authUser.user.email,
-      { redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/account/security/change-password` }
+      { redirectTo: `${config.frontendUrl}/account/security/change-password` }
     );
     if (error) throw error;
 
