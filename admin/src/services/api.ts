@@ -2,10 +2,10 @@ import axios, { AxiosError, AxiosResponse, AxiosRequestConfig } from 'axios';
 import { ApiResponse, PaginatedResponse } from '@/types/api';
 import { supabase } from '../lib/supabase';
 
-function getApiBaseUrl() {
-  const envUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
+export function getApiBaseUrl(env: Record<string, unknown> = import.meta.env) {
+  const envUrl = (env.VITE_API_BASE_URL as string | undefined) ?? '';
   if (envUrl) return envUrl;
-  if (import.meta.env.PROD) {
+  if (env.PROD) {
     throw new Error('Missing VITE_API_BASE_URL in production. Set it at build time.');
   }
   return 'http://localhost:3001/api';
@@ -13,7 +13,7 @@ function getApiBaseUrl() {
 
 // API Configuration
 export const API_CONFIG = {
-  baseURL: getApiBaseUrl(),
+  baseURL: getApiBaseUrl(import.meta.env ?? {}),
   timeout: 15000,
   retryAttempts: 3,
   retryDelay: 1000,

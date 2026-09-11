@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "vitest --run",
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -44,6 +45,7 @@
     "terser": "^5.51.2",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.30.1",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vitest": "^5.0.0"
   }
 }

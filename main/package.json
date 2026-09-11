@@ -9,6 +9,7 @@
     "dev:all": "npx kill-port 3001 && concurrently -n \"frontend,backend,admin\" -c \"cyan,green,yellow\" \"npm run dev\" \"npm run server:dev\" \"npm --prefix ../admin run dev\"",
     "build": "vite build",
     "build:prod": "NODE_ENV=production vite build",
+    "test": "vitest --run",
     "lint": "eslint .",
     "preview": "vite preview",
     "analyze": "vite build --mode analyze",
@@ -53,6 +54,7 @@
     "terser": "^5.46.1",
     "typescript": "^5.8.3",
     "vite": "^5.4.10",
-    "vite-plugin-compression": "^0.5.1"
+    "vite-plugin-compression": "^0.5.1",
+    "vitest": "^1.6.0"
   }
 }
