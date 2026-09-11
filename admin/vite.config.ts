@@ -13,4 +13,24 @@ export default defineConfig({
       '@': '/src',
     },
   },
+  build: {
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['framer-motion', 'lucide-react', 'recharts'],
+          'utils': ['axios', 'clsx'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 800,
+    sourcemap: false,
+  },
 })

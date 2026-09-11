@@ -1279,7 +1279,7 @@ const GamePage = () => {
             <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
               <label className="block">
                 <span className="text-xs font-bold text-[#6d7480]">EMAIL ADDRESS</span>
-                <input className="mt-2 h-14 w-full rounded-xl border border-[#dfe4ec] bg-white px-4 text-base font-bold text-[#141923] outline-none" placeholder="you@example.com" value={contact.email} onChange={(event) => updateContact("email", event.target.value)} />
+                <input className="mt-2 h-14 w-full rounded-xl border border-[#dfe4ec] bg-white px-4 text-base font-bold text-[#141923] outline-none" placeholder="Enter your email" value={contact.email} onChange={(event) => updateContact("email", event.target.value)} />
               </label>
               <div>
                 <span className="text-xs font-bold text-[#6d7480]">WHATSAPP NUMBER</span>
@@ -1299,7 +1299,7 @@ const GamePage = () => {
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6d7480]" />
                   </label>
-                  <input className="h-14 rounded-xl border border-[#dfe4ec] bg-white px-4 text-base font-bold text-[#141923] outline-none placeholder:text-[#9aa2ad]" placeholder="98765 43210" value={contact.whatsapp} onChange={(event) => updateContact("whatsapp", event.target.value)} />
+                  <input className="h-14 rounded-xl border border-[#dfe4ec] bg-white px-4 text-base font-bold text-[#141923] outline-none placeholder:text-[#9aa2ad]" placeholder="WhatsApp number" value={contact.whatsapp} onChange={(event) => updateContact("whatsapp", event.target.value)} />
                 </div>
               </div>
             </div>
