@@ -16,6 +16,10 @@
 ### Storefront
 - Replace hardcoded `you@example.com` / `98765 43210` placeholders on game support form.
 
+### Tests
+- Add server regression tests for env validation and super-admin lookup.
+- Add Vitest to `main` and `admin` with smoke tests for Razorpay loader and API base URL.
+
 ### Repository
 - Start `CHANGELOG.md`.
 - Bump `main` and `admin` package versions to `1.0.0`.
