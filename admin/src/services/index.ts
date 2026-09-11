@@ -225,14 +225,7 @@ setInterval(() => {
 
 // Service initialization
 export const initializeServices = async (): Promise<void> => {
-  try {
-    // Check service health
-    const monitor = ServiceMonitor.getInstance();
-    await monitor.checkHealth();
-    
-    console.log('✅ Services initialized successfully');
-  } catch (error) {
-    console.error('❌ Failed to initialize services:', error);
-    throw error;
-  }
+  // Check service health
+  const monitor = ServiceMonitor.getInstance();
+  await monitor.checkHealth();
 };

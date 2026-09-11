@@ -169,9 +169,7 @@ function App() {
         await Promise.all(criticalImageSources.map((src) => preloadImage(src)));
 
       } catch (error) {
-
-        console.error("APP_DEBUG: Error preloading one or more critical assets:", error);
-
+        // Asset preloading failed; continue without it
       }
 
     };

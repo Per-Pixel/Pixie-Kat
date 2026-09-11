@@ -267,7 +267,7 @@ const Hero = () => {
                     title="Contact Us"
                     leftIcon={<TiLocationArrow />}
                     containerClass="bg-blue-50 text-xs py-2 px-4 text-black flex-center gap-1"
-                    onClick={() => console.log("Contact Us clicked")}
+                    onClick={() => {}}
                   />
                 </div>
               </div>

@@ -59,20 +59,9 @@ api.interceptors.request.use(
 
 // Response interceptor for error handling and token refresh
 api.interceptors.response.use(
-  (response: AxiosResponse) => {
-    // Log successful responses in development
-    if (import.meta.env.DEV) {
-      console.log(`✅ ${response.config.method?.toUpperCase()} ${response.config.url}`, response.data);
-    }
-    return response;
-  },
+  (response: AxiosResponse) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean; _retryCount?: number };
-
-    // Log errors in development
-    if (import.meta.env.DEV) {
-      console.error(`❌ ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url}`, error.response?.data || error.message);
-    }
 
     // Handle 401 Unauthorized — refresh Supabase session and retry once
     if (error.response?.status === 401 && !originalRequest._retry) {
