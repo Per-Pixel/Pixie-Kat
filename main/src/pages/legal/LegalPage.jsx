@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Shield, FileText, RefreshCw, ChevronRight, Calendar, Lock, AlertCircle } from 'lucide-react';
+import { Shield, FileText, RefreshCw, Calendar, Lock, AlertCircle } from 'lucide-react';
 import { fetchLegalSettings, DEFAULT_LEGAL } from '../../lib/storeContent';
 import PageWrapper from '../../components/common/PageWrapper';
 
@@ -35,31 +35,31 @@ const LegalPage = ({ docKey }) => {
 
   return (
     <PageWrapper>
-      <div className="relative min-h-screen bg-[#0b0c10] text-gray-100 pt-28 pb-20 px-4 sm:px-6 lg:px-8">
+      <div className="relative min-h-screen bg-[#0b0c10] px-4 pb-20 pt-28 text-gray-100 sm:px-6 lg:px-8">
         {/* Background glow effects */}
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 w-full max-w-4xl h-72 bg-violet-600/10 blur-[120px] pointer-events-none rounded-full" />
+        <div className="pointer-events-none absolute left-1/2 top-20 h-72 w-full max-w-4xl -translate-x-1/2 rounded-full bg-violet-600/10 blur-[120px]" />
 
-        <div className="max-w-4xl mx-auto relative z-10 space-y-8">
+        <div className="relative z-10 mx-auto max-w-4xl space-y-8">
           {/* Header */}
-          <div className="text-center space-y-4">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-semibold uppercase tracking-wider">
-              <Shield className="w-4 h-4" /> Legal & Governance
+          <div className="space-y-4 text-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-violet-400">
+              <Shield className="size-4" /> Legal & Governance
             </div>
-            <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+            <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl">
               {doc.title}
             </h1>
-            <p className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto">
+            <p className="mx-auto max-w-2xl text-base text-gray-400 sm:text-lg">
               {doc.subtitle}
             </p>
             {doc.last_updated && (
-              <div className="inline-flex items-center gap-1.5 text-xs text-gray-500 bg-white/5 px-3 py-1 rounded-md border border-white/5">
-                <Calendar className="w-3.5 h-3.5" /> Last updated: {doc.last_updated}
+              <div className="inline-flex items-center gap-1.5 rounded-md border border-white/5 bg-white/5 px-3 py-1 text-xs text-gray-500">
+                <Calendar className="size-3.5" /> Last updated: {doc.last_updated}
               </div>
             )}
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-3 bg-white/5 p-1.5 rounded-xl border border-white/10">
+          <div className="flex flex-wrap justify-center gap-2 rounded-xl border border-white/10 bg-white/5 p-1.5 sm:gap-3">
             {policyTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeKey === tab.key;
@@ -67,13 +67,13 @@ const LegalPage = ({ docKey }) => {
                 <Link
                   key={tab.key}
                   to={tab.path}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
                     isActive
                       ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30'
-                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                      : 'text-gray-400 hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="size-4" />
                   {tab.label}
                 </Link>
               );
@@ -82,8 +82,8 @@ const LegalPage = ({ docKey }) => {
 
           {/* Policy Content Sections */}
           {loading ? (
-            <div className="py-20 text-center text-gray-500 space-y-3">
-              <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            <div className="space-y-3 py-20 text-center text-gray-500">
+              <div className="mx-auto size-8 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
               <p className="text-sm">Loading legal document...</p>
             </div>
           ) : (
@@ -92,20 +92,20 @@ const LegalPage = ({ docKey }) => {
                 doc.sections.map((section, idx) => (
                   <div
                     key={idx}
-                    className="bg-[#12141c]/80 border border-white/10 rounded-2xl p-6 sm:p-8 backdrop-blur-sm space-y-3 hover:border-violet-500/30 transition-colors"
+                    className="space-y-3 rounded-2xl border border-white/10 bg-[#12141c]/80 p-6 backdrop-blur-sm transition-colors hover:border-violet-500/30 sm:p-8"
                   >
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-violet-500" />
+                    <h2 className="flex items-center gap-2 text-xl font-bold text-white">
+                      <span className="size-2 rounded-full bg-violet-500" />
                       {section.heading}
                     </h2>
-                    <p className="text-gray-300 text-sm sm:text-base leading-relaxed whitespace-pre-line">
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-gray-300 sm:text-base">
                       {section.content}
                     </p>
                   </div>
                 ))
               ) : (
-                <div className="p-8 text-center bg-white/5 rounded-2xl border border-white/10 text-gray-400">
-                  <AlertCircle className="w-8 h-8 mx-auto mb-2 text-violet-400" />
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-gray-400">
+                  <AlertCircle className="mx-auto mb-2 size-8 text-violet-400" />
                   No policy sections configured yet.
                 </div>
               )}
@@ -113,7 +113,7 @@ const LegalPage = ({ docKey }) => {
           )}
 
           {/* Footer note */}
-          <div className="pt-6 border-t border-white/10 text-center text-xs text-gray-500">
+          <div className="border-t border-white/10 pt-6 text-center text-xs text-gray-500">
             Have questions regarding these policies? Reach out to our 24/7 team at{' '}
             <a href="mailto:support@pixiekatstore.com" className="text-violet-400 hover:underline">
               support@pixiekatstore.com

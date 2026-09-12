@@ -146,9 +146,9 @@ const EditProfilePage = ({ profile }) => {
           <div className="mb-8 flex items-center gap-4">
             <button
               onClick={() => navigate("/account")}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 shadow-sm transition hover:bg-white"
+              className="flex size-10 items-center justify-center rounded-full bg-white/80 shadow-sm transition hover:bg-white"
             >
-              <ArrowLeft className="h-5 w-5 text-slate-600" />
+              <ArrowLeft className="size-5 text-slate-600" />
             </button>
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-950">Edit Profile</h1>
           </div>
@@ -165,10 +165,10 @@ const EditProfilePage = ({ profile }) => {
                   className="hidden"
                 />
                 
-                <div className="relative flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#e8dcff] via-white to-[#9a82ff] p-[6px] shadow-[0_14px_26px_rgba(122,97,255,0.2)]">
-                  <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[#7a5bff] to-[#b097ff] text-4xl font-black text-white overflow-hidden">
+                <div className="relative flex size-32 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#e8dcff] via-white to-[#9a82ff] p-[6px] shadow-[0_14px_26px_rgba(122,97,255,0.2)]">
+                  <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#7a5bff] to-[#b097ff] text-4xl font-black text-white">
                     {profileImagePreview ? (
-                      <img src={profileImagePreview} alt="Profile" className="h-full w-full object-cover" />
+                      <img src={profileImagePreview} alt="Profile" className="size-full object-cover" />
                     ) : (
                       profile?.initials || "PK"
                     )}
@@ -176,9 +176,9 @@ const EditProfilePage = ({ profile }) => {
                   <button
                     type="button"
                     onClick={triggerFileInput}
-                    className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-lg transition hover:scale-105 border border-slate-100"
+                    className="absolute bottom-0 right-0 flex size-10 items-center justify-center rounded-full border border-slate-100 bg-white shadow-lg transition hover:scale-105"
                   >
-                    <Camera className="h-5 w-5 text-[#6c49ff]" />
+                    <Camera className="size-5 text-[#6c49ff]" />
                   </button>
                 </div>
                 <p className="text-sm font-medium text-slate-500">Tap to change profile picture</p>
@@ -192,7 +192,7 @@ const EditProfilePage = ({ profile }) => {
                   </label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                      <User className="h-5 w-5 text-slate-400" />
+                      <User className="size-5 text-slate-400" />
                     </div>
                     <input
                       type="text"
@@ -213,7 +213,7 @@ const EditProfilePage = ({ profile }) => {
                   </label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                      <AtSign className="h-5 w-5 text-slate-400" />
+                      <AtSign className="size-5 text-slate-400" />
                     </div>
                     <input
                       type="text"
@@ -234,7 +234,7 @@ const EditProfilePage = ({ profile }) => {
                   </label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                      <Phone className="h-5 w-5 text-slate-400" />
+                      <Phone className="size-5 text-slate-400" />
                     </div>
                     <input
                       type="tel"
@@ -254,8 +254,8 @@ const EditProfilePage = ({ profile }) => {
                     Bio
                   </label>
                   <div className="relative">
-                    <div className="pointer-events-none absolute top-4 left-0 flex items-start pl-4">
-                      <FileText className="h-5 w-5 text-slate-400" />
+                    <div className="pointer-events-none absolute left-0 top-4 flex items-start pl-4">
+                      <FileText className="size-5 text-slate-400" />
                     </div>
                     <textarea
                       id="bio"
@@ -263,7 +263,7 @@ const EditProfilePage = ({ profile }) => {
                       value={formData.bio}
                       onChange={handleChange}
                       rows="4"
-                      className="w-full rounded-2xl border border-white/50 bg-white/60 pl-12 pr-4 pt-4 text-base font-medium text-slate-900 outline-none transition focus:border-[#8b6dff] focus:bg-white focus:ring-4 focus:ring-[#8b6dff]/10 resize-none"
+                      className="w-full resize-none rounded-2xl border border-white/50 bg-white/60 pl-12 pr-4 pt-4 text-base font-medium text-slate-900 outline-none transition focus:border-[#8b6dff] focus:bg-white focus:ring-4 focus:ring-[#8b6dff]/10"
                       placeholder="Write a short bio about yourself"
                     />
                   </div>
@@ -272,7 +272,7 @@ const EditProfilePage = ({ profile }) => {
 
               {/* Error */}
               {saveError && (
-                <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600 border border-red-200">
+                <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
                   {saveError}
                 </p>
               )}
@@ -282,14 +282,14 @@ const EditProfilePage = ({ profile }) => {
                 <button
                   type="submit"
                   disabled={isSaving || saved}
-                  className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#6c49ff] to-[#8b6dff] text-lg font-bold text-white shadow-[0_14px_28px_rgba(108,73,255,0.3)] transition hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#6c49ff] to-[#8b6dff] text-lg font-bold text-white shadow-[0_14px_28px_rgba(108,73,255,0.3)] transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
                 >
                   {isSaving ? (
-                    <><Loader2 className="h-5 w-5 animate-spin" /> Saving…</>
+                    <><Loader2 className="size-5 animate-spin" /> Saving…</>
                   ) : saved ? (
-                    <><CheckCircle2 className="h-5 w-5" /> Saved!</>
+                    <><CheckCircle2 className="size-5" /> Saved!</>
                   ) : (
-                    <><Save className="h-5 w-5" /> Save Changes</>
+                    <><Save className="size-5" /> Save Changes</>
                   )}
                 </button>
               </div>

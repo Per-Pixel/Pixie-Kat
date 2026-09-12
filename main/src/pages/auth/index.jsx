@@ -126,17 +126,17 @@ const Auth = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6 }}
-          className="relative flex h-full w-full max-w-lg flex-col items-center justify-center"
+          className="relative flex size-full max-w-lg flex-col items-center justify-center"
         >
           <div className="mb-8 text-center">
             <img
               src={publicMediaUrl("/img/swordman.webp")}
               alt="PixieKat"
-              className="mx-auto mb-6 h-64 w-64 rounded-3xl object-cover shadow-2xl"
+              className="mx-auto mb-6 size-64 rounded-3xl object-cover shadow-2xl"
             />
             <div className="flex items-center justify-center gap-2">
-              <div className="h-12 w-12 rounded-lg bg-white p-2">
-                <img src={publicMediaUrl("/img/logo.png")} alt="Logo" className="h-full w-full object-contain" />
+              <div className="size-12 rounded-lg bg-white p-2">
+                <img src={publicMediaUrl("/img/logo.png")} alt="Logo" className="size-full object-contain" />
               </div>
               <h2 className="text-3xl font-bold" style={{ color: '#1a1a2e' }}>PixieKat</h2>
             </div>
@@ -158,7 +158,7 @@ const Auth = () => {
             className="absolute left-4 top-4 z-10 flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium transition-all"
             style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.8)' }}
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="size-4" />
             Back
           </Link>
 
@@ -175,8 +175,8 @@ const Auth = () => {
               />
               {/* Logo strip inside card */}
               <div className="flex items-center justify-center gap-2 py-3">
-                <div className="h-8 w-8 rounded-md bg-white p-1 shadow">
-                  <img src={publicMediaUrl("/img/logo.png")} alt="Logo" className="h-full w-full object-contain" />
+                <div className="size-8 rounded-md bg-white p-1 shadow">
+                  <img src={publicMediaUrl("/img/logo.png")} alt="Logo" className="size-full object-contain" />
                 </div>
                 <span className="text-base font-bold text-white">PixieKat</span>
               </div>
@@ -194,8 +194,8 @@ const Auth = () => {
           >
             {/* Desktop back arrow (inside form column, hidden on mobile) */}
             <div className="mb-8 hidden lg:block">
-              <Link to="/" className="mb-6 inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors">
-                <ArrowLeft className="h-5 w-5" />
+              <Link to="/" className="mb-6 inline-flex items-center gap-2 text-white/60 transition-colors hover:text-white">
+                <ArrowLeft className="size-5" />
                 <span className="text-sm">Back</span>
               </Link>
               <h1 className="mb-2 text-4xl font-bold text-white">{pageTitle}</h1>
@@ -205,7 +205,7 @@ const Auth = () => {
             {/* Mobile heading (shown below banner) */}
             <div className="mb-6 lg:hidden">
               <h1 className="mb-1 text-3xl font-bold text-white">{pageTitle}</h1>
-              <p className="text-white/60 text-sm">{helperText}</p>
+              <p className="text-sm text-white/60">{helperText}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -214,7 +214,7 @@ const Auth = () => {
                   <label className="mb-2 block text-sm font-medium text-white/80">Name</label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                      <UserRound className="h-5 w-5 text-white/40" />
+                      <UserRound className="size-5 text-white/40" />
                     </div>
                     <input
                       type="text"
@@ -222,7 +222,7 @@ const Auth = () => {
                       value={formData.name}
                       onChange={handleInputChange}
                       required
-                      className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white placeholder-white/40 transition-all duration-200 focus:bg-white/10 focus:outline-none focus:ring-2"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white transition-all duration-200 placeholder:text-white/40 focus:bg-white/10 focus:outline-none focus:ring-2"
                       style={{ '--tw-ring-color': '#DFDFF040', outlineColor: 'transparent' }}
                       onFocus={e => { e.target.style.borderColor = '#DFDFF050'; e.target.style.boxShadow = '0 0 0 2px #DFDFF020'; }}
                       onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
@@ -236,7 +236,7 @@ const Auth = () => {
                 <label className="mb-2 block text-sm font-medium text-white/80">Email</label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                    <Mail className="h-5 w-5 text-white/40" />
+                    <Mail className="size-5 text-white/40" />
                   </div>
                   <input
                     type="email"
@@ -244,7 +244,7 @@ const Auth = () => {
                     value={formData.email}
                     onChange={handleInputChange}
                     required
-                    className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white placeholder-white/40 transition-all duration-200 focus:bg-white/10 focus:outline-none"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white transition-all duration-200 placeholder:text-white/40 focus:bg-white/10 focus:outline-none"
                     onFocus={e => { e.target.style.borderColor = '#DFDFF050'; e.target.style.boxShadow = '0 0 0 2px #DFDFF020'; }}
                     onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
                     placeholder="Email"
@@ -256,7 +256,7 @@ const Auth = () => {
                 <label className="mb-2 block text-sm font-medium text-white/80">Password</label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                    <Lock className="h-5 w-5 text-white/40" />
+                    <Lock className="size-5 text-white/40" />
                   </div>
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -264,7 +264,7 @@ const Auth = () => {
                     value={formData.password}
                     onChange={handleInputChange}
                     required
-                    className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-12 text-white placeholder-white/40 transition-all duration-200 focus:bg-white/10 focus:outline-none"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-12 py-3.5 text-white transition-all duration-200 placeholder:text-white/40 focus:bg-white/10 focus:outline-none"
                     onFocus={e => { e.target.style.borderColor = '#DFDFF050'; e.target.style.boxShadow = '0 0 0 2px #DFDFF020'; }}
                     onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
                     placeholder="Password"
@@ -274,7 +274,7 @@ const Auth = () => {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-white/80"
                   >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
                   </button>
                 </div>
               </div>
@@ -284,7 +284,7 @@ const Auth = () => {
                   <label className="mb-2 block text-sm font-medium text-white/80">Confirm Password</label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                      <Lock className="h-5 w-5 text-white/40" />
+                      <Lock className="size-5 text-white/40" />
                     </div>
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -292,7 +292,7 @@ const Auth = () => {
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
                       required
-                      className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white placeholder-white/40 transition-all duration-200 focus:bg-white/10 focus:outline-none"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white transition-all duration-200 placeholder:text-white/40 focus:bg-white/10 focus:outline-none"
                       onFocus={e => { e.target.style.borderColor = '#DFDFF050'; e.target.style.boxShadow = '0 0 0 2px #DFDFF020'; }}
                       onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
                       placeholder="Confirm your password"
@@ -304,7 +304,7 @@ const Auth = () => {
               {!isRegisterRoute ? (
                 <div className="flex items-center justify-between">
                   <div className="text-sm">
-                    <a href="#" style={{ color: '#DFDFF0' }} className="hover:opacity-80 transition-opacity">
+                    <a href="#" style={{ color: '#DFDFF0' }} className="transition-opacity hover:opacity-80">
                       Forgot password?
                     </a>
                   </div>
@@ -333,7 +333,7 @@ const Auth = () => {
               >
                 <div className="flex items-center justify-center">
                   {isLoading ? (
-                    <div className="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                    <div className="mr-2 size-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
                   ) : null}
                   {isLoading ? `${submitLabel}...` : submitLabel}
                 </div>
@@ -353,7 +353,7 @@ const Auth = () => {
               type="button"
               className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 font-medium text-white transition-all duration-300 hover:bg-white/10"
             >
-              <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+              <svg className="size-5" viewBox="0 0 24 24" aria-hidden="true">
                 <path
                   fill="#4285F4"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

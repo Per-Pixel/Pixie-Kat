@@ -240,24 +240,24 @@ const NavBar = () => {
                     authPanelClass
                   )}
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-[10px] font-semibold text-amber-700">
+                  <span className="flex size-6 items-center justify-center rounded-full bg-amber-100 text-[10px] font-semibold text-amber-700">
                     PKS
                   </span>
                   <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-violet-100 px-2 text-xs font-semibold text-violet-700">
                     {walletBalance.toFixed(2)}
                   </span>
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white">
-                    <Plus className="h-3.5 w-3.5" />
+                  <span className="flex size-6 items-center justify-center rounded-full bg-slate-900 text-white">
+                    <Plus className="size-3.5" />
                   </span>
                 </Link>
 
                 <Link
                   to="/account"
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-violet-200 via-white to-violet-400 text-violet-700 shadow-[0_10px_25px_rgba(168,85,247,0.35)] transition-transform duration-300 ease-in-out hover:-translate-y-0.5"
+                  className="flex size-11 items-center justify-center rounded-full bg-gradient-to-br from-violet-200 via-white to-violet-400 text-violet-700 shadow-[0_10px_25px_rgba(168,85,247,0.35)] transition-transform duration-300 ease-in-out hover:-translate-y-0.5"
                   aria-label="Open account page"
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 backdrop-blur">
-                    <UserRound className="h-4 w-4" />
+                  <span className="flex size-8 items-center justify-center rounded-full bg-white/80 backdrop-blur">
+                    <UserRound className="size-4" />
                   </span>
                 </Link>
               </div>

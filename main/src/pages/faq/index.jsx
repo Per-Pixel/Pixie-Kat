@@ -134,10 +134,10 @@ const FAQ = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-12"
+            className="mb-12 text-center"
           >
             <div className="relative inline-block">
-              <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
+              <h1 className="mb-4 text-4xl font-bold text-gray-900 md:text-6xl">
                 {headings.title_before}
                 <span style={{ color: POWDER_BLUE }}>{headings.title_highlight}</span>
               </h1>
@@ -147,12 +147,12 @@ const FAQ = () => {
               <span className="absolute -top-3 right-0 text-sm" style={{ color: POWDER_BLUE }}>
                 ✦
               </span>
-              <span className="absolute bottom-4 -left-6 text-xs text-gray-400">✦</span>
+              <span className="absolute -left-6 bottom-4 text-xs text-gray-400">✦</span>
               <span className="absolute -bottom-1 -right-7 text-base" style={{ color: POWDER_BLUE }}>
                 ✦
               </span>
             </div>
-            <p className="text-gray-600 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
+            <p className="mx-auto max-w-2xl text-lg leading-relaxed text-gray-600 md:text-xl">
               {headings.subtitle.includes('services') ? (
                 <>
                   Find answers to common questions about PixieKat&apos;s{' '}
@@ -175,7 +175,7 @@ const FAQ = () => {
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="max-w-3xl mx-auto mb-8"
+            className="mx-auto mb-8 max-w-3xl"
           >
             <div className="flex flex-wrap justify-center gap-3">
               {categories.map((category, index) => (
@@ -185,7 +185,7 @@ const FAQ = () => {
                   onClick={() => setActiveCategory(index)}
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.97 }}
-                  className="px-5 py-2 rounded-full border text-sm font-medium transition-all duration-200"
+                  className="rounded-full border px-5 py-2 text-sm font-medium transition-all duration-200"
                   style={
                     safeActiveCategory === index
                       ? {
@@ -208,12 +208,12 @@ const FAQ = () => {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="max-w-4xl mx-auto mb-16"
+              className="mx-auto mb-16 max-w-4xl"
             >
-              <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-                <div className="px-8 py-6 border-b border-gray-100 flex items-center gap-4">
+              <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-md">
+                <div className="flex items-center gap-4 border-b border-gray-100 px-8 py-6">
                   <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-2xl border-2 flex-shrink-0"
+                    className="flex size-12 shrink-0 items-center justify-center rounded-full border-2 text-2xl"
                     style={{ backgroundColor: POWDER_BLUE_BG, borderColor: POWDER_BLUE }}
                   >
                     {currentCategory.icon}
@@ -230,15 +230,15 @@ const FAQ = () => {
                       <div key={questionIndex} className="border-b border-gray-100 last:border-b-0">
                         <button
                           onClick={() => toggleItem(safeActiveCategory, questionIndex)}
-                          className="w-full text-left py-5 flex items-center justify-between group"
+                          className="group flex w-full items-center justify-between py-5 text-left"
                         >
-                          <span className="text-gray-900 font-medium pr-4 transition-colors duration-200 group-hover:text-[#5BA4CF]">
+                          <span className="pr-4 font-medium text-gray-900 transition-colors duration-200 group-hover:text-[#5BA4CF]">
                             {item.question}
                           </span>
                           <motion.div
                             animate={{ rotate: isOpen ? 180 : 0 }}
                             transition={{ duration: 0.2 }}
-                            className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center border"
+                            className="flex size-6 shrink-0 items-center justify-center rounded-full border"
                             style={
                               isOpen
                                 ? {
@@ -249,7 +249,7 @@ const FAQ = () => {
                             }
                           >
                             <svg
-                              className="w-3 h-3"
+                              className="size-3"
                               fill="none"
                               stroke={isOpen ? POWDER_BLUE_DARK : '#6b7280'}
                               strokeWidth="2.5"
@@ -273,9 +273,9 @@ const FAQ = () => {
                               transition={{ duration: 0.3, ease: 'easeInOut' }}
                               className="overflow-hidden"
                             >
-                              <div className="pb-5 text-gray-600 leading-relaxed flex gap-3">
+                              <div className="flex gap-3 pb-5 leading-relaxed text-gray-600">
                                 <span
-                                  className="mt-0.5 font-bold flex-shrink-0"
+                                  className="mt-0.5 shrink-0 font-bold"
                                   style={{ color: POWDER_BLUE }}
                                 >
                                   ✓
@@ -298,19 +298,19 @@ const FAQ = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.45 }}
-          className="w-full mb-16 px-4"
+          className="mb-16 w-full px-4"
         >
           <div
-            className="max-w-6xl mx-auto rounded-2xl overflow-hidden"
+            className="mx-auto max-w-6xl overflow-hidden rounded-2xl"
             style={{ backgroundColor: BANNER_BG }}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 min-h-[280px]">
-              <div className="p-10 md:p-12 flex flex-col justify-center">
-                <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+            <div className="grid min-h-[280px] grid-cols-1 md:grid-cols-2">
+              <div className="flex flex-col justify-center p-10 md:p-12">
+                <h2 className="mb-4 text-2xl font-bold text-white md:text-3xl">
                   {banner.title_before}
                   <span style={{ color: POWDER_BLUE }}>{banner.title_highlight}</span>
                 </h2>
-                <p className="text-gray-300 text-sm md:text-base leading-relaxed max-w-sm">
+                <p className="max-w-sm text-sm leading-relaxed text-gray-300 md:text-base">
                   {banner.body.includes('24/7') ? (
                     <>
                       Our support team is{' '}
@@ -326,21 +326,21 @@ const FAQ = () => {
                 </p>
               </div>
 
-              <div className="p-10 md:p-12 flex flex-col items-center justify-center gap-4 border-t border-white/10 md:border-t-0 md:border-l md:border-white/10 relative">
-                <span className="absolute top-6 right-10 text-xl" style={{ color: POWDER_BLUE }}>
+              <div className="relative flex flex-col items-center justify-center gap-4 border-t border-white/10 p-10 md:border-l md:border-t-0 md:border-white/10 md:p-12">
+                <span className="absolute right-10 top-6 text-xl" style={{ color: POWDER_BLUE }}>
                   ✦
                 </span>
-                <span className="absolute top-10 left-8 text-xs text-white/40">✦</span>
+                <span className="absolute left-8 top-10 text-xs text-white/40">✦</span>
                 <span className="absolute bottom-8 right-16 text-sm text-orange-400">✦</span>
                 <span className="absolute bottom-12 left-12 text-base text-white/30">✦</span>
 
-                <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex flex-col gap-4 sm:flex-row">
                   <motion.button
                     type="button"
                     onClick={() => navigate(settings.contact_support_path)}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="font-bold py-3 px-6 rounded-xl transition-opacity duration-200 hover:opacity-90"
+                    className="rounded-xl px-6 py-3 font-bold transition-opacity duration-200 hover:opacity-90"
                     style={{ backgroundColor: POWDER_BLUE, color: BANNER_BG }}
                   >
                     Contact Support
@@ -350,7 +350,7 @@ const FAQ = () => {
                     onClick={handleWhatsAppClick}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="border-2 border-white/50 text-white font-bold py-3 px-6 rounded-xl hover:bg-white/10 transition-colors duration-200"
+                    className="rounded-xl border-2 border-white/50 px-6 py-3 font-bold text-white transition-colors duration-200 hover:bg-white/10"
                   >
                     WhatsApp Us
                   </motion.button>
@@ -365,20 +365,20 @@ const FAQ = () => {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.85 }}
-            className="mt-4 mb-0 px-2"
+            className="mb-0 mt-4 px-2"
           >
             <div
-              className="rounded-3xl px-8 py-16 md:py-20 text-center shadow-sm max-w-4xl mx-auto"
+              className="mx-auto max-w-4xl rounded-3xl px-8 py-16 text-center shadow-sm md:py-20"
               style={{
                 background: 'linear-gradient(165deg, #f8fafc 0%, #dce8f5 50%, #c5d8ef 100%)',
               }}
             >
-              <h2 className="text-3xl md:text-5xl font-bold text-gray-900 leading-tight mb-5">
+              <h2 className="mb-5 text-3xl font-bold leading-tight text-gray-900 md:text-5xl">
                 {prefooter_cta.title_line1}
                 <br className="hidden sm:block" />
                 {prefooter_cta.title_line2}
               </h2>
-              <p className="text-gray-500 text-base md:text-lg mb-10 max-w-md mx-auto leading-relaxed">
+              <p className="mx-auto mb-10 max-w-md text-base leading-relaxed text-gray-500 md:text-lg">
                 {prefooter_cta.body.includes('hassle') ? (
                   <>
                     Browse our FAQ or reach out anytime — our team is ready to help you top up
@@ -395,12 +395,12 @@ const FAQ = () => {
                 whileHover={{ scale: 1.04, backgroundColor: '#111827', color: '#ffffff' }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ duration: 0.18 }}
-                className="inline-flex items-center gap-2 px-7 py-3 rounded-full border-2 border-gray-800 text-gray-800 font-semibold text-sm"
+                className="inline-flex items-center gap-2 rounded-full border-2 border-gray-800 px-7 py-3 text-sm font-semibold text-gray-800"
                 style={{ backgroundColor: 'transparent' }}
               >
                 {prefooter_cta.button_label}
                 <svg
-                  className="w-4 h-4"
+                  className="size-4"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2.5"

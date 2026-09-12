@@ -244,8 +244,8 @@ const Hero = () => {
 
         {/* Desktop view: bottom-left rectangular video */}
         {false && !isMobile && (
-          <BentoTilt className="absolute bottom-10 left-6 md:bottom-12 md:left-10 lg:left-16 z-50 h-44 w-72 md:h-56 md:w-96 pointer-events-auto rounded-lg overflow-hidden shadow-[0_0_15px_rgba(79,183,221,0.5)]">
-            <div className="relative size-full rounded-lg overflow-hidden">
+          <BentoTilt className="pointer-events-auto absolute bottom-10 left-6 z-50 h-44 w-72 overflow-hidden rounded-lg shadow-[0_0_15px_rgba(79,183,221,0.5)] md:bottom-12 md:left-10 md:h-56 md:w-96 lg:left-16">
+            <div className="relative size-full overflow-hidden rounded-lg">
               <video
                 ref={featureVideoRef}
                 src={publicMediaUrl("/videos/feature-4.mp4")} 
@@ -262,7 +262,7 @@ const Hero = () => {
                 className="absolute left-0 top-0 size-full object-cover object-center"
               />
               <div className="relative z-20 flex size-full flex-col justify-between p-5">
-                <div className="absolute bottom-3 left-3 z-80">
+                <div className="z-80 absolute bottom-3 left-3">
                   <SlideTextButton
                     title="Contact Us"
                     leftIcon={<TiLocationArrow />}
@@ -277,7 +277,7 @@ const Hero = () => {
 
         {/* Desktop view: right side card with flip animation */}
         {false && !isMobile && (
-          <div className="absolute bottom-64 right-8 z-50 h-48 w-80 md:h-64 md:w-96 pointer-events-auto">
+          <div className="pointer-events-auto absolute bottom-64 right-8 z-50 h-48 w-80 md:h-64 md:w-96">
             <FlipCard
               frontVideo={publicMediaUrl("/videos/feature-2.mp4")}
               backVideo={publicMediaUrl("/videos/feature-3.mp4")}
@@ -290,9 +290,9 @@ const Hero = () => {
 
         {/* Mobile view: Contact Us card that appears when toggled */}
         {showContactUs && (
-          <div className="absolute left-1/2 top-1/2 z-[500] -translate-x-1/2 -translate-y-1/2 h-80 w-80 pointer-events-auto">
-            <BentoTilt className="h-full w-full rounded-lg overflow-hidden shadow-[0_0_15px_rgba(79,183,221,0.5)]">
-              <div className="relative size-full rounded-lg overflow-hidden">
+          <div className="pointer-events-auto absolute left-1/2 top-1/2 z-[500] size-80 -translate-x-1/2 -translate-y-1/2">
+            <BentoTilt className="size-full overflow-hidden rounded-lg shadow-[0_0_15px_rgba(79,183,221,0.5)]">
+              <div className="relative size-full overflow-hidden rounded-lg">
                 <video
                   src={publicMediaUrl("/videos/feature-4.mp4")} 
                   autoPlay
@@ -304,20 +304,20 @@ const Hero = () => {
                   controls={false}
                   controlsList="nodownload noplaybackrate nofullscreen"
                   disablePictureInPicture
-                  className="absolute left-0 top-0 size-full object-cover object-center pointer-events-none"
+                  className="pointer-events-none absolute left-0 top-0 size-full object-cover object-center"
                 />
                 <div className="relative z-20 flex size-full flex-col justify-between p-5">
                   <button 
-                    className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 z-[600]"
+                    className="absolute right-2 top-2 z-[600] rounded-full bg-black bg-opacity-50 p-1"
                     onClick={toggleContactUs}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="size-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
-                  <div className="absolute bottom-5 left-5 z-80 text-center w-[90%]">
-                    <h2 className="text-white text-xl mb-3 font-bold">Contact Us</h2>
-                    <p className="text-white text-sm mb-4">Get in touch with our support team for any assistance</p>
+                  <div className="z-80 absolute bottom-5 left-5 w-[90%] text-center">
+                    <h2 className="mb-3 text-xl font-bold text-white">Contact Us</h2>
+                    <p className="mb-4 text-sm text-white">Get in touch with our support team for any assistance</p>
                     <SlideTextButton
                       title="Contact Support"
                       leftIcon={<TiLocationArrow />}
@@ -333,14 +333,14 @@ const Hero = () => {
 
         {/* Mobile view: Popular Games card that appears when toggled */}
         {showPopularGames && (
-          <div className="absolute left-1/2 top-1/2 z-[500] -translate-x-1/2 -translate-y-1/2 h-80 w-80 pointer-events-auto">
-            <div className="relative h-full w-full">
+          <div className="pointer-events-auto absolute left-1/2 top-1/2 z-[500] size-80 -translate-x-1/2 -translate-y-1/2">
+            <div className="relative size-full">
               <button 
-                className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 z-[600]"
+                className="absolute right-2 top-2 z-[600] rounded-full bg-black bg-opacity-50 p-1"
                 onClick={togglePopularGames}
                 aria-label="Close Popular Games"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="size-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -361,38 +361,38 @@ const Hero = () => {
         {/* Parallax container for all character images (lightweight wrapper) */}
         <div 
           ref={parallaxContainerRef}
-          className="absolute inset-0 z-20 pointer-events-none"
+          className="pointer-events-none absolute inset-0 z-20"
           style={{ willChange: 'transform' }}
         >
           {/* Jinx image */}
           {(() => { const r = getImgTx('jinx'); if (!r) return null; const { img, tx } = r; return (!isPhone || img.show_on_phone) ? (
           <div className="absolute z-30" style={{ left: tx.pos_left, top: tx.pos_top, transform: `translate(-50%,-50%) scale(${tx.scale/100}) rotate(${tx.rotate}deg) translate(${tx.x}px,${tx.y}px)`, willChange: 'transform' }}>
-            <img ref={jinxRef} src={img.url} alt="Jinx" className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-120"}`} loading="lazy" decoding="async" fetchpriority="low" sizes="(max-width: 768px) 360px, 480px" />
+            <img ref={jinxRef} src={img.url} alt="Jinx" className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-120"}`} loading="lazy" decoding="async" fetchPriority="low" sizes="(max-width: 768px) 360px, 480px" />
           </div>) : null; })()}
 
           {/* Faze image */}
           {(() => { const r = getImgTx('faze'); if (!r) return null; const { img, tx } = r; return (!isPhone || img.show_on_phone) ? (
           <div className="absolute z-50" style={{ left: tx.pos_left, top: tx.pos_top, transform: `translate(-50%,-50%) scale(${tx.scale/100}) rotate(${tx.rotate}deg) translate(${tx.x}px,${tx.y}px)`, willChange: 'transform' }}>
-            <img ref={fazeLogoRef} src={img.url} alt="Faze" className={`h-auto ${isPhone ? "w-[461px]" : "w-64 md:w-80"}`} loading="lazy" decoding="async" fetchpriority="low" sizes="(max-width: 768px) 256px, 320px" />
+            <img ref={fazeLogoRef} src={img.url} alt="Faze" className={`h-auto ${isPhone ? "w-[461px]" : "w-64 md:w-80"}`} loading="lazy" decoding="async" fetchPriority="low" sizes="(max-width: 768px) 256px, 320px" />
           </div>) : null; })()}
 
           {/* Melissa image */}
           {(() => { const r = getImgTx('melissa'); if (!r) return null; const { img, tx } = r; return (!isPhone || img.show_on_phone) ? (
           <div className="absolute z-20" style={{ left: tx.pos_left, top: tx.pos_top, transform: `translate(-50%,-50%) scale(${tx.scale/100}) rotate(${tx.rotate}deg) translate(${tx.x}px,${tx.y}px)`, willChange: 'transform' }}>
-            <img ref={lunoxRef} src={img.url} alt="Lunox" className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-130"}`} loading="lazy" decoding="async" fetchpriority="low" sizes="(max-width: 768px) 360px, 520px" />
+            <img ref={lunoxRef} src={img.url} alt="Lunox" className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-130"}`} loading="lazy" decoding="async" fetchPriority="low" sizes="(max-width: 768px) 360px, 520px" />
           </div>) : null; })()}
         </div>
 
         {/* Mobile contact square button next to Pixiekat title */}
         {(
           <MobileSquareButton
-            className="absolute top-24 right-5 z-[60]"
+            className="absolute right-5 top-24 z-[60]"
             onClick={toggleContactUs}
             ariaLabel="Toggle Contact Us Card"
           />
         )}
 
-        <h1 className="special-font hero-heading absolute bottom-5 right-5 z-40 text-blue-75 text-shadow">
+        <h1 className="special-font hero-heading text-shadow absolute bottom-5 right-5 z-40 text-blue-75">
           ST<b>O</b>RE
         </h1>
 

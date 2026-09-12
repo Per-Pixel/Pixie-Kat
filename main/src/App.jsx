@@ -168,7 +168,7 @@ function App() {
 
         await Promise.all(criticalImageSources.map((src) => preloadImage(src)));
 
-      } catch (error) {
+      } catch {
         // Asset preloading failed; continue without it
       }
 
@@ -178,7 +178,7 @@ function App() {
 
     loadCriticalAssets();
 
-  }, []);
+  }, [criticalImageSources]);
 
 
 
@@ -229,7 +229,7 @@ function App() {
 
             <AppShell>
 
-              <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div></div>}>
+              <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><div className="size-12 animate-spin rounded-full border-b-2 border-white"></div></div>}>
 
                 <Routes>
 

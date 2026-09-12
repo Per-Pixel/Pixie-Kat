@@ -130,13 +130,13 @@ const TrendingGames = () => {
 
       <div
         ref={containerRef}
-        className="relative z-50 mt-4 flex gap-6 overflow-x-auto overflow-y-visible pb-2 no-scrollbar"
+        className="no-scrollbar relative z-50 mt-4 flex gap-6 overflow-x-auto overflow-y-visible pb-2"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
         {trendingGames.map((game, idx) => (
           <div
             key={game.title}
-            className="relative min-w-[220px] max-w-[240px] flex-shrink-0 origin-top cursor-pointer rounded-xl border-4 bg-transparent p-3 transition-transform duration-200 ease-out hover:z-50 hover:scale-[1.02] hover:shadow-xl active:z-50 active:scale-95 first:ml-3 md:first:ml-5 lg:first:ml-6"
+            className="relative min-w-[220px] max-w-[240px] shrink-0 origin-top cursor-pointer rounded-xl border-4 bg-transparent p-3 transition-transform duration-200 ease-out first:ml-3 hover:z-50 hover:scale-[1.02] hover:shadow-xl active:z-50 active:scale-95 md:first:ml-5 lg:first:ml-6"
             style={{
               willChange: "transform",
               borderColor: "black",
@@ -152,7 +152,7 @@ const TrendingGames = () => {
                 draggable={false}
                 loading="lazy"
                 decoding="async"
-                fetchpriority={idx === 0 ? "high" : "low"}
+                fetchPriority={idx === 0 ? "high" : "low"}
                 sizes="(max-width: 768px) 220px, 240px"
               />
             </div>

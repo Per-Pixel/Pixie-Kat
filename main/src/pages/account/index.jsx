@@ -19,7 +19,7 @@ const AccountPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen px-4 pb-28 pt-28 sm:px-6 md:px-8" style={pageBackground}>
+      <div className="min-h-screen px-4 py-28 sm:px-6 md:px-8" style={pageBackground}>
         <div className="mx-auto max-w-7xl rounded-[28px] border border-white/70 bg-white/70 p-6 shadow-[0_18px_50px_rgba(91,79,118,0.14)] backdrop-blur-xl">
           <p className="text-lg font-medium text-slate-500">Loading account...</p>
         </div>

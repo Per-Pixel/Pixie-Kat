@@ -94,7 +94,7 @@ export function useGameCatalog(slug) {
             fields: api.fields,
             products: resolveMediaUrls(api.products),
           });
-        } catch (apiErr) {
+        } catch {
           if (cancelled) return;
           setState({
             loading: false,

@@ -31,21 +31,21 @@ function StatusBadge({ status, completed, total, actual, mixed, manual, failed }
   if (status === "processing")
     return (
       <span className="flex items-center gap-1 text-xs text-blue-600">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        <Loader2 className="size-3.5 animate-spin" />
         {total > 1 ? `${completed}/${total}…` : "Processing…"}
       </span>
     );
   if (status === "done")
     return (
       <span className="flex items-center gap-1 text-xs text-emerald-600" title="All units delivered as ordered">
-        <CheckCircle2 className="h-3.5 w-3.5" />
+        <CheckCircle2 className="size-3.5" />
         {total > 1 ? `${total}/${total} done` : "Done — actual order"}
       </span>
     );
   if (status === "partial")
     return (
       <span className="flex items-center gap-1 text-xs text-amber-600" title={`Actual: ${actual ?? completed}, Mixed: ${mixed ?? 0}, Manual: ${manual ?? 0}, Failed: ${failed ?? 0}`}>
-        <CheckCircle2 className="h-3.5 w-3.5" />
+        <CheckCircle2 className="size-3.5" />
         {completed}/{total} done
         {(mixed > 0 || manual > 0) && ` (${mixed > 0 ? `${mixed} mixed` : ""}${mixed > 0 && manual > 0 ? ", " : ""}${manual > 0 ? `${manual} manual` : ""})`}
       </span>
@@ -53,14 +53,14 @@ function StatusBadge({ status, completed, total, actual, mixed, manual, failed }
   if (status === "manual")
     return (
       <span className="flex items-center gap-1 text-xs text-slate-600" title="Order placed; manual fulfillment required">
-        <Loader2 className="h-3.5 w-3.5" />
+        <Loader2 className="size-3.5" />
         {total > 1 ? `${manual}/${total} manual` : "Manual fulfillment"}
       </span>
     );
   if (status === "failed")
     return (
       <span className="flex items-center gap-1 text-xs text-red-500">
-        <XCircle className="h-3.5 w-3.5" /> Failed
+        <XCircle className="size-3.5" /> Failed
       </span>
     );
   return null;
@@ -183,7 +183,7 @@ export default function BatchOrderPage() {
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f5f4ff]">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+        <Loader2 className="size-8 animate-spin text-violet-500" />
       </div>
     );
   }
@@ -460,7 +460,7 @@ export default function BatchOrderPage() {
 
   // ─── render ──────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#f5f4ff] px-4 pt-24 pb-16 text-[#10141f]">
+    <div className="min-h-screen bg-[#f5f4ff] px-4 pb-16 pt-24 text-[#10141f]">
       <div className="mx-auto max-w-5xl">
         {/* header */}
         <div className="mb-8 flex items-center justify-between">
@@ -485,7 +485,7 @@ export default function BatchOrderPage() {
 
             {catalogLoading ? (
               <div className="flex items-center gap-2 text-sm text-slate-400">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading games…
+                <Loader2 className="size-4 animate-spin" /> Loading games…
               </div>
             ) : (
               <div className="space-y-4">
@@ -530,19 +530,19 @@ export default function BatchOrderPage() {
                   <div className="flex h-8 items-center gap-2">
                     {verifying && (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                        <Loader2 className="size-4 animate-spin text-slate-400" />
                         <span className="text-xs text-slate-400">Verifying player…</span>
                       </>
                     )}
                     {!verifying && playerName && (
                       <>
-                        <UserCheck className="h-4 w-4 text-emerald-500" />
+                        <UserCheck className="size-4 text-emerald-500" />
                         <span className="text-xs font-semibold text-emerald-600">{playerName}</span>
                       </>
                     )}
                     {!verifying && !playerName && verifyError && (
                       <>
-                        <XCircle className="h-4 w-4 text-red-400" />
+                        <XCircle className="size-4 text-red-400" />
                         <span className="text-xs text-red-500">{verifyError}</span>
                       </>
                     )}
@@ -557,7 +557,6 @@ export default function BatchOrderPage() {
                     </label>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {selectedGame.products.map((p) => {
-                        const isDefault = getDefaultProduct(selectedGame) === p.id;
                         return (
                           <button
                             key={p.id}
@@ -586,19 +585,19 @@ export default function BatchOrderPage() {
                       <button
                         type="button"
                         onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                        className="flex h-10 w-10 items-center justify-center rounded-l-xl text-slate-500 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-30"
+                        className="flex size-10 items-center justify-center rounded-l-xl text-slate-500 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-30"
                         disabled={quantity <= 1}
                       >
-                        <Minus className="h-4 w-4" />
+                        <Minus className="size-4" />
                       </button>
                       <span className="w-10 text-center text-sm font-bold">{quantity}</span>
                       <button
                         type="button"
                         onClick={() => setQuantity((q) => Math.min(20, q + 1))}
-                        className="flex h-10 w-10 items-center justify-center rounded-r-xl text-slate-500 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-30"
+                        className="flex size-10 items-center justify-center rounded-r-xl text-slate-500 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-30"
                         disabled={quantity >= 20}
                       >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="size-4" />
                       </button>
                     </div>
 
@@ -614,9 +613,9 @@ export default function BatchOrderPage() {
                       type="button"
                       disabled={!selectedProduct}
                       onClick={handleAddToCart}
-                      className="ml-auto flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition-opacity disabled:opacity-40 hover:bg-violet-700"
+                      className="ml-auto flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:bg-violet-700 disabled:opacity-40"
                     >
-                      <Plus className="h-4 w-4" /> Add to Cart
+                      <Plus className="size-4" /> Add to Cart
                     </button>
                   </div>
                 )}
@@ -628,7 +627,7 @@ export default function BatchOrderPage() {
           <div className="flex flex-col gap-4">
             <div className="rounded-2xl bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5 text-violet-600" />
+                <ShoppingCart className="size-5 text-violet-600" />
                 <h2 className="text-base font-bold">
                   Cart{" "}
                   {cart.length > 0 && (
@@ -671,7 +670,7 @@ export default function BatchOrderPage() {
                           </div>
                           {item.playerName && (
                             <div className="mt-0.5 flex items-center gap-1 text-xs text-emerald-600">
-                              <UserCheck className="h-3 w-3" /> {item.playerName}
+                              <UserCheck className="size-3" /> {item.playerName}
                             </div>
                           )}
                           <div className="mt-0.5 text-xs text-[#6d7480]">
@@ -698,7 +697,7 @@ export default function BatchOrderPage() {
                           )}
                           {res?.mismatches?.length > 0 && (
                             <div className="mt-1 flex items-start gap-1 rounded-md bg-amber-100 px-2 py-1 text-xs text-amber-800">
-                              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                              <AlertTriangle className="mt-0.5 size-3 shrink-0" />
                               <span>
                                 Provider price mismatch on {res.mismatches.length} order{res.mismatches.length > 1 ? "s" : ""}
                                 {` — expected ${res.mismatches[0].expected_provider_price}, got ${res.mismatches[0].actual_provider_price}. `}
@@ -713,7 +712,7 @@ export default function BatchOrderPage() {
                             onClick={() => handleRemove(item.localId)}
                             className="mt-0.5 shrink-0 text-slate-400 hover:text-red-500"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="size-4" />
                           </button>
                         )}
                       </div>
@@ -724,7 +723,7 @@ export default function BatchOrderPage() {
 
               {/* totals */}
               {cart.length > 0 && (
-                <div className="mt-4 border-t pt-4 space-y-1">
+                <div className="mt-4 space-y-1 border-t pt-4">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-[#6d7480]">Total ({totalOrders} orders)</span>
                     <span className="font-bold">{fmt(cartTotal)}</span>
@@ -778,14 +777,14 @@ export default function BatchOrderPage() {
                 type="button"
                 disabled={!canProceed || processing || preCheckLoading || cart.length === 0}
                 onClick={handleProcessAll}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition-opacity disabled:opacity-40 hover:bg-emerald-700"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition-opacity hover:bg-emerald-700 disabled:opacity-40"
               >
                 {preCheckLoading ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Verifying…</>
+                  <><Loader2 className="size-4 animate-spin" /> Verifying…</>
                 ) : processing ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</>
+                  <><Loader2 className="size-4 animate-spin" /> Processing…</>
                 ) : (
-                  <><CheckCircle2 className="h-4 w-4" /> Process {totalOrders} Order{totalOrders !== 1 ? "s" : ""}</>
+                  <><CheckCircle2 className="size-4" /> Process {totalOrders} Order{totalOrders !== 1 ? "s" : ""}</>
                 )}
               </button>
             ) : (

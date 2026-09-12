@@ -67,10 +67,10 @@ const socialIcons = [FaFacebookF, FaYoutube, FaInstagram, FaTwitter, FaTiktok, F
 const getPathnameSuffix = (pathname) => pathname.replace(/^\/account\/?/, "");
 
 const ProfileHero = ({ profile }) => (
-  <div className="mt-4 rounded-[18px] bg-gradient-to-r from-[#5724ff] to-[#4FB7DD] px-4 py-4 text-white shadow-[0_16px_30px_rgba(87,36,255,0.2)]">
+  <div className="mt-4 rounded-[18px] bg-gradient-to-r from-[#5724ff] to-[#4FB7DD] p-4 text-white shadow-[0_16px_30px_rgba(87,36,255,0.2)]">
     <div className="flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-lg font-black backdrop-blur">
+        <div className="flex size-14 items-center justify-center rounded-full bg-white/20 text-lg font-black backdrop-blur">
           {profile.initials}
         </div>
         <div className="min-w-0">
@@ -81,13 +81,13 @@ const ProfileHero = ({ profile }) => (
 
       <div className="flex items-center gap-2 text-white">
         <button type="button" className="rounded-md p-1.5" aria-label="Invite friend">
-          <UserPlus className="h-6 w-6" />
+          <UserPlus className="size-6" />
         </button>
         <Link to="/account/edit-profile" className="rounded-md p-1.5" aria-label="Edit profile">
-          <PencilLine className="h-6 w-6" />
+          <PencilLine className="size-6" />
         </Link>
         <Link to="/account/settings" className="rounded-md p-1.5" aria-label="Manage settings">
-          <Settings className="h-6 w-6" />
+          <Settings className="size-6" />
         </Link>
       </div>
     </div>
@@ -95,11 +95,11 @@ const ProfileHero = ({ profile }) => (
 );
 
 const StatsCard = ({ navigate, profile }) => (
-  <div className="mt-3 rounded-[18px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 shadow-[0_16px_30px_rgba(91,79,118,0.12)] backdrop-blur-xl">
+  <div className="bg-white/88 mt-3 rounded-[18px] border border-white/70 p-4 text-slate-900 shadow-[0_16px_30px_rgba(91,79,118,0.12)] backdrop-blur-xl">
     <div className="grid grid-cols-2 gap-4 divide-x divide-slate-200">
       <div className="pr-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-gradient-to-br from-amber-100 to-amber-300 text-xs font-black text-amber-900 shadow-inner">
+          <div className="flex size-11 items-center justify-center rounded-[12px] bg-gradient-to-br from-amber-100 to-amber-300 text-xs font-black text-amber-900 shadow-inner">
             PKS
           </div>
           <div>
@@ -126,7 +126,7 @@ const StatsCard = ({ navigate, profile }) => (
 
       <div className="pl-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-gradient-to-br from-emerald-100 to-emerald-300 text-lg font-black text-emerald-900 shadow-inner">
+          <div className="flex size-11 items-center justify-center rounded-[12px] bg-gradient-to-br from-emerald-100 to-emerald-300 text-lg font-black text-emerald-900 shadow-inner">
             %
           </div>
           <div>
@@ -214,7 +214,7 @@ const CalendarOverlay = ({ onClose, range, setRange }) => {
           Show all time
         </button>
       </div>
-      <div className="absolute bottom-[-8px] left-[11.5rem] h-4 w-4 rotate-45 bg-white" />
+      <div className="absolute bottom-[-8px] left-[11.5rem] size-4 rotate-45 bg-white" />
     </div>
   );
 };
@@ -375,7 +375,7 @@ const DashboardPanel = ({ navigate }) => {
                     ? "All time"
                     : `${currentYearMonth}-${String(range.start).padStart(2, "0")} - ${currentYearMonth}-${String(range.end ?? range.start).padStart(2, "0")}`}
                 </span>
-                <CalendarDays className="h-4 w-4" />
+                <CalendarDays className="size-4" />
               </button>
               {calendarOpen ? (
                 <CalendarOverlay onClose={() => setCalendarOpen(false)} range={range} setRange={setRange} />
@@ -390,7 +390,7 @@ const DashboardPanel = ({ navigate }) => {
                   className="flex h-12 w-full items-center justify-between rounded-[6px] border border-[#315f95] px-3 text-left text-sm text-[#94b4d0]"
                 >
                   <span>{statusOptions.find((option) => option.value === status)?.label ?? "All statuses"}</span>
-                  <ChevronDown className={`h-4 w-4 transition ${statusMenuOpen ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`size-4 transition ${statusMenuOpen ? "rotate-180" : ""}`} />
                 </button>
                 {statusMenuOpen ? (
                   <div className="absolute left-0 top-[3.35rem] z-20 w-full rounded-[6px] border border-[#315f95] bg-slate-900 text-base shadow-[0_12px_24px_rgba(15,23,42,0.28)]">
@@ -424,7 +424,7 @@ const DashboardPanel = ({ navigate }) => {
               </label>
 
               <button type="button" className="flex h-12 items-center justify-center rounded-[6px] bg-[#315f95] text-slate-200" aria-label="Search orders">
-                <Search className="h-5 w-5" />
+                <Search className="size-5" />
               </button>
             </div>
 
@@ -436,7 +436,7 @@ const DashboardPanel = ({ navigate }) => {
                   className="flex h-12 w-full items-center justify-between rounded-[6px] border border-[#315f95] px-3 text-left text-sm text-[#94b4d0]"
                 >
                   <span className="truncate">{game === "all" ? "All games" : game}</span>
-                  <ChevronDown className={`h-4 w-4 shrink-0 transition ${gameMenuOpen ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`size-4 shrink-0 transition ${gameMenuOpen ? "rotate-180" : ""}`} />
                 </button>
                 {gameMenuOpen ? (
                   <div className="absolute left-0 top-[3.35rem] z-20 max-h-56 w-full overflow-y-auto rounded-[6px] border border-[#315f95] bg-slate-900 text-base shadow-[0_12px_24px_rgba(15,23,42,0.28)]">
@@ -517,7 +517,7 @@ const DashboardPanel = ({ navigate }) => {
 };
 
 const MobilePageScaffold = ({ children }) => (
-  <div className="min-h-screen px-0 pb-24 pt-24 text-white" style={pageBackground}>
+  <div className="min-h-screen px-0 py-24 text-white" style={pageBackground}>
     <div className="px-3">{children}</div>
   </div>
 );
@@ -526,9 +526,9 @@ const BackHeader = ({ title, children }) => {
   const navigate = useNavigate();
 
   return (
-    <div className="mt-3 flex items-center gap-3 rounded-[22px] border border-white/70 bg-white/85 px-3 py-3 text-slate-900 shadow-[0_14px_30px_rgba(91,79,118,0.12)] backdrop-blur-xl">
+    <div className="mt-3 flex items-center gap-3 rounded-[22px] border border-white/70 bg-white/85 p-3 text-slate-900 shadow-[0_14px_30px_rgba(91,79,118,0.12)] backdrop-blur-xl">
       <button type="button" onClick={() => navigate(-1)} aria-label="Go back">
-        <ArrowLeft className="h-6 w-6" />
+        <ArrowLeft className="size-6" />
       </button>
       <div className="min-w-0 flex-1">{children ?? <p className="truncate text-base font-semibold">{title}</p>}</div>
     </div>
@@ -674,7 +674,7 @@ const RedeemCodeScreen = ({ profile }) => {
 
           <div className="flex flex-wrap gap-4 text-slate-300">
             {socialIcons.map((Icon, index) => (
-              <span key={index} className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-700/70 text-xl">
+              <span key={index} className="flex size-12 items-center justify-center rounded-full bg-slate-700/70 text-xl">
                 <Icon />
               </span>
             ))}

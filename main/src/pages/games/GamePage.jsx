@@ -66,7 +66,7 @@ const formatPrice = (value, currency = "INR") => {
 
 const SectionTitle = ({ number, children }) => (
   <div className="mb-5 flex items-center gap-3">
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#6d4cff] text-sm font-bold text-white">
+    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#6d4cff] text-sm font-bold text-white">
       {number}
     </span>
     <h2 className="text-xl font-bold text-[#10141f] md:text-2xl">{children}</h2>
@@ -82,8 +82,8 @@ const CompactPackageCard = ({ item, selected, onSelect }) => (
     }`}
   >
     {selected ? (
-      <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#7152ff] text-white">
-        <Check className="h-3 w-3" strokeWidth={3} />
+      <span className="absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-[#7152ff] text-white">
+        <Check className="size-3" strokeWidth={3} />
       </span>
     ) : null}
     {item.popular ? (
@@ -96,9 +96,9 @@ const CompactPackageCard = ({ item, selected, onSelect }) => (
         {item.priceLabel}
       </p>
       {item.image ? (
-        <img src={item.image} alt="" className="h-6 w-6 shrink-0 rounded object-cover sm:h-7 sm:w-7" />
+        <img src={item.image} alt="" className="size-6 shrink-0 rounded object-cover sm:size-7" />
       ) : (
-        <Gem className="h-5 w-5 shrink-0 text-[#8b6dff] sm:h-6 sm:w-6" />
+        <Gem className="size-5 shrink-0 text-[#8b6dff] sm:size-6" />
       )}
     </div>
     <p className="mt-4 text-[11px] font-medium leading-tight text-[#3b4350] sm:text-xs">
@@ -116,8 +116,8 @@ const FeaturedPackageCard = ({ item, selected, onSelect }) => (
     }`}
   >
     {selected ? (
-      <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#7152ff] text-white">
-        <Check className="h-3 w-3" strokeWidth={3} />
+      <span className="absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-[#7152ff] text-white">
+        <Check className="size-3" strokeWidth={3} />
       </span>
     ) : null}
     <div className="flex w-full items-start justify-between gap-1.5">
@@ -127,7 +127,7 @@ const FeaturedPackageCard = ({ item, selected, onSelect }) => (
       {item.image ? (
         <img src={item.image} alt="" className="h-6 w-9 shrink-0 rounded object-cover sm:h-7 sm:w-10" />
       ) : (
-        <Gem className="h-5 w-5 shrink-0 text-[#8b6dff] sm:h-6 sm:w-6" />
+        <Gem className="size-5 shrink-0 text-[#8b6dff] sm:size-6" />
       )}
     </div>
     <div className="mt-4">
@@ -155,10 +155,10 @@ const HowToTopUp = ({ steps, mobile = false }) => {
         className="flex h-10 w-full items-center justify-between rounded-lg bg-[#7b55ff] px-4 text-left text-sm font-bold text-white shadow-[0_10px_24px_rgba(103,75,255,0.28)]"
       >
         <span className="flex items-center gap-2">
-          <FileText className="h-3.5 w-3.5" />
+          <FileText className="size-3.5" />
           How to Top-Up
         </span>
-        <ChevronDown className="h-4 w-4" />
+        <ChevronDown className="size-4" />
       </button>
     );
   }
@@ -172,7 +172,7 @@ const HowToTopUp = ({ steps, mobile = false }) => {
         <div className="absolute left-[31px] top-2 h-[calc(100%-1rem)] w-px bg-[#e3e6ec]" />
         {steps.map((step, index) => (
           <div key={`${step.title}-${index}`} className="relative flex gap-5">
-            <span className="z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-sm font-bold text-[#6d4cff] shadow-[0_8px_20px_rgba(15,23,42,0.1)]">
+            <span className="z-10 flex size-11 shrink-0 items-center justify-center rounded-lg bg-white text-sm font-bold text-[#6d4cff] shadow-[0_8px_20px_rgba(15,23,42,0.1)]">
               {index + 1}
             </span>
             <div>
@@ -189,7 +189,7 @@ const HowToTopUp = ({ steps, mobile = false }) => {
 const InstructionsAlert = ({ title, body }) => (
   <section className="rounded-xl border border-[#f2c8ad] bg-[#fffaf4] px-6 py-5 text-[#c43a0c]">
     <div className="flex items-start gap-3">
-      <Info className="mt-1 h-4 w-4 shrink-0 text-[#99a1ad]" />
+      <Info className="mt-1 size-4 shrink-0 text-[#99a1ad]" />
       <div className="space-y-3 text-sm leading-7">
         <h3 className="font-bold">{title}</h3>
         <p className="whitespace-pre-line">{body}</p>
@@ -214,7 +214,7 @@ const MembershipOffer = ({ selectedPackage, plans, activeMembership, selectedPla
   <section className="rounded-xl bg-[#070b16] p-4 text-white shadow-[0_16px_36px_rgba(5,8,16,0.22)]">
     <div className="flex items-start justify-between gap-4">
       <div className="flex gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f4cc48] text-xs font-black text-[#5d3a00]">GD</span>
+        <span className="flex size-10 items-center justify-center rounded-full bg-[#f4cc48] text-xs font-black text-[#5d3a00]">GD</span>
         <div>
           <h3 className="text-xl font-bold leading-5">Unlock Member Prices</h3>
           <p className="mt-1 text-xs text-white/70">
@@ -605,7 +605,7 @@ const GamePage = () => {
     return (
       <PageShell>
         <div className="flex flex-col items-center gap-4 text-[#5f6977]">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#dfe4ec] border-t-[#6d4cff]" />
+          <div className="size-10 animate-spin rounded-full border-4 border-[#dfe4ec] border-t-[#6d4cff]" />
           <p className="text-sm font-medium">Loading game…</p>
         </div>
       </PageShell>
@@ -862,9 +862,9 @@ const GamePage = () => {
   if (orderComplete) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(115deg,#fbfaf5_0%,#eef8f7_48%,#faf8f2_100%)] px-4 pt-24 text-[#10141f]">
-        <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-[0_24px_70px_rgba(15,23,42,0.12)] text-center">
-          <div className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full ${orderComplete.refunded || orderComplete.mismatch ? "bg-amber-100" : "bg-emerald-100"}`}>
-            <CheckCircle2 className={`h-8 w-8 ${orderComplete.refunded || orderComplete.mismatch ? "text-amber-500" : "text-emerald-600"}`} />
+        <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-[0_24px_70px_rgba(15,23,42,0.12)]">
+          <div className={`mx-auto mb-5 flex size-16 items-center justify-center rounded-full ${orderComplete.refunded || orderComplete.mismatch ? "bg-amber-100" : "bg-emerald-100"}`}>
+            <CheckCircle2 className={`size-8 ${orderComplete.refunded || orderComplete.mismatch ? "text-amber-500" : "text-emerald-600"}`} />
           </div>
           <h2 className="text-2xl font-black text-[#10141f]">
             {orderComplete.refunded
@@ -897,7 +897,7 @@ const GamePage = () => {
               <span className="font-semibold">Details:</span> {orderComplete.fulfillError}
             </p>
           )}
-          <div className="mt-6 rounded-xl bg-[#f5f3ff] p-4 text-left space-y-2 text-sm">
+          <div className="mt-6 space-y-2 rounded-xl bg-[#f5f3ff] p-4 text-left text-sm">
             <div className="flex justify-between">
               <span className="text-[#6d7480]">Package</span>
               <span className="font-bold text-[#10141f]">{orderComplete.package}</span>
@@ -944,21 +944,21 @@ const GamePage = () => {
     <div className="min-h-screen bg-[linear-gradient(115deg,#fbfaf5_0%,#eef8f7_48%,#faf8f2_100%)] pb-28 pt-24 text-[#10141f] md:pb-16">
       {showCartReview && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-7 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div className="flex items-center gap-3 mb-5">
-              <button type="button" onClick={() => setShowCartReview(false)} className="p-2 rounded-full hover:bg-gray-100">
-                <ArrowLeft className="h-5 w-5 text-[#6d4cff]" />
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-7 shadow-2xl">
+            <div className="mb-5 flex items-center gap-3">
+              <button type="button" onClick={() => setShowCartReview(false)} className="rounded-full p-2 hover:bg-gray-100">
+                <ArrowLeft className="size-5 text-[#6d4cff]" />
               </button>
               <h2 className="text-xl font-black text-[#10141f]">Review Your Order</h2>
             </div>
-            <div className="rounded-xl bg-[#f5f3ff] p-4 mb-4">
-              <p className="text-xs font-bold text-[#9aa2ad] mb-1">GAME & PACKAGE</p>
+            <div className="mb-4 rounded-xl bg-[#f5f3ff] p-4">
+              <p className="mb-1 text-xs font-bold text-[#9aa2ad]">GAME & PACKAGE</p>
               <p className="font-bold text-[#10141f]">{game.name}</p>
-              <p className="text-[#6d4cff] font-black text-lg">{selectedPackage?.name}</p>
+              <p className="text-lg font-black text-[#6d4cff]">{selectedPackage?.name}</p>
             </div>
             {fields.length > 0 && (
-              <div className="rounded-xl bg-gray-50 p-4 mb-4 space-y-2">
-                <p className="text-xs font-bold text-[#9aa2ad] mb-1">ACCOUNT DETAILS</p>
+              <div className="mb-4 space-y-2 rounded-xl bg-gray-50 p-4">
+                <p className="mb-1 text-xs font-bold text-[#9aa2ad]">ACCOUNT DETAILS</p>
                 {fields.map((f) => (
                   <div key={f.id} className="flex justify-between text-sm">
                     <span className="text-[#6d7480]">{f.label}</span>
@@ -973,8 +973,8 @@ const GamePage = () => {
                 )}
               </div>
             )}
-            <div className="rounded-xl bg-gray-50 p-4 mb-4 space-y-2">
-              <p className="text-xs font-bold text-[#9aa2ad] mb-1">CONTACT</p>
+            <div className="mb-4 space-y-2 rounded-xl bg-gray-50 p-4">
+              <p className="mb-1 text-xs font-bold text-[#9aa2ad]">CONTACT</p>
               <div className="flex justify-between text-sm">
                 <span className="text-[#6d7480]">Email</span>
                 <span className="font-bold text-[#10141f]">{contact.email}</span>
@@ -984,27 +984,27 @@ const GamePage = () => {
                 <span className="font-bold text-[#10141f]">{contact.whatsapp}</span>
               </div>
             </div>
-            <div className="rounded-xl bg-[#f1f3f5] p-5 mb-5">
-              <div className="flex justify-between text-sm text-[#4b5563] border-b border-[#d9dde3] pb-3">
+            <div className="mb-5 rounded-xl bg-[#f1f3f5] p-5">
+              <div className="flex justify-between border-b border-[#d9dde3] pb-3 text-sm text-[#4b5563]">
                 <span>Package Price</span>
                 <span className="font-bold text-[#10141f]">{selectedPackage?.priceLabel}</span>
               </div>
               {discountAmount > 0 && (
-                <div className="flex justify-between text-sm text-[#1a7f4b] border-b border-[#d9dde3] py-3">
+                <div className="flex justify-between border-b border-[#d9dde3] py-3 text-sm text-[#1a7f4b]">
                   <span>{discountPlan?.name} Discount</span>
                   <span className="font-bold">-{formatPrice(discountAmount, selectedPackage?.currency)}</span>
                 </div>
               )}
-              <div className="flex justify-between mt-3">
+              <div className="mt-3 flex justify-between">
                 <span className="text-base font-black text-[#10141f]">Total</span>
                 <span className="text-2xl font-black text-[#6d4cff]">{paymentTotalLabel}</span>
               </div>
             </div>
             <div className="flex gap-3">
-              <button type="button" onClick={() => setShowCartReview(false)} className="flex-1 h-12 rounded-xl border border-[#dfe4ec] text-sm font-bold text-[#4b5563]">
+              <button type="button" onClick={() => setShowCartReview(false)} className="h-12 flex-1 rounded-xl border border-[#dfe4ec] text-sm font-bold text-[#4b5563]">
                 Go Back
               </button>
-              <button type="button" onClick={handlePay} disabled={isSubmitting} className="flex-1 h-12 rounded-xl bg-[#6d4cff] text-sm font-bold text-white disabled:opacity-70">
+              <button type="button" onClick={handlePay} disabled={isSubmitting} className="h-12 flex-1 rounded-xl bg-[#6d4cff] text-sm font-bold text-white disabled:opacity-70">
                 {isSubmitting ? "Processing..." : `Confirm & Pay ${paymentTotalLabel}`}
               </button>
             </div>
@@ -1036,7 +1036,7 @@ const GamePage = () => {
         </aside>
 
         <main className="rounded-[28px] bg-white/75 px-4 py-7 shadow-[0_24px_70px_rgba(15,23,42,0.12)] backdrop-blur md:px-8 lg:px-9">
-          {game.description ? <div className="mb-7 text-sm leading-7 text-[#5f6977] [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-bold [&_h3]:font-bold [&_li]:ml-5 [&_ol]:list-decimal [&_ul]:list-disc [&_a]:text-[#6d4cff] [&_a]:underline" dangerouslySetInnerHTML={{ __html: sanitizeRichText(game.description) }} /> : null}
+          {game.description ? <div className="mb-7 text-sm leading-7 text-[#5f6977] [&_a]:text-[#6d4cff] [&_a]:underline [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-bold [&_h3]:font-bold [&_li]:ml-5 [&_ol]:list-decimal [&_ul]:list-disc" dangerouslySetInnerHTML={{ __html: sanitizeRichText(game.description) }} /> : null}
           <section>
             <SectionTitle number="1">Enter Account Details</SectionTitle>
             {fields.length === 0 ? (
@@ -1069,17 +1069,17 @@ const GamePage = () => {
                   >
                     {verifying ? (
                       <>
-                        <div className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#6d4cff] border-t-transparent" />
+                        <div className="size-4 shrink-0 animate-spin rounded-full border-2 border-[#6d4cff] border-t-transparent" />
                         Verifying account…
                       </>
                     ) : playerName ? (
                       <>
-                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                        <CheckCircle2 className="size-4 shrink-0" />
                         Verified: <span className="ml-0.5 font-bold">{playerName}</span>
                       </>
                     ) : (
                       <>
-                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        <AlertCircle className="size-4 shrink-0" />
                         {verifyError}
                       </>
                     )}
@@ -1269,7 +1269,7 @@ const GamePage = () => {
             </div>
 
             <div className="mt-4 rounded-lg border border-[#c8baff] bg-[#f3efff] px-5 py-4 text-sm font-bold text-[#3f4654]">
-              <Lightbulb className="mr-2 inline h-4 w-4 text-[#f0b429]" />
+              <Lightbulb className="mr-2 inline size-4 text-[#f0b429]" />
               <span className="mr-2 text-[#6d7480]">TIP |</span> Use Pixie Wallet for instant processing and extra discounts!
             </div>
           </section>
@@ -1297,7 +1297,7 @@ const GamePage = () => {
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6d7480]" />
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#6d7480]" />
                   </label>
                   <input className="h-14 rounded-xl border border-[#dfe4ec] bg-white px-4 text-base font-bold text-[#141923] outline-none placeholder:text-[#9aa2ad]" placeholder="WhatsApp number" value={contact.whatsapp} onChange={(event) => updateContact("whatsapp", event.target.value)} />
                 </div>
@@ -1351,9 +1351,9 @@ const GamePage = () => {
         target={supportWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
         rel={supportWhatsAppUrl.startsWith("http") ? "noreferrer" : undefined}
         aria-label="Chat on WhatsApp"
-        className="fixed bottom-28 right-4 z-[130] flex h-12 w-12 items-center justify-center rounded-full bg-[#7b55ff] text-white shadow-[0_14px_30px_rgba(103,75,255,0.35)] md:bottom-8 md:right-8"
+        className="fixed bottom-28 right-4 z-[130] flex size-12 items-center justify-center rounded-full bg-[#7b55ff] text-white shadow-[0_14px_30px_rgba(103,75,255,0.35)] md:bottom-8 md:right-8"
       >
-        <MessageCircle className="h-5 w-5" />
+        <MessageCircle className="size-5" />
       </a>
       <MobileCheckoutBar selectedPackage={selectedPackage} selectedPayment={selectedPayment} totalLabel={paymentTotalLabel} onPay={handleReview} isSubmitting={isSubmitting} />
     </div>

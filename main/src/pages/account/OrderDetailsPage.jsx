@@ -37,8 +37,8 @@ const prettifyKey = (key) =>
 const Card = ({ title, icon: Icon, children }) => (
   <section className="rounded-[24px] border border-white/70 bg-white/80 p-5 shadow-[0_18px_50px_rgba(91,79,118,0.14)] backdrop-blur-xl sm:p-6">
     <div className="flex items-center gap-2.5">
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f0ebff] text-[#6c49ff]">
-        <Icon className="h-4 w-4" />
+      <span className="flex size-9 items-center justify-center rounded-xl bg-[#f0ebff] text-[#6c49ff]">
+        <Icon className="size-4" />
       </span>
       <h2 className="text-base font-bold text-slate-950">{title}</h2>
     </div>
@@ -70,10 +70,10 @@ const CopyButton = ({ value }) => {
     <button
       type="button"
       onClick={copy}
-      className="ml-2 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+      className="ml-2 inline-flex size-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
       aria-label={copied ? "Copied" : "Copy to clipboard"}
     >
-      {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
     </button>
   );
 };
@@ -121,7 +121,7 @@ const OrderDetailsPage = () => {
           to="/account?section=orders"
           className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-[#6c49ff]"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="size-4" />
           Back to My Orders
         </Link>
 
@@ -140,8 +140,8 @@ const OrderDetailsPage = () => {
             <section className="rounded-[28px] border border-white/70 bg-white/80 p-5 shadow-[0_18px_50px_rgba(91,79,118,0.14)] backdrop-blur-xl sm:p-6">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-start gap-4">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#6c49ff] to-[#8b6dff] text-white shadow-[0_12px_24px_rgba(108,73,255,0.28)]">
-                    <ReceiptText className="h-5 w-5" />
+                  <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#6c49ff] to-[#8b6dff] text-white shadow-[0_12px_24px_rgba(108,73,255,0.28)]">
+                    <ReceiptText className="size-5" />
                   </span>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Order</p>
@@ -159,16 +159,16 @@ const OrderDetailsPage = () => {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  <span className={`inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-semibold capitalize ${statusBadgeStyle[order.status] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                  <span className={`inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-semibold capitalize ${statusBadgeStyle[order.status] ?? "border-slate-200 bg-slate-100 text-slate-600"}`}>
                     {order.status.replace(/_/g, " ")}
                   </span>
                   <button
                     type="button"
                     onClick={loadOrder}
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+                    className="flex size-9 items-center justify-center rounded-full border border-slate-200 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
                     aria-label="Refresh order"
                   >
-                    <RefreshCw className="h-4 w-4" />
+                    <RefreshCw className="size-4" />
                   </button>
                 </div>
               </div>
@@ -250,7 +250,7 @@ const OrderDetailsPage = () => {
                   {contact.whatsapp ? (
                     <DetailRow label="WhatsApp">
                       <span className="inline-flex items-center gap-1.5">
-                        <Phone className="h-3.5 w-3.5 text-emerald-500" />
+                        <Phone className="size-3.5 text-emerald-500" />
                         {contact.whatsapp}
                       </span>
                     </DetailRow>

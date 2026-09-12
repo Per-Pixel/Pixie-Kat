@@ -42,17 +42,17 @@ const FeaturesCarousel = ({ features }) => {
           {features.map((feature, index) => (
             <div
               key={index}
-              className="min-w-full bg-white rounded-2xl p-8 text-center shadow-md border border-gray-100 select-none"
+              className="min-w-full select-none rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-md"
             >
-              <div className="text-5xl mb-5">{feature.icon}</div>
-              <h3 className="font-bold text-xl text-gray-900 mb-3">{feature.title}</h3>
-              <p className="text-gray-500 text-sm leading-relaxed">{feature.description}</p>
+              <div className="mb-5 text-5xl">{feature.icon}</div>
+              <h3 className="mb-3 text-xl font-bold text-gray-900">{feature.title}</h3>
+              <p className="text-sm leading-relaxed text-gray-500">{feature.description}</p>
             </div>
           ))}
         </motion.div>
       </div>
 
-      <div className="flex justify-center gap-2 mt-5">
+      <div className="mt-5 flex justify-center gap-2">
         {features.map((_, i) => (
           <button
             key={i}
@@ -69,19 +69,19 @@ const FeaturesCarousel = ({ features }) => {
 
       <button
         onClick={prev}
-        className="absolute left-0 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors z-10"
+        className="absolute left-0 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-100 bg-white text-gray-500 shadow-md transition-colors hover:text-gray-900"
         style={{ marginTop: '-16px' }}
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <svg className="size-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
       </button>
       <button
         onClick={next}
-        className="absolute right-0 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors z-10"
+        className="absolute right-0 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-100 bg-white text-gray-500 shadow-md transition-colors hover:text-gray-900"
         style={{ marginTop: '-16px' }}
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <svg className="size-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>
       </button>
@@ -212,10 +212,10 @@ const HowItWorks = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-12"
+            className="mb-12 text-center"
           >
             <div className="relative inline-block">
-              <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
+              <h1 className="mb-4 text-4xl font-bold text-gray-900 md:text-6xl">
                 {headings.title_before}
                 <span style={{ color: POWDER_BLUE }}>{headings.title_highlight}</span>
               </h1>
@@ -225,12 +225,12 @@ const HowItWorks = () => {
               <span className="absolute -top-3 right-0 text-sm" style={{ color: POWDER_BLUE }}>
                 ✦
               </span>
-              <span className="absolute bottom-4 -left-6 text-xs text-gray-400">✦</span>
+              <span className="absolute -left-6 bottom-4 text-xs text-gray-400">✦</span>
               <span className="absolute -bottom-1 -right-7 text-base" style={{ color: POWDER_BLUE }}>
                 ✦
               </span>
             </div>
-            <p className="text-gray-600 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
+            <p className="mx-auto max-w-2xl text-lg leading-relaxed text-gray-600 md:text-xl">
               {headings.subtitle.includes('instantly') ? (
                 <>
                   Top up your favorite games{' '}
@@ -254,7 +254,7 @@ const HowItWorks = () => {
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="max-w-3xl mx-auto mb-8"
+            className="mx-auto mb-8 max-w-3xl"
           >
             <div className="flex flex-wrap justify-center gap-3">
               {steps.map((step, index) => (
@@ -264,7 +264,7 @@ const HowItWorks = () => {
                   onClick={() => setActiveStep(index)}
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.97 }}
-                  className="px-5 py-2 rounded-full border text-sm font-medium transition-all duration-200"
+                  className="rounded-full border px-5 py-2 text-sm font-medium transition-all duration-200"
                   style={
                     safeActiveStep === index
                       ? {
@@ -287,30 +287,30 @@ const HowItWorks = () => {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="max-w-4xl mx-auto mb-16"
+              className="mx-auto mb-16 max-w-4xl"
             >
-              <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-md border border-gray-100">
-                <div className="flex flex-wrap items-center gap-4 mb-6">
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-md sm:p-8">
+                <div className="mb-6 flex flex-wrap items-center gap-4">
                   <div
-                    className="w-16 h-16 shrink-0 rounded-full flex items-center justify-center text-3xl border-2"
+                    className="flex size-16 shrink-0 items-center justify-center rounded-full border-2 text-3xl"
                     style={{ backgroundColor: POWDER_BLUE_BG, borderColor: POWDER_BLUE }}
                   >
                     {currentStep.icon}
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                    <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
                       Step {currentStep.id ?? safeActiveStep + 1}
                     </h2>
-                    <h3 className="text-lg sm:text-xl font-semibold" style={{ color: POWDER_BLUE_DARK }}>
+                    <h3 className="text-lg font-semibold sm:text-xl" style={{ color: POWDER_BLUE_DARK }}>
                       {currentStep.title}
                     </h3>
                   </div>
                   <div className="ml-auto shrink-0 text-4xl sm:text-5xl">{currentStep.image}</div>
                 </div>
 
-                <p className="text-gray-600 text-lg mb-6">{currentStep.description}</p>
+                <p className="mb-6 text-lg text-gray-600">{currentStep.description}</p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   {stepDetails.map((detail, index) => (
                     <div key={index} className="flex items-center text-gray-700">
                       <span className="mr-3 font-bold" style={{ color: POWDER_BLUE }}>
@@ -330,7 +330,7 @@ const HowItWorks = () => {
             transition={{ duration: 0.6, delay: 0.3 }}
             className="mb-16"
           >
-            <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">
+            <h2 className="mb-12 text-center text-3xl font-bold text-gray-900">
               {headings.features_title_before}
               <span style={{ color: POWDER_BLUE }}>{headings.features_title_highlight}</span>
               {headings.features_title_after}
@@ -340,16 +340,16 @@ const HowItWorks = () => {
               <FeaturesCarousel features={features} />
             </div>
 
-            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            <div className="mx-auto hidden max-w-6xl gap-6 md:grid md:grid-cols-2 lg:grid-cols-3">
               {features.map((feature, index) => (
                 <motion.div
                   key={index}
                   whileHover={{ scale: 1.04, y: -4 }}
-                  className="bg-white rounded-xl p-6 text-center shadow-md border border-gray-100"
+                  className="rounded-xl border border-gray-100 bg-white p-6 text-center shadow-md"
                 >
-                  <div className="text-4xl mb-4">{feature.icon}</div>
-                  <h3 className="font-bold text-lg text-gray-900 mb-2">{feature.title}</h3>
-                  <p className="text-gray-500 text-sm">{feature.description}</p>
+                  <div className="mb-4 text-4xl">{feature.icon}</div>
+                  <h3 className="mb-2 text-lg font-bold text-gray-900">{feature.title}</h3>
+                  <p className="text-sm text-gray-500">{feature.description}</p>
                 </motion.div>
               ))}
             </div>
@@ -360,33 +360,33 @@ const HowItWorks = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.45 }}
-          className="w-full mb-16 px-4"
+          className="mb-16 w-full px-4"
         >
           <div
-            className="max-w-6xl mx-auto rounded-2xl overflow-hidden"
+            className="mx-auto max-w-6xl overflow-hidden rounded-2xl"
             style={{ backgroundColor: BANNER_BG }}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 min-h-[280px]">
-              <div className="p-10 md:p-12 flex flex-col justify-center">
-                <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+            <div className="grid min-h-[280px] grid-cols-1 md:grid-cols-2">
+              <div className="flex flex-col justify-center p-10 md:p-12">
+                <h2 className="mb-4 text-2xl font-bold text-white md:text-3xl">
                   {banner.title_before}
                   <span style={{ color: POWDER_BLUE }}>{banner.title_highlight}</span>
                   {banner.title_after}
                 </h2>
-                <p className="text-gray-300 text-sm md:text-base leading-relaxed max-w-sm">
+                <p className="max-w-sm text-sm leading-relaxed text-gray-300 md:text-base">
                   {banner.body}
                 </p>
               </div>
 
-              <div className="p-10 md:p-12 flex flex-col items-center justify-center border-t border-white/10 md:border-t-0 md:border-l md:border-white/10 relative">
-                <span className="absolute top-6 right-10 text-xl" style={{ color: POWDER_BLUE }}>
+              <div className="relative flex flex-col items-center justify-center border-t border-white/10 p-10 md:border-l md:border-t-0 md:border-white/10 md:p-12">
+                <span className="absolute right-10 top-6 text-xl" style={{ color: POWDER_BLUE }}>
                   ✦
                 </span>
-                <span className="absolute top-10 left-8 text-xs text-white/40">✦</span>
+                <span className="absolute left-8 top-10 text-xs text-white/40">✦</span>
                 <span className="absolute bottom-8 right-16 text-sm text-orange-400">✦</span>
                 <span className="absolute bottom-12 left-12 text-base text-white/30">✦</span>
 
-                <h3 className="text-2xl md:text-3xl font-bold text-white mb-6 text-center">
+                <h3 className="mb-6 text-center text-2xl font-bold text-white md:text-3xl">
                   {banner.video_title_before}
                   <span style={{ color: POWDER_BLUE }}>{banner.video_title_highlight}</span>
                   {banner.video_title_after}
@@ -397,7 +397,7 @@ const HowItWorks = () => {
                   onClick={handleVideoPlay}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.93 }}
-                  className="w-16 h-16 rounded-lg flex items-center justify-center transition-colors duration-200"
+                  className="flex size-16 items-center justify-center rounded-lg transition-colors duration-200"
                   style={{
                     border: '2px solid rgba(255,255,255,0.5)',
                     backgroundColor: 'rgba(255,255,255,0.1)',
@@ -409,7 +409,7 @@ const HowItWorks = () => {
                     e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
                   }}
                 >
-                  <svg className="w-7 h-7 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                  <svg className="ml-1 size-7 text-white" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>
                 </motion.button>
@@ -423,11 +423,11 @@ const HowItWorks = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.55 }}
-            className="text-center mb-16"
+            className="mb-16 text-center"
           >
-            <div className="bg-white rounded-2xl p-8 max-w-2xl mx-auto shadow-md border border-gray-100">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">{cta.title}</h2>
-              <p className="text-gray-600 mb-6">
+            <div className="mx-auto max-w-2xl rounded-2xl border border-gray-100 bg-white p-8 shadow-md">
+              <h2 className="mb-4 text-3xl font-bold text-gray-900">{cta.title}</h2>
+              <p className="mb-6 text-gray-600">
                 {cta.body.includes('PixieKat') ? (
                   <>
                     Join thousands of gamers who trust{' '}
@@ -448,13 +448,13 @@ const HowItWorks = () => {
                   cta.body
                 )}
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex flex-col justify-center gap-4 sm:flex-row">
                 <motion.button
                   type="button"
                   onClick={() => navigate('/games')}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="font-bold py-3 px-8 rounded-xl transition-opacity duration-200 hover:opacity-90"
+                  className="rounded-xl px-8 py-3 font-bold transition-opacity duration-200 hover:opacity-90"
                   style={{ backgroundColor: POWDER_BLUE, color: '#0f2318' }}
                 >
                   {cta.primary_label}
@@ -464,7 +464,7 @@ const HowItWorks = () => {
                   onClick={() => navigate('/pricing')}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="border-2 font-bold py-3 px-8 rounded-xl transition-colors duration-200 text-gray-700 border-gray-300"
+                  className="rounded-xl border-2 border-gray-300 px-8 py-3 font-bold text-gray-700 transition-colors duration-200"
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = POWDER_BLUE;
                     e.currentTarget.style.color = POWDER_BLUE_DARK;
@@ -486,13 +486,13 @@ const HowItWorks = () => {
             transition={{ duration: 0.6, delay: 0.7 }}
             className="pb-16"
           >
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto text-center">
+            <div className="mx-auto grid max-w-4xl grid-cols-2 gap-8 text-center md:grid-cols-4">
               {stats.map((stat, i) => (
                 <div key={i}>
-                  <div className="text-3xl font-bold mb-2" style={{ color: POWDER_BLUE_DARK }}>
+                  <div className="mb-2 text-3xl font-bold" style={{ color: POWDER_BLUE_DARK }}>
                     {stat.value}
                   </div>
-                  <div className="text-gray-600 text-sm">{stat.label}</div>
+                  <div className="text-sm text-gray-600">{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -502,20 +502,20 @@ const HowItWorks = () => {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.85 }}
-            className="mt-4 mb-0 px-2"
+            className="mb-0 mt-4 px-2"
           >
             <div
-              className="rounded-3xl px-8 py-16 md:py-20 text-center shadow-sm max-w-4xl mx-auto"
+              className="mx-auto max-w-4xl rounded-3xl px-8 py-16 text-center shadow-sm md:py-20"
               style={{
                 background: 'linear-gradient(165deg, #f8fafc 0%, #dce8f5 50%, #c5d8ef 100%)',
               }}
             >
-              <h2 className="text-3xl md:text-5xl font-bold text-gray-900 leading-tight mb-5">
+              <h2 className="mb-5 text-3xl font-bold leading-tight text-gray-900 md:text-5xl">
                 {prefooter_cta.title_line1}
                 <br className="hidden sm:block" />
                 {prefooter_cta.title_line2}
               </h2>
-              <p className="text-gray-500 text-base md:text-lg mb-10 max-w-md mx-auto leading-relaxed">
+              <p className="mx-auto mb-10 max-w-md text-base leading-relaxed text-gray-500 md:text-lg">
                 {prefooter_cta.body.includes('instant') ? (
                   <>
                     Top up your favorite game in under 5 minutes — no account sharing, no delays, just{' '}
@@ -532,12 +532,12 @@ const HowItWorks = () => {
                 whileHover={{ scale: 1.04, backgroundColor: '#111827', color: '#ffffff' }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ duration: 0.18 }}
-                className="inline-flex items-center gap-2 px-7 py-3 rounded-full border-2 border-gray-800 text-gray-800 font-semibold text-sm"
+                className="inline-flex items-center gap-2 rounded-full border-2 border-gray-800 px-7 py-3 text-sm font-semibold text-gray-800"
                 style={{ backgroundColor: 'transparent' }}
               >
                 {prefooter_cta.button_label}
                 <svg
-                  className="w-4 h-4"
+                  className="size-4"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2.5"

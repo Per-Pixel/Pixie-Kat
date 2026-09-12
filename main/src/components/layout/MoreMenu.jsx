@@ -90,11 +90,11 @@ const MoreMenu = ({ isOpen, onClose, onExited }) => {
       <button
         type="button"
         aria-label="Close more menu"
-        className="absolute inset-0 h-full w-full cursor-default"
+        className="absolute inset-0 size-full cursor-default"
         onClick={onClose}
       />
 
-      <div className="pointer-events-none absolute inset-0 bg-slate-900/18 backdrop-blur-md transition-opacity duration-300 ease-in-out" />
+      <div className="bg-slate-900/18 pointer-events-none absolute inset-0 backdrop-blur-md transition-opacity duration-300 ease-in-out" />
 
       <section
         role="dialog"
@@ -119,8 +119,8 @@ const MoreMenu = ({ isOpen, onClose, onExited }) => {
                 onClick={() => handleItemClick(item)}
                 className="flex flex-col items-center gap-2 rounded-2xl p-2 text-center transition-transform duration-200 ease-in-out hover:-translate-y-0.5"
               >
-                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-black/5 text-slate-900">
-                  <Icon className="h-6 w-6" strokeWidth={2.2} />
+                <span className="flex size-14 items-center justify-center rounded-2xl bg-black/5 text-slate-900">
+                  <Icon className="size-6" strokeWidth={2.2} />
                 </span>
                 <span className="text-sm font-medium text-slate-800">{item.label}</span>
               </button>
@@ -132,8 +132,8 @@ const MoreMenu = ({ isOpen, onClose, onExited }) => {
             onClick={handleLogout}
             className="flex flex-col items-center gap-2 rounded-2xl p-2 text-center transition-transform duration-200 ease-in-out hover:-translate-y-0.5"
           >
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-black/5 text-slate-900">
-              <LogOut className="h-6 w-6" strokeWidth={2.2} />
+            <span className="flex size-14 items-center justify-center rounded-2xl bg-black/5 text-slate-900">
+              <LogOut className="size-6" strokeWidth={2.2} />
             </span>
             <span className="text-sm font-medium text-slate-800">Logout</span>
           </button>

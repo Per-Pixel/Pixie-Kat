@@ -47,7 +47,7 @@ const MobileActionButtons = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
             onClick={action.onClick}
-            className={`${action.bgColor} rounded-xl p-4 transition-transform hover:scale-105 flex flex-col items-center space-y-2`}
+            className={`${action.bgColor} flex flex-col items-center space-y-2 rounded-xl p-4 transition-transform hover:scale-105`}
           >
             <div className="text-center text-sm font-bold">{action.icon}</div>
             <span className={`text-center text-xs font-medium leading-tight ${action.textColor}`}>

@@ -52,34 +52,34 @@ const GameGrid = () => {
   };
 
   return (
-    <div className="py-8 md:py-16 px-4 md:px-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="px-4 py-8 md:px-8 md:py-16">
+      <div className="mx-auto max-w-7xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           viewport={{ once: true }}
-          className="flex items-center mb-8 md:mb-12"
+          className="mb-8 flex items-center md:mb-12"
         >
-          <div className="text-xl md:text-2xl font-bold text-black flex items-center">
+          <div className="flex items-center text-xl font-bold text-black md:text-2xl">
             <span className="mr-3 text-2xl">+</span>
             <span>All Games</span>
           </div>
         </motion.div>
 
         {loading ? (
-          <p className="text-black/50 text-sm md:text-base">Loading games…</p>
+          <p className="text-sm text-black/50 md:text-base">Loading games…</p>
         ) : error ? (
-          <p className="text-red-600 text-sm md:text-base">Couldn’t load games: {error}</p>
+          <p className="text-sm text-red-600 md:text-base">Couldn’t load games: {error}</p>
         ) : availableGames.length === 0 ? (
-          <p className="text-black/50 text-sm md:text-base">No games available yet.</p>
+          <p className="text-sm text-black/50 md:text-base">No games available yet.</p>
         ) : (
         <motion.div
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: '-50px' }}
-          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6"
+          className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 md:gap-6 lg:grid-cols-5"
         >
           {jjkPromo ? (
             <motion.div
@@ -91,14 +91,14 @@ const GameGrid = () => {
                 transition: { duration: 0.2 },
               }}
               whileTap={{ scale: 0.97 }}
-              className="rounded-[18px] md:rounded-[22px] bg-[#dedede] p-3 md:p-4 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer group border border-black"
+              className="group cursor-pointer rounded-[18px] border border-black bg-[#dedede] p-3 shadow-md transition-all duration-300 hover:shadow-lg md:rounded-[22px] md:p-4"
               onClick={() => navigate(jjkPromo.link)}
             >
-              <div className="aspect-square rounded-[16px] md:rounded-[18px] mb-3 overflow-hidden bg-black relative">
+              <div className="relative mb-3 aspect-square overflow-hidden rounded-[16px] bg-black md:rounded-[18px]">
                 <img
                   src={jjkPromo.image}
                   alt={jjkPromo.title}
-                  className="h-full w-full object-cover"
+                  className="size-full object-cover"
                   loading="lazy"
                   onError={(e) => {
                     e.currentTarget.onerror = null;
@@ -109,7 +109,7 @@ const GameGrid = () => {
                   Event
                 </span>
               </div>
-              <h3 className="text-sm md:text-base font-semibold text-black line-clamp-2">{jjkPromo.title}</h3>
+              <h3 className="line-clamp-2 text-sm font-semibold text-black md:text-base">{jjkPromo.title}</h3>
             </motion.div>
           ) : null}
           {games.map((game) => (
@@ -122,14 +122,14 @@ const GameGrid = () => {
                 transition: { duration: 0.2 },
               }}
               whileTap={{ scale: 0.97 }}
-              className="rounded-[18px] md:rounded-[22px] bg-[#dedede] p-3 md:p-4 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer group border border-black"
+              className="group cursor-pointer rounded-[18px] border border-black bg-[#dedede] p-3 shadow-md transition-all duration-300 hover:shadow-lg md:rounded-[22px] md:p-4"
               onClick={() => handleGameClick(game)}
             >
-              <div className="aspect-square rounded-[16px] md:rounded-[18px] mb-3 overflow-hidden bg-black">
+              <div className="mb-3 aspect-square overflow-hidden rounded-[16px] bg-black md:rounded-[18px]">
                 <img
                   src={game.image}
                   alt={game.name}
-                  className="h-full w-full object-cover"
+                  className="size-full object-cover"
                   loading="lazy"
                   onError={(e) => {
                     e.currentTarget.onerror = null;
@@ -139,10 +139,10 @@ const GameGrid = () => {
               </div>
 
               <div className="text-center">
-                <h3 className="text-[20px] md:text-[26px] font-bold text-black leading-tight tracking-tight">
+                <h3 className="text-[20px] font-bold leading-tight tracking-tight text-black md:text-[26px]">
                   {game.name}
                 </h3>
-                <p className="mt-1 text-sm md:text-base text-black/45">{game.subtitle}</p>
+                <p className="mt-1 text-sm text-black/45 md:text-base">{game.subtitle}</p>
               </div>
             </motion.div>
           ))}
@@ -157,13 +157,13 @@ const GameGrid = () => {
               }}
               whileTap={{ scale: 0.97 }}
               onClick={handleSeeAllClick}
-              className="bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl md:rounded-2xl p-3 md:p-4 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer group border border-black flex flex-col items-center justify-center text-white"
+              className="group flex cursor-pointer flex-col items-center justify-center rounded-xl border border-black bg-gradient-to-br from-purple-500 to-blue-600 p-3 text-white shadow-md transition-all duration-300 hover:shadow-lg md:rounded-2xl md:p-4"
             >
-              <div className="aspect-square w-full rounded-lg md:rounded-xl mb-3 md:mb-4 flex items-center justify-center">
+              <div className="mb-3 flex aspect-square w-full items-center justify-center rounded-lg md:mb-4 md:rounded-xl">
                 <div className="text-2xl md:text-3xl">{'>'}</div>
               </div>
               <div className="text-center">
-                <h3 className="text-xs md:text-sm font-medium leading-tight">See All</h3>
+                <h3 className="text-xs font-medium leading-tight md:text-sm">See All</h3>
               </div>
             </motion.div>
           )}
@@ -179,13 +179,13 @@ const GameGrid = () => {
               }}
               whileTap={{ scale: 0.97 }}
               onClick={handleSeeAllClick}
-              className="bg-gradient-to-br from-gray-500 to-gray-700 rounded-xl md:rounded-2xl p-3 md:p-4 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer group border border-black flex flex-col items-center justify-center text-white"
+              className="group flex cursor-pointer flex-col items-center justify-center rounded-xl border border-black bg-gradient-to-br from-gray-500 to-gray-700 p-3 text-white shadow-md transition-all duration-300 hover:shadow-lg md:rounded-2xl md:p-4"
             >
-              <div className="aspect-square w-full rounded-lg md:rounded-xl mb-3 md:mb-4 flex items-center justify-center">
+              <div className="mb-3 flex aspect-square w-full items-center justify-center rounded-lg md:mb-4 md:rounded-xl">
                 <div className="text-2xl md:text-3xl">{'<'}</div>
               </div>
               <div className="text-center">
-                <h3 className="text-xs md:text-sm font-medium leading-tight">Show Less</h3>
+                <h3 className="text-xs font-medium leading-tight md:text-sm">Show Less</h3>
               </div>
             </motion.div>
           )}

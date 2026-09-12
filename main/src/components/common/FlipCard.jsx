@@ -18,7 +18,7 @@ const FlipCard = ({
   
   return (
     <div 
-      className="card-container relative h-full w-full overflow-hidden rounded-lg border-2 border-black transition-all duration-400"
+      className="card-container duration-400 relative size-full overflow-hidden rounded-lg border-2 border-black transition-all"
       onMouseEnter={() => !forceFront && setIsHovered(true)}
       onMouseLeave={() => !forceFront && setIsHovered(false)}
       onClick={() => {
@@ -33,7 +33,7 @@ const FlipCard = ({
     >
       {/* First content */}
       <div 
-        className="first-content absolute inset-0 flex flex-col justify-start p-5 transition-all duration-400"
+        className="first-content duration-400 absolute inset-0 flex flex-col justify-start p-5 transition-all"
         style={{
           opacity: showBack ? 0 : 1,
           height: showBack ? '0%' : '100%',
@@ -50,7 +50,7 @@ const FlipCard = ({
           controlsList="nodownload noplaybackrate nofullscreen"
           disablePictureInPicture
           preload="metadata"
-          className="absolute inset-0 h-full w-full object-cover object-center pointer-events-none"
+          className="pointer-events-none absolute inset-0 size-full object-cover object-center"
         />
         <div className="relative z-10">
           <h3 className="mb-2 text-2xl font-bold text-white">{title}</h3>
@@ -60,7 +60,7 @@ const FlipCard = ({
       
       {/* Second content */}
       <div 
-        className="second-content absolute inset-0 flex flex-col items-center justify-center p-5 transition-all duration-400"
+        className="second-content duration-400 absolute inset-0 flex flex-col items-center justify-center p-5 transition-all"
         style={{
           opacity: showBack ? 1 : 0,
           height: showBack ? '100%' : '0%',
@@ -78,7 +78,7 @@ const FlipCard = ({
           controlsList="nodownload noplaybackrate nofullscreen"
           disablePictureInPicture
           preload="metadata"
-          className="absolute inset-0 h-full w-full object-cover object-center pointer-events-none"
+          className="pointer-events-none absolute inset-0 size-full object-cover object-center"
         />
         <div className="relative z-10 flex flex-col items-center">
           <SlideTextButton

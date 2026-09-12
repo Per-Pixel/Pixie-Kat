@@ -62,7 +62,7 @@ const AddMoneyPage = () => {
           <button
             type="button"
             onClick={() => navigate("/games")}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300/80 bg-white/80 text-slate-600 shadow-sm backdrop-blur"
+            className="inline-flex size-11 items-center justify-center rounded-full border border-slate-300/80 bg-white/80 text-slate-600 shadow-sm backdrop-blur"
             aria-label="Back to games"
           >
             <ArrowLeft size={22} />
@@ -102,8 +102,8 @@ const AddMoneyPage = () => {
             <section>
               <h3 className="text-[28px] font-bold tracking-tight text-slate-800">Enter coins</h3>
               <div className="mt-4 rounded-[22px] border border-slate-200 bg-white/80 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
-                <div className="flex items-center gap-3 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[radial-gradient(circle_at_30%_30%,#ffe3a3,#f6a800)] text-[11px] font-black text-amber-950 shadow-inner">
+                <div className="flex items-center gap-3 rounded-[18px] border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex size-10 items-center justify-center rounded-full bg-[radial-gradient(circle_at_30%_30%,#ffe3a3,#f6a800)] text-[11px] font-black text-amber-950 shadow-inner">
                     PKS
                   </div>
                   <input
@@ -146,7 +146,7 @@ const AddMoneyPage = () => {
                       type="button"
                       whileTap={{ scale: 0.985 }}
                       onClick={() => setSelectedMethod(method.id)}
-                      className={`rounded-[22px] border bg-white px-4 py-4 text-left shadow-[0_10px_25px_rgba(15,23,42,0.06)] transition ${
+                      className={`rounded-[22px] border bg-white p-4 text-left shadow-[0_10px_25px_rgba(15,23,42,0.06)] transition ${
                         isSelected
                           ? "border-[#6b4dff] ring-2 ring-[#6b4dff]/30"
                           : "border-slate-200 hover:border-slate-300"

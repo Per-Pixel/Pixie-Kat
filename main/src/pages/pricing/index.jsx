@@ -150,7 +150,7 @@ const PlanCard = ({ plan, index, featured, reduced, onChoose }) => {
                     }`}
                   >
                     <Check
-                      className={`mt-0.5 h-4 w-4 shrink-0 ${
+                      className={`mt-0.5 size-4 shrink-0 ${
                         featured ? 'text-yellow-300' : 'text-yellow-300'
                       }`}
                       strokeWidth={3}
@@ -233,7 +233,7 @@ const FaqItem = ({ faq, open, onToggle }) => (
         {faq.question}
       </span>
       <Plus
-        className={`h-5 w-5 shrink-0 text-black/60 transition-transform duration-300 ease-out ${
+        className={`size-5 shrink-0 text-black/60 transition-transform duration-300 ease-out ${
           open ? 'rotate-45' : ''
         }`}
       />
@@ -321,7 +321,7 @@ const Pricing = () => {
       <section className="relative mx-2 mt-14 overflow-hidden rounded-[28px] bg-[#000101] py-16 text-blue-50 sm:mx-4 sm:mt-20 sm:rounded-[36px] sm:py-20 md:mx-6 md:rounded-[44px] md:py-24">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-32 left-1/2 h-72 w-[80%] -translate-x-1/2 rounded-full bg-violet-300/20 blur-[90px]"
+          className="pointer-events-none absolute -top-32 left-1/2 h-72 w-4/5 -translate-x-1/2 rounded-full bg-violet-300/20 blur-[90px]"
         />
 
         <div className="relative mx-auto max-w-7xl px-4 md:px-10">
@@ -332,7 +332,7 @@ const Pricing = () => {
               <div className="three-body" aria-label="Loading plans" />
             </div>
           ) : plans.length === 0 ? (
-            <div className="mx-auto mt-12 max-w-md rounded-md border-hsla p-10 text-center">
+            <div className="border-hsla mx-auto mt-12 max-w-md rounded-md p-10 text-center">
               <p className="font-circular-web text-sm text-white/70">
                 {copy.empty_message}
               </p>

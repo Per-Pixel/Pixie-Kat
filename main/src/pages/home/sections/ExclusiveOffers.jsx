@@ -95,7 +95,7 @@ const ExclusiveOfferCard = ({ title, image, flag, link }) => {
         loading="lazy"
         decoding="async"
         draggable={false}
-        className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
+        className="absolute inset-0 size-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
       />
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
@@ -108,7 +108,7 @@ const ExclusiveOfferCard = ({ title, image, flag, link }) => {
         <span className="absolute right-2 top-2 text-sm leading-none">{flag}</span>
       )}
 
-      <p className="absolute bottom-2 left-2 right-2 line-clamp-2 font-general text-[11px] font-semibold leading-snug text-white">
+      <p className="absolute inset-x-2 bottom-2 line-clamp-2 font-general text-[11px] font-semibold leading-snug text-white">
         {title}
       </p>
     </div>
@@ -145,7 +145,7 @@ const ExclusiveOffers = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4 lg:grid-cols-6 md:gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4 md:gap-4 lg:grid-cols-6">
         {offers.map((offer) => (
           <ExclusiveOfferCard key={`${offer.title}-${offer.link || ""}`} {...offer} />
         ))}

@@ -142,7 +142,7 @@ const DropdownMenu = ({ onClose }) => {
   return createPortal(
     <div
       ref={menuRef}
-      className="fixed bottom-0 left-0 right-0 top-0 z-[1000] m-0 overflow-hidden bg-black/90 p-0 backdrop-blur-lg"
+      className="fixed inset-0 z-[1000] m-0 overflow-hidden bg-black/90 p-0 backdrop-blur-lg"
       style={{
         height: '100vh',
         width: '100vw',
@@ -155,7 +155,7 @@ const DropdownMenu = ({ onClose }) => {
         bottom: 0
       }}
     >
-      <div className="m-0 flex h-full w-full p-0">
+      <div className="m-0 flex size-full p-0">
         <div className="w-full overflow-y-auto border-r border-white/10 p-6 sm:p-10 lg:w-1/3 lg:p-16">
           <h2 className="mb-8 text-3xl font-bold text-white lg:mb-12 lg:text-4xl">Menu</h2>
           <ul className="space-y-5 lg:space-y-8">

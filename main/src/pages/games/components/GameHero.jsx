@@ -105,7 +105,7 @@ const GameHero = () => {
 
   return (
     <div
-      className="group relative px-4 py-1 md:px-8 md:py-2 lg:py-6 min-h-[calc(28vh-3rem)] min-h-[calc(28svh-3rem)] md:min-h-[calc(34vh-4rem)] md:min-h-[calc(34svh-4rem)] lg:min-h-[calc(50vh-6rem)] lg:min-h-[calc(50svh-6rem)] flex items-start lg:items-center overflow-hidden"
+      className="group relative flex min-h-[calc(28svh-3rem)] min-h-[calc(28vh-3rem)] items-start overflow-hidden px-4 py-1 md:min-h-[calc(34svh-4rem)] md:min-h-[calc(34vh-4rem)] md:px-8 md:py-2 lg:min-h-[calc(50svh-6rem)] lg:min-h-[calc(50vh-6rem)] lg:items-center lg:py-6"
       onMouseEnter={() => setIsAutoPlaying(false)}
       onMouseLeave={() => setIsAutoPlaying(true)}
       onTouchStart={handleTouchStart}
@@ -114,12 +114,12 @@ const GameHero = () => {
     >
       <div className="absolute inset-0 bg-[#dfdff0]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.2),transparent_58%)]" />
-      <div className="absolute inset-0 opacity-[0.15]">
+      <div className="absolute inset-0 opacity-15">
         <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/20" />
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-7xl">
-        <div className="relative mx-auto -mt-5 md:-mt-10 lg:mt-0 h-[180px] sm:h-[340px] md:h-[390px]">
+        <div className="relative mx-auto -mt-5 h-[180px] sm:h-[340px] md:-mt-10 md:h-[390px] lg:mt-0">
           {slides.map((slide, index) => {
             const relativeIndex = getRelativeIndex(index);
             const isActive = relativeIndex === 0;
@@ -132,11 +132,11 @@ const GameHero = () => {
                 <img
                   src={slide.image}
                   alt={slide.title}
-                  className="absolute inset-0 h-full w-full object-cover"
+                  className="absolute inset-0 size-full object-cover"
                   loading={isActive ? 'eager' : 'lazy'}
                 />
                 <div
-                  className={`absolute inset-0 bg-gradient-to-r opacity-[0.3] ${slide.bgGradient}`}
+                  className={`absolute inset-0 bg-gradient-to-r opacity-30 ${slide.bgGradient}`}
                 />
                 <div className="absolute inset-0 bg-black/20" />
 
@@ -159,13 +159,13 @@ const GameHero = () => {
                         >
                           {slide.title}
                         </button>
-                        <p className="hidden sm:block mb-3 text-base font-semibold tracking-wide text-blue-100 md:text-xl">
+                        <p className="mb-3 hidden text-base font-semibold tracking-wide text-blue-100 sm:block md:text-xl">
                           {slide.subtitle}
                         </p>
-                        <p className="hidden sm:block mx-auto mb-5 max-w-2xl text-sm text-white/90 md:text-base">
+                        <p className="mx-auto mb-5 hidden max-w-2xl text-sm text-white/90 sm:block md:text-base">
                           {slide.description}
                         </p>
-                        <button className="hidden sm:inline-flex rounded-lg bg-[#f4b73f] px-6 py-2 text-sm font-bold text-black transition-colors duration-300 hover:bg-[#ffd06f] md:px-8 md:text-base">
+                        <button className="hidden rounded-lg bg-[#f4b73f] px-6 py-2 text-sm font-bold text-black transition-colors duration-300 hover:bg-[#ffd06f] sm:inline-flex md:px-8 md:text-base">
                           {slide.cta}
                         </button>
                       </motion.div>
@@ -178,14 +178,14 @@ const GameHero = () => {
 
           <button
             onClick={prevSlide}
-            className="absolute left-[2.5%] top-1/2 z-40 h-10 w-10 -translate-y-1/2 rounded-full bg-[#cbb6a7] text-black backdrop-blur-sm transition-all duration-200 hover:bg-[#d8c6b9] sm:left-[4%] md:left-[12%] md:h-12 md:w-12 md:bg-white/25 md:text-white md:hover:bg-white/35 md:opacity-0 md:pointer-events-none md:group-hover:opacity-100 md:group-hover:pointer-events-auto"
+            className="absolute left-[2.5%] top-1/2 z-40 size-10 -translate-y-1/2 rounded-full bg-[#cbb6a7] text-black backdrop-blur-sm transition-all duration-200 hover:bg-[#d8c6b9] sm:left-[4%] md:pointer-events-none md:left-[12%] md:size-12 md:bg-white/25 md:text-white md:opacity-0 md:hover:bg-white/35 md:group-hover:pointer-events-auto md:group-hover:opacity-100"
             aria-label="Previous slide"
           >
             <span className="text-lg leading-none md:text-2xl">{'<'}</span>
           </button>
           <button
             onClick={nextSlide}
-            className="absolute right-[2.5%] top-1/2 z-40 h-10 w-10 -translate-y-1/2 rounded-full bg-[#cbb6a7] text-black backdrop-blur-sm transition-all duration-200 hover:bg-[#d8c6b9] sm:right-[4%] md:right-[12%] md:h-12 md:w-12 md:bg-white/25 md:text-white md:hover:bg-white/35 md:opacity-0 md:pointer-events-none md:group-hover:opacity-100 md:group-hover:pointer-events-auto"
+            className="absolute right-[2.5%] top-1/2 z-40 size-10 -translate-y-1/2 rounded-full bg-[#cbb6a7] text-black backdrop-blur-sm transition-all duration-200 hover:bg-[#d8c6b9] sm:right-[4%] md:pointer-events-none md:right-[12%] md:size-12 md:bg-white/25 md:text-white md:opacity-0 md:hover:bg-white/35 md:group-hover:pointer-events-auto md:group-hover:opacity-100"
             aria-label="Next slide"
           >
             <span className="text-lg leading-none md:text-2xl">{'>'}</span>

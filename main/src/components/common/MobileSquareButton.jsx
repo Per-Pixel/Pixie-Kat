@@ -7,7 +7,7 @@ const MobileSquareButton = (props) => {
   return (
     <motion.button
       type="button"
-      className={`h-10 w-10 bg-white rounded-md shadow-md flex items-center justify-center transition-transform active:scale-95 ${props.className}`}
+      className={`flex size-10 items-center justify-center rounded-md bg-white shadow-md transition-transform active:scale-95 ${props.className}`}
       onClick={props.onClick}
       aria-label={props.ariaLabel}
       title={props.title}

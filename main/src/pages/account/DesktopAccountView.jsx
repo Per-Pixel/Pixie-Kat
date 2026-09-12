@@ -64,13 +64,13 @@ const AccountSidebar = ({ currentSection, onLogout }) => (
           <Link
             key={item.id}
             to={`/account?section=${item.id}`}
-            className={`flex items-center gap-3 rounded-[18px] px-4 py-4 text-base font-semibold transition ${
+            className={`flex items-center gap-3 rounded-[18px] p-4 text-base font-semibold transition ${
               isActive
                 ? "bg-gradient-to-r from-[#6c49ff] to-[#8b6dff] text-white shadow-[0_14px_28px_rgba(108,73,255,0.24)]"
                 : "text-slate-600 hover:bg-slate-100/90"
             }`}
           >
-            <Icon className="h-5 w-5" strokeWidth={2.2} />
+            <Icon className="size-5" strokeWidth={2.2} />
             <span>{item.label}</span>
           </Link>
         );
@@ -79,9 +79,9 @@ const AccountSidebar = ({ currentSection, onLogout }) => (
       <button
         type="button"
         onClick={onLogout}
-        className="flex w-full items-center gap-3 rounded-[18px] px-4 py-4 text-left text-base font-semibold text-red-500 transition hover:bg-red-50"
+        className="flex w-full items-center gap-3 rounded-[18px] p-4 text-left text-base font-semibold text-red-500 transition hover:bg-red-50"
       >
-        <LogOut className="h-5 w-5" strokeWidth={2.2} />
+        <LogOut className="size-5" strokeWidth={2.2} />
         <span>Logout</span>
       </button>
     </nav>
@@ -131,10 +131,10 @@ const ProfilePanel = ({ profile }) => {
     <SectionCard>
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-          <Link to="/account/edit-profile" className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#e8dcff] via-white to-[#9a82ff] p-[5px] shadow-[0_14px_26px_rgba(122,97,255,0.2)] hover:opacity-90 transition-opacity">
-            <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[#7a5bff] to-[#b097ff] text-2xl font-black text-white overflow-hidden">
+          <Link to="/account/edit-profile" className="relative flex size-24 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#e8dcff] via-white to-[#9a82ff] p-[5px] shadow-[0_14px_26px_rgba(122,97,255,0.2)] transition-opacity hover:opacity-90">
+            <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#7a5bff] to-[#b097ff] text-2xl font-black text-white">
               {profile.avatarUrl
-                ? <img src={profile.avatarUrl} alt={profile.displayName} className="h-full w-full object-cover rounded-full" />
+                ? <img src={profile.avatarUrl} alt={profile.displayName} className="size-full rounded-full object-cover" />
                 : profile.initials
               }
             </div>
@@ -146,11 +146,11 @@ const ProfilePanel = ({ profile }) => {
           <div>
             <h2 className="text-2xl font-bold text-slate-950">{profile.displayName}</h2>
             {profile.username && (
-              <p className="text-sm text-slate-400 mt-0.5">@{profile.username}</p>
+              <p className="mt-0.5 text-sm text-slate-400">@{profile.username}</p>
             )}
             <div className="mt-3 space-y-2 text-slate-600">
               <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-[#6c49ff]" />
+                <Mail className="size-4 text-[#6c49ff]" />
                 <span className="text-base">{profile.email}</span>
                 {profile.emailVerified && (
                   <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">Verified</span>
@@ -158,12 +158,12 @@ const ProfilePanel = ({ profile }) => {
               </div>
               {profile.phone ? (
                 <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-emerald-500" />
+                  <Phone className="size-4 text-emerald-500" />
                   <span className="text-base">{profile.phone}</span>
                 </div>
               ) : (
-                <p className="text-sm text-slate-400 italic">No phone number on file.
-                  <Link to="/account/edit-profile" className="ml-1 text-[#6c49ff] font-medium hover:underline">Add one</Link>
+                <p className="text-sm italic text-slate-400">No phone number on file.
+                  <Link to="/account/edit-profile" className="ml-1 font-medium text-[#6c49ff] hover:underline">Add one</Link>
                 </p>
               )}
             </div>
@@ -331,7 +331,7 @@ const OrdersPanel = () => {
         <div className="space-y-3">
           <div className="flex flex-col gap-3 md:flex-row">
             <label className="relative flex-1">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
               <span className="sr-only">Search orders</span>
               <input
                 type="text"
@@ -367,7 +367,7 @@ const OrdersPanel = () => {
                   onClick={resetFilters}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-500 transition hover:bg-slate-50"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="size-4" />
                   Clear
                 </button>
               )}
@@ -446,7 +446,7 @@ const OrdersPanel = () => {
                             )}
                           </td>
                           <td className="px-5 py-4">
-                            <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusBadgeStyle[order.status] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                            <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusBadgeStyle[order.status] ?? "border-slate-200 bg-slate-100 text-slate-600"}`}>
                               {order.status.replace(/_/g, " ")}
                             </span>
                           </td>
@@ -457,7 +457,7 @@ const OrdersPanel = () => {
                             <span className="font-semibold text-slate-900">{order.currency} {Number(order.total_amount).toFixed(2)}</span>
                           </td>
                           <td className="px-3 py-4 text-slate-300">
-                            <ChevronRight className="h-4 w-4" />
+                            <ChevronRight className="size-4" />
                           </td>
                         </tr>
                       );
@@ -476,10 +476,10 @@ const OrdersPanel = () => {
                     type="button"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition enabled:hover:bg-slate-50 disabled:opacity-40"
+                    className="flex size-8 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition enabled:hover:bg-slate-50 disabled:opacity-40"
                     aria-label="Previous page"
                   >
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft className="size-4" />
                   </button>
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     const pageNumber = totalPages <= 5 ? i + 1 : Math.max(1, Math.min(currentPage - 2, totalPages - 4)) + i;
@@ -488,7 +488,7 @@ const OrdersPanel = () => {
                         key={pageNumber}
                         type="button"
                         onClick={() => setPage(pageNumber)}
-                        className={`h-8 w-8 rounded-full text-xs font-semibold transition ${
+                        className={`size-8 rounded-full text-xs font-semibold transition ${
                           pageNumber === currentPage
                             ? "bg-gradient-to-r from-[#6c49ff] to-[#8b6dff] text-white shadow-[0_8px_16px_rgba(108,73,255,0.25)]"
                             : "text-slate-600 hover:bg-slate-100"
@@ -502,10 +502,10 @@ const OrdersPanel = () => {
                     type="button"
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition enabled:hover:bg-slate-50 disabled:opacity-40"
+                    className="flex size-8 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition enabled:hover:bg-slate-50 disabled:opacity-40"
                     aria-label="Next page"
                   >
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="size-4" />
                   </button>
                 </div>
               </div>
@@ -556,7 +556,7 @@ const WalletPanel = ({ profile }) => {
             <div>
               <p className="text-sm text-white/80">Wallet balance — Pixie Coins</p>
               <div className="mt-2 flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-200 text-xs font-black text-amber-900">PKS</span>
+                <span className="flex size-8 items-center justify-center rounded-full bg-amber-200 text-xs font-black text-amber-900">PKS</span>
                 <p className="text-5xl font-black tracking-tight">{Number(profile.walletBalance).toFixed(2)}</p>
               </div>
             </div>
@@ -570,11 +570,11 @@ const WalletPanel = ({ profile }) => {
         </div>
 
         <div className="mt-7">
-          <h2 className="text-2xl font-extrabold tracking-tight text-slate-950 mb-5">Transaction History</h2>
+          <h2 className="mb-5 text-2xl font-extrabold tracking-tight text-slate-950">Transaction History</h2>
 
           {txLoading ? (
-            <div className="flex items-center justify-center py-10 text-slate-400 text-sm gap-2">
-              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-400">
+              <svg className="size-4 animate-spin" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
               </svg>
@@ -601,7 +601,7 @@ const WalletPanel = ({ profile }) => {
                   {transactions.map((tx) => {
                     const isPos = tx.amount > 0;
                     return (
-                      <tr key={tx.id} className="hover:bg-[#f5f3ff] transition">
+                      <tr key={tx.id} className="transition hover:bg-[#f5f3ff]">
                         <td className="whitespace-nowrap px-5 py-4">
                           <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                             isPos ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
@@ -615,7 +615,7 @@ const WalletPanel = ({ profile }) => {
                           {isPos ? "+" : ""}PKS {Math.abs(tx.amount).toFixed(2)}
                         </td>
                         <td className="whitespace-nowrap px-5 py-4 text-slate-600">PKS {Number(tx.balance_after).toFixed(2)}</td>
-                        <td className="px-5 py-4 text-slate-500 max-w-[200px] truncate">{tx.reference ?? "—"}</td>
+                        <td className="max-w-[200px] truncate px-5 py-4 text-slate-500">{tx.reference ?? "—"}</td>
                         <td className="whitespace-nowrap px-5 py-4 text-slate-400">{formatTs(tx.created_at)}</td>
                       </tr>
                     );
@@ -654,22 +654,22 @@ const QuickActions = () => (
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">Quick actions</p>
         <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">Account tools</h2>
       </div>
-      <Sparkles className="hidden h-6 w-6 text-[#6c49ff] sm:block" />
+      <Sparkles className="hidden size-6 text-[#6c49ff] sm:block" />
     </div>
 
     <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      <Link to="/account/settings" className="rounded-[22px] border border-slate-200 bg-slate-50 p-5 block transition hover:border-[#8b6dff]/40 hover:bg-white">
-        <Settings2 className="h-5 w-5 text-[#6c49ff]" />
+      <Link to="/account/settings" className="block rounded-[22px] border border-slate-200 bg-slate-50 p-5 transition hover:border-[#8b6dff]/40 hover:bg-white">
+        <Settings2 className="size-5 text-[#6c49ff]" />
         <p className="mt-4 text-lg font-bold text-slate-900">Manage settings</p>
         <p className="mt-1 text-sm text-slate-500">Update notification, security, and display preferences.</p>
       </Link>
       <Link to="/support" className="rounded-[22px] border border-slate-200 bg-slate-50 p-5 transition hover:border-[#8b6dff]/40 hover:bg-white">
-        <CheckCircle2 className="h-5 w-5 text-[#6c49ff]" />
+        <CheckCircle2 className="size-5 text-[#6c49ff]" />
         <p className="mt-4 text-lg font-bold text-slate-900">Contact support</p>
         <p className="mt-1 text-sm text-slate-500">Reach the support team for orders, wallet, or login help.</p>
       </Link>
       <Link to="/games" className="rounded-[22px] border border-slate-200 bg-slate-50 p-5 transition hover:border-[#8b6dff]/40 hover:bg-white">
-        <Wallet className="h-5 w-5 text-[#6c49ff]" />
+        <Wallet className="size-5 text-[#6c49ff]" />
         <p className="mt-4 text-lg font-bold text-slate-900">Browse games</p>
         <p className="mt-1 text-sm text-slate-500">Continue exploring top-ups and game currency offers.</p>
       </Link>
@@ -722,9 +722,9 @@ const DesktopAccountView = ({ profile, onLogout }) => {
                 onClick={onLogout}
                 className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-5 py-3 text-sm font-semibold text-red-500 shadow-[0_8px_20px_rgba(239,68,68,0.08)]"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="size-4" />
                 Logout
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="size-4" />
               </button>
             </div>
           </div>
