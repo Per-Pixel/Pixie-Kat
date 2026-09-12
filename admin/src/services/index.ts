@@ -8,7 +8,6 @@ export { productService } from './productService';
 export { orderService } from './orderService';
 export { resellerService } from './resellerService';
 export { messageService } from './messageService';
-export { analyticsService } from './analyticsService';
 
 // Export service types
 export type { UserFilters, UserStats, UserActivity } from './userService';
@@ -17,7 +16,6 @@ export type { ProductFilters, ProductStats, ProductWithDetails, StockAlert } fro
 export type { OrderFilters, OrderStats, OrderWithDetails, RefundRequest, OrderDelivery } from './orderService';
 export type { Reseller, ResellerFilters, ResellerStats, ResellerWithDetails, CommissionPayment } from './resellerService';
 export type { MessageFilters, MessageStats, MessageWithDetails, MessageReply, MessageAttachment, NotificationTemplate } from './messageService';
-export type { DashboardMetrics, TrafficAnalytics, SalesAnalytics, UserBehaviorAnalytics } from './analyticsService';
 
 // Service configuration
 export const SERVICES_CONFIG = {
@@ -40,7 +38,7 @@ export class ServiceMonitor {
   }
 
   async checkHealth(): Promise<Record<string, boolean>> {
-    const services = ['auth', 'users', 'games', 'products', 'messages', 'analytics'];
+    const services = ['auth', 'users', 'games', 'products', 'messages'];
     const results: Record<string, boolean> = {};
 
     for (const service of services) {

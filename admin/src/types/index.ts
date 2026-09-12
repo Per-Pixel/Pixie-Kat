@@ -2,7 +2,6 @@ import React from 'react';
 
 export * from './auth';
 export * from './api';
-export * from './cms';
 
 export interface Game {
   id: string;
