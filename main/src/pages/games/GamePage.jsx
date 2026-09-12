@@ -525,7 +525,7 @@ const GamePage = () => {
         whatsapp: prev.whatsapp || profile?.phone || "",
       }));
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, profile?.email, profile?.phone, user?.email]);
 
   useEffect(() => {
     if (fields.length > 0) {
@@ -539,9 +539,12 @@ const GamePage = () => {
     }
   }, [fields]);
 
+  const providerGameCode = game?.provider_game_code;
+  const smileCoinProduct = game?.metadata?.smile_coin_product;
+
   // Player name verification for Smile.one games
   useEffect(() => {
-    if (!game || !game.provider_game_code) return;
+    if (!providerGameCode) return;
 
     setPlayerName(null);
     setVerifyError("");
@@ -565,10 +568,10 @@ const GamePage = () => {
           body: JSON.stringify({
             user_id: userId,
             zone_id: zoneId || undefined,
-            api_game: game.provider_game_code,
-            product: game.provider_game_code,
+            api_game: providerGameCode,
+            product: providerGameCode,
             product_id: "1",
-            smile_coin_product: game.metadata?.smile_coin_product || undefined,
+            smile_coin_product: smileCoinProduct || undefined,
           }),
         });
         const json = await res.json();
@@ -585,7 +588,7 @@ const GamePage = () => {
     }, 800);
 
     return () => clearTimeout(verifyTimer.current);
-  }, [fieldValues, game?.provider_game_code, fields]);
+  }, [fieldValues, providerGameCode, fields, smileCoinProduct]);
 
   // Persist field values to localStorage on every change
   useEffect(() => {

@@ -115,7 +115,7 @@ const DropdownMenu = ({ onClose }) => {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
+  }, [onClose, reduced]);
 
   const handleMenuItemHover = (id) => {
     const formattedId = id.toLowerCase().replace(/\s+/g, '').replace(/it/g, '');

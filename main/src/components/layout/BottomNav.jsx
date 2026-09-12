@@ -27,9 +27,7 @@ const BottomNav = () => {
   };
 
   useEffect(() => {
-    if (isMoreMenuOpen) {
-      setIsMoreMenuOpen(false);
-    }
+    setIsMoreMenuOpen(false);
   }, [location.pathname]);
 
   const openMoreMenu = () => {

@@ -132,6 +132,7 @@ export default function BatchOrderPage() {
   // ── player verification (debounced) ──
   const selectedGame    = games.find((g) => g.id === selectedGameId) ?? null;
   const selectedProduct = selectedGame?.products.find((p) => p.id === selectedProductId) ?? null;
+  const smileCoinProduct = selectedGame?.metadata?.smile_coin_product;
 
   useEffect(() => {
     if (!selectedGame?.provider_game_code) return;
@@ -160,7 +161,7 @@ export default function BatchOrderPage() {
             api_game:           selectedGame.provider_game_code,
             product:            selectedGame.provider_game_code,
             product_id:         "1",
-            smile_coin_product: selectedGame.metadata?.smile_coin_product || undefined,
+            smile_coin_product: smileCoinProduct || undefined,
           }),
         });
         const json = await res.json();
@@ -177,7 +178,7 @@ export default function BatchOrderPage() {
     }, 800);
 
     return () => clearTimeout(verifyTimer.current);
-  }, [fieldValues, selectedGame?.provider_game_code, selectedGame?.game_fields]);
+  }, [fieldValues, selectedGame?.provider_game_code, selectedGame?.game_fields, smileCoinProduct]);
 
   // ── access guard ──
   if (authLoading) {

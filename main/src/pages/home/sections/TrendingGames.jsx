@@ -101,7 +101,7 @@ const TrendingGames = () => {
       el.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
     };
-  }, []);
+  }, [trendingGames.length]);
 
   return (
     <section className="relative isolate z-50 overflow-visible px-2 py-10 md:px-8">

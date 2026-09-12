@@ -152,13 +152,11 @@ function App() {
 
 
 
-  const criticalImageSources = [];
-
-
-
   useEffect(() => {
 
     const loadCriticalAssets = async () => {
+
+      const criticalImageSources = [];
 
       if (criticalImageSources.length === 0) return;
 
@@ -178,7 +176,7 @@ function App() {
 
     loadCriticalAssets();
 
-  }, [criticalImageSources]);
+  }, []);
 
 
 
