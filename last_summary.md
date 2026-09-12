@@ -30,21 +30,36 @@ Continued the launch-hardening sprint. Cleared the top launch blocker.
   asserts the settings/KYC tables the admin writes have required policies.
   Would have caught the `user_kyc` gap.
 
+- Investigated `main` lint warnings (real count was 45, not 729 — summary
+  figure was stale). Fixed all 7 `react-hooks/exhaustive-deps`:
+  - `GamePage` contact auto-fill now reacts to profile load (fields could
+    stay empty if profile lagged behind `isAuthenticated`).
+  - `TrendingGames` scroll-dot clamping now tracks real `trendingGames.length`
+    (stale closure clamped to the mount-time count).
+  - `GamePage` + `batch-order` player verification now track
+    `smile_coin_product` metadata they send (hoisted to primitive deps).
+  - `DropdownMenu` tracks `reduced`; `BottomNav` closes More menu
+    unconditionally on route change (dep was deliberately omitted — adding it
+    would break the menu); `App.jsx` dead preload array moved inside effect.
+- Left 4 `no-constant-binary-expression` in `Hero.jsx` — `false &&` is an
+  intentional kill-switch on two disabled desktop hero blocks.
+
 ### Verification
 
 - `admin`: `tsc -b` clean (0 errors), `npm run build` passes, tests 3/3,
   lint 24 warnings / 0 errors (was 149).
-- `main`: `npm run test` passes (1 test).
+- `main`: `npm run test` passes (1 test); `npm run build` passes;
+  lint 38 warnings / 0 errors (all cosmetic or intentional dead code).
 - `main/server`: 29/29 tests pass.
-- Working tree clean; `main` is 8 commits ahead of origin.
+- Working tree clean; `main` is 11 commits ahead of origin.
 
 ### Remaining blockers before v1.0 tag
 
 1. Decide whether to defer CMS page-builder and advanced analytics to
    post-launch (user decision needed).
 2. Apply migration `034` to staging/prod Supabase when deploying.
-3. Reduce remaining lint warnings (`main`: ~729, `admin`: 24) and server
-   console logging.
+3. Reduce remaining lint warnings (`main`: 38 cosmetic, `admin`: 24) and
+   server console logging.
 4. Run end-to-end smoke tests against staging after the Supabase migration
    and env changes land.
 5. Push to origin when ready (8 local commits pending).
