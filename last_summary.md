@@ -53,13 +53,23 @@ Continued the launch-hardening sprint. Cleared the top launch blocker.
 - `main/server`: 29/29 tests pass.
 - Working tree clean; `main` is 11 commits ahead of origin.
 
-### Remaining blockers before v1.0 tag
+### Decisions
 
-1. Decide whether to defer CMS page-builder and advanced analytics to
-   post-launch (user decision needed).
-2. Apply migration `034` to staging/prod Supabase when deploying.
-3. Reduce remaining lint warnings (`main`: 38 cosmetic, `admin`: 24) and
-   server console logging.
-4. Run end-to-end smoke tests against staging after the Supabase migration
-   and env changes land.
-5. Push to origin when ready (8 local commits pending).
+- CMS page-builder + advanced analytics **deferred to post-launch**. The
+  shipped per-page content editors (`store_settings` JSONB) and the
+  `/analytics` + Sales Overview pages cover launch needs.
+- Dead scaffolding removed (13 files, ~2,362 lines): `analyticsService`
+  (zero call sites), `pageService` + routed-but-broken `Trash` page
+  (its `/api/admin/pages` backend was never implemented in index.js),
+  unrouted `MediaLibrary` + `mediaService` default adapter, cms
+  components, `types/cms`, and stale `schema.sql`/`CMS_API_SETUP.md`
+  docs for the unbuilt Express CMS API.
+- Migration `034_kyc_admin_insert.sql` **applied to Supabase** by user.
+
+### Remaining before v1.0 tag
+
+1. Reduce remaining lint warnings (`main`: 38 cosmetic, `admin`: 22) and
+   server console logging — polish, non-blocking.
+2. Run end-to-end smoke tests against staging (env changes + migration
+   034 are in).
+3. Push to origin when ready (currently ahead by 1+).
