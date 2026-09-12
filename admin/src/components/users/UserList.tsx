@@ -9,8 +9,6 @@ import {
   UserCheck, 
   UserX, 
   Download,
-  Upload,
-  Mail,
   Eye
 } from 'lucide-react';
 import { User } from '../../types';
@@ -83,7 +81,7 @@ export const UserList: React.FC<UserListProps> = ({
   // Initial load
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [loadUsers]);
 
   // Handle user selection
   const handleUserSelect = (userId: string, selected: boolean) => {

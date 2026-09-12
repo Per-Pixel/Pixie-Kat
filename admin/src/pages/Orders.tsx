@@ -33,7 +33,7 @@ interface OrderRow {
   } | null;
   created_at: string;
   updated_at: string;
-  profiles?: { id: string; name: string; email: string } | null;
+  profiles?: Array<{ id: string; name: string; email: string }> | null;
 }
 
 const statusStyles: Record<OrderStatus, string> = {
@@ -64,7 +64,7 @@ function downloadCsv(orders: OrderRow[]) {
   const rows = [
     ['Order ID', 'Customer', 'Email', 'Product', 'Quantity', 'Amount', 'Currency', 'Status', 'Payment Method', 'Payment ID', 'Razorpay Order ID', 'Date'],
     ...orders.map((o) => [
-      o.id, o.profiles?.name ?? 'Unknown', o.profiles?.email ?? '',
+      o.id, o.profiles?.[0]?.name ?? 'Unknown', o.profiles?.[0]?.email ?? '',
       o.product_name, String(o.quantity), String(o.total_amount),
       o.currency, o.status, o.payment_method ?? '', o.payment_id ?? '', o.razorpay_order_id ?? '', o.created_at,
     ]),
@@ -119,7 +119,7 @@ const Orders: React.FC = () => {
     let list = orders.filter((o) => {
       if (status !== 'all' && o.status !== status) return false;
       if (!term) return true;
-      return [o.id, o.product_name, o.payment_id ?? '', o.razorpay_order_id ?? '', o.profiles?.name ?? '', o.profiles?.email ?? '']
+      return [o.id, o.product_name, o.payment_id ?? '', o.razorpay_order_id ?? '', o.profiles?.[0]?.name ?? '', o.profiles?.[0]?.email ?? '']
         .some((v) => v.toLowerCase().includes(term));
     });
     list = [...list].sort((a, b) => {
@@ -284,9 +284,9 @@ const Orders: React.FC = () => {
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <button type="button" onClick={() => navigate(`/users/${order.user_id}`)} className="text-left">
                           <p className="text-sm font-medium text-primary-700 hover:text-primary-900">
-                            {order.profiles?.name ?? 'Unknown'}
+                            {order.profiles?.[0]?.name ?? 'Unknown'}
                           </p>
-                          <p className="text-xs text-gray-400">{order.profiles?.email ?? order.user_id}</p>
+                          <p className="text-xs text-gray-400">{order.profiles?.[0]?.email ?? order.user_id}</p>
                         </button>
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap text-sm text-gray-900">{order.product_name}</td>

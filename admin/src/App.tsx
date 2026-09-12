@@ -24,7 +24,6 @@ import Referral from './pages/revenue/Referral';
 import Compose from './pages/messages/Compose';
 import Clients from './pages/auth/Clients';
 import Trash from './pages/Trash';
-import MediaLibrary from './pages/MediaLibrary';
 import AddProduct from './pages/AddProduct';
 import ManageUsers from './pages/ManageUsers';
 import UserDetail from './pages/users/UserDetail';

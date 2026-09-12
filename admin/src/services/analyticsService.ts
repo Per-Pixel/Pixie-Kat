@@ -284,9 +284,9 @@ class AnalyticsService extends BaseApiService {
     description?: string;
     metrics: string[];
     dimensions: string[];
-    filters?: Record<string, any>;
+    filters?: Record<string, unknown>;
     period: 'day' | 'week' | 'month' | 'year';
-  }): Promise<ApiResponse<{ reportId: string; data: any[] }>> {
+  }): Promise<ApiResponse<{ reportId: string; data: unknown[] }>> {
     return this.post(report, '/reports/custom');
   }
 
@@ -294,7 +294,7 @@ class AnalyticsService extends BaseApiService {
     id: string;
     name: string;
     description?: string;
-    data: any[];
+    data: unknown[];
     createdAt: string;
     updatedAt: string;
   }>> {

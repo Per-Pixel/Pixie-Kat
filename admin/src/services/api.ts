@@ -123,7 +123,7 @@ export class BaseApiService {
   }
 
   // Generic POST request
-  async post<T>(data: any, path: string = '', config?: AxiosRequestConfig): Promise<T> {
+  async post<T>(data: unknown, path: string = '', config?: AxiosRequestConfig): Promise<T> {
     try {
       const response = await api.post(`${this.endpoint}${path}`, data, config);
       return response.data;
@@ -133,7 +133,7 @@ export class BaseApiService {
   }
 
   // Generic PUT request
-  async put<T>(data: any, path: string = '', config?: AxiosRequestConfig): Promise<T> {
+  async put<T>(data: unknown, path: string = '', config?: AxiosRequestConfig): Promise<T> {
     try {
       const response = await api.put(`${this.endpoint}${path}`, data, config);
       return response.data;
@@ -143,7 +143,7 @@ export class BaseApiService {
   }
 
   // Generic PATCH request
-  async patch<T>(data: any, path: string = '', config?: AxiosRequestConfig): Promise<T> {
+  async patch<T>(data: unknown, path: string = '', config?: AxiosRequestConfig): Promise<T> {
     try {
       const response = await api.patch(`${this.endpoint}${path}`, data, config);
       return response.data;
@@ -163,7 +163,7 @@ export class BaseApiService {
   }
 
   // Get paginated data
-  async getPaginated<T>(params?: Record<string, any>): Promise<PaginatedResponse<T>> {
+  async getPaginated<T>(params?: object): Promise<PaginatedResponse<T>> {
     try {
       const response = await api.get(this.endpoint, { params });
       return response.data;
@@ -241,20 +241,24 @@ export class BaseApiService {
   }
 
   // Error handling
-  protected handleError(error: any): Error {
+  protected handleError(error: unknown): Error {
     if (axios.isAxiosError(error)) {
       const message = error.response?.data?.message || error.message;
       const status = error.response?.status;
-      
+
       // Create custom error with additional context
-      const customError = new Error(message) as any;
+      const customError = new Error(message) as Error & {
+        status?: number;
+        code?: string;
+        details?: unknown;
+      };
       customError.status = status;
       customError.code = error.response?.data?.code;
       customError.details = error.response?.data?.details;
-      
+
       return customError;
     }
-    
+
     return error instanceof Error ? error : new Error('Unknown error occurred');
   }
 }

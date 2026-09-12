@@ -105,7 +105,7 @@ const HeroEditor: React.FC = () => {
     if (error) {
       toast.error(error.message);
     } else if (data?.hero_settings && Object.keys(data.hero_settings).length > 0) {
-      setSettings((prev) => ({ ...defaultSettings, ...data.hero_settings, images: { ...defaultSettings.images, ...(data.hero_settings.images ?? {}) } }));
+      setSettings({ ...defaultSettings, ...data.hero_settings, images: { ...defaultSettings.images, ...(data.hero_settings.images ?? {}) } });
     }
     setLoading(false);
   };

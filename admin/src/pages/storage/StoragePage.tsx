@@ -4,10 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import {
   Upload, Search, Image as ImageIcon, Video, FileText, File as FileIcon,
   Download, Trash2, Edit3, Replace, Minimize2, X,
-  Eye, HardDrive, ArrowLeft, Check, AlertTriangle, Grid3X3, List, Wand2,
-  Folder, FolderOpen, ChevronRight, ChevronDown, Sparkles, Play, Volume2,
-  ExternalLink, Layers, Gamepad2, Package, Tag, Palette, Users, Sparkle,
-  Filter, CheckSquare, Square, RefreshCw, Music, Copy,
+  Eye, HardDrive, ArrowLeft, AlertTriangle, Grid3X3, List, Wand2,
+  Folder, FolderOpen, ChevronDown, Sparkles, Play, Volume2,
+  ExternalLink, Layers, Gamepad2, Package, Palette, Users, Sparkle,
+  CheckSquare, Square, RefreshCw, Music, Copy,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
@@ -19,14 +19,12 @@ import {
   downloadMedia,
   compressAndUpload,
   convertImageAndUpload,
-  scanMediaUsage,
   fetchAllMediaUsages,
   syncBucketToTable,
   ImageOutputFormat,
   MediaSort,
   MediaRecord,
   MediaUsage,
-  UsageCategory,
 } from '../../services/mediaService';
 
 const formatBytes = (bytes?: number | null): string => {
@@ -81,8 +79,6 @@ const imageFormatOptions: Array<{ value: ImageOutputFormat; label: string }> = [
   { value: 'image/png', label: 'PNG' },
   { value: 'image/jpeg', label: 'JPEG / JPG' },
 ];
-
-const unsupportedVideoFormats = ['GIF', 'MP4', 'MP2', 'AVI', '3GP'];
 
 const StoragePage: React.FC = () => {
   const navigate = useNavigate();
@@ -473,7 +469,6 @@ const StoragePage: React.FC = () => {
   const totalSize = records.reduce((sum, r) => sum + (r.size_bytes ?? 0), 0);
   const imageCount = records.filter((r) => r.mime_type?.startsWith('image/')).length;
   const videoCount = records.filter((r) => r.mime_type?.startsWith('video/')).length;
-  const audioCount = records.filter((r) => r.mime_type?.startsWith('audio/')).length;
 
   const currentFolderTitle = useMemo(() => {
     if (folderTab === 'usage') {
@@ -1038,17 +1033,14 @@ const MediaGridCard: React.FC<{
   const isVideo = record.mime_type?.startsWith('video/');
   const isAudio = record.mime_type?.startsWith('audio/');
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isHovered, setIsHovered] = useState(false);
 
   const handleMouseEnter = () => {
-    setIsHovered(true);
     if (isVideo && videoRef.current) {
       videoRef.current.play().catch(() => {});
     }
   };
 
   const handleMouseLeave = () => {
-    setIsHovered(false);
     if (isVideo && videoRef.current) {
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
@@ -1218,7 +1210,6 @@ const MediaListView: React.FC<{
             const isSelected = selectedIds.includes(record.id);
             const isImage = record.mime_type?.startsWith('image/');
             const isVideo = record.mime_type?.startsWith('video/');
-            const isAudio = record.mime_type?.startsWith('audio/');
             const Icon = mimeIcon(record.mime_type);
 
             return (

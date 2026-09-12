@@ -7,7 +7,7 @@ export const userSchema = z.object({
     .min(1, 'Name is required')
     .min(2, 'Name must be at least 2 characters')
     .max(100, 'Name must be less than 100 characters')
-    .regex(/^[a-zA-Z\s\-'\.]+$/, 'Name can only contain letters, spaces, hyphens, apostrophes, and periods'),
+    .regex(/^[a-zA-Z\s\-'.]+$/, 'Name can only contain letters, spaces, hyphens, apostrophes, and periods'),
   email: z
     .string()
     .min(1, 'Email is required')
@@ -16,7 +16,7 @@ export const userSchema = z.object({
     .toLowerCase(),
   phone: z
     .string()
-    .regex(/^\+?[\d\s\-\(\)]+$/, 'Please enter a valid phone number')
+    .regex(/^\+?[\d\s\-()]+$/, 'Please enter a valid phone number')
     .min(10, 'Phone number must be at least 10 digits')
     .max(20, 'Phone number must be less than 20 characters')
     .optional()
@@ -24,7 +24,7 @@ export const userSchema = z.object({
   role: z.enum(['admin', 'reseller', 'support'], {
     errorMap: () => ({ message: 'Please select a valid role' }),
   }),
-  status: z.enum(['active', 'inactive', 'suspended', 'pending'], {
+  status: z.enum(['active', 'inactive', 'suspended', 'banned'], {
     errorMap: () => ({ message: 'Please select a valid status' }),
   }).default('active'),
   avatar: z
@@ -112,7 +112,7 @@ export const profileUpdateSchema = userSchema
 export const userFiltersSchema = z.object({
   search: z.string().optional(),
   role: z.enum(['admin', 'reseller', 'support']).optional(),
-  status: z.enum(['active', 'inactive', 'suspended', 'pending']).optional(),
+  status: z.enum(['active', 'inactive', 'suspended', 'banned']).optional(),
   createdFrom: z.string().datetime().optional(),
   createdTo: z.string().datetime().optional(),
   lastActiveFrom: z.string().datetime().optional(),
@@ -220,7 +220,7 @@ export const isValidEmail = (email: string): boolean => {
 // Phone validation helper
 export const isValidPhone = (phone: string): boolean => {
   if (!phone) return true; // Optional field
-  return /^\+?[\d\s\-\(\)]+$/.test(phone) && phone.replace(/\D/g, '').length >= 10;
+  return /^\+?[\d\s\-()]+$/.test(phone) && phone.replace(/\D/g, '').length >= 10;
 };
 
 // Password strength validation
@@ -260,12 +260,12 @@ export const isValidRole = (role: string): boolean => {
 
 // Status validation
 export const isValidStatus = (status: string): boolean => {
-  return ['active', 'inactive', 'suspended', 'pending'].includes(status);
+  return ['active', 'inactive', 'suspended', 'banned'].includes(status);
 };
 
 // Name validation helper
 export const isValidName = (name: string): boolean => {
-  return /^[a-zA-Z\s\-'\.]+$/.test(name) && name.length >= 2 && name.length <= 100;
+  return /^[a-zA-Z\s\-'.]+$/.test(name) && name.length >= 2 && name.length <= 100;
 };
 
 // User form validation with custom rules

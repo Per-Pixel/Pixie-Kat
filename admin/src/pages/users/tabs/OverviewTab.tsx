@@ -198,7 +198,7 @@ export default function OverviewTab({ data, refetch }: Props) {
       toast.success('Profile picture updated');
       setAvatarFile(null);
       refetch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error(getAvatarErrorMessage(err));
     } finally {
       setSavingAvatar(false);
@@ -232,7 +232,7 @@ export default function OverviewTab({ data, refetch }: Props) {
       if (fileInputRef.current) fileInputRef.current.value = '';
       toast.success('Profile picture removed');
       refetch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error(getAvatarErrorMessage(err));
     } finally {
       setRemovingAvatar(false);
@@ -287,8 +287,9 @@ export default function OverviewTab({ data, refetch }: Props) {
       toast.success(`Status changed to ${pendingStatus}`);
       setShowStatusModal(false);
       refetch();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to change status');
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string } } };
+      toast.error(apiErr.response?.data?.message || 'Failed to change status');
     }
     setChangingStatus(false);
   };

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, RefreshCw, Search, PackageOpen, ChevronRight,
-  Wifi, WifiOff, Coins, Download, AlertCircle, CheckCircle2,
+  Wifi, WifiOff, Coins, Download, AlertCircle,
   Terminal, Info,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';

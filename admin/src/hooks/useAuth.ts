@@ -16,7 +16,7 @@ export const useAuth = () => {
 
 // Enhanced auth hook with additional utilities
 export const useAuthActions = () => {
-  const { login, logout, refreshToken, user, isAuthenticated } = useAuth();
+  const { login, logout, refreshSession, user, isAuthenticated } = useAuth();
 
   const loginWithToast = useCallback(async (credentials: LoginCredentials) => {
     try {
@@ -70,7 +70,7 @@ export const useAuthActions = () => {
     isAuthenticated,
     login: loginWithToast,
     logout: logoutWithToast,
-    refreshToken,
+    refreshToken: refreshSession,
     changePassword,
     updateProfile,
     uploadAvatar,

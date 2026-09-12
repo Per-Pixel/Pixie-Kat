@@ -54,12 +54,12 @@ export interface OrderWithDetails extends Order {
     method: string;
     transactionId?: string;
     gateway?: string;
-    gatewayResponse?: any;
+    gatewayResponse?: unknown;
   };
   delivery: {
     status: 'pending' | 'processing' | 'delivered' | 'failed';
     deliveredAt?: string;
-    deliveryData?: any;
+    deliveryData?: unknown;
     attempts: number;
   };
 }
@@ -74,7 +74,7 @@ export interface RefundRequest {
 
 export interface OrderDelivery {
   orderId: string;
-  deliveryData: any;
+  deliveryData: unknown;
   notes?: string;
 }
 
@@ -95,7 +95,7 @@ class OrderService extends BaseApiService {
 
   // Create new order
   async createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Order>> {
-    return this.create(orderData);
+    return this.create<Order>(orderData as Partial<Order>);
   }
 
   // Update order
@@ -126,7 +126,7 @@ class OrderService extends BaseApiService {
     return this.patch({ status: OrderStatus.PROCESSING, notes }, `/${id}/approve`);
   }
 
-  async completeOrder(id: string, deliveryData?: any): Promise<ApiResponse<Order>> {
+  async completeOrder(id: string, deliveryData?: unknown): Promise<ApiResponse<Order>> {
     return this.patch({ 
       status: OrderStatus.COMPLETED, 
       deliveryData,
@@ -189,7 +189,7 @@ class OrderService extends BaseApiService {
     id: string;
     status: string;
     attempt: number;
-    deliveryData?: any;
+    deliveryData?: unknown;
     notes?: string;
     createdAt: string;
   }>>> {
@@ -231,7 +231,11 @@ class OrderService extends BaseApiService {
     formData.append('file', file);
     
     try {
-      const response = await this.post(formData, '/import', {
+      const response = await this.post<ApiResponse<{
+        imported: number;
+        failed: number;
+        errors: Array<{ row: number; error: string }>;
+      }>>(formData, '/import', {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -324,7 +328,7 @@ class OrderService extends BaseApiService {
     id: string;
     event: string;
     description: string;
-    data?: any;
+    data?: unknown;
     createdBy?: string;
     createdByName?: string;
     createdAt: string;

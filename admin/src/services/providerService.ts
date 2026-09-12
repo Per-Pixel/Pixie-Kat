@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { api } from './api';
 
 export interface SmileOneStatus {
@@ -32,9 +33,11 @@ export interface ScServer {
   name: string;
 }
 
-function rethrow(err: any, fallback: string): never {
-  const msg: string = err.response?.data?.message || err.message || fallback;
-  throw new Error(msg);
+function rethrow(err: unknown, fallback: string): never {
+  if (axios.isAxiosError(err)) {
+    throw new Error(err.response?.data?.message || err.message || fallback);
+  }
+  throw err instanceof Error ? err : new Error(fallback);
 }
 
 export async function fetchSmileOneStatus(): Promise<SmileOneStatus> {
@@ -49,7 +52,7 @@ export async function fetchProductList(): Promise<ScProduct[]> {
     );
     if (!data.success) throw new Error(data.message || 'Failed to fetch product list');
     return data.productList ?? [];
-  } catch (err: any) {
+  } catch (err: unknown) {
     rethrow(err, 'Failed to fetch product list from SmileCode');
   }
 }
@@ -71,7 +74,7 @@ export async function fetchSkuList(
       serverList:      data.serverList      ?? [],
       isMultiPurchase: data.isMultiPurchase ?? true,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     rethrow(err, 'Failed to fetch SKU list from SmileCode');
   }
 }

@@ -63,7 +63,7 @@ export function normalizePath(str?: string | null): string {
   if (!str) return '';
   return str
     .trim()
-    .replace(/^https?:\/\/[^\/]+\/storage\/v1\/object\/public\/[^\/]+\//, '')
+    .replace(/^https?:\/\/[^/]+\/storage\/v1\/object\/public\/[^/]+\//, '')
     .replace(/^\/+/, '')
     .toLowerCase();
 }

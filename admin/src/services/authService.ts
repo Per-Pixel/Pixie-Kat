@@ -2,6 +2,14 @@ import { LoginCredentials, AuthResponse, User, UserRole } from '../types/auth';
 import { ApiResponse } from '@/types/api';
 import { api } from './api';
 import { supabase } from '../lib/supabase';
+import axios from 'axios';
+
+function authError(error: unknown, fallback: string): Error {
+  if (axios.isAxiosError(error)) {
+    return new Error(error.response?.data?.message || error.message || fallback);
+  }
+  return error instanceof Error ? error : new Error(fallback);
+}
 
 async function getProfileUser(userId: string): Promise<User> {
   const { data, error } = await supabase
@@ -37,8 +45,8 @@ export const authService = {
         token: data.session.access_token,
         refreshToken: data.session.refresh_token,
       };
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || error.message || 'Login failed');
+    } catch (error: unknown) {
+      throw authError(error, 'Login failed');
     }
   },
 
@@ -60,8 +68,8 @@ export const authService = {
       const { data, error } = await supabase.auth.getUser(token);
       if (error || !data.user) throw error ?? new Error('Invalid token');
       return getProfileUser(data.user.id);
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || error.message || 'Token validation failed');
+    } catch (error: unknown) {
+      throw authError(error, 'Token validation failed');
     }
   },
 
@@ -74,8 +82,8 @@ export const authService = {
         token: data.session.access_token,
         refreshToken: data.session.refresh_token,
       };
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || error.message || 'Token refresh failed');
+    } catch (error: unknown) {
+      throw authError(error, 'Token refresh failed');
     }
   },
 
@@ -85,8 +93,8 @@ export const authService = {
         redirectTo: `${window.location.origin}/login`,
       });
       if (error) throw error;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || error.message || 'Failed to send reset email');
+    } catch (error: unknown) {
+      throw authError(error, 'Failed to send reset email');
     }
   },
 
@@ -99,8 +107,8 @@ export const authService = {
       if (sessionError) throw sessionError;
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || error.message || 'Failed to reset password');
+    } catch (error: unknown) {
+      throw authError(error, 'Failed to reset password');
     }
   },
 
@@ -109,17 +117,17 @@ export const authService = {
       void currentPassword;
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || error.message || 'Failed to change password');
+    } catch (error: unknown) {
+      throw authError(error, 'Failed to change password');
     }
   },
 
   async updateProfile(profileData: Partial<User>): Promise<User> {
     try {
       const response = await api.patch<ApiResponse<User>>('/auth/profile', profileData);
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || error.message || 'Failed to update profile');
+      return response.data.data;
+    } catch (error: unknown) {
+      throw authError(error, 'Failed to update profile');
     }
   },
 
@@ -133,35 +141,35 @@ export const authService = {
           'Content-Type': 'multipart/form-data',
         },
       });
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || error.message || 'Failed to upload avatar');
+      return response.data.data;
+    } catch (error: unknown) {
+      throw authError(error, 'Failed to upload avatar');
     }
   },
 
   async enable2FA(): Promise<{ qrCode: string; secret: string }> {
     try {
       const response = await api.post<ApiResponse<{ qrCode: string; secret: string }>>('/auth/2fa/enable');
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || error.message || 'Failed to enable 2FA');
+      return response.data.data;
+    } catch (error: unknown) {
+      throw authError(error, 'Failed to enable 2FA');
     }
   },
 
   async verify2FA(token: string): Promise<{ backupCodes: string[] }> {
     try {
       const response = await api.post<ApiResponse<{ backupCodes: string[] }>>('/auth/2fa/verify', { token });
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || error.message || 'Failed to verify 2FA');
+      return response.data.data;
+    } catch (error: unknown) {
+      throw authError(error, 'Failed to verify 2FA');
     }
   },
 
   async disable2FA(token: string): Promise<void> {
     try {
       await api.post<ApiResponse<void>>('/auth/2fa/disable', { token });
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || error.message || 'Failed to disable 2FA');
+    } catch (error: unknown) {
+      throw authError(error, 'Failed to disable 2FA');
     }
   },
 };

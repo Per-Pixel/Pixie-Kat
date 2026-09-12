@@ -24,7 +24,7 @@ export interface FormValidationReturn<T> {
   isValid: boolean;
   isSubmitting: boolean;
   isDirty: boolean;
-  setValue: (field: keyof T, value: any) => void;
+  setValue: (field: keyof T, value: T[keyof T]) => void;
   setValues: (values: Partial<T>) => void;
   setError: (field: keyof T, message: string) => void;
   setErrors: (errors: Record<string, string>) => void;
@@ -34,20 +34,20 @@ export interface FormValidationReturn<T> {
   setFieldTouched: (field: keyof T) => void;
   validateField: (field: keyof T) => boolean;
   validateForm: () => boolean;
-  handleChange: (field: keyof T) => (value: any) => void;
+  handleChange: (field: keyof T) => (value: T[keyof T]) => void;
   handleBlur: (field: keyof T) => () => void;
   handleSubmit: (e?: FormEvent) => Promise<void>;
   reset: (values?: Partial<T>) => void;
   getFieldProps: (field: keyof T) => {
-    value: any;
-    onChange: (value: any) => void;
+    value: T[keyof T] | undefined;
+    onChange: (value: T[keyof T]) => void;
     onBlur: () => void;
     error: string | undefined;
     touched: boolean;
   };
 }
 
-export function useFormValidation<T extends Record<string, any>>(
+export function useFormValidation<T extends Record<string, unknown>>(
   initialValues: Partial<T>,
   options: FormValidationOptions<T>
 ): FormValidationReturn<T> {
@@ -84,7 +84,7 @@ export function useFormValidation<T extends Record<string, any>>(
   const isValid = Object.keys(errors).length === 0;
 
   // Set single value
-  const setValue = useCallback((field: keyof T, value: any) => {
+  const setValue = useCallback((field: keyof T, value: T[keyof T]) => {
     setValuesState(prev => ({ ...prev, [field]: value }));
     
     if (validateOnChange) {
@@ -206,7 +206,7 @@ export function useFormValidation<T extends Record<string, any>>(
   }, [schema, values, clearErrors, setErrors, onError, showToastOnError]);
 
   // Handle field change
-  const handleChange = useCallback((field: keyof T) => (value: any) => {
+  const handleChange = useCallback((field: keyof T) => (value: T[keyof T]) => {
     setValue(field, value);
   }, [setValue]);
 
@@ -218,6 +218,14 @@ export function useFormValidation<T extends Record<string, any>>(
       validateField(field);
     }
   }, [setFieldTouched, validateOnBlur, validateField]);
+
+  // Reset form
+  const reset = useCallback((newValues?: Partial<T>) => {
+    const resetValues = newValues || initialValues;
+    setValuesState(resetValues);
+    setErrorsState({});
+    setTouchedState({});
+  }, [initialValues]);
 
   // Handle form submission
   const handleSubmit = useCallback(async (e?: FormEvent) => {
@@ -262,15 +270,7 @@ export function useFormValidation<T extends Record<string, any>>(
     } finally {
       setIsSubmitting(false);
     }
-  }, [values, isSubmitting, validateForm, onSubmit, resetOnSubmit]);
-
-  // Reset form
-  const reset = useCallback((newValues?: Partial<T>) => {
-    const resetValues = newValues || initialValues;
-    setValuesState(resetValues);
-    setErrorsState({});
-    setTouchedState({});
-  }, [initialValues]);
+  }, [values, isSubmitting, validateForm, onSubmit, resetOnSubmit, reset]);
 
   // Get field props for easy integration
   const getFieldProps = useCallback((field: keyof T) => ({

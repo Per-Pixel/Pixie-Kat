@@ -12,13 +12,6 @@ import {
   Search,
   PackageOpen,
   ChevronRight,
-  AlertCircle,
-  CheckCircle2,
-  DollarSign,
-  Globe,
-  Cloud,
-  Zap,
-  Clock,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
@@ -50,6 +43,8 @@ const formatCurrency = (value: number, currency: string) => {
 };
 
 const usdToInr = (usd: number) => usd * USD_TO_INR;
+
+const slugify = (value: string) => value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
 // Simple skeleton component – shimmer animation
 const Skeleton = ({ className }: { className?: string }) => (
@@ -380,21 +375,6 @@ const SmileOneDetailPage: React.FC = () => {
         </li>
       ))}
     </ul>
-  );
-
-  // Helper to render loading skeleton for SKU table rows
-  const SkuTableSkeleton = () => (
-    <tbody className="divide-y divide-gray-100">
-      {[...Array(5)].map((_, i) => (
-        <tr key={i} className="hover:bg-gray-50">
-          <td className="px-5 py-3"><Skeleton className="h-4 w-24" /></td>
-          <td className="px-5 py-3"><Skeleton className="h-4 w-32" /></td>
-          <td className="px-5 py-3 text-right"><Skeleton className="h-4 w-12" /></td>
-          <td className="px-5 py-3 text-right"><Skeleton className="h-4 w-20" /></td>
-          <td className="px-5 py-3 text-right"><Skeleton className="h-4 w-12" /></td>
-        </tr>
-      ))}
-    </tbody>
   );
 
   return (

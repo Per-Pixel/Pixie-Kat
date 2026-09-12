@@ -38,7 +38,7 @@ interface SubMenuItem {
 interface MenuItem {
   id: string;
   label: string;
-  icon: React.ComponentType<any>;
+  icon: React.ElementType;
   path?: string;
   subItems?: SubMenuItem[];
 }

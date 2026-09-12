@@ -6,6 +6,11 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { api } from '../../services/api';
 
+const getApiErrorMessage = (err: unknown, fallback: string) => {
+  const apiErr = err as { response?: { data?: { message?: string } }; message?: string };
+  return apiErr.response?.data?.message || apiErr.message || fallback;
+};
+
 interface Client {
   id: string;
   name: string;
@@ -176,8 +181,8 @@ const Clients: React.FC = () => {
       toast.success('Client suspended');
       await loadClients();
       await loadStats();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to suspend client');
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Failed to suspend client'));
     } finally {
       setProcessing(null);
     }
@@ -191,8 +196,8 @@ const Clients: React.FC = () => {
       toast.success('Client deleted');
       await loadClients();
       await loadStats();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to delete client');
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Failed to delete client'));
     } finally {
       setProcessing(null);
     }

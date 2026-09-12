@@ -4,14 +4,14 @@ import { ApiResponse, PaginatedResponse } from '@/types/api';
 
 export interface UserFilters {
   search?: string;
-  status?: 'active' | 'inactive' | 'banned';
+  status?: 'active' | 'inactive' | 'suspended' | 'banned';
   dateFrom?: string;
   dateTo?: string;
   minOrders?: number;
   maxOrders?: number;
   minSpent?: number;
   maxSpent?: number;
-  sortBy?: 'name' | 'email' | 'createdAt' | 'totalOrders' | 'totalSpent';
+  sortBy?: 'name' | 'email' | 'role' | 'status' | 'createdAt' | 'lastActiveAt' | 'totalOrders' | 'totalSpent';
   sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
@@ -37,7 +37,7 @@ export interface UserActivity {
   userId: string;
   action: string;
   description: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
   createdAt: string;
@@ -55,7 +55,7 @@ class UserService extends BaseApiService {
 
   // Get user by ID with detailed information
   async getUserById(id: string): Promise<ApiResponse<User & {
-    orders: any[];
+    orders: unknown[];
     activities: UserActivity[];
     stats: {
       totalOrders: number;
@@ -69,7 +69,7 @@ class UserService extends BaseApiService {
 
   // Create new user
   async createUser(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<User>> {
-    return this.create(userData);
+    return this.create<User>(userData as Partial<User>);
   }
 
   // Update user
@@ -148,7 +148,11 @@ class UserService extends BaseApiService {
     formData.append('file', file);
     
     try {
-      const response = await this.post(formData, '/import', {
+      const response = await this.post<ApiResponse<{
+        imported: number;
+        failed: number;
+        errors: Array<{ row: number; error: string }>;
+      }>>(formData, '/import', {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 // Types — mirror the 005_games_products.sql schema
 // ============================================================
 export type GameStatus = 'active' | 'inactive' | 'draft';
-export type GameProvider = 'manual' | 'smile_one' | 'other';
+export type GameProvider = 'manual' | 'smile_one' | 'smilecoin' | 'other';
 export type ProductStatus = 'active' | 'inactive' | 'draft';
 export type GameFieldType = 'text' | 'number' | 'email' | 'select' | 'tel';
 

@@ -129,7 +129,7 @@ class ResellerService extends BaseApiService {
 
   // Create new reseller
   async createReseller(resellerData: Omit<Reseller, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Reseller>> {
-    return this.create(resellerData);
+    return this.create<Reseller>(resellerData as Partial<Reseller>);
   }
 
   // Update reseller
@@ -292,7 +292,11 @@ class ResellerService extends BaseApiService {
     formData.append('file', file);
     
     try {
-      const response = await this.post(formData, '/import', {
+      const response = await this.post<ApiResponse<{
+        imported: number;
+        failed: number;
+        errors: Array<{ row: number; error: string }>;
+      }>>(formData, '/import', {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -315,7 +319,12 @@ class ResellerService extends BaseApiService {
     formData.append('type', type);
     
     try {
-      const response = await this.post(formData, `/${id}/documents`, {
+      const response = await this.post<ApiResponse<{
+        id: string;
+        filename: string;
+        type: string;
+        url: string;
+      }>>(formData, `/${id}/documents`, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -349,7 +358,7 @@ class ResellerService extends BaseApiService {
     id: string;
     action: string;
     description: string;
-    metadata?: any;
+    metadata?: unknown;
     ipAddress?: string;
     userAgent?: string;
     createdAt: string;

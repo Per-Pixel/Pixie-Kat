@@ -2,26 +2,30 @@
 
 export type DeviceType = 'desktop' | 'tablet' | 'mobile';
 
-export enum PageStatus {
-  PUBLISHED = 'published',
-  HIDDEN = 'hidden',
-  DRAFT = 'draft',
-  SCHEDULED = 'scheduled',
-  TRASHED = 'trashed',
-}
+export const PageStatus = {
+  PUBLISHED: 'published',
+  HIDDEN: 'hidden',
+  DRAFT: 'draft',
+  SCHEDULED: 'scheduled',
+  TRASHED: 'trashed',
+} as const;
 
-export enum SectionType {
-  HERO = 'hero',
-  FEATURE_GRID = 'feature_grid',
-  TESTIMONIALS = 'testimonials',
-  PRICING = 'pricing',
-  FAQ = 'faq',
-  CONTACT_FORM = 'contact_form',
-  IMAGE_GALLERY = 'image_gallery',
-  VIDEO_EMBED = 'video_embed',
-  TEXT_BLOCK = 'text_block',
-  CUSTOM_HTML = 'custom_html',
-}
+export type PageStatus = typeof PageStatus[keyof typeof PageStatus];
+
+export const SectionType = {
+  HERO: 'hero',
+  FEATURE_GRID: 'feature_grid',
+  TESTIMONIALS: 'testimonials',
+  PRICING: 'pricing',
+  FAQ: 'faq',
+  CONTACT_FORM: 'contact_form',
+  IMAGE_GALLERY: 'image_gallery',
+  VIDEO_EMBED: 'video_embed',
+  TEXT_BLOCK: 'text_block',
+  CUSTOM_HTML: 'custom_html',
+} as const;
+
+export type SectionType = typeof SectionType[keyof typeof SectionType];
 
 // Responsive Settings
 export interface ResponsiveValue<T> {
@@ -154,7 +158,7 @@ export interface Section {
   type: SectionType;
   name: string;
   order: number;
-  content: HeroSectionContent | FeatureGridContent | Record<string, any>;
+  content: HeroSectionContent | FeatureGridContent | Record<string, unknown>;
   spacing: ResponsiveValue<SpacingSettings>;
   visibility: ResponsiveValue<{ visible: boolean }>;
   customCSS?: string;

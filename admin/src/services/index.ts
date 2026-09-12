@@ -1,5 +1,6 @@
 // Export all services
-export { api, BaseApiService } from './api';
+import { api, BaseApiService } from './api';
+export { api, BaseApiService };
 export { authService } from './authService';
 export { userService } from './userService';
 export { gameService } from './gameService';
@@ -48,7 +49,7 @@ export class ServiceMonitor {
         await api.get(`/${service}/health`, { timeout: 5000 });
         results[service] = true;
         this.healthChecks.set(service, true);
-      } catch (error) {
+      } catch {
         results[service] = false;
         this.healthChecks.set(service, false);
       }
@@ -77,27 +78,49 @@ export class ServiceMonitor {
 
 // Error handling utilities
 export class ServiceError extends Error {
+  service: string;
+  status?: number;
+  code?: string;
+  details?: unknown;
+
   constructor(
     message: string,
-    public service: string,
-    public status?: number,
-    public code?: string,
-    public details?: any
+    service: string,
+    status?: number,
+    code?: string,
+    details?: unknown
   ) {
     super(message);
     this.name = 'ServiceError';
+    this.service = service;
+    this.status = status;
+    this.code = code;
+    this.details = details;
   }
 }
 
-export const handleServiceError = (error: any, serviceName: string): ServiceError => {
+interface ApiErrorShape {
+  response?: {
+    status?: number;
+    data?: {
+      message?: string;
+      code?: string;
+      details?: unknown;
+    };
+  };
+  message?: string;
+}
+
+export const handleServiceError = (error: unknown, serviceName: string): ServiceError => {
   if (error instanceof ServiceError) {
     return error;
   }
 
-  const message = error.response?.data?.message || error.message || 'Unknown service error';
-  const status = error.response?.status;
-  const code = error.response?.data?.code;
-  const details = error.response?.data?.details;
+  const apiError = error as ApiErrorShape;
+  const message = apiError.response?.data?.message || apiError.message || 'Unknown service error';
+  const status = apiError.response?.status;
+  const code = apiError.response?.data?.code;
+  const details = apiError.response?.data?.details;
 
   return new ServiceError(message, serviceName, status, code, details);
 };
@@ -112,25 +135,23 @@ export const createServiceInstance = <T extends BaseApiService>(
 
 // Batch operations utility
 export class BatchOperationManager {
-  private operations: Array<() => Promise<any>> = [];
+  private operations: Array<() => Promise<unknown>> = [];
   private batchSize: number = 10;
-  private concurrency: number = 3;
 
-  constructor(batchSize = 10, concurrency = 3) {
+  constructor(batchSize = 10) {
     this.batchSize = batchSize;
-    this.concurrency = concurrency;
   }
 
-  addOperation(operation: () => Promise<any>): void {
+  addOperation(operation: () => Promise<unknown>): void {
     this.operations.push(operation);
   }
 
   async execute(): Promise<{
-    successful: any[];
-    failed: Array<{ error: any; index: number }>;
+    successful: unknown[];
+    failed: Array<{ error: unknown; index: number }>;
   }> {
-    const successful: any[] = [];
-    const failed: Array<{ error: any; index: number }> = [];
+    const successful: unknown[] = [];
+    const failed: Array<{ error: unknown; index: number }> = [];
 
     // Process operations in batches
     for (let i = 0; i < this.operations.length; i += this.batchSize) {
@@ -166,10 +187,10 @@ export class BatchOperationManager {
 
 // Cache management
 export class ServiceCache {
-  private cache: Map<string, { data: any; timestamp: number; ttl: number }> = new Map();
+  private cache: Map<string, { data: unknown; timestamp: number; ttl: number }> = new Map();
   private defaultTTL: number = 5 * 60 * 1000; // 5 minutes
 
-  set(key: string, data: any, ttl?: number): void {
+  set(key: string, data: unknown, ttl?: number): void {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
@@ -177,7 +198,7 @@ export class ServiceCache {
     });
   }
 
-  get(key: string): any | null {
+  get(key: string): unknown | null {
     const item = this.cache.get(key);
     if (!item) return null;
 
