@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 const ORDER_SELECT =
-  "id, product_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, razorpay_order_id, unit_selling_price, created_at, updated_at, metadata";
+  "id, product_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, razorpay_order_id, aluu_order_id, unit_selling_price, created_at, updated_at, metadata";
 
 const sortOrders = (orders) =>
   [...orders].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));

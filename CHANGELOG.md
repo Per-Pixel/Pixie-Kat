@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Payments
+- Add Aluu Pay (UPI Gateway) as a second payment provider alongside Razorpay.
+- Add `main/server/aluu.js` with `createOrder`, `checkOrderStatus`, and HMAC-SHA256 webhook verification.
+- Add `place-order` branch for `payment_method=aluu`, `/api/aluu/check-payment` polling endpoint, and `/api/webhooks/aluu` webhook handler.
+- Add "UPI Gateway" payment method card to the game checkout with redirect-and-poll flow.
+- Add `aluu_order_id` column to `orders` (migration `035_aluu_checkout.sql`) and surface it in order details and hooks.
+
+### Tests
+- Add server unit tests for Aluu order creation, status checks, and webhook signature verification.
+
 ## [1.0.0] - 2026-08-26
 
 ### Security

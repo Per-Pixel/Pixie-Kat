@@ -12,6 +12,7 @@ import {
   Info,
   Lightbulb,
   MessageCircle,
+  Smartphone,
   Wallet,
 } from "lucide-react";
 
@@ -46,6 +47,7 @@ const defaultSteps = [
 ];
 
 const paymentMethods = [
+  { id: "aluu", logo: "UPI", name: "UPI Gateway", description: "Pay instantly with any UPI app", icon: Smartphone },
   { id: "razorpay", logo: "Razorpay", name: "Razorpay", description: "Pay with UPI, cards, net banking, or supported apps", icon: CreditCard },
   { id: "wallet", logo: "Wallet", name: "Pixie Wallet", description: "Use your PixieKat wallet balance for this order", icon: Wallet },
 ];
@@ -755,6 +757,105 @@ const GamePage = () => {
         return;
       }
 
+      if (selectedPayment.id === "aluu") {
+        const { response, data } = await placeOrder("aluu");
+        if (!response.ok || !data.ok) throw new Error(data.error || "Could not start UPI checkout. Please try again.");
+        if (!data.aluu?.paymentUrl) throw new Error("UPI payment link is missing. Please try again.");
+
+        const orderId = data.orderId;
+        const paymentWindow = window.open(data.aluu.paymentUrl, "_blank");
+        if (!paymentWindow) {
+          // Popup blocked — fall back to redirect in same tab
+          // But first show a message
+          setCheckoutError("Pop-up blocked. Redirecting to payment page...");
+          setTimeout(() => { window.location.href = data.aluu.paymentUrl; }, 1500);
+          return;
+        }
+
+        setShowCartReview(false);
+
+        // Poll for payment completion (Aluu link expires after ~8 min)
+        const POLL_INTERVAL_MS = 4000;
+        const MAX_POLL_TIME_MS = 10 * 60 * 1000; // 10 minutes
+        const pollStart = Date.now();
+        let paymentConfirmed = false;
+
+        const pollStatus = async () => {
+          try {
+            const { data: checkData } = await postApi("/aluu/check-payment", { orderId });
+            if (checkData.ok && checkData.status === "processing") {
+              paymentConfirmed = true;
+              return true;
+            }
+            if (checkData.status === "failed") {
+              return "failed";
+            }
+          } catch { /* ignore poll errors */ }
+          return false;
+        };
+
+        setCheckoutError("Waiting for UPI payment confirmation… Complete payment in the opened window.");
+
+        const pollLoop = async () => {
+          while (Date.now() - pollStart < MAX_POLL_TIME_MS) {
+            const result = await pollStatus();
+            if (result === true) break;
+            if (result === "failed") {
+              setIsSubmitting(false);
+              setCheckoutError("Payment failed or the payment link expired. Please try again.");
+              return;
+            }
+            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+          }
+
+          if (!paymentConfirmed) {
+            // One final check
+            const finalResult = await pollStatus();
+            if (finalResult !== true) {
+              setIsSubmitting(false);
+              setCheckoutError("Payment was not confirmed in time. If you paid, please check your order history — it may still process.");
+              return;
+            }
+          }
+
+          // Payment confirmed — fulfill
+          setCheckoutError("");
+          try {
+            const { response: fulfillResponse, data: fulfillData } = await postApi("/fulfill-order", { orderId });
+            const fulfilled = Boolean(fulfillData.ok || fulfillData.already);
+            const refunded = fulfillResponse.status === 500 && Boolean(fulfillData.refunded);
+            setOrderComplete({
+              orderId,
+              method: "aluu",
+              amount: paymentTotalLabel,
+              package: selectedPackage.name,
+              fulfilled,
+              provisioned: fulfillData.provisioned !== false,
+              refunded,
+              paymentReceived: true,
+              paymentPending: !fulfilled && !refunded,
+              mismatch: fulfillData.mismatch || null,
+              fulfillError: fulfilled || refunded ? null : fulfillData.error || null,
+            });
+          } catch {
+            setOrderComplete({
+              orderId,
+              method: "aluu",
+              amount: paymentTotalLabel,
+              package: selectedPackage.name,
+              paymentReceived: true,
+              paymentPending: true,
+              fulfillError: "Payment was received, but confirmation is still processing. Please contact support with your Order ID.",
+            });
+          } finally {
+            setIsSubmitting(false);
+          }
+        };
+
+        pollLoop();
+        return;
+      }
+
       if (selectedPayment.id === "razorpay") {
         const Razorpay = await loadRazorpayCheckout();
         const { response, data } = await placeOrder("razorpay");
@@ -858,7 +959,7 @@ const GamePage = () => {
     } catch (error) {
       setCheckoutError(error.message || "Could not place this order. Please try again.");
     } finally {
-      if (selectedPayment.id !== "razorpay" || !paymentModalOpen) setIsSubmitting(false);
+      if (selectedPayment.id !== "razorpay" && selectedPayment.id !== "aluu" || !paymentModalOpen) setIsSubmitting(false);
     }
   };
 

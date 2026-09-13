@@ -90,7 +90,7 @@ const OrderDetailsPage = () => {
     setLoading(true);
     supabase
       .from("orders")
-      .select("id, product_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, razorpay_order_id, unit_selling_price, created_at, updated_at, metadata")
+      .select("id, product_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, razorpay_order_id, aluu_order_id, unit_selling_price, created_at, updated_at, metadata")
       .eq("id", orderId)
       .eq("user_id", user.id)
       .single()
@@ -235,6 +235,14 @@ const OrderDetailsPage = () => {
                       <span className="inline-flex items-center">
                         <span className="font-mono text-xs">{order.razorpay_order_id}</span>
                         <CopyButton value={order.razorpay_order_id} />
+                      </span>
+                    </DetailRow>
+                  )}
+                  {order.aluu_order_id && (
+                    <DetailRow label="Gateway order">
+                      <span className="inline-flex items-center">
+                        <span className="font-mono text-xs">{order.aluu_order_id}</span>
+                        <CopyButton value={order.aluu_order_id} />
                       </span>
                     </DetailRow>
                   )}

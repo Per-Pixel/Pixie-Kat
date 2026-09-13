@@ -31,9 +31,11 @@
  *   GET    /api/catalog/games/:slug            Active game + fields + products
  *
  * Payments:
- *   POST   /api/place-order                    Place wallet or Razorpay order
+ *   POST   /api/place-order                    Place wallet, Razorpay, or Aluu order
  *   POST   /api/razorpay/verify-payment        Verify a Checkout payment signature
  *   POST   /api/webhooks/razorpay              Receive signed payment webhooks
+ *   POST   /api/aluu/check-payment             Poll Aluu order status after redirect
+ *   POST   /api/webhooks/aluu                  Receive signed Aluu payment webhooks
  *
  * Proxied RPCs (service_role only — functions no longer callable by anon/authenticated):
  *   POST   /api/admin/analytics                Get admin analytics dashboard data
@@ -51,6 +53,7 @@ import { validateEmail } from './utils/validation.js';
 import * as smileOne from './smileone.js';
 import * as smileCoin from './smilecoin.js';
 import * as razorpay from './razorpay.js';
+import * as aluu from './aluu.js';
 
 const app = express();
 const PORT = config.port;
@@ -59,7 +62,7 @@ app.use(helmet());
 app.use(express.json({
   limit: '64kb',
   verify(req, _res, buffer) {
-    if (req.originalUrl.startsWith('/api/webhooks/razorpay')) req.rawBody = Buffer.from(buffer);
+    if (req.originalUrl.startsWith('/api/webhooks/razorpay') || req.originalUrl.startsWith('/api/webhooks/aluu')) req.rawBody = Buffer.from(buffer);
   },
 }));
 
@@ -1604,6 +1607,84 @@ app.post('/api/place-order', placeOrderLimiter, async (req, res) => {
       }
     }
 
+    if (paymentMethod === 'aluu') {
+      if (!aluu.isConfigured()) throw new Error('Aluu Pay is not configured on the payment server');
+
+      const product = await getActiveProductForPayment(product_id);
+      const productCurrency = String(product.currency || '').trim().toUpperCase();
+      const requestedCurrency = String(currency).trim().toUpperCase();
+      if (!productCurrency || requestedCurrency !== productCurrency) {
+        throw new Error('Product price or currency changed. Refresh and try again.');
+      }
+
+      const totalAmount = Number(total_amount);
+      if (!Number.isFinite(totalAmount) || totalAmount <= 0) throw new Error('Payment amount must be greater than zero.');
+      const orderMetadata = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
+      let orderId = null;
+
+      try {
+        const { data, error: rpcError } = await supabaseAdmin.rpc('place_pending_order', {
+          p_user_id: user.id,
+          p_product_id: product.id,
+          p_product_name: product.name,
+          p_total_amount: totalAmount,
+          p_currency: productCurrency,
+          p_payment_method: 'aluu',
+          p_metadata: orderMetadata,
+        });
+        if (rpcError) throw rpcError;
+        orderId = data;
+
+        // Use orderId as external order_id for Aluu — guarantees uniqueness
+        const customerMobile = String(orderMetadata.customer_mobile || orderMetadata.contact_phone || '0000000000').replace(/\D/g, '').slice(-10) || '0000000000';
+        const redirectUrl = config.frontendUrl
+          ? `${config.frontendUrl}/account/orders/${orderId}`
+          : String(req.headers.origin || req.headers.referer || 'http://localhost:5173').replace(/\/+$/, '') + `/account/orders/${orderId}`;
+
+        const providerOrder = await aluu.createOrder({
+          amount: totalAmount,
+          orderId,
+          customerMobile,
+          redirectUrl,
+          remark1: `PixieKat order ${orderId}`,
+          remark2: product.name,
+        });
+
+        const { error: updateError } = await supabaseAdmin
+          .from('orders')
+          .update({
+            aluu_order_id: providerOrder.orderId,
+            metadata: { ...orderMetadata, aluu_order_id: providerOrder.orderId, aluu_payment_url: providerOrder.paymentUrl },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', orderId)
+          .eq('status', 'pending');
+        if (updateError) throw updateError;
+
+        return res.json({
+          ok: true,
+          orderId,
+          aluu: {
+            paymentUrl: providerOrder.paymentUrl,
+            providerOrderId: providerOrder.orderId,
+          },
+        });
+      } catch (err) {
+        if (orderId) {
+          await supabaseAdmin
+            .from('orders')
+            .update({
+              status: 'failed',
+              metadata: { ...orderMetadata, payment_error: 'Aluu order creation failed', payment_error_at: new Date().toISOString() },
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', orderId)
+            .eq('status', 'pending');
+        }
+        throw err;
+      }
+    }
+
     if (paymentMethod && paymentMethod !== 'wallet') {
       const { data: orderId, error: rpcError } = await supabaseAdmin.rpc('place_pending_order', {
         p_user_id: user.id,
@@ -1725,6 +1806,179 @@ app.post('/api/webhooks/razorpay', async (req, res) => {
     return res.json({ ok: true, orderId: order.id, status: confirmation.status, already: confirmation.already });
   } catch (err) {
     console.error('[webhooks/razorpay]', err.message);
+    return res.status(500).json({ ok: false, error: 'Webhook processing failed' });
+  }
+});
+
+// ── Aluu Pay: check payment status (user-facing polling endpoint) ────────────
+const aluuCheckPaymentLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many payment status checks. Please wait a minute.' },
+});
+
+app.post('/api/aluu/check-payment', aluuCheckPaymentLimiter, async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ ok: false, error: 'Authorization required' });
+  }
+  const token = authHeader.slice(7);
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) {
+    return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
+  }
+
+  const { orderId } = req.body || {};
+  if (!orderId) {
+    return res.status(400).json({ ok: false, error: 'orderId is required' });
+  }
+  if (!aluu.isConfigured()) {
+    return res.status(503).json({ ok: false, error: 'Aluu Pay is not configured on the payment server' });
+  }
+
+  try {
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from('orders')
+      .select('id, user_id, total_amount, currency, status, payment_method, payment_id, aluu_order_id, metadata')
+      .eq('id', orderId)
+      .maybeSingle();
+    if (orderError || !order) throw new Error('Order not found');
+    if (order.user_id !== user.id) return res.status(403).json({ ok: false, error: 'Access denied' });
+    if (order.payment_method !== 'aluu') throw new Error('Order is not an Aluu Pay order');
+
+    // Already confirmed
+    if (['processing', 'completed'].includes(order.status) && order.payment_id) {
+      return res.json({ ok: true, orderId: order.id, status: order.status, paymentId: order.payment_id, already: true });
+    }
+    if (order.status === 'failed' || order.status === 'refunded') {
+      return res.json({ ok: false, orderId: order.id, status: order.status, error: 'Order is no longer payable' });
+    }
+
+    // Poll Aluu for current status — use our orderId as the external order_id
+    const statusResult = await aluu.checkOrderStatus(orderId);
+
+    if (statusResult.txnStatus === 'COMPLETED' || statusResult.status === 'COMPLETED') {
+      const paymentId = statusResult.utr || `aluu_${statusResult.orderId}`;
+      const aluuMeta = {
+        aluu_txn_status: statusResult.txnStatus,
+        aluu_utr: statusResult.utr,
+        aluu_amount: statusResult.amount,
+        aluu_date: statusResult.date,
+        verified_at: new Date().toISOString(),
+      };
+
+      // Mark order as processing (idempotent)
+      if (order.status === 'pending') {
+        const { error: updateError } = await supabaseAdmin
+          .from('orders')
+          .update({
+            status: 'processing',
+            payment_id: paymentId,
+            updated_at: new Date().toISOString(),
+            metadata: { ...(order.metadata || {}), aluu_payment: aluuMeta },
+          })
+          .eq('id', orderId)
+          .eq('status', 'pending');
+        if (updateError) throw updateError;
+      }
+
+      return res.json({ ok: true, orderId: order.id, status: 'processing', paymentId });
+    }
+
+    if (statusResult.txnStatus === 'FAILED' || statusResult.status === 'FAILED') {
+      // Mark order failed if still pending
+      if (order.status === 'pending') {
+        await supabaseAdmin
+          .from('orders')
+          .update({
+            status: 'failed',
+            updated_at: new Date().toISOString(),
+            metadata: { ...(order.metadata || {}), aluu_status: 'FAILED', failed_at: new Date().toISOString() },
+          })
+          .eq('id', orderId)
+          .eq('status', 'pending');
+      }
+      return res.json({ ok: false, orderId: order.id, status: 'failed', error: 'Payment failed or expired' });
+    }
+
+    // Still pending on Aluu's side
+    return res.json({ ok: false, orderId: order.id, status: 'pending', waiting: true });
+  } catch (err) {
+    console.error('[aluu/check-payment]', err.message);
+    return res.status(400).json({ ok: false, error: 'Payment status check failed. Please try again.' });
+  }
+});
+
+// ── Aluu Pay: webhook ────────────────────────────────────────────────────────
+app.post('/api/webhooks/aluu', async (req, res) => {
+  const signature = req.headers['x-webhook-signature'];
+  const timestamp = req.headers['x-webhook-timestamp'];
+  if (!aluu.verifyWebhookSignature(req.rawBody, signature, timestamp)) {
+    return res.status(401).json({ ok: false, error: 'Invalid webhook signature' });
+  }
+
+  const body = req.body || {};
+  const webhookOrderId = body.order_id || body.orderId;
+  const txnStatus = String(body.txnStatus || body.status || '').toUpperCase();
+
+  if (!webhookOrderId) return res.status(400).json({ ok: false, error: 'Missing order_id in webhook' });
+  if (txnStatus !== 'COMPLETED' && txnStatus !== 'SUCCESS') {
+    return res.json({ ok: true, ignored: true });
+  }
+
+  try {
+    // Look up by our orderId (we used it as external order_id with Aluu)
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from('orders')
+      .select('id, user_id, total_amount, currency, status, payment_method, payment_id, aluu_order_id, metadata')
+      .eq('id', webhookOrderId)
+      .maybeSingle();
+
+    // If not found by our id, try aluu_order_id
+    let resolvedOrder = order;
+    if (!resolvedOrder && !orderError) {
+      const { data: orderByAluu } = await supabaseAdmin
+        .from('orders')
+        .select('id, user_id, total_amount, currency, status, payment_method, payment_id, aluu_order_id, metadata')
+        .eq('aluu_order_id', webhookOrderId)
+        .maybeSingle();
+      resolvedOrder = orderByAluu;
+    }
+    if (!resolvedOrder) return res.json({ ok: true, ignored: true });
+    if (resolvedOrder.payment_method !== 'aluu') return res.json({ ok: true, ignored: true });
+
+    // Already processed
+    if (['processing', 'completed'].includes(resolvedOrder.status) && resolvedOrder.payment_id) {
+      return res.json({ ok: true, orderId: resolvedOrder.id, status: resolvedOrder.status, already: true });
+    }
+
+    const paymentId = body.utr ? String(body.utr) : `aluu_${webhookOrderId}`;
+    const aluuMeta = {
+      aluu_txn_status: txnStatus,
+      aluu_utr: body.utr || null,
+      aluu_amount: body.amount || null,
+      aluu_date: body.date || null,
+      verified_at: new Date().toISOString(),
+      source: 'webhook',
+    };
+
+    const { error: updateError } = await supabaseAdmin
+      .from('orders')
+      .update({
+        status: 'processing',
+        payment_id: paymentId,
+        updated_at: new Date().toISOString(),
+        metadata: { ...(resolvedOrder.metadata || {}), aluu_payment: aluuMeta },
+      })
+      .eq('id', resolvedOrder.id)
+      .eq('status', 'pending');
+    if (updateError) throw updateError;
+
+    return res.json({ ok: true, orderId: resolvedOrder.id, status: 'processing' });
+  } catch (err) {
+    console.error('[webhooks/aluu]', err.message);
     return res.status(500).json({ ok: false, error: 'Webhook processing failed' });
   }
 });
