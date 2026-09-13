@@ -199,6 +199,11 @@ export const smilecoin = {
     const { data } = await api.get<SmMismatchesResponse>(`/smilecoin/mismatches?limit=${limit}`);
     return data;
   },
+
+  cleanupMismatches: async (): Promise<{ ok: boolean; cleaned: number; total_scanned: number }> => {
+    const { data } = await api.post<{ ok: boolean; cleaned: number; total_scanned: number }>('/smilecoin/mismatches/cleanup');
+    return data;
+  },
 };
 
 /** Extract the SKU array from a productlist response (handles multiple response shapes). */

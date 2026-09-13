@@ -10,6 +10,7 @@ interface DocLink {
 }
 
 const contentEditors: DocLink[] = [
+  { label: 'JJK Cheaper Guide', path: '/pages/events/jjk-cheaper', description: 'Draft event page — sections, placements, publish' },
   { label: 'Hero Section', path: '/pages/homepage/hero', description: 'Homepage hero images, text & CTA' },
   { label: 'About Section', path: '/pages/homepage/about', description: 'Homepage about block — copy & image (animation preserved on storefront)' },
   { label: 'Products Page', path: '/pages/products', description: 'Hero carousel slides for /games' },
@@ -82,6 +83,7 @@ const DocumentationPage: React.FC = () => (
           <li><code className="text-xs bg-gray-100 px-1 rounded">023_about_page_settings.sql</code> — client /about page <code className="text-xs bg-gray-100 px-1 rounded">about_page_settings</code> (separate from homepage)</li>
           <li><code className="text-xs bg-gray-100 px-1 rounded">024_products_page_settings.sql</code> — <code className="text-xs bg-gray-100 px-1 rounded">products_page_settings</code> (Games page hero slides)</li>
           <li><code className="text-xs bg-gray-100 px-1 rounded">025_appearance_settings.sql</code> — <code className="text-xs bg-gray-100 px-1 rounded">appearance_settings</code> (favicon, logo, tab titles, music)</li>
+          <li><code className="text-xs bg-gray-100 px-1 rounded">027_event_jjk_cheaper_settings.sql</code> — <code className="text-xs bg-gray-100 px-1 rounded">event_jjk_cheaper_settings</code> (JJK cheaper-guide event CMS, default draft)</li>
         </ul>
         <p>
           Branding lives under <strong>Settings → Appearance</strong> (not Content). Apply migrations{' '}

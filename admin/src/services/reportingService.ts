@@ -20,6 +20,8 @@ export interface ReportOrder {
   currency: string;
   status: string;
   payment_method?: string | null;
+  payment_id?: string | null;
+  razorpay_order_id?: string | null;
   unit_selling_price?: number | string | null;
   unit_cost_price?: number | string | null;
   metadata?: Record<string, unknown> | null;
@@ -100,7 +102,7 @@ export async function getAdminReportData(): Promise<AdminReportData> {
       .limit(5000),
     supabase
       .from('orders')
-      .select('id, user_id, product_id, product_name, quantity, total_amount, currency, status, payment_method, unit_selling_price, unit_cost_price, metadata, created_at, updated_at, profiles:user_id(name, email)')
+      .select('id, user_id, product_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, razorpay_order_id, unit_selling_price, unit_cost_price, metadata, created_at, updated_at, profiles:user_id(name, email)')
       .order('created_at', { ascending: false })
       .limit(5000),
     supabase

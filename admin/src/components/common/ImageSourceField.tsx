@@ -51,7 +51,7 @@ const ImageSourceField: React.FC<ImageSourceFieldProps> = ({
     setLoadingMedia(true);
     try {
       const result = await listMedia({ mimeType: 'image/', limit: 48 });
-      setMedia(result.data);
+      setMedia(result.data.filter((item) => item.bucket === 'public-media'));
     } catch (err) {
       toast.error((err as Error).message || 'Could not load storage images');
     } finally {

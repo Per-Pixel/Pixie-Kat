@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Menu, LogOut, Bell, Search, User, ClipboardList, Gamepad2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Sidebar from '../components/Sidebar';
 
 const AdminLayout: React.FC = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : true
+  );
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -13,17 +16,24 @@ const AdminLayout: React.FC = () => {
     <div className="flex h-screen bg-gray-50">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header */}
         <header className="z-10 bg-white border-b border-gray-200 shadow-sm">
           <div className="flex items-center justify-between px-5 py-3">
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setSidebarOpen(prev => !prev)}
+              <motion.button
+                type="button"
+                onClick={() => setSidebarOpen((prev) => !prev)}
                 className="p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+                aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+                aria-expanded={sidebarOpen}
+                title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+                whileTap={{ scale: 0.9 }}
+                animate={{ rotate: sidebarOpen ? 0 : 180 }}
+                transition={{ type: 'spring', stiffness: 420, damping: 28 }}
               >
                 <Menu className="w-5 h-5" />
-              </button>
+              </motion.button>
               <div className="flex items-center gap-2">
                 <Gamepad2 className="w-4 h-4 text-violet-500" />
                 <span className="text-sm font-bold text-gray-800 tracking-wide">PixieKat</span>

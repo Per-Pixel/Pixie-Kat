@@ -514,15 +514,6 @@ const StoragePage: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => navigate('/storage/pinterest')}
-            className="btn btn-sm bg-gradient-to-r from-pink-600 to-rose-600 text-white hover:from-pink-500 hover:to-rose-500 border-none shadow-sm"
-            title="Grep photos and videos from Pinterest boards"
-          >
-            <Wand2 className="w-4 h-4 mr-1.5" />
-            Pinterest Grepper
-          </button>
-
-          <button
             onClick={handleSyncBucket}
             disabled={syncing}
             className="btn btn-outline btn-sm"
@@ -1628,7 +1619,7 @@ const DetailPanel: React.FC<{
 
         {/* Public URL */}
         <div>
-          <span className="label mb-1 block text-xs text-gray-500 font-semibold">Public CDN URL</span>
+          <span className="label mb-1 block text-xs text-gray-500">Access URL</span>
           <div className="flex gap-2">
             <input readOnly value={record.public_url} className="input text-xs flex-1" />
             <button
