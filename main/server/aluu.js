@@ -80,7 +80,7 @@ export async function createOrder({ amount, orderId, customerMobile, redirectUrl
       payload = { message: raw.slice(0, 200) };
     }
 
-    if (!response.ok || payload.status === false) {
+    if (!response.ok || String(payload.status) === 'false' || payload.status === false) {
       throw new Error(payload?.message || `Aluu API request failed: HTTP ${response.status}`);
     }
 
@@ -134,7 +134,7 @@ export async function checkOrderStatus(orderId) {
       payload = { message: raw.slice(0, 200) };
     }
 
-    if (payload.status === 'ERROR') {
+    if (String(payload.status).toUpperCase() === 'ERROR' || String(payload.status) === 'false' || payload.status === false) {
       throw new Error(payload?.message || 'Aluu order status check failed.');
     }
 

@@ -95,6 +95,50 @@ test('createOrder sends proper form-urlencoded payload and parses success respon
   }
 });
 
+test('createOrder surfaces API error when Aluu returns status:"false" (string)', async () => {
+  const origFetch = globalThis.fetch;
+  const origToken = process.env.ALUU_USER_TOKEN;
+  process.env.ALUU_USER_TOKEN = 'token_abc123';
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    text: async () => JSON.stringify({ status: 'false', message: 'Merchant Not Linked' }),
+  });
+
+  try {
+    await assert.rejects(
+      () => createOrder({ amount: 1, orderId: 'o1', customerMobile: '9999999999', redirectUrl: 'https://example.com' }),
+      /Merchant Not Linked/,
+    );
+  } finally {
+    globalThis.fetch = origFetch;
+    if (origToken !== undefined) process.env.ALUU_USER_TOKEN = origToken;
+    else delete process.env.ALUU_USER_TOKEN;
+  }
+});
+
+test('checkOrderStatus surfaces API error when Aluu returns status:"false" (string)', async () => {
+  const origFetch = globalThis.fetch;
+  const origToken = process.env.ALUU_USER_TOKEN;
+  process.env.ALUU_USER_TOKEN = 'token_abc123';
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    text: async () => JSON.stringify({ status: 'false', message: 'Order not found' }),
+  });
+
+  try {
+    await assert.rejects(
+      () => checkOrderStatus('o1'),
+      /Order not found/,
+    );
+  } finally {
+    globalThis.fetch = origFetch;
+    if (origToken !== undefined) process.env.ALUU_USER_TOKEN = origToken;
+    else delete process.env.ALUU_USER_TOKEN;
+  }
+});
+
 test('checkOrderStatus sends order_id and parses SUCCESS status', async () => {
   const origFetch = globalThis.fetch;
   const origToken = process.env.ALUU_USER_TOKEN;
