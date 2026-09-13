@@ -1,75 +1,29 @@
 # Last Summary
 
-## Session: v1.0 launch-hardening — typecheck cleared, RLS gap closed
+## Session: Aluu Pay Verification, Commit, Push, and AWS Deploy
 
-Continued the launch-hardening sprint. Cleared the top launch blocker.
+Verified the Aluu Pay (UPI Gateway) second-payment integration end-to-end, then committed, pushed, and deployed to AWS on both required branches.
 
-### Completed
+### Verification (all passing)
 
-- Finished the in-flight admin typecheck pass (79 errors → 0). The previous
-  session's uncommitted work had reached 2 errors; fixed the last two by
-  casting DB row `status`/`role` to `RegisteredUser` unions in
-  `admin/src/pages/ManageUsers.tsx`.
-- Committed the pending WIP as two grouped commits:
-  - `fix(admin): resolve remaining TypeScript typecheck errors` (42 files —
-    AuthContext export, UserRole enum→const for `erasableSyntaxOnly`,
-    `any`→`unknown` across services/types, UserFilters status/sortBy widening,
-    `useAuthActions` refreshToken→refreshSession fix)
-  - `fix(main): clear lint warnings and normalize Tailwind class order`
-    (37 files — `fetchPriority` casing, missing hook dep, unused
-    imports/catch params, class ordering)
-- Audited RLS coverage for Settings persistence and KYC updates:
-  - `store_settings`, `admin_notification_settings`, `admin_security_settings`
-    all have admin INSERT+UPDATE (+read) policies — upserts from
-    `Settings.tsx` are covered.
-  - Found a real gap: `user_kyc` had SELECT+UPDATE but no INSERT policy, so
-    `KycTab`'s insert fallback failed for profiles predating the
-    `handle_new_profile()` trigger. Added
-    `supabase/migrations/034_kyc_admin_insert.sql`.
-- Added `main/server/tests/rls-coverage.test.js` — scans all migrations and
-  asserts the settings/KYC tables the admin writes have required policies.
-  Would have caught the `user_kyc` gap.
+- Server tests (`npm test` in `main/server`): 34/34 passing, including 3 Aluu tests (createOrder, checkOrderStatus, webhook signature).
+- Frontend build (`npm run build` in `main`): clean, 0 errors.
+- Local `.env` secrets present: `ALUU_USER_TOKEN` (64 chars), `ALUU_WEBHOOK_SECRET` (64 chars); `ALUU_API_URL` correctly unset (defaults to `https://pay.aluu.in`).
+- `.env` is gitignored; no secrets committed.
 
-- Investigated `main` lint warnings (real count was 45, not 729 — summary
-  figure was stale). Fixed all 7 `react-hooks/exhaustive-deps`:
-  - `GamePage` contact auto-fill now reacts to profile load (fields could
-    stay empty if profile lagged behind `isAuthenticated`).
-  - `TrendingGames` scroll-dot clamping now tracks real `trendingGames.length`
-    (stale closure clamped to the mount-time count).
-  - `GamePage` + `batch-order` player verification now track
-    `smile_coin_product` metadata they send (hoisted to primitive deps).
-  - `DropdownMenu` tracks `reduced`; `BottomNav` closes More menu
-    unconditionally on route change (dep was deliberately omitted — adding it
-    would break the menu); `App.jsx` dead preload array moved inside effect.
-- Left 4 `no-constant-binary-expression` in `Hero.jsx` — `false &&` is an
-  intentional kill-switch on two disabled desktop hero blocks.
+### Git (both branches pushed)
 
-### Verification
+- `main`: committed `177f51a` (feat: Aluu Pay UPI gateway) — aluu.js, tests, index.js wiring, GamePage card, OrderDetailsPage, useUserOrders, migration 035, .env.example, CHANGELOG. Pushed to origin/main.
+- `admin`: merged origin/admin sync commit (clean, no conflicts), synced missing migrations 033–035 from main as `375c9b9`. Pushed to origin/admin. Admin OrderDrawer uses generic `payment_method`/`payment_id` fields, so Aluu orders display without code changes.
 
-- `admin`: `tsc -b` clean (0 errors), `npm run build` passes, tests 3/3,
-  lint 24 warnings / 0 errors (was 149).
-- `main`: `npm run test` passes (1 test); `npm run build` passes;
-  lint 38 warnings / 0 errors (all cosmetic or intentional dead code).
-- `main/server`: 29/29 tests pass.
-- Working tree clean; `main` is 11 commits ahead of origin.
+### AWS (Elastic Beanstalk)
 
-### Decisions
+- Set `ALUU_USER_TOKEN` + `ALUU_WEBHOOK_SECRET` on `pixiekat-api-prod` (were missing).
+- `eb deploy pixiekat-api-prod`: deployed version `app-260913_152313628507`, Status Ready, Health Green.
+- Frontends (`main`, `admin`) auto-deploy via AWS Amplify on git push (per `amplify.yml`).
 
-- CMS page-builder + advanced analytics **deferred to post-launch**. The
-  shipped per-page content editors (`store_settings` JSONB) and the
-  `/analytics` + Sales Overview pages cover launch needs.
-- Dead scaffolding removed (13 files, ~2,362 lines): `analyticsService`
-  (zero call sites), `pageService` + routed-but-broken `Trash` page
-  (its `/api/admin/pages` backend was never implemented in index.js),
-  unrouted `MediaLibrary` + `mediaService` default adapter, cms
-  components, `types/cms`, and stale `schema.sql`/`CMS_API_SETUP.md`
-  docs for the unbuilt Express CMS API.
-- Migration `034_kyc_admin_insert.sql` **applied to Supabase** by user.
+### Remaining (manual)
 
-### Remaining before v1.0 tag
-
-1. Reduce remaining lint warnings (`main`: 38 cosmetic, `admin`: 22) and
-   server console logging — polish, non-blocking.
-2. Run end-to-end smoke tests against staging (env changes + migration
-   034 are in).
-3. Push to origin when ready (currently ahead by 1+).
+1. Apply migration `supabase/migrations/035_aluu_checkout.sql` in Supabase SQL editor (idempotent — `IF NOT EXISTS`). No Supabase CLI installed locally.
+2. In Aluu dashboard, configure webhook URL: `https://pixiekat-api-prod.eba-p22mabr9.ap-south-1.elasticbeanstalk.com/api/webhooks/aluu` (or `https://api.pixiekat.store/api/webhooks/aluu` if custom domain is live).
+3. Confirm Amplify builds for both `main` and `admin` branches succeeded after the pushes.
