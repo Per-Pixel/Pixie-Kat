@@ -1,11 +1,12 @@
 import clsx from "clsx";
 
-const Button = ({ id, title, rightIcon, leftIcon, containerClass, onClick }) => {
+const Button = ({ id, title, rightIcon, leftIcon, containerClass, onClick, morph = true }) => {
   return (
     <button
       id={id}
       className={clsx(
         "group relative z-10 w-fit cursor-pointer overflow-hidden rounded-full bg-violet-50 px-7 py-3 text-black",
+        morph && "btn-morph",
         containerClass
       )}
       onClick={onClick}

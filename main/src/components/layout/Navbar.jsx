@@ -228,6 +228,7 @@ const NavBar = () => {
               <Link to="/login" className="ml-6">
                 <Button
                   title="Login"
+                  morph={false}
                   containerClass="bg-white hover:bg-[#0E041D] rounded-md px-4 py-2 !text-[#0E041D] hover:!text-white transition-colors duration-200"
                 />
               </Link>

@@ -63,6 +63,59 @@ html {
     @apply bg-black rounded-lg border;
   }
 
+  /* Pill → angled menu-tile hover morph for the shared Button component.
+     The cut-paper silhouette grows with transforms so surrounding layout stays fixed. */
+  .btn-morph {
+    border-radius: 20px;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    transform-origin: center;
+    transition-property: border-radius, clip-path, transform;
+    transition-duration: 260ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .btn-morph > span,
+  .btn-morph > svg {
+    transform-origin: center;
+    transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-morph:hover {
+      border-radius: 5px;
+      clip-path: polygon(0 0, 100% 3px, 100% calc(100% - 2px), 1px 100%);
+      transform: translateY(-1px) scaleY(1.14);
+    }
+
+    .btn-morph:hover > span,
+    .btn-morph:hover > svg {
+      transform: scaleY(0.8772);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-morph,
+    .btn-morph > span,
+    .btn-morph > svg,
+    .btn-morph > span > div {
+      transition: none !important;
+    }
+
+    .btn-morph:hover,
+    .btn-morph:hover > span,
+    .btn-morph:hover > svg {
+      transform: none;
+    }
+
+    .btn-morph:hover > span > div:first-child {
+      transform: translateY(0) skewY(0) !important;
+    }
+
+    .btn-morph:hover > span > div:last-child {
+      transform: translateY(164%) skewY(12deg) !important;
+    }
+  }
+
   .absolute-center {
     @apply absolute top-1/2 left-1/2 translate-x-[-50%] translate-y-[-50%];
   }
