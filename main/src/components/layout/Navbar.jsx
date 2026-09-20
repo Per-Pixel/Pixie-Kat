@@ -9,6 +9,7 @@ import { Link, useLocation } from "react-router-dom";
 import { publicMediaUrl } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { useAppearance } from "../../contexts/AppearanceContext";
+import { usePreferences } from "../../contexts/PreferencesContext";
 import { useJjkCheaperPlacement } from "../../hooks/useJjkCheaperPlacement";
 import Button from "../common/Button";
 import DropdownMenu from "../common/DropdownMenu";
@@ -26,9 +27,11 @@ const darkTextTopRoutes = ["/games", "/pricing", "/how-it-works", "/faq", "/supp
 const NavBar = () => {
   const { isAuthenticated, profile } = useAuth();
   const appearance = useAppearance();
+  const { preferences, setPreference } = usePreferences();
+  const musicEnabled = preferences.music;
   const jjkNavPromo = useJjkCheaperPlacement("navbar");
-  const [isAudioPlaying, setIsAudioPlaying] = useState(true);
-  const [isIndicatorActive, setIsIndicatorActive] = useState(true);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(musicEnabled);
+  const [isIndicatorActive, setIsIndicatorActive] = useState(musicEnabled);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
 
@@ -58,8 +61,7 @@ const NavBar = () => {
   const walletBalance = Number(profile?.wallet_balance ?? 0);
 
   const toggleAudioIndicator = () => {
-    setIsAudioPlaying((prev) => !prev);
-    setIsIndicatorActive((prev) => !prev);
+    setPreference("music", !musicEnabled);
   };
 
   const toggleMenu = () => {
@@ -67,13 +69,40 @@ const NavBar = () => {
   };
 
   useEffect(() => {
-    if (!audioElementRef.current) return;
+    const audio = audioElementRef.current;
+    if (!audio) return;
 
-    audioElementRef.current.volume = Number.isFinite(musicVolume) ? musicVolume : 0.5;
-    audioElementRef.current.playbackRate = Math.min(2, Math.max(0.5, musicRate));
-    audioElementRef.current.muted = true;
+    audio.volume = Number.isFinite(musicVolume) ? musicVolume : 0.5;
+    audio.playbackRate = Math.min(2, Math.max(0.5, musicRate));
+
+    if (!musicEnabled) {
+      audio.pause();
+      audio.muted = true;
+      setIsMuted(true);
+      setIsAudioPlaying(false);
+      setIsIndicatorActive(false);
+      return;
+    }
+
+    audio.muted = true;
+
+    const resumeAudio = () => {
+      if (!audioElementRef.current) return;
+      audioElementRef.current.muted = false;
+      setIsMuted(false);
+      audioElementRef.current.play()
+        .then(() => {
+          setIsAudioPlaying(true);
+          setIsIndicatorActive(true);
+          document.removeEventListener('click', resumeAudio);
+          document.removeEventListener('touchstart', resumeAudio);
+          document.removeEventListener('keydown', resumeAudio);
+        })
+        .catch(() => {});
+    };
 
     const attemptPlay = () => {
+      if (!audioElementRef.current) return;
       audioElementRef.current.play()
         .then(() => {
           setTimeout(() => {
@@ -85,21 +114,6 @@ const NavBar = () => {
           }, 1000);
         })
         .catch(() => {
-          const resumeAudio = () => {
-            if (!audioElementRef.current) return;
-            audioElementRef.current.muted = false;
-            setIsMuted(false);
-            audioElementRef.current.play()
-              .then(() => {
-                setIsAudioPlaying(true);
-                setIsIndicatorActive(true);
-                document.removeEventListener('click', resumeAudio);
-                document.removeEventListener('touchstart', resumeAudio);
-                document.removeEventListener('keydown', resumeAudio);
-              })
-              .catch(() => {});
-          };
-
           document.addEventListener('click', resumeAudio, { once: true });
           document.addEventListener('touchstart', resumeAudio, { once: true });
           document.addEventListener('keydown', resumeAudio, { once: true });
@@ -107,13 +121,17 @@ const NavBar = () => {
     };
 
     attemptPlay();
-    setTimeout(attemptPlay, 500);
+    const retryTimer = setTimeout(attemptPlay, 500);
     window.addEventListener('load', attemptPlay);
 
     return () => {
+      clearTimeout(retryTimer);
       window.removeEventListener('load', attemptPlay);
+      document.removeEventListener('click', resumeAudio);
+      document.removeEventListener('touchstart', resumeAudio);
+      document.removeEventListener('keydown', resumeAudio);
     };
-  }, [musicUrl, musicRate, musicVolume]);
+  }, [musicEnabled, musicUrl, musicRate, musicVolume]);
 
   useEffect(() => {
     if (!audioElementRef.current) return;
@@ -293,15 +311,7 @@ const NavBar = () => {
         </nav>
       </header>
 
-      {isMenuOpen ? (
-        <DropdownMenu
-          onClose={() => {
-            setTimeout(() => {
-              setIsMenuOpen(false);
-            }, 500);
-          }}
-        />
-      ) : null}
+      {isMenuOpen ? <DropdownMenu onClose={() => setIsMenuOpen(false)} /> : null}
     </div>
   );
 };

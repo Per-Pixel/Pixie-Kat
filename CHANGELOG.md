@@ -12,6 +12,10 @@
 ### Tests
 - Add server unit tests for Aluu order creation, status checks, and webhook signature verification.
 
+### Storefront
+- Replace the fullscreen menu with a scroll-synchronized typography carousel and video-card deck, with restrained parallax, keyboard controls, and touch access.
+- Add account Site Preferences (background music, intro animation, reduced motion) persisted per device via `pixie_preferences` in `localStorage`.
+
 ## [1.0.0] - 2026-08-26
 
 ### Security

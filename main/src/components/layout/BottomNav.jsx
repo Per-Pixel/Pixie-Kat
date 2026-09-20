@@ -1,7 +1,8 @@
-import { FaBars, FaGamepad, FaHeadset, FaHome, FaUser } from "react-icons/fa";
+import { FaBars, FaGamepad, FaHeadset, FaHome, FaLayerGroup, FaUser } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import DropdownMenu from "../common/DropdownMenu";
 import MoreMenu from "./MoreMenu";
 
 const BottomNav = () => {
@@ -10,10 +11,12 @@ const BottomNav = () => {
   const { isAuthenticated } = useAuth();
   const [isMoreMenuMounted, setIsMoreMenuMounted] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isExploreOpen, setIsExploreOpen] = useState(false);
 
   const navItems = [
     { id: "home", path: "/", icon: <FaHome />, label: "Home" },
     { id: "games", path: "/games", icon: <FaGamepad />, label: "Games" },
+    { id: "explore", path: null, icon: <FaLayerGroup />, label: "Explore", isStatic: true },
     { id: "support", path: "/support", icon: <FaHeadset />, label: "Support" },
     { id: "account", path: isAuthenticated ? "/account" : "/auth", icon: <FaUser />, label: "Account" },
     ...(isAuthenticated ? [{ id: "more", path: null, icon: <FaBars />, label: "More", isStatic: true }] : []),
@@ -21,6 +24,7 @@ const BottomNav = () => {
 
   const isActive = (item) => {
     if (item.id === "more") return isMoreMenuOpen;
+    if (item.id === "explore") return isExploreOpen;
     if (item.isStatic) return false;
     if (item.path === "/") return location.pathname === "/";
     return location.pathname.startsWith(item.path);
@@ -28,6 +32,7 @@ const BottomNav = () => {
 
   useEffect(() => {
     setIsMoreMenuOpen(false);
+    setIsExploreOpen(false);
   }, [location.pathname]);
 
   const openMoreMenu = () => {
@@ -43,11 +48,18 @@ const BottomNav = () => {
 
   const handleNavClick = (item) => {
     if (item.id === "more") {
+      setIsExploreOpen(false);
       if (isMoreMenuOpen) {
         closeMoreMenu();
       } else {
         openMoreMenu();
       }
+      return;
+    }
+
+    if (item.id === "explore") {
+      closeMoreMenu();
+      setIsExploreOpen((prev) => !prev);
       return;
     }
 
@@ -111,6 +123,8 @@ const BottomNav = () => {
           onExited={() => setIsMoreMenuMounted(false)}
         />
       ) : null}
+
+      {isExploreOpen ? <DropdownMenu onClose={() => setIsExploreOpen(false)} /> : null}
     </div>
   );
 };

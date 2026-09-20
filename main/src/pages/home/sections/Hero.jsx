@@ -9,8 +9,10 @@ import { BentoTilt } from "./Features";
 import SlideTextButton from "../../../animations/components/SlideTextButton";
 import FlipCard from "../../../components/common/FlipCard";
 import { useParallaxScroll } from "../../../animations/hooks/useParallaxScroll";
+import { useReducedMotion } from "../../../hooks/useReducedMotion";
 import MobileSquareButton from "../../../components/common/MobileSquareButton";
 import Loading from "../../../components/common/Loading";
+import { readPreferences } from "../../../lib/preferences";
 import { publicMediaUrl, resolveMediaUrls, supabase } from "../../../lib/supabase";
 
 const defaultHeroSettings = {
@@ -49,7 +51,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 const Hero = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => readPreferences().intro);
   const jinxRef = useRef(null);
   const fazeLogoRef = useRef(null);
   const lunoxRef = useRef(null);
@@ -122,7 +124,7 @@ const Hero = () => {
   };
 
   // Apply parallax scroll with reduced motion gating
-  const prefersReduced = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const prefersReduced = useReducedMotion();
   useParallaxScroll(parallaxContainerRef, { 
     speed: prefersReduced ? 0 : 0.2, 
     direction: "vertical", 

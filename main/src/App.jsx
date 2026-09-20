@@ -6,6 +6,8 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 
 import { AuthProvider } from "./contexts/AuthContext";
 import { AppearanceProvider } from "./contexts/AppearanceContext";
+import { PreferencesProvider } from "./contexts/PreferencesContext";
+import { readPreferences } from "./lib/preferences";
 import ScrollToTop from "./components/common/ScrollToTop";
 
 import Loading from "./components/common/Loading";
@@ -142,6 +144,7 @@ function App() {
 
   const [isLoading, setIsLoading] = useState(() => {
     try {
+      if (!readPreferences().intro) return false;
       return sessionStorage.getItem(LOADING_SESSION_KEY) !== "1";
     } catch {
       return true;
@@ -202,6 +205,7 @@ function App() {
 
     <AuthProvider>
       <AppearanceProvider>
+      <PreferencesProvider>
       <Router>
 
         <>
@@ -280,6 +284,7 @@ function App() {
         </>
 
       </Router>
+      </PreferencesProvider>
       </AppearanceProvider>
     </AuthProvider>
 

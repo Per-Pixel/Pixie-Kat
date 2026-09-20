@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Bell, Shield, Monitor, ChevronRight, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Bell, Shield, Monitor, ChevronRight, X, Loader2, SlidersHorizontal } from "lucide-react";
 import { pageBackground } from "./accountShared";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePreferences } from "../../contexts/PreferencesContext";
 import { supabase } from "../../lib/supabase";
 
 const ToggleSwitch = ({ label, description, enabled, onChange }) => (
@@ -46,6 +47,7 @@ const SettingsSection = ({ title, icon: Icon, children }) => (
 const SettingsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { preferences, setPreference } = usePreferences();
 
   const [notifications, setNotifications] = useState({
     email_notifications: true,
@@ -176,6 +178,28 @@ const SettingsPage = () => {
                     </div>
                     <ChevronRight className="size-5 text-slate-400 transition-colors group-hover:text-[#6c49ff]" />
                   </button>
+                </SettingsSection>
+
+                <SettingsSection title="Site Preferences" icon={SlidersHorizontal}>
+                  <ToggleSwitch
+                    label="Background Music"
+                    description="Play ambient music while browsing the site."
+                    enabled={preferences.music}
+                    onChange={() => setPreference("music", !preferences.music)}
+                  />
+                  <ToggleSwitch
+                    label="Intro Animation"
+                    description="Show the PixieKat intro the next time the site loads."
+                    enabled={preferences.intro}
+                    onChange={() => setPreference("intro", !preferences.intro)}
+                  />
+                  <ToggleSwitch
+                    label="Reduce Motion"
+                    description="Minimize animations and autoplaying videos across the site."
+                    enabled={preferences.reducedMotion}
+                    onChange={() => setPreference("reducedMotion", !preferences.reducedMotion)}
+                  />
+                  <p className="pt-2 text-xs text-slate-400">Saved on this device and applied instantly.</p>
                 </SettingsSection>
 
                 <SettingsSection title="Display Preferences" icon={Monitor}>
