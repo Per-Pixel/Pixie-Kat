@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
   ArrowLeft,
@@ -12,6 +12,7 @@ import {
   Info,
   Lightbulb,
   MessageCircle,
+  ShoppingCart,
   Smartphone,
   Wallet,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import {
 import { fallbackGameImage } from "./gamesData";
 import { useGameCatalog } from "./useGameCatalog";
 import { useAuth } from "../../contexts/AuthContext";
+import { useCart } from "../../contexts/CartContext";
 import { publicMediaUrl, supabase } from "../../lib/supabase";
 import { sanitizeRichText } from "../../utils/sanitizeRichText";
 import { buildWhatsAppUrl, fetchContactSettings } from "../../lib/storeContent";
@@ -280,7 +282,7 @@ const MembershipOffer = ({ selectedPackage, plans, activeMembership, selectedPla
   </section>
   );
 };
-const MobileCheckoutBar = ({ selectedPackage, selectedPayment, totalLabel, onPay, isSubmitting }) => (
+const MobileCheckoutBar = ({ selectedPackage, selectedPayment, totalLabel, onPay, onAddToCart, isSubmitting }) => (
   <div className="fixed inset-x-0 bottom-24 z-[90] mx-auto block max-w-md px-4 md:hidden">
     <div className="flex h-[72px] items-center gap-3 rounded-t-xl border border-[#e9edf3] bg-white/95 px-3 shadow-[0_-12px_30px_rgba(15,23,42,0.12)] backdrop-blur">
       <div className="min-w-0 flex-1">
@@ -291,6 +293,15 @@ const MobileCheckoutBar = ({ selectedPackage, selectedPayment, totalLabel, onPay
         <p className="text-[10px] font-bold text-[#9aa2ad]">TOTAL</p>
         <p className="text-lg font-black text-[#6d4cff]">{totalLabel ?? "..."}</p>
       </div>
+      <button
+        type="button"
+        onClick={onAddToCart}
+        disabled={isSubmitting || !selectedPackage}
+        aria-label="Add to cart"
+        className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[#6d4cff]/40 text-[#6d4cff] disabled:opacity-50"
+      >
+        <ShoppingCart className="size-4" />
+      </button>
       <button type="button" onClick={onPay} disabled={isSubmitting || !selectedPackage} className="h-10 rounded-lg bg-[#6d4cff] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-70">
         {isSubmitting ? "..." : `Pay ${totalLabel ?? selectedPayment.name}`}
       </button>
@@ -341,8 +352,10 @@ const FIELD_TTL = 3 * 24 * 60 * 60 * 1000;
 
 const GamePage = () => {
   const { gameId: slug } = useParams();
+  const navigate = useNavigate();
   const { loading, notFound, game, fields, products } = useGameCatalog(slug);
   const { user, profile, isAuthenticated } = useAuth();
+  const { addItem } = useCart();
 
   const [selectedPackageId, setSelectedPackageId] = useState(null);
   const [selectedPaymentId, setSelectedPaymentId] = useState(paymentMethods[0].id);
@@ -355,6 +368,7 @@ const GamePage = () => {
   const [supportWhatsAppUrl, setSupportWhatsAppUrl] = useState("/support/contact-us");
   const [checkoutError, setCheckoutError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cartNotice, setCartNotice] = useState(null);
 
   const [showCartReview, setShowCartReview] = useState(false);
   const [orderComplete, setOrderComplete] = useState(null);
@@ -648,6 +662,46 @@ const GamePage = () => {
     if (!contact.email.trim() || !contact.whatsapp.trim()) { setCheckoutError("Please enter your email address and WhatsApp number."); return; }
     if (!isAuthenticated || !user?.id) { setCheckoutError("Please log in before placing this order."); return; }
     setShowCartReview(true);
+  };
+
+  const handleAddToCart = () => {
+    setCheckoutError("");
+    setCartNotice(null);
+    if (!selectedPackage) { setCheckoutError("Please select a package first."); return; }
+    const missingField = fields.find((f) => f.is_required && !String(fieldValues[f.field_key] ?? "").trim());
+    if (missingField) { setCheckoutError(`Please enter ${missingField.label}.`); return; }
+
+    const rawProduct = products.find((p) => p.id === selectedPackage.id) ?? selectedPackage;
+    const result = addItem({
+      gameId: game.id,
+      gameSlug: game.slug,
+      gameName: game.name,
+      gameImage: game.image_url || bannerImage,
+      product: {
+        id: rawProduct.id,
+        name: rawProduct.name,
+        amount: rawProduct.amount ?? selectedPackage.amount,
+        price: Number(rawProduct.price ?? selectedPackage.price),
+        currency: rawProduct.currency ?? selectedPackage.currency,
+        image_url: rawProduct.image_url ?? selectedPackage.image ?? null,
+        metadata: rawProduct.metadata ?? {},
+      },
+      fieldValues,
+      fieldLabels: Object.fromEntries(fields.map((f) => [f.field_key, f.label])),
+      playerName,
+      quantity: 1,
+    });
+
+    if (!result.ok) {
+      setCartNotice({ type: "error", text: result.error });
+      return;
+    }
+    setCartNotice({
+      type: "success",
+      text: result.merged
+        ? `Updated quantity in your cart${result.capped ? " (reached the per-account limit)" : ""}.`
+        : `${selectedPackage.name} added to your cart.`,
+    });
   };
 
   const handlePay = async () => {
@@ -1439,9 +1493,40 @@ const GamePage = () => {
                 </div>
               </div>
 
-              <button type="button" onClick={handleReview} disabled={isSubmitting || !selectedPackage} className="mt-6 h-16 w-full rounded-xl bg-[#6d4cff] text-lg font-black text-white disabled:cursor-not-allowed disabled:opacity-70">
-                {isSubmitting ? "Creating order..." : `Review & Pay ${paymentTotalLabel}`}
-              </button>
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  disabled={isSubmitting || !selectedPackage}
+                  className="flex h-16 items-center justify-center gap-2 rounded-xl border-2 border-[#6d4cff] px-6 text-base font-black text-[#6d4cff] transition hover:bg-[#f6f3ff] disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  <ShoppingCart className="size-5" />
+                  Add to Cart
+                </button>
+                <button type="button" onClick={handleReview} disabled={isSubmitting || !selectedPackage} className="h-16 flex-1 rounded-xl bg-[#6d4cff] text-lg font-black text-white disabled:cursor-not-allowed disabled:opacity-70">
+                  {isSubmitting ? "Creating order..." : `Review & Pay ${paymentTotalLabel}`}
+                </button>
+              </div>
+              {cartNotice ? (
+                <div
+                  className={`mt-4 flex items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm font-bold ${
+                    cartNotice.type === "error"
+                      ? "border border-red-200 bg-red-50 text-red-600"
+                      : "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                  }`}
+                >
+                  <span>{cartNotice.text}</span>
+                  {cartNotice.type !== "error" ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/cart")}
+                      className="shrink-0 rounded-full bg-[#6d4cff] px-3 py-1.5 text-xs font-bold text-white"
+                    >
+                      View Cart
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
               <p className="mt-5 text-center text-xs text-[#6d7480]">
                 By clicking Pay Now, you agree to our <span className="underline">Terms of Service</span>.
               </p>
@@ -1450,6 +1535,28 @@ const GamePage = () => {
         </main>
       </div>
 
+      {cartNotice ? (
+        <div className="fixed inset-x-0 bottom-44 z-[95] mx-auto max-w-md px-4 md:hidden">
+          <div
+            className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm font-bold shadow-lg ${
+              cartNotice.type === "error"
+                ? "border border-red-200 bg-red-50 text-red-600"
+                : "border border-emerald-200 bg-emerald-50 text-emerald-700"
+            }`}
+          >
+            <span className="min-w-0">{cartNotice.text}</span>
+            {cartNotice.type !== "error" ? (
+              <button
+                type="button"
+                onClick={() => navigate("/cart")}
+                className="shrink-0 rounded-full bg-[#6d4cff] px-3 py-1.5 text-xs font-bold text-white"
+              >
+                View Cart
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       <a
         href={supportWhatsAppUrl}
         target={supportWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
@@ -1459,7 +1566,7 @@ const GamePage = () => {
       >
         <MessageCircle className="size-5" />
       </a>
-      <MobileCheckoutBar selectedPackage={selectedPackage} selectedPayment={selectedPayment} totalLabel={paymentTotalLabel} onPay={handleReview} isSubmitting={isSubmitting} />
+      <MobileCheckoutBar selectedPackage={selectedPackage} selectedPayment={selectedPayment} totalLabel={paymentTotalLabel} onPay={handleReview} onAddToCart={handleAddToCart} isSubmitting={isSubmitting} />
     </div>
   );
 };

@@ -103,7 +103,7 @@ Entrypoint flow: `src/main.jsx` -> `src/App.jsx`.
 
 `src/App.jsx` composes the app shell and route system:
 
-- Providers: `AuthProvider`, `AppearanceProvider`, `PreferencesProvider` (`src/contexts/`)
+- Providers: `AuthProvider`, `AppearanceProvider`, `PreferencesProvider`, `CartProvider` (`src/contexts/`)
 - Router: `BrowserRouter` + `Routes`
 - Layout: `Navbar` + route view + `Footer` + `BottomNav`
 - Global loading gate: `components/common/Loading.tsx`
@@ -130,6 +130,7 @@ Routes are defined in `src/App.jsx`.
 | `/auth` | `src/pages/auth/index.jsx` |
 | `/login` | `src/pages/auth/index.jsx` |
 | `/register` | `src/pages/auth/index.jsx` |
+| `/cart` | `src/pages/cart/index.jsx` |
 
 ## Folder Structure
 

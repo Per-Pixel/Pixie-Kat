@@ -7,6 +7,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 import { AuthProvider } from "./contexts/AuthContext";
 import { AppearanceProvider } from "./contexts/AppearanceContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
+import { CartProvider } from "./contexts/CartContext";
 import { readPreferences } from "./lib/preferences";
 import ScrollToTop from "./components/common/ScrollToTop";
 
@@ -47,6 +48,8 @@ const AccountPage = lazy(() => import("./pages/account"));
 const GameInfoPage = lazy(() => import("./pages/games/GamePage"));
 
 const BatchOrderPage = lazy(() => import("./pages/batch-order"));
+
+const CartPage = lazy(() => import("./pages/cart"));
 
 const JjkCheaperPage = lazy(() => import("./pages/events/jjk-cheaper"));
 
@@ -206,6 +209,7 @@ function App() {
     <AuthProvider>
       <AppearanceProvider>
       <PreferencesProvider>
+      <CartProvider>
       <Router>
 
         <>
@@ -265,6 +269,8 @@ function App() {
 
                   <Route path="/batch-order" element={<BatchOrderPage />} />
 
+                  <Route path="/cart" element={<CartPage />} />
+
                   <Route path="/event/jjk-cheaper" element={<JjkCheaperPage />} />
 
                   <Route path="/terms" element={<LegalPage docKey="terms" />} />
@@ -284,6 +290,7 @@ function App() {
         </>
 
       </Router>
+      </CartProvider>
       </PreferencesProvider>
       </AppearanceProvider>
     </AuthProvider>

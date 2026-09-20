@@ -41,6 +41,16 @@ const menuLayers = [
     buttonText: 'Browse Games',
   },
   {
+    id: 'cart',
+    label: 'Cart',
+    title: 'Your Cart',
+    description: 'Stack top-ups for any account, pay once',
+    path: '/cart',
+    image: publicMediaUrl('/videos/feature-4.mp4'),
+    poster: publicMediaUrl('/img/loading/5.jpg'),
+    buttonText: 'Open Cart',
+  },
+  {
     id: 'pricing',
     label: 'Pricing',
     title: 'Membership Plans',

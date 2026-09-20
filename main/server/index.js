@@ -32,9 +32,12 @@
  *
  * Payments:
  *   POST   /api/place-order                    Place wallet, Razorpay, or Aluu order
+ *   POST   /api/cart-checkout                  Place a multi-item cart (wallet / Razorpay / Aluu group payment)
  *   POST   /api/razorpay/verify-payment        Verify a Checkout payment signature
+ *   POST   /api/razorpay/verify-cart-payment   Verify a cart group payment signature
  *   POST   /api/webhooks/razorpay              Receive signed payment webhooks
  *   POST   /api/aluu/check-payment             Poll Aluu order status after redirect
+ *   POST   /api/aluu/check-cart-payment        Poll an Aluu cart group payment
  *   POST   /api/webhooks/aluu                  Receive signed Aluu payment webhooks
  *
  * Proxied RPCs (service_role only — functions no longer callable by anon/authenticated):
@@ -43,6 +46,7 @@
 
 import process from 'node:process';
 import { Buffer } from 'node:buffer';
+import crypto from 'node:crypto';
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
@@ -1715,6 +1719,353 @@ app.post('/api/place-order', placeOrderLimiter, async (req, res) => {
   }
 });
 
+// ── Cart checkout (one payment covering many orders) ─────────────────────────
+// POST /api/cart-checkout
+// Body: {
+//   items: [{ product_id, quantity, unit_amount, metadata }],
+//   payment_method: 'wallet' | 'razorpay' | 'aluu',
+//   contact?: { email?, whatsapp? }
+// }
+// Expands quantity into one order per unit (fulfill-order provisions one unit
+// per order row). Every unit shares metadata.payment_group_id so a single
+// Razorpay/Aluu payment can settle the whole group, and verification/webhooks
+// can find all sibling orders.
+const cartCheckoutLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many checkout attempts. Please wait a minute.' },
+});
+
+const CART_MAX_LINES = 25;
+const CART_MAX_UNITS = 50;
+const CART_MAX_LINE_QTY = 10;
+
+// Per-account purchase limits, enforced server-side (mirrors src/lib/cart.js).
+// Passes/bundles redeem once per game account; admins can set an explicit cap
+// via products.metadata.max_per_account / purchase_limit.
+const CART_ACCOUNT_LIMITED_PATTERN = /bundle|pass|subscription|weekly|monthly/i;
+const CART_USER_ID_KEYS = ['user_id', 'userid', 'player_id', 'account_id', 'uid'];
+const CART_ZONE_ID_KEYS = ['zone_id', 'server_id', 'zoneid', 'server'];
+
+function cartProductAccountLimit(product) {
+  const meta = isPlainObject(product?.metadata) ? product.metadata : {};
+  const explicit = Number(meta.max_per_account ?? meta.purchase_limit);
+  if (Number.isFinite(explicit) && explicit > 0) {
+    return Math.min(Math.floor(explicit), CART_MAX_LINE_QTY);
+  }
+  const text = `${product?.name ?? ''} ${product?.amount ?? ''}`;
+  return CART_ACCOUNT_LIMITED_PATTERN.test(text) ? 1 : null;
+}
+
+function cartAccountKey(meta) {
+  const fields = isPlainObject(meta?.account_fields) ? meta.account_fields : {};
+  const pick = (keys) => {
+    for (const key of keys) {
+      const value = fields[key];
+      if (value != null && String(value).trim() !== '') return String(value).trim().toLowerCase();
+    }
+    return '';
+  };
+  const user = pick(CART_USER_ID_KEYS);
+  const zone = pick(CART_ZONE_ID_KEYS);
+  return user || zone ? `${user}|${zone}` : '';
+}
+
+// Only these metadata keys flow into orders — everything else is dropped so
+// clients can't smuggle pricing/membership overrides into order metadata.
+function sanitizeCartItemMeta(meta) {
+  const clean = {};
+  if (!isPlainObject(meta)) return clean;
+  if (meta.game_id) clean.game_id = String(meta.game_id).slice(0, 64);
+  if (meta.game_slug) clean.game_slug = String(meta.game_slug).slice(0, 128);
+  if (meta.game_name) clean.game_name = String(meta.game_name).slice(0, 128);
+  if (isPlainObject(meta.account_fields)) {
+    clean.account_fields = Object.fromEntries(
+      Object.entries(meta.account_fields)
+        .slice(0, 12)
+        .map(([k, v]) => [String(k).slice(0, 64), String(v ?? '').slice(0, MAX_CHECKOUT_FIELD_LENGTH)])
+    );
+  }
+  if (meta.verified_username) clean.verified_username = String(meta.verified_username).slice(0, 128);
+  if (isPlainObject(meta.contact)) {
+    clean.contact = {
+      email: String(meta.contact.email ?? '').slice(0, 254),
+      whatsapp: String(meta.contact.whatsapp ?? '').slice(0, 64),
+    };
+  }
+  return clean;
+}
+
+app.post('/api/cart-checkout', cartCheckoutLimiter, async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ ok: false, error: 'Authorization required' });
+  }
+  const token = authHeader.slice(7);
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) {
+    return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
+  }
+
+  const { items, payment_method, contact } = req.body || {};
+  const paymentMethod = String(payment_method || 'wallet').trim().toLowerCase();
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ ok: false, error: 'items array is required' });
+  }
+  if (items.length > CART_MAX_LINES) {
+    return res.status(400).json({ ok: false, error: `Cart has too many lines (max ${CART_MAX_LINES})` });
+  }
+  if (!['wallet', 'razorpay', 'aluu'].includes(paymentMethod)) {
+    return res.status(400).json({ ok: false, error: 'Unsupported payment method' });
+  }
+
+  try {
+    const groupId = crypto.randomUUID();
+    const units = [];
+    const lineSizes = [];
+
+    for (let idx = 0; idx < items.length; idx++) {
+      const raw = items[idx];
+      const productId = String(raw?.product_id ?? '');
+      if (!UUID_PATTERN.test(productId)) throw new Error('Cart contains an invalid product');
+      const quantity = Math.max(1, Math.min(CART_MAX_LINE_QTY, Math.trunc(Number(raw?.quantity) || 1)));
+      const unitAmount = Number(raw?.unit_amount);
+      if (!Number.isFinite(unitAmount) || unitAmount <= 0) {
+        throw new Error('Cart contains an invalid price');
+      }
+      const baseMeta = sanitizeCartItemMeta(raw?.metadata);
+      for (let u = 0; u < quantity; u++) {
+        units.push({
+          product_id: productId,
+          unit_amount: unitAmount,
+          metadata: {
+            ...baseMeta,
+            payment_group_id: groupId,
+            cart_line: idx,
+            cart_unit: u + 1,
+            cart_units_in_line: quantity,
+          },
+        });
+      }
+      lineSizes.push(quantity);
+    }
+
+    if (units.length > CART_MAX_UNITS) {
+      return res.status(400).json({ ok: false, error: `Cart is too large (max ${CART_MAX_UNITS} units)` });
+    }
+
+    // Verify every product is purchasable and shares a single currency.
+    const productIds = [...new Set(units.map((u) => u.product_id))];
+    const { data: products, error: productsError } = await supabaseAdmin
+      .from('products')
+      .select('id, name, amount, currency, status, game_id, metadata')
+      .in('id', productIds);
+    if (productsError) throw productsError;
+    const byId = new Map((products ?? []).map((p) => [p.id, p]));
+    for (const u of units) {
+      const p = byId.get(u.product_id);
+      if (!p || p.status !== 'active') {
+        throw new Error('A product in your cart is no longer available');
+      }
+    }
+
+    // Per-account limits: a restricted product may appear in several lines,
+    // but the total quantity for the same User ID + Server ID must stay under
+    // its cap. The cap also applies within a single line.
+    const perAccountUnits = new Map();
+    for (let idx = 0; idx < items.length; idx++) {
+      const raw = items[idx];
+      const product = byId.get(String(raw?.product_id ?? ''));
+      const limit = cartProductAccountLimit(product);
+      const quantity = lineSizes[idx];
+      const lineCap = Math.min(CART_MAX_LINE_QTY, limit ?? CART_MAX_LINE_QTY);
+      if (quantity > lineCap) {
+        throw new Error(
+          limit !== null
+            ? `${product.name} is limited to ${limit} per account`
+            : `You can order at most ${CART_MAX_LINE_QTY} of ${product.name} per account`
+        );
+      }
+      if (limit === null) continue;
+      const key = `${product.id}|${cartAccountKey(sanitizeCartItemMeta(raw?.metadata))}`;
+      const total = (perAccountUnits.get(key) ?? 0) + quantity;
+      if (total > limit) {
+        throw new Error(
+          `${product.name} is limited to ${limit} per account — it can only be ordered again for a different User ID / Server ID`
+        );
+      }
+      perAccountUnits.set(key, total);
+    }
+
+    const gameIds = [...new Set([...byId.values()].map((p) => p.game_id))];
+    const { data: gameRows } = await supabaseAdmin
+      .from('games')
+      .select('id, status')
+      .in('id', gameIds);
+    if ((gameRows ?? []).some((g) => g.status !== 'active')) {
+      throw new Error('A game in your cart is no longer available');
+    }
+
+    const currencies = new Set([...byId.values()].map((p) => String(p.currency || '').trim().toUpperCase()));
+    if (currencies.size !== 1) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Cart items must share a single currency to check out together',
+      });
+    }
+    const currency = [...currencies][0];
+    const grandTotal = units.reduce((s, u) => s + u.unit_amount, 0);
+
+    // Slice the flat order-id array back into per-line groups for the client.
+    const linesResponse = (orderIds) => {
+      const lines = [];
+      let cursor = 0;
+      for (let idx = 0; idx < lineSizes.length; idx++) {
+        lines.push({ index: idx, order_ids: orderIds.slice(cursor, cursor + lineSizes[idx]) });
+        cursor += lineSizes[idx];
+      }
+      return lines;
+    };
+
+    const rpcItems = units.map((u) => ({
+      product_id: u.product_id,
+      unit_amount: u.unit_amount,
+      metadata: u.metadata,
+    }));
+
+    if (paymentMethod === 'wallet') {
+      const { data: orderIds, error: rpcError } = await supabaseAdmin.rpc('place_wallet_cart', {
+        p_user_id: user.id,
+        p_currency: currency,
+        p_items: rpcItems,
+      });
+      if (rpcError) throw rpcError;
+      return res.json({
+        ok: true,
+        groupId,
+        currency,
+        total: grandTotal,
+        lines: linesResponse(orderIds),
+      });
+    }
+
+    // Razorpay / Aluu — pending orders first, then one provider payment.
+    const { data: orderIds, error: rpcError } = await supabaseAdmin.rpc('place_cart_orders', {
+      p_user_id: user.id,
+      p_payment_method: paymentMethod,
+      p_currency: currency,
+      p_items: rpcItems,
+    });
+    if (rpcError) throw rpcError;
+
+    const failGroup = async () => {
+      const { error } = await supabaseAdmin
+        .from('orders')
+        .update({ status: 'failed', updated_at: new Date().toISOString() })
+        .in('id', orderIds)
+        .eq('status', 'pending');
+      if (error) console.error('[cart-checkout] failed to mark group failed:', error.message);
+    };
+
+    if (paymentMethod === 'razorpay') {
+      try {
+        if (!razorpay.isConfigured()) throw new Error('Razorpay is not configured on the payment server');
+        if (!supportedRazorpayCurrency(currency)) {
+          throw new Error(`Razorpay is not enabled for ${currency} payments`);
+        }
+        const amountInSubunits = razorpay.toSubunits(grandTotal, currency);
+        const providerOrder = await razorpay.createOrder({
+          amount: grandTotal,
+          currency,
+          receipt: groupId,
+          notes: { pixiekat_cart_group: groupId, items: String(units.length) },
+        });
+        if (!providerOrder?.id || Number(providerOrder.amount) !== amountInSubunits
+            || String(providerOrder.currency).toUpperCase() !== currency) {
+          throw new Error('Razorpay returned an invalid order');
+        }
+
+        // Provider order id lives in metadata — the razorpay_order_id column
+        // stays unique to single-order checkout.
+        await Promise.all(orderIds.map((id, i) => supabaseAdmin
+          .from('orders')
+          .update({
+            metadata: { ...units[i].metadata, razorpay_order_id: providerOrder.id },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', id)
+          .eq('status', 'pending')));
+
+        return res.json({
+          ok: true,
+          groupId,
+          currency,
+          total: grandTotal,
+          lines: linesResponse(orderIds),
+          razorpay: {
+            keyId: razorpay.getKeyId(),
+            orderId: providerOrder.id,
+            amount: amountInSubunits,
+            currency,
+          },
+        });
+      } catch (err) {
+        await failGroup();
+        throw err;
+      }
+    }
+
+    // aluu
+    try {
+      if (!aluu.isConfigured()) throw new Error('Aluu Pay is not configured on the payment server');
+      const contactMeta = isPlainObject(contact) ? contact : {};
+      const customerMobile = String(contactMeta.whatsapp || contactMeta.mobile || '0000000000')
+        .replace(/\D/g, '').slice(-10) || '0000000000';
+      const redirectBase = config.frontendUrl
+        || String(req.headers.origin || req.headers.referer || 'http://localhost:5173').replace(/\/+$/, '');
+      const providerOrder = await aluu.createOrder({
+        amount: grandTotal,
+        orderId: groupId, // external order id = group id → webhook resolves the group
+        customerMobile,
+        redirectUrl: `${redirectBase}/cart`,
+        remark1: `PixieKat cart ${groupId.slice(0, 8)}`,
+        remark2: `${units.length} items`,
+      });
+
+      await Promise.all(orderIds.map((id, i) => supabaseAdmin
+        .from('orders')
+        .update({
+          metadata: {
+            ...units[i].metadata,
+            aluu_order_id: providerOrder.orderId,
+            aluu_payment_url: providerOrder.paymentUrl,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .eq('status', 'pending')));
+
+      return res.json({
+        ok: true,
+        groupId,
+        currency,
+        total: grandTotal,
+        lines: linesResponse(orderIds),
+        aluu: { paymentUrl: providerOrder.paymentUrl, providerOrderId: providerOrder.orderId },
+      });
+    } catch (err) {
+      await failGroup();
+      throw err;
+    }
+  } catch (err) {
+    console.error('[cart-checkout]', err.message);
+    return res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 const razorpayVerifyLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
@@ -1778,6 +2129,91 @@ app.post('/api/razorpay/verify-payment', razorpayVerifyLimiter, async (req, res)
   }
 });
 
+// ── Razorpay: verify a cart (group) payment ──────────────────────────────────
+// POST /api/razorpay/verify-cart-payment
+// Body: { groupId, razorpay_order_id, razorpay_payment_id, razorpay_signature }
+// One Razorpay payment covers every order in metadata.payment_group_id.
+app.post('/api/razorpay/verify-cart-payment', razorpayVerifyLimiter, async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ ok: false, error: 'Authorization required' });
+  }
+  const token = authHeader.slice(7);
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) {
+    return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
+  }
+
+  const { groupId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
+  if (!groupId || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    return res.status(400).json({ ok: false, error: 'Payment verification fields are required' });
+  }
+  if (!razorpay.isConfigured()) {
+    return res.status(503).json({ ok: false, error: 'Razorpay is not configured on the payment server' });
+  }
+
+  try {
+    const { data: orders, error: ordersError } = await supabaseAdmin
+      .from('orders')
+      .select('id, user_id, total_amount, currency, status, payment_method, payment_id, metadata')
+      .eq('user_id', user.id)
+      .eq('metadata->>payment_group_id', String(groupId));
+    if (ordersError) throw ordersError;
+    if (!orders?.length) throw new Error('Order group not found');
+    if (orders.some((o) => o.payment_method !== 'razorpay')) {
+      throw new Error('Order group is not a Razorpay checkout');
+    }
+    if (orders.some((o) => String(o.metadata?.razorpay_order_id ?? '') !== String(razorpay_order_id))) {
+      throw new Error('Payment does not belong to this order group');
+    }
+    if (!razorpay.verifyPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature)) {
+      return res.status(400).json({ ok: false, error: 'Payment signature verification failed' });
+    }
+
+    const alreadyDone = orders.every(
+      (o) => ['processing', 'completed'].includes(o.status) && o.payment_id === razorpay_payment_id
+    );
+    if (alreadyDone) {
+      return res.json({ ok: true, groupId, already: true, orderIds: orders.map((o) => o.id) });
+    }
+
+    const payment = await razorpay.fetchPayment(razorpay_payment_id);
+    if (String(payment.id) !== String(razorpay_payment_id)) {
+      throw new Error('Razorpay returned an unexpected payment');
+    }
+    if (String(payment.order_id) !== String(razorpay_order_id)) {
+      throw new Error('Payment does not belong to this order group');
+    }
+    const currency = orders[0].currency;
+    const expected = razorpay.toSubunits(
+      orders.reduce((s, o) => s + Number(o.total_amount), 0),
+      currency
+    );
+    if (Number(payment.amount) !== expected) throw new Error('Payment amount does not match the order');
+    if (String(payment.currency).toUpperCase() !== String(currency).toUpperCase()) {
+      throw new Error('Payment currency does not match the order');
+    }
+    if (payment.status !== 'captured') throw new Error('Payment has not been captured yet');
+
+    const paymentMeta = razorpayPaymentMetadata(payment);
+    await Promise.all(orders.map((o) => supabaseAdmin
+      .from('orders')
+      .update({
+        status: 'processing',
+        payment_id: String(payment.id),
+        updated_at: new Date().toISOString(),
+        metadata: { ...(o.metadata || {}), razorpay_payment: paymentMeta },
+      })
+      .eq('id', o.id)
+      .eq('status', 'pending')));
+
+    return res.json({ ok: true, groupId, orderIds: orders.map((o) => o.id) });
+  } catch (err) {
+    console.error('[razorpay/verify-cart-payment]', err.message);
+    return res.status(400).json({ ok: false, error: 'Payment verification failed. Please contact support if your account was debited.' });
+  }
+});
+
 app.post('/api/webhooks/razorpay', async (req, res) => {
   const signature = req.headers['x-razorpay-signature'];
   if (!razorpay.verifyWebhookSignature(req.rawBody, signature)) {
@@ -1798,7 +2234,40 @@ app.post('/api/webhooks/razorpay', async (req, res) => {
       .eq('razorpay_order_id', providerOrderId)
       .maybeSingle();
     if (orderError) throw orderError;
-    if (!order) return res.json({ ok: true, ignored: true });
+    if (!order) {
+      // Cart checkout: the provider order id lives in group orders' metadata,
+      // not the unique razorpay_order_id column.
+      const { data: groupOrders } = await supabaseAdmin
+        .from('orders')
+        .select('id, user_id, total_amount, currency, status, payment_method, payment_id, metadata')
+        .eq('metadata->>razorpay_order_id', providerOrderId);
+      const group = (groupOrders ?? []).filter((o) => o.payment_method === 'razorpay');
+      if (!group.length) return res.json({ ok: true, ignored: true });
+
+      const groupCurrency = group[0].currency;
+      const expected = razorpay.toSubunits(
+        group.reduce((s, o) => s + Number(o.total_amount), 0),
+        groupCurrency
+      );
+      if (String(payment.currency).toUpperCase() !== String(groupCurrency).toUpperCase()
+          || Number(payment.amount) !== expected || payment.status !== 'captured') {
+        throw new Error('Cart payment does not match the order group');
+      }
+
+      const paymentMeta = razorpayPaymentMetadata(payment);
+      await Promise.all(group.map((o) => supabaseAdmin
+        .from('orders')
+        .update({
+          status: 'processing',
+          payment_id: String(payment.id),
+          updated_at: new Date().toISOString(),
+          metadata: { ...(o.metadata || {}), razorpay_payment: paymentMeta },
+        })
+        .eq('id', o.id)
+        .eq('status', 'pending')));
+
+      return res.json({ ok: true, group: true, count: group.length });
+    }
     if (order.payment_method !== 'razorpay') return res.json({ ok: true, ignored: true });
 
     assertCapturedRazorpayPayment(order, payment);
@@ -1911,6 +2380,100 @@ app.post('/api/aluu/check-payment', aluuCheckPaymentLimiter, async (req, res) =>
   }
 });
 
+// ── Aluu Pay: check a cart (group) payment ───────────────────────────────────
+// POST /api/aluu/check-cart-payment
+// Body: { groupId }
+// The cart's Aluu payment uses the group id as its external order_id, so one
+// status check settles every order in the group.
+app.post('/api/aluu/check-cart-payment', aluuCheckPaymentLimiter, async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ ok: false, error: 'Authorization required' });
+  }
+  const token = authHeader.slice(7);
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) {
+    return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
+  }
+
+  const { groupId } = req.body || {};
+  if (!groupId) {
+    return res.status(400).json({ ok: false, error: 'groupId is required' });
+  }
+  if (!aluu.isConfigured()) {
+    return res.status(503).json({ ok: false, error: 'Aluu Pay is not configured on the payment server' });
+  }
+
+  try {
+    const { data: orders, error: ordersError } = await supabaseAdmin
+      .from('orders')
+      .select('id, user_id, total_amount, currency, status, payment_method, payment_id, metadata')
+      .eq('user_id', user.id)
+      .eq('metadata->>payment_group_id', String(groupId));
+    if (ordersError) throw ordersError;
+    if (!orders?.length) throw new Error('Order group not found');
+    if (orders.some((o) => o.payment_method !== 'aluu')) {
+      throw new Error('Order group is not an Aluu Pay checkout');
+    }
+
+    const pending = orders.filter((o) => o.status === 'pending');
+    if (pending.length === 0) {
+      if (orders.some((o) => o.status === 'failed' || o.status === 'refunded')) {
+        return res.json({ ok: false, status: 'failed', error: 'Payment failed or expired' });
+      }
+      return res.json({
+        ok: true,
+        status: 'processing',
+        already: true,
+        orderIds: orders.map((o) => o.id),
+      });
+    }
+
+    const statusResult = await aluu.checkOrderStatus(groupId);
+
+    if (statusResult.txnStatus === 'COMPLETED' || statusResult.status === 'COMPLETED') {
+      const paymentId = statusResult.utr || `aluu_${statusResult.orderId}`;
+      const aluuMeta = {
+        aluu_txn_status: statusResult.txnStatus,
+        aluu_utr: statusResult.utr,
+        aluu_amount: statusResult.amount,
+        aluu_date: statusResult.date,
+        verified_at: new Date().toISOString(),
+      };
+      await Promise.all(pending.map((o) => supabaseAdmin
+        .from('orders')
+        .update({
+          status: 'processing',
+          payment_id: paymentId,
+          updated_at: new Date().toISOString(),
+          metadata: { ...(o.metadata || {}), aluu_payment: aluuMeta },
+        })
+        .eq('id', o.id)
+        .eq('status', 'pending')));
+
+      return res.json({ ok: true, status: 'processing', paymentId, orderIds: orders.map((o) => o.id) });
+    }
+
+    if (statusResult.txnStatus === 'FAILED' || statusResult.status === 'FAILED') {
+      await Promise.all(pending.map((o) => supabaseAdmin
+        .from('orders')
+        .update({
+          status: 'failed',
+          updated_at: new Date().toISOString(),
+          metadata: { ...(o.metadata || {}), aluu_status: 'FAILED', failed_at: new Date().toISOString() },
+        })
+        .eq('id', o.id)
+        .eq('status', 'pending')));
+      return res.json({ ok: false, status: 'failed', error: 'Payment failed or expired' });
+    }
+
+    return res.json({ ok: false, status: 'pending', waiting: true });
+  } catch (err) {
+    console.error('[aluu/check-cart-payment]', err.message);
+    return res.status(400).json({ ok: false, error: 'Payment status check failed. Please try again.' });
+  }
+});
+
 // ── Aluu Pay: webhook ────────────────────────────────────────────────────────
 app.post('/api/webhooks/aluu', async (req, res) => {
   const signature = req.headers['x-webhook-signature'];
@@ -1946,7 +2509,46 @@ app.post('/api/webhooks/aluu', async (req, res) => {
         .maybeSingle();
       resolvedOrder = orderByAluu;
     }
-    if (!resolvedOrder) return res.json({ ok: true, ignored: true });
+
+    // Cart checkout: the external order_id is the payment group id, and the
+    // provider order id lives in group orders' metadata (the aluu_order_id
+    // column stays unique to single-order checkout).
+    if (!resolvedOrder) {
+      let { data: groupOrders } = await supabaseAdmin
+        .from('orders')
+        .select('id, user_id, total_amount, currency, status, payment_method, payment_id, metadata')
+        .eq('metadata->>payment_group_id', webhookOrderId);
+      if (!groupOrders?.length) {
+        ({ data: groupOrders } = await supabaseAdmin
+          .from('orders')
+          .select('id, user_id, total_amount, currency, status, payment_method, payment_id, metadata')
+          .eq('metadata->>aluu_order_id', webhookOrderId));
+      }
+      const group = (groupOrders ?? []).filter((o) => o.payment_method === 'aluu');
+      if (!group.length) return res.json({ ok: true, ignored: true });
+
+      const paymentId = body.utr ? String(body.utr) : `aluu_${webhookOrderId}`;
+      const aluuMeta = {
+        aluu_txn_status: txnStatus,
+        aluu_utr: body.utr || null,
+        aluu_amount: body.amount || null,
+        aluu_date: body.date || null,
+        verified_at: new Date().toISOString(),
+        source: 'webhook',
+      };
+      await Promise.all(group.map((o) => supabaseAdmin
+        .from('orders')
+        .update({
+          status: 'processing',
+          payment_id: paymentId,
+          updated_at: new Date().toISOString(),
+          metadata: { ...(o.metadata || {}), aluu_payment: aluuMeta },
+        })
+        .eq('id', o.id)
+        .eq('status', 'pending')));
+
+      return res.json({ ok: true, group: true, count: group.length });
+    }
     if (resolvedOrder.payment_method !== 'aluu') return res.json({ ok: true, ignored: true });
 
     // Already processed

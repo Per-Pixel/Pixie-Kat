@@ -3,11 +3,12 @@ import gsap from "gsap";
 import { useWindowScroll } from "react-use";
 import { useEffect, useRef, useState } from "react";
 import { TiLocationArrow } from "react-icons/ti";
-import { Plus, UserRound } from "lucide-react";
+import { Plus, ShoppingCart, UserRound } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 import { publicMediaUrl } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
+import { useCart } from "../../contexts/CartContext";
 import { useAppearance } from "../../contexts/AppearanceContext";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { useJjkCheaperPlacement } from "../../hooks/useJjkCheaperPlacement";
@@ -26,6 +27,7 @@ const darkTextTopRoutes = ["/games", "/pricing", "/how-it-works", "/faq", "/supp
 
 const NavBar = () => {
   const { isAuthenticated, profile } = useAuth();
+  const { count: cartCount } = useCart();
   const appearance = useAppearance();
   const { preferences, setPreference } = usePreferences();
   const musicEnabled = preferences.music;
@@ -242,8 +244,24 @@ const NavBar = () => {
               ) : null}
             </div>
 
+            <Link
+              to="/cart"
+              aria-label={`Open cart${cartCount > 0 ? ` (${cartCount} items)` : ""}`}
+              className={clsx(
+                "relative ml-6 flex size-11 items-center justify-center rounded-full border border-slate-200/80 backdrop-blur-md transition-transform duration-300 ease-in-out hover:-translate-y-0.5",
+                authPanelClass
+              )}
+            >
+              <ShoppingCart className="size-4" />
+              {cartCount > 0 ? (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-yellow-300 px-1 text-[10px] font-bold text-[#0E041D] ring-2 ring-white">
+                  {cartCount > 99 ? "99+" : cartCount}
+                </span>
+              ) : null}
+            </Link>
+
             {!isAuthenticated ? (
-              <Link to="/login" className="ml-6">
+              <Link to="/login" className="ml-3">
                 <Button
                   title="Login"
                   morph={false}
@@ -251,7 +269,7 @@ const NavBar = () => {
                 />
               </Link>
             ) : (
-              <div className="ml-6 flex items-center gap-3">
+              <div className="ml-3 flex items-center gap-3">
                 <Link
                   to="/games/mobile-legends/add-money"
                   className={clsx(
