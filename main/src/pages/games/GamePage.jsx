@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ChevronDown,
   CreditCard,
-  FileText,
   Gem,
   Info,
   Lightbulb,
@@ -151,22 +150,7 @@ const PaymentLogo = ({ children }) => (
   </div>
 );
 
-const HowToTopUp = ({ steps, mobile = false }) => {
-  if (mobile) {
-    return (
-      <button
-        type="button"
-        className="flex h-10 w-full items-center justify-between rounded-lg bg-[#7b55ff] px-4 text-left text-sm font-bold text-white shadow-[0_10px_24px_rgba(103,75,255,0.28)]"
-      >
-        <span className="flex items-center gap-2">
-          <FileText className="size-3.5" />
-          How to Top-Up
-        </span>
-        <ChevronDown className="size-4" />
-      </button>
-    );
-  }
-
+const HowToTopUp = ({ steps }) => {
   return (
     <section>
       <h2 className="border-l-4 border-[#7555ff] pl-3 text-2xl font-bold text-[#10141f]">
@@ -1181,9 +1165,6 @@ const GamePage = () => {
             }}
           />
 
-          <div className="block md:hidden">
-            <HowToTopUp steps={steps} mobile />
-          </div>
           <div className="hidden md:block">
             <HowToTopUp steps={steps} />
           </div>

@@ -40,7 +40,7 @@ const FloatingActions = () => {
         transition={{ delay: reduced ? 0 : 0.4, duration: reduced ? 0 : 0.4 }}
         whileHover={reduced ? undefined : { scale: 1.05 }}
         whileTap={reduced ? undefined : { scale: 0.95 }}
-        className="fixed z-[140] flex size-14 items-center justify-center rounded-full shadow-lg lg:hidden"
+        className="fixed z-[140] flex size-12 items-center justify-center rounded-full shadow-lg lg:hidden"
         style={{
           bottom: '13rem',  /* shifted up to make room for scroll-to-top */
           right: '1rem',
@@ -48,7 +48,7 @@ const FloatingActions = () => {
           color: '#1a1a2e',
         }}
       >
-        <Headphones className="size-6" />
+        <Headphones className="size-5" />
       </motion.a>
 
       {/* Share button — mobile only */}
@@ -61,7 +61,7 @@ const FloatingActions = () => {
         transition={{ delay: reduced ? 0 : 0.5, duration: reduced ? 0 : 0.4 }}
         whileHover={reduced ? undefined : { scale: 1.05 }}
         whileTap={reduced ? undefined : { scale: 0.95 }}
-        className="fixed z-[140] flex size-14 items-center justify-center rounded-full shadow-lg lg:hidden"
+        className="fixed z-[140] flex size-12 items-center justify-center rounded-full shadow-lg lg:hidden"
         style={{
           bottom: '9rem',   /* shifted up to make room for scroll-to-top */
           right: '1rem',
@@ -69,7 +69,7 @@ const FloatingActions = () => {
           color: '#fff',
         }}
       >
-        <Send className="size-6" />
+        <Send className="size-5" />
       </motion.button>
 
       {/* ── Scroll-to-top button — ALL devices ─────────────────────────── */}
@@ -86,7 +86,7 @@ const FloatingActions = () => {
             transition={{ duration: reduced ? 0 : 0.25, ease: 'easeOut' }}
             whileHover={reduced ? undefined : { scale: 1.05 }}
             whileTap={reduced ? undefined : { scale: 0.92 }}
-            className="fixed z-[140] flex size-14 items-center justify-center rounded-full shadow-xl"
+            className="fixed z-[140] flex size-12 items-center justify-center rounded-full shadow-xl"
             style={{
               /* On mobile: just above the bottom nav (64px) + small gap.
                  On desktop (lg+): standard 2rem from bottom edge. */
@@ -97,7 +97,7 @@ const FloatingActions = () => {
               boxShadow: '0 4px 24px rgba(124, 110, 242, 0.45)',
             }}
           >
-            <ArrowUp className="size-6" strokeWidth={2.5} />
+            <ArrowUp className="size-5" strokeWidth={2.5} />
           </motion.button>
         )}
       </AnimatePresence>
