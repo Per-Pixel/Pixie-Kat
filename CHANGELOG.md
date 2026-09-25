@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Fixes
+- Grant purchased membership plans once the order is paid — checkout charged the plan add-on but never activated it (`038_membership_grant_on_paid_order.sql` trigger on `orders.status`; cancelled again if the order is refunded/failed).
+- Persist support/contact form submissions to `support_requests` (`039_support_requests.sql`) instead of silently discarding them, and wire the admin Messages page to the real inbox with status triage.
+- Add forgot-password flow: reset link from the login page and a `/reset-password` page to set a new password.
+- Wire the Google sign-in button to `signInWithOAuth` (requires the Google provider enabled in Supabase Auth).
+- Add user-facing TOTP 2FA: enroll/verify/disable at `/account/security/two-factor` and an authenticator-code step during login when an account has 2FA on.
+- Resend the email-verification link from the Security page instead of a dead card.
+- `/games` quick actions: "Purchase" opens order history; "Payments" and "Refer & Earn" show a coming-soon note instead of doing nothing.
+
+### Repository
+- Remove scratch artifacts (`Test/` harness, temp backup/seed scripts, stale AWS log, stray screenshot) and stop tracking `admin/.env`.
+- Make the super-admin server test independent of the local `.env`.
+
 ### Payments
 - Add Aluu Pay (UPI Gateway) as a second payment provider alongside Razorpay.
 - Add `main/server/aluu.js` with `createOrder`, `checkOrderStatus`, and HMAC-SHA256 webhook verification.
