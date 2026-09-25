@@ -242,6 +242,43 @@ export async function replaceProducts(
   return (data ?? []) as Product[];
 }
 
+// Provider syncs replace a game's whole package list. Match incoming SKUs to
+// existing products by provider_product_id so admin-edited fields (package
+// name, in-game label, images, popular flag, metadata like
+// expected_provider_price) survive the resync instead of resetting to the
+// provider's raw SKU description.
+export async function syncProviderProducts(
+  gameId: string,
+  rows: Array<Partial<NewProduct> & { provider_product_id?: string | null }>
+): Promise<Product[]> {
+  const existing = await listProducts({ gameId });
+  const byProviderId = new Map(
+    existing
+      .filter((p) => p.provider_product_id)
+      .map((p) => [p.provider_product_id as string, p])
+  );
+
+  const merged = rows.map((row) => {
+    const prev = row.provider_product_id ? byProviderId.get(row.provider_product_id) : undefined;
+    if (!prev) return row;
+    return {
+      ...row,
+      name: prev.name,
+      amount: prev.amount ?? row.amount,
+      description: prev.description ?? row.description,
+      compare_price: prev.compare_price ?? row.compare_price,
+      image_url: prev.image_url ?? row.image_url,
+      sku: prev.sku ?? row.sku,
+      stock: prev.stock ?? row.stock,
+      is_popular: prev.is_popular,
+      status: prev.status,
+      metadata: prev.metadata ?? row.metadata,
+    };
+  });
+
+  return replaceProducts(gameId, merged);
+}
+
 export async function createProduct(input: Partial<NewProduct>): Promise<Product> {
   const { data, error } = await supabase
     .from('products')

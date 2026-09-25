@@ -12,7 +12,7 @@ import {
   SM_CATALOG, SmGameCatalogEntry, SmSku, SmHealthResponse, SmPointsResponse,
 } from '../../services/smilecoinService';
 import {
-  listGames, createGame, replaceProducts, replaceGameFields, Game,
+  listGames, createGame, syncProviderProducts, replaceGameFields, Game,
 } from '../../services/catalogService';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -141,7 +141,7 @@ const PushModal: React.FC<PushModalProps> = ({ skus, catalogEntry, onClose, onDo
         if (!selectedId) { toast.error('Select a game'); setSaving(false); return; }
         gameId = selectedId;
       }
-      await replaceProducts(gameId, mappedProducts);
+      await syncProviderProducts(gameId, mappedProducts);
       toast.success(`${mappedProducts.length} SKUs synced to game!`);
       onDone();
     } catch (e) {

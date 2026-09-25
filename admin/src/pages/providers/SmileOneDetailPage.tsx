@@ -25,7 +25,7 @@ import {
   createGame,
   updateGame,
   replaceGameFields,
-  replaceProducts,
+  syncProviderProducts,
   Game,
 } from '../../services/catalogService';
 
@@ -143,7 +143,7 @@ const PushToGameModal: React.FC<PushModalProps> = ({ skus, editedPrices, product
         await updateGame(gameId, { provider: 'smile_one', provider_game_code: product.apiGame });
       }
 
-      await replaceProducts(gameId, mappedProducts);
+      await syncProviderProducts(gameId, mappedProducts);
       toast.success(`${mappedProducts.length} SKUs synced successfully!`);
       onDone();
     } catch (e) {
