@@ -41,6 +41,8 @@ const HowItWorks = lazy(() => import("./pages/how-it-works"));
 
 const Auth = lazy(() => import("./pages/auth"));
 
+const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage"));
+
 const AddMoneyPage = lazy(() => import("./pages/wallet/AddMoneyPage"));
 
 const AccountPage = lazy(() => import("./pages/account"));
@@ -83,7 +85,7 @@ const AppShell = ({ children }) => {
 
   const isHomePage = location.pathname === "/";
 
-  const isAuthRoute = ["/login", "/register", "/auth"].includes(location.pathname);
+  const isAuthRoute = ["/login", "/register", "/auth", "/reset-password"].includes(location.pathname);
 
   const isEventArchive = location.pathname.startsWith("/event/");
 
@@ -264,6 +266,8 @@ function App() {
                   <Route path="/login" element={<Auth />} />
 
                   <Route path="/register" element={<Auth />} />
+
+                  <Route path="/reset-password" element={<ResetPasswordPage />} />
 
                   <Route path="/account/*" element={<AccountPage />} />
 

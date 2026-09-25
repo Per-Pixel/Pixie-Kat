@@ -40,6 +40,17 @@ const SecurityPage = () => {
   const [twoFactor, setTwoFactor] = useState(null);
   const [loginHistory, setLoginHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [verifySending, setVerifySending] = useState(false);
+  const [verifyNote, setVerifyNote] = useState("");
+
+  const resendVerification = async () => {
+    if (!user?.email || user?.email_confirmed_at) return;
+    setVerifySending(true);
+    setVerifyNote("");
+    const { error } = await supabase.auth.resend({ type: "signup", email: user.email });
+    setVerifySending(false);
+    setVerifyNote(error ? "Could not resend — try again later." : "Verification email sent — check your inbox.");
+  };
 
   useEffect(() => {
     if (!user?.id) return;
@@ -113,14 +124,23 @@ const SecurityPage = () => {
             <SecurityCard
               icon={Shield}
               title="Email Verification"
-              description="Your email address verification status."
+              description={
+                user?.email_confirmed_at
+                  ? "Your email address is verified."
+                  : verifySending
+                    ? "Sending verification email…"
+                    : "Your email is not verified. Tap to resend the link."
+              }
               badge={user?.email_confirmed_at ? "Verified" : "Unverified"}
               badgeColor={user?.email_confirmed_at
                 ? "bg-emerald-100 text-emerald-700"
                 : "bg-amber-100 text-amber-700"
               }
-              onClick={() => {}}
+              onClick={resendVerification}
             />
+            {verifyNote && (
+              <p className="px-2 pt-1 text-xs font-medium text-slate-500">{verifyNote}</p>
+            )}
           </div>
 
           {/* Recent activity */}

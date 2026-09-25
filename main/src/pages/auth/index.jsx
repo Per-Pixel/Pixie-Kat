@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, UserRound, ArrowLeft } from 'lucide-react';
 
 import { useAuth } from '../../contexts/AuthContext';
-import { publicMediaUrl } from '../../lib/supabase';
+import { publicMediaUrl, supabase } from '../../lib/supabase';
 
 const Auth = () => {
   const [formData, setFormData] = useState({
@@ -16,6 +16,10 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [mfaFactor, setMfaFactor] = useState(null);
+  const [mfaCode, setMfaCode] = useState('');
 
   const { isAuthenticated, login, register } = useAuth();
   const navigate = useNavigate();
@@ -23,17 +27,25 @@ const Auth = () => {
 
   const from = location.state?.from?.pathname || '/';
   const isRegisterRoute = location.pathname === '/register';
-  const pageTitle = isRegisterRoute ? 'Sign Up' : 'Welcome!';
-  const submitLabel = isRegisterRoute ? 'Create Account' : 'Login';
-  const helperText = isRegisterRoute
-    ? 'Create your account'
-    : 'Log in with email';
+  const pageTitle = forgotMode ? 'Reset Password' : isRegisterRoute ? 'Sign Up' : 'Welcome!';
+  const submitLabel = forgotMode ? 'Send Reset Link' : isRegisterRoute ? 'Create Account' : 'Login';
+  const helperText = forgotMode
+    ? 'We\'ll email you a link to set a new password'
+    : isRegisterRoute
+      ? 'Create your account'
+      : 'Log in with email';
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !mfaFactor) {
       navigate(from, { replace: true });
     }
-  }, [from, isAuthenticated, navigate]);
+  }, [from, isAuthenticated, navigate, mfaFactor]);
+
+  useEffect(() => {
+    setForgotMode(false);
+    setResetSent(false);
+    setError('');
+  }, [location.pathname]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -44,8 +56,63 @@ const Auth = () => {
     setError('');
   };
 
+  const handleForgotPassword = async () => {
+    if (!formData.email.trim()) {
+      setError('Enter your email address first');
+      return;
+    }
+    setIsLoading(true);
+    setError('');
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        formData.email.trim(),
+        { redirectTo: `${window.location.origin}/reset-password` }
+      );
+      if (resetError) {
+        setError(resetError.message);
+      } else {
+        setResetSent(true);
+      }
+    } catch (err) {
+      setError(err.message || 'Could not send reset email');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+    if (oauthError) setError(oauthError.message);
+  };
+
+  const handleMfaVerify = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    const { error: mfaError } = await supabase.auth.mfa.challengeAndVerify({
+      factorId: mfaFactor.id,
+      code: mfaCode.trim(),
+    });
+    setIsLoading(false);
+    if (mfaError) {
+      setError(mfaError.message);
+      return;
+    }
+    navigate(from, { replace: true });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (forgotMode) {
+      await handleForgotPassword();
+      return;
+    }
+
     setIsLoading(true);
     setError('');
 
@@ -106,6 +173,17 @@ const Auth = () => {
       const result = await login(formData.email, formData.password);
 
       if (result.success) {
+        // Account with 2FA enrolled needs the authenticator code before we move on
+        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2') {
+          const { data: factors } = await supabase.auth.mfa.listFactors();
+          const totp = factors?.totp?.[0];
+          if (totp) {
+            setMfaFactor(totp);
+            setIsLoading(false);
+            return;
+          }
+        }
         navigate(from, { replace: true });
       } else {
         setError(result.error || 'Login failed');
@@ -208,8 +286,75 @@ const Auth = () => {
               <p className="text-sm text-white/60">{helperText}</p>
             </div>
 
+            {mfaFactor ? (
+              <form onSubmit={handleMfaVerify} className="space-y-5">
+                <p className="text-sm text-white/60">
+                  This account has two-factor authentication on. Enter the 6-digit code from your authenticator app.
+                </p>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-white/80">Authenticator Code</label>
+                  <div className="relative">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                      <Lock className="size-5 text-white/40" />
+                    </div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={mfaCode}
+                      onChange={(e) => { setMfaCode(e.target.value.replace(/\D/g, '')); setError(''); }}
+                      required
+                      className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white transition-all duration-200 placeholder:text-white/40 focus:bg-white/10 focus:outline-none"
+                      onFocus={e => { e.target.style.borderColor = '#DFDFF050'; e.target.style.boxShadow = '0 0 0 2px #DFDFF020'; }}
+                      onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
+                      placeholder="6-digit code"
+                    />
+                  </div>
+                </div>
+
+                {error ? (
+                  <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3">
+                    <p className="text-sm text-red-400">{error}</p>
+                  </div>
+                ) : null}
+
+                <motion.button
+                  type="submit"
+                  disabled={isLoading}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  className={`w-full rounded-xl px-6 py-3.5 font-semibold shadow-lg transition-all duration-300 ${
+                    isLoading ? 'cursor-not-allowed opacity-50' : 'hover:opacity-90'
+                  }`}
+                  style={{
+                    backgroundColor: '#DFDFF0',
+                    color: '#1a1a2e',
+                    boxShadow: isLoading ? 'none' : '0 4px 24px #DFDFF040'
+                  }}
+                >
+                  <div className="flex items-center justify-center">
+                    {isLoading ? (
+                      <div className="mr-2 size-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                    ) : null}
+                    {isLoading ? 'Verifying...' : 'Verify'}
+                  </div>
+                </motion.button>
+
+                <div className="text-center text-sm">
+                  <button
+                    type="button"
+                    onClick={async () => { setMfaFactor(null); setMfaCode(''); await supabase.auth.signOut(); }}
+                    style={{ color: '#DFDFF0' }}
+                    className="transition-opacity hover:opacity-80"
+                  >
+                    Use a different account
+                  </button>
+                </div>
+              </form>
+            ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
-              {isRegisterRoute ? (
+              {isRegisterRoute && !forgotMode ? (
                 <div>
                   <label className="mb-2 block text-sm font-medium text-white/80">Name</label>
                   <div className="relative">
@@ -252,6 +397,13 @@ const Auth = () => {
                 </div>
               </div>
 
+              {forgotMode ? (
+                <p className="text-sm text-white/60">
+                  Enter the email on your account and we&apos;ll send a password reset link.
+                </p>
+              ) : null}
+
+              {!forgotMode ? (
               <div>
                 <label className="mb-2 block text-sm font-medium text-white/80">Password</label>
                 <div className="relative">
@@ -278,8 +430,9 @@ const Auth = () => {
                   </button>
                 </div>
               </div>
+              ) : null}
 
-              {isRegisterRoute ? (
+              {isRegisterRoute && !forgotMode ? (
                 <div>
                   <label className="mb-2 block text-sm font-medium text-white/80">Confirm Password</label>
                   <div className="relative">
@@ -304,10 +457,34 @@ const Auth = () => {
               {!isRegisterRoute ? (
                 <div className="flex items-center justify-between">
                   <div className="text-sm">
-                    <a href="#" style={{ color: '#DFDFF0' }} className="transition-opacity hover:opacity-80">
-                      Forgot password?
-                    </a>
+                    {forgotMode ? (
+                      <button
+                        type="button"
+                        onClick={() => { setForgotMode(false); setResetSent(false); setError(''); }}
+                        style={{ color: '#DFDFF0' }}
+                        className="transition-opacity hover:opacity-80"
+                      >
+                        Back to login
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => { setForgotMode(true); setError(''); }}
+                        style={{ color: '#DFDFF0' }}
+                        className="transition-opacity hover:opacity-80"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
                   </div>
+                </div>
+              ) : null}
+
+              {resetSent ? (
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
+                  <p className="text-sm text-emerald-300">
+                    Reset link sent — check your inbox and spam folder. The link opens a page to set a new password.
+                  </p>
                 </div>
               ) : null}
 
@@ -339,6 +516,7 @@ const Auth = () => {
                 </div>
               </motion.button>
             </form>
+            )}
 
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
@@ -351,6 +529,7 @@ const Auth = () => {
 
             <button
               type="button"
+              onClick={handleGoogleLogin}
               className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 font-medium text-white transition-all duration-300 hover:bg-white/10"
             >
               <svg className="size-5" viewBox="0 0 24 24" aria-hidden="true">

@@ -8,6 +8,7 @@ import EditProfilePage from "./EditProfilePage";
 import SettingsPage from "./SettingsPage";
 import SecurityPage from "./SecurityPage";
 import ChangePasswordPage from "./ChangePasswordPage";
+import TwoFactorPage from "./TwoFactorPage";
 import OrderDetailsPage from "./OrderDetailsPage";
 import { getAccountProfile, pageBackground } from "./accountShared";
 
@@ -40,12 +41,14 @@ const AccountPage = () => {
   const isEditProfile          = path.endsWith("/edit-profile");
   const isSettings             = path.endsWith("/settings");
   const isChangePassword       = path.includes("/security/change-password");
+  const isTwoFactor            = path.includes("/security/two-factor");
   const isSecurity             = path.includes("/security");
   const isOrderDetails         = path.includes("/orders/");
 
   if (isEditProfile)    return <EditProfilePage profile={profile} />;
   if (isSettings)       return <SettingsPage />;
   if (isChangePassword) return <ChangePasswordPage />;
+  if (isTwoFactor)      return <TwoFactorPage />;
   if (isSecurity)       return <SecurityPage />;
 
   if (isOrderDetails) {
