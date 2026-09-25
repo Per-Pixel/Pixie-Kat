@@ -6,8 +6,11 @@ import {
   buildWhatsAppUrl,
   fetchContactSettings,
 } from '../../lib/storeContent';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 const ContactUsPage = () => {
+  const { user } = useAuth();
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -15,6 +18,8 @@ const ContactUsPage = () => {
     message: '',
   });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [contact, setContact] = useState(DEFAULT_CONTACT);
 
   useEffect(() => {
@@ -35,9 +40,25 @@ const ContactUsPage = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitError('');
+    setSubmitting(true);
+    const { error } = await supabase.from('support_requests').insert({
+      user_id: user?.id ?? null,
+      name: form.name.trim(),
+      email: form.email.trim(),
+      subject: form.subject.trim(),
+      message: form.message.trim(),
+      source: 'contact',
+    });
+    setSubmitting(false);
+    if (error) {
+      setSubmitError('Could not send your message. Please try again or reach us on WhatsApp.');
+      return;
+    }
     setSubmitted(true);
+    setForm({ name: '', email: '', subject: '', message: '' });
     setTimeout(() => setSubmitted(false), 4000);
   };
 
@@ -322,13 +343,18 @@ const ContactUsPage = () => {
                   />
                 </div>
 
+                {submitError && (
+                  <p className="text-sm font-medium text-red-600">{submitError}</p>
+                )}
+
                 <motion.button
                   type="submit"
+                  disabled={submitting}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full rounded-xl bg-violet-600 px-8 py-3 text-sm font-semibold text-white transition-colors duration-200 hover:bg-violet-700 sm:w-auto"
+                  className="w-full rounded-xl bg-violet-600 px-8 py-3 text-sm font-semibold text-white transition-colors duration-200 hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                 >
-                  {submitted ? '✓ Message Sent!' : 'Send Message'}
+                  {submitting ? 'Sending…' : submitted ? '✓ Message Sent!' : 'Send Message'}
                 </motion.button>
               </motion.form>
             </div>
