@@ -4,8 +4,9 @@ import process from 'node:process';
 
 process.env.SUPABASE_URL = 'https://example.supabase.co';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
-delete process.env.SUPER_ADMIN_IDS;
-delete process.env.SUPER_ADMIN_EMAILS;
+// Set (not delete) so dotenv.config() can't repopulate these from a real .env
+process.env.SUPER_ADMIN_IDS = '';
+process.env.SUPER_ADMIN_EMAILS = '';
 
 const { isSuperAdmin } = await import('../supabase-admin.js');
 
