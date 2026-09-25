@@ -1,8 +1,16 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
 const MobileActionButtons = () => {
   const navigate = useNavigate();
+  const [notice, setNotice] = useState('');
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = setTimeout(() => setNotice(''), 2500);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   const actions = [
     {
@@ -19,6 +27,7 @@ const MobileActionButtons = () => {
       icon: 'Card',
       bgColor: 'bg-purple-100',
       textColor: 'text-purple-600',
+      onClick: () => setNotice('Payments coming soon'),
     },
     {
       id: 3,
@@ -26,6 +35,7 @@ const MobileActionButtons = () => {
       icon: 'Buy',
       bgColor: 'bg-green-100',
       textColor: 'text-green-600',
+      onClick: () => navigate('/account'),
     },
     {
       id: 4,
@@ -33,11 +43,17 @@ const MobileActionButtons = () => {
       icon: 'Gift',
       bgColor: 'bg-orange-100',
       textColor: 'text-orange-600',
+      onClick: () => setNotice('Refer & Earn coming soon'),
     },
   ];
 
   return (
     <div className="bg-blue-50 px-4 py-6">
+      {notice ? (
+        <p className="mb-3 rounded-xl bg-slate-900 px-4 py-2 text-center text-sm font-medium text-white">
+          {notice}
+        </p>
+      ) : null}
       <div className="grid grid-cols-4 gap-4">
         {actions.map((action, index) => (
           <motion.button
