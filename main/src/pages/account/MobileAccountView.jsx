@@ -114,13 +114,6 @@ const StatsCard = ({ navigate, profile }) => (
           >
             Top Up
           </Link>
-          <button
-            type="button"
-            onClick={() => navigate("/account/redeem-code?tab=redeem")}
-            className="rounded-full bg-gradient-to-r from-[#5724ff] to-[#4FB7DD] px-3 py-2 text-xs font-bold text-white shadow-[0_10px_18px_rgba(87,36,255,0.18)]"
-          >
-            Activation Code
-          </button>
         </div>
       </div>
 

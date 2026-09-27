@@ -1,4 +1,4 @@
-import { FaBars, FaGamepad, FaHeadset, FaHome, FaLayerGroup, FaUser } from "react-icons/fa";
+import { FaBars, FaGamepad, FaHeadset, FaHome, FaLayerGroup } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -18,7 +18,6 @@ const BottomNav = () => {
     { id: "games", path: "/games", icon: <FaGamepad />, label: "Games" },
     { id: "explore", path: null, icon: <FaLayerGroup />, label: "Explore", isStatic: true },
     { id: "support", path: "/support", icon: <FaHeadset />, label: "Support" },
-    { id: "account", path: isAuthenticated ? "/account" : "/auth", icon: <FaUser />, label: "Account" },
     ...(isAuthenticated ? [{ id: "more", path: null, icon: <FaBars />, label: "More", isStatic: true }] : []),
   ];
 

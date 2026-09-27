@@ -10,7 +10,6 @@ import {
   Gem,
   Info,
   Lightbulb,
-  MessageCircle,
   ShoppingCart,
   Smartphone,
   Wallet,
@@ -22,7 +21,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useCart } from "../../contexts/CartContext";
 import { publicMediaUrl, supabase } from "../../lib/supabase";
 import { sanitizeRichText } from "../../utils/sanitizeRichText";
-import { buildWhatsAppUrl, fetchContactSettings } from "../../lib/storeContent";
 import { loadRazorpayCheckout } from "../../lib/razorpay";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
@@ -267,7 +265,7 @@ const MembershipOffer = ({ selectedPackage, plans, activeMembership, selectedPla
   );
 };
 const MobileCheckoutBar = ({ selectedPackage, selectedPayment, totalLabel, onPay, onAddToCart, isSubmitting }) => (
-  <div className="fixed inset-x-0 bottom-24 z-[90] mx-auto block max-w-md px-4 md:hidden">
+  <div className="fixed inset-x-0 bottom-16 z-[90] mx-auto block max-w-md px-4 md:hidden">
     <div className="flex h-[72px] items-center gap-3 rounded-t-xl border border-[#e9edf3] bg-white/95 px-3 shadow-[0_-12px_30px_rgba(15,23,42,0.12)] backdrop-blur">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-bold text-[#151922]">{selectedPackage?.name ?? "Select a package"}</p>
@@ -349,7 +347,6 @@ const GamePage = () => {
   const [fieldValues, setFieldValues] = useState({});
   const [contact, setContact] = useState({ email: "", whatsapp: "" });
   const [dialCountry, setDialCountry] = useState("IN");
-  const [supportWhatsAppUrl, setSupportWhatsAppUrl] = useState("/support/contact-us");
   const [checkoutError, setCheckoutError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cartNotice, setCartNotice] = useState(null);
@@ -469,12 +466,6 @@ const GamePage = () => {
     }
 
     loadMemberships();
-
-    fetchContactSettings().then((settings) => {
-      if (!cancelled) {
-        setSupportWhatsAppUrl(buildWhatsAppUrl(settings.whatsapp, settings.whatsapp_message));
-      }
-    });
 
     return () => {
       cancelled = true;
@@ -1538,15 +1529,6 @@ const GamePage = () => {
           </div>
         </div>
       ) : null}
-      <a
-        href={supportWhatsAppUrl}
-        target={supportWhatsAppUrl.startsWith("http") ? "_blank" : undefined}
-        rel={supportWhatsAppUrl.startsWith("http") ? "noreferrer" : undefined}
-        aria-label="Chat on WhatsApp"
-        className="fixed bottom-28 right-4 z-[130] flex size-12 items-center justify-center rounded-full bg-[#7b55ff] text-white shadow-[0_14px_30px_rgba(103,75,255,0.35)] md:bottom-8 md:right-8"
-      >
-        <MessageCircle className="size-5" />
-      </a>
       <MobileCheckoutBar selectedPackage={selectedPackage} selectedPayment={selectedPayment} totalLabel={paymentTotalLabel} onPay={handleReview} onAddToCart={handleAddToCart} isSubmitting={isSubmitting} />
     </div>
   );
