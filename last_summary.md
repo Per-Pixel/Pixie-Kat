@@ -9,14 +9,16 @@
 - **Committed + pushed the site-graphics-admin + Pinterest work** (`8106845`, 29 files, +3608/−3249). It had been left uncommitted after a reset of `main`; now landed. `eb deploy` to `pixiekat-api-prod` run for the new `main/server/pinterest.js` + routes.
 - **Fixed the real domain**: production site is `https://pixiekat.store` (not `.com` — `.com` only appears in docs/tests/defaults). Supabase Auth configured by user: Site URL `https://pixiekat.store/`, redirects `pixiekat.store/**`, `admin.pixiekat.store/**`, `localhost:5173/**`. Forgot-password now lands on the live reset page.
 
-- **Notification email pipeline built** — migration `040_notification_outbox.sql` (outbox table + trigger on orders.status enqueuing processing/completed/failed/refunded rows), `main/server/notifications.js` (nodemailer transporter, branded templates, `isKindEnabled` toggle check, claim-and-send worker with retry), login alerts enqueued inside `/api/auth/login-session`, worker started in `app.listen` only when SMTP env vars exist. `eb deploy` run pending user adding SMTP env vars. Server tests 53/53 (10 new). nodemailer ^7 added to main/server.
+- **Notification email pipeline built and live** — migration `040_notification_outbox.sql` (outbox table + trigger on orders.status enqueuing processing/completed/failed/refunded rows), `main/server/notifications.js` (nodemailer transporter, branded templates, `isKindEnabled` toggle check, claim-and-send worker with retry), login alerts enqueued inside `/api/auth/login-session`. `eb deploy` done; SMTP_* env vars pushed to EB from local `.env` via `eb setenv`; EB log confirms `[notify] outbox worker started`. Server tests 53/53 (10 new). nodemailer ^7 added to main/server.
+
+- **Site preferences now sync to the account** — root cause of "settings reset on refresh": `pixie_preferences` lived only in localStorage (per-browser, per-origin — `pixiekat.store` vs the Amplify domain don't share it). Migration `041` adds `user_settings.site_preferences` JSONB; `PreferencesContext` hydrates from it on login (remote wins; first login uploads device prefs as baseline) and serializes writes so rapid toggles can't stale-write. Logged-out behaviour unchanged (localStorage).
 
 ### Pending / user-side
 
-- ~~Hostinger SMTP~~ — done. User configured Supabase Auth → SMTP with `smtp.hostinger.com:465`, sender alias `noreply@pixiekat.store` (receiving suspended), authenticating as the `admin@pixiekat.store` mailbox (password set via Hostinger panel — panel Google login is not the mailbox password).
-- Apply migration `040_notification_outbox.sql` in Supabase SQL editor, then add `SMTP_HOST=smtp.hostinger.com`, `SMTP_PORT=465`, `SMTP_USER=admin@pixiekat.store`, `SMTP_PASS=<mailbox password>`, `SMTP_FROM=Pixie-Kat <noreply@pixiekat.store>` to the EB environment (console → Configuration → Environment properties, or `eb setenv`). The env restart activates the worker — no redeploy needed if done before/after deploy either way.
-- Migrations 038 + 039: user says applied.
-- App-level notification emails (order receipts, login alerts honoring `user_settings`) — nodemailer build not started; needs SMTP creds in EB env vars.
+- Apply migration `041_user_site_preferences.sql` in Supabase SQL editor for account-synced site prefs.
+- EB housekeeping spotted: an env property appears mangled (`...fill the PORT = 3001` — stray text in the name); check Configuration → Software → Environment properties. `SUPER_ADMIN_EMAILS` still points at `admin@pixiekat.com` (auth email, may be intentional — verify it's your admin login).
+- ~~Hostinger SMTP~~ — done everywhere: Supabase Auth SMTP (`smtp.hostinger.com:465`, sender alias `noreply@pixiekat.store`, auth as `admin@pixiekat.store` mailbox) AND EB `SMTP_*` env vars set via `eb setenv` — worker confirmed running in EB logs.
+- Migration `040_notification_outbox.sql`: user says applied (alongside 038 + 039).
 - Open product work unchanged: standalone membership purchase, email/SMS sender, Promo/Blog stubs, Refer & Earn, Dark Mode/Compact View, `products.amount` labels, footer socials, legal copy, `admin/.env` history.
 
 ---
