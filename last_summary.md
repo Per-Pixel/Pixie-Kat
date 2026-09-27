@@ -1,18 +1,13 @@
 # Last Summary
 
-## Session: remove account button from bottom nav
+## Session: Mobile Legends phone layout polish
 
-### Done
+- Scoped the Mobile Legends phone layout in `main/src/pages/games/GamePage.jsx`: CMS banner, Buy/Guide switch, account fields, two-column CMS package groups, and a separate Guide section using the existing how-to steps and notes. Checkout state, purchase logic, CMS wiring, other game pages, and the desktop layout remain unchanged.
+- Restored the original light/violet styling after the palette correction, restored the mobile banner radius, then reduced the banner height by 10% (`h-44` to `h-[9.9rem]`; `md:h-36` to `md:h-[8.1rem]`). The CMS-selected image still renders at 12px radius.
+- `main/src/components/layout/FloatingActions.jsx` keeps scroll-to-top clear of the docked mobile checkout bar on game routes. `CHANGELOG.md` documents the storefront change. Files touched: `CHANGELOG.md`, `last_summary.md`, `FloatingActions.jsx`, and `GamePage.jsx`.
+- Fresh verification: `npm run build` exit 0; `npm test` 39/39 passed; scoped ESLint clean; `git diff --check` clean. Impeccable detector reports only the existing `border-l-4` warning at `GamePage.jsx:172`. Python Playwright against the preview confirmed banner heights of 158.39px at 320/390px and 129.59px at 768px, 12px radius, no horizontal overflow, working mobile Guide switch, and no page errors.
+- Preview remains running at `http://127.0.0.1:50528/games/mobile-legends`; reload to fetch the corrected build.
 
-- Removed the `account` item (`FaUser`, `/account` or `/auth`) from `navItems` in `main/src/components/layout/BottomNav.jsx`; dropped the now-unused `FaUser` import. The bottom nav is `md:hidden`, so the change applies to mobile + tablet only.
-- Verified account is still reachable on small screens: top `Navbar` keeps the Login button (logged out) and the avatar + wallet pill (logged in); `MoreMenu` still has Profile → `/account` for authed users.
-- `eslint` on the file: clean. Not committed — working tree only.
-- Also removed the "Activation Code" button from `StatsCard` in `main/src/pages/account/MobileAccountView.jsx` (mobile account view). Top Up and the Coupons "Redeem" button (same `/account/redeem-code?tab=redeem` route) remain.
-- Also removed the floating "Chat on WhatsApp" button from `main/src/pages/games/GamePage.jsx` plus its now-dead wiring (`supportWhatsAppUrl` state, `fetchContactSettings` effect, `MessageCircle`/`buildWhatsAppUrl`/`fetchContactSettings` imports). Lint clean. All three changes uncommitted.
-- Moved `MobileCheckoutBar` down: `bottom-24` → `bottom-16` so it docks flush on the bottom nav (GamePage.jsx).
+### Carried pending items
 
-### Carried pending items (from prior sessions)
-
-- Apply migration `041_user_site_preferences.sql` in Supabase SQL editor.
-- EB housekeeping: mangled env property name (`...fill the PORT = 3001`); `SUPER_ADMIN_EMAILS` still `admin@pixiekat.com`.
-- Open product work: standalone membership purchase, email/SMS sender, Promo/Blog stubs, Refer & Earn, Dark Mode/Compact View, `products.amount` labels, footer socials, legal copy, `admin/.env` history.
+- Apply `041_user_site_preferences.sql` in Supabase; inspect the malformed EB environment property and verify `SUPER_ADMIN_EMAILS`. Prior product backlog remains documented elsewhere.
