@@ -59,6 +59,7 @@ import * as smileCoin from './smilecoin.js';
 import * as razorpay from './razorpay.js';
 import * as aluu from './aluu.js';
 import * as pinterest from './pinterest.js';
+import * as notifications from './notifications.js';
 
 const app = express();
 const PORT = config.port;
@@ -330,6 +331,18 @@ app.post('/api/auth/login-session', requireUser, async (req, res) => {
       .update({ last_login_at: now, updated_at: now })
       .eq('id', req.user.id);
     if (profileError) console.error('[login-session] profile update failed:', profileError.message);
+
+    const { error: notifyError } = await notifications.enqueue(supabaseAdmin, {
+      user_id: req.user.id,
+      kind: 'login_alert',
+      payload: {
+        at: now,
+        ip: getClientIp(req),
+        device: getDeviceType(userAgent),
+        browser: getBrowser(userAgent),
+      },
+    });
+    if (notifyError) console.error('[login-session] notify enqueue failed:', notifyError.message);
 
     res.status(204).end();
   } catch (err) {
@@ -3055,4 +3068,9 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Pixie-Kat Admin Proxy running on http://0.0.0.0:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  if (notifications.isMailerConfigured()) {
+    notifications.startWorker(supabaseAdmin);
+  } else {
+    console.warn('[notify] SMTP_HOST/SMTP_USER/SMTP_PASS not set — email notifications disabled');
+  }
 });

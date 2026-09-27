@@ -9,9 +9,12 @@
 - **Committed + pushed the site-graphics-admin + Pinterest work** (`8106845`, 29 files, +3608/−3249). It had been left uncommitted after a reset of `main`; now landed. `eb deploy` to `pixiekat-api-prod` run for the new `main/server/pinterest.js` + routes.
 - **Fixed the real domain**: production site is `https://pixiekat.store` (not `.com` — `.com` only appears in docs/tests/defaults). Supabase Auth configured by user: Site URL `https://pixiekat.store/`, redirects `pixiekat.store/**`, `admin.pixiekat.store/**`, `localhost:5173/**`. Forgot-password now lands on the live reset page.
 
+- **Notification email pipeline built** — migration `040_notification_outbox.sql` (outbox table + trigger on orders.status enqueuing processing/completed/failed/refunded rows), `main/server/notifications.js` (nodemailer transporter, branded templates, `isKindEnabled` toggle check, claim-and-send worker with retry), login alerts enqueued inside `/api/auth/login-session`, worker started in `app.listen` only when SMTP env vars exist. `eb deploy` run pending user adding SMTP env vars. Server tests 53/53 (10 new). nodemailer ^7 added to main/server.
+
 ### Pending / user-side
 
 - ~~Hostinger SMTP~~ — done. User configured Supabase Auth → SMTP with `smtp.hostinger.com:465`, sender alias `noreply@pixiekat.store` (receiving suspended), authenticating as the `admin@pixiekat.store` mailbox (password set via Hostinger panel — panel Google login is not the mailbox password).
+- Apply migration `040_notification_outbox.sql` in Supabase SQL editor, then add `SMTP_HOST=smtp.hostinger.com`, `SMTP_PORT=465`, `SMTP_USER=admin@pixiekat.store`, `SMTP_PASS=<mailbox password>`, `SMTP_FROM=Pixie-Kat <noreply@pixiekat.store>` to the EB environment (console → Configuration → Environment properties, or `eb setenv`). The env restart activates the worker — no redeploy needed if done before/after deploy either way.
 - Migrations 038 + 039: user says applied.
 - App-level notification emails (order receipts, login alerts honoring `user_settings`) — nodemailer build not started; needs SMTP creds in EB env vars.
 - Open product work unchanged: standalone membership purchase, email/SMS sender, Promo/Blog stubs, Refer & Earn, Dark Mode/Compact View, `products.amount` labels, footer socials, legal copy, `admin/.env` history.

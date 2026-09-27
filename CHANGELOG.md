@@ -10,6 +10,7 @@
 - Add user-facing TOTP 2FA: enroll/verify/disable at `/account/security/two-factor` and an authenticator-code step during login when an account has 2FA on.
 - Resend the email-verification link from the Security page instead of a dead card.
 - `/games` quick actions: "Purchase" opens order history; "Payments" and "Refer & Earn" show a coming-soon note instead of doing nothing.
+- Send real notification emails — `notification_outbox` (040) queues order status events and login alerts via a trigger + `/api/auth/login-session`; the API worker sends them over SMTP honouring the existing Settings toggles (email/order notifications, login alerts). Requires migration 040 + SMTP_* env vars.
 
 ### Admin
 - Rebuild `/storage` around a placement-first "Site graphics" workspace: browse graphics by page → section → slot with previews, then upload a file, pick from `public-media`, or import from Pinterest and save just that placement — other spots using the same file stay unchanged.
