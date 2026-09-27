@@ -4,23 +4,21 @@
 
 ### Done
 
-- **Pushed the 7 broken-path commits to `origin/main`** (`9059b00..c2ab301`): hygiene, membership-grant trigger (038), support inbox (039), password reset + TOTP 2FA + verification resend, games quick actions, test isolation, docs. Amplify rebuilds from this.
-- **Hid the Google sign-in button** in `main/src/pages/auth/index.jsx` (button, "Or continue with" divider, and `handleGoogleLogin` removed) — deferred until OAuth credentials exist. eslint clean on the file.
-
-### Repo state flag
-
-- **`main` was reset back to `c2ab301` while keeping the site-graphics-admin + Pinterest work as uncommitted changes** — 24 modified files + 6 new files on disk (`main/server/pinterest.js`, `PinterestImportPanel.tsx`, pinterest/mediaService/storeContent tests). The work is described below and was fully verified; it needs a commit + push (+ `eb deploy` for the new server file) to go live. Awaiting user decision.
+- **Pushed the 7 broken-path commits to `origin/main`** (`9059b00..c2ab301`): hygiene, membership-grant trigger (038), support inbox (039), password reset + TOTP 2FA + verification resend, games quick actions, test isolation, docs.
+- **Hid the Google sign-in button** in `main/src/pages/auth/index.jsx` (button, "Or continue with" divider, `handleGoogleLogin` removed) — commit `773ec5a`, pushed. Re-add is trivial if Google OAuth is ever configured.
+- **Committed + pushed the site-graphics-admin + Pinterest work** (`8106845`, 29 files, +3608/−3249). It had been left uncommitted after a reset of `main`; now landed. `eb deploy` to `pixiekat-api-prod` run for the new `main/server/pinterest.js` + routes.
+- **Fixed the real domain**: production site is `https://pixiekat.store` (not `.com` — `.com` only appears in docs/tests/defaults). Supabase Auth configured by user: Site URL `https://pixiekat.store/`, redirects `pixiekat.store/**`, `admin.pixiekat.store/**`, `localhost:5173/**`. Forgot-password now lands on the live reset page.
 
 ### Pending / user-side
 
-- Supabase Auth dashboard: add `https://pixiekat.com/reset-password` to Redirect URLs (forgot-password fails live without it).
+- Hostinger SMTP (`admin@pixiekat.store` or a `noreply@` mailbox) — user to add in Supabase Auth → SMTP Settings; steps given in chat. Optional dedicated-mailbox advice: keep `admin@` as sender or create `noreply@`.
 - Migrations 038 + 039: user says applied.
-- Hostinger email: user asked about it — usable both as Supabase SMTP sender (Auth → SMTP Settings) and as nodemailer backend for app notifications (order receipts, login alerts honoring `user_settings` toggles). Needs a mailbox + SMTP creds; build not started.
+- App-level notification emails (order receipts, login alerts honoring `user_settings`) — nodemailer build not started; needs SMTP creds in EB env vars.
 - Open product work unchanged: standalone membership purchase, email/SMS sender, Promo/Blog stubs, Refer & Earn, Dark Mode/Compact View, `products.amount` labels, footer socials, legal copy, `admin/.env` history.
 
 ---
 
-## Prior session: Site graphics admin + Pinterest import (UNCOMMITTED on disk)
+## Prior session: Site graphics admin + Pinterest import (SHIPPED as 8106845)
 
 ### Done
 
