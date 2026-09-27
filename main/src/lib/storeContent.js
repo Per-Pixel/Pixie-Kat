@@ -349,6 +349,11 @@ export const DEFAULT_APPEARANCE = {
   music_volume: 0.5,
 };
 
+export function siteGraphicUrl(appearance, key, fallback) {
+  const override = appearance?.site_graphics?.[key];
+  return publicMediaUrl(typeof override === "string" && override.trim() ? override : fallback);
+}
+
 export function mergeProductsPageSettings(raw) {
   if (!raw || typeof raw !== "object") return { ...DEFAULT_PRODUCTS_PAGE };
   const slides = Array.isArray(raw.slides) && raw.slides.length > 0

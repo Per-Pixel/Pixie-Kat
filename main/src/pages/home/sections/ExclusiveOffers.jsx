@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 
 import { publicMediaUrl } from "../../../lib/supabase";
+import { siteGraphicUrl } from "../../../lib/storeContent";
+import { useAppearance } from "../../../contexts/AppearanceContext";
 import { usePromoSection } from "../../../hooks/usePromoSection";
 import { useJjkCheaperPlacement } from "../../../hooks/useJjkCheaperPlacement";
 
@@ -118,6 +120,7 @@ const ExclusiveOfferCard = ({ title, image, flag, link }) => {
 const ExclusiveOffers = () => {
   const { items: promoItems } = usePromoSection("exclusive_offers");
   const jjkPromo = useJjkCheaperPlacement("homepage_banner");
+  const appearance = useAppearance();
 
   const exclusiveOffers =
     promoItems.length > 0
@@ -127,7 +130,10 @@ const ExclusiveOffers = () => {
           flag: item.flag ?? undefined,
           link: item.link_url || (item.game_id ? `/games/${item.game_id}` : "/games"),
         }))
-      : fallbackExclusiveOffers;
+      : fallbackExclusiveOffers.map((offer, index) => ({
+          ...offer,
+          image: siteGraphicUrl(appearance, `exclusive_fallback_${index + 1}`, offer.image),
+        }));
 
   const offers = jjkPromo ? [jjkPromo, ...exclusiveOffers] : exclusiveOffers;
 

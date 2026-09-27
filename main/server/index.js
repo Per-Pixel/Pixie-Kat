@@ -58,6 +58,7 @@ import * as smileOne from './smileone.js';
 import * as smileCoin from './smilecoin.js';
 import * as razorpay from './razorpay.js';
 import * as aluu from './aluu.js';
+import * as pinterest from './pinterest.js';
 
 const app = express();
 const PORT = config.port;
@@ -116,6 +117,14 @@ const fulfillLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { ok: false, error: 'Too many requests. Please wait a minute.' },
+});
+
+const pinterestLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many Pinterest requests. Please wait a minute.' },
 });
 
 // Auth middleware — verifies Supabase JWT and checks active roles.
@@ -229,6 +238,28 @@ function getBrowser(userAgent) {
 // Health check
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'pixiekat-admin-proxy', timestamp: new Date().toISOString() });
+});
+
+app.post('/api/admin/pinterest/resolve', requireAdmin, pinterestLimiter, async (req, res) => {
+  try {
+    const media = await pinterest.resolvePinterestLink(req.body?.url);
+    res.json({ ok: true, media });
+  } catch (err) {
+    if (err instanceof pinterest.PinterestImportError) return res.status(err.status).json({ ok: false, error: err.message });
+    console.error('Pinterest resolve failed:', err?.name || 'Unknown error');
+    res.status(502).json({ ok: false, error: 'Could not reach Pinterest. Check that the pin is public and try again.' });
+  }
+});
+
+app.post('/api/admin/pinterest/download', requireAdmin, pinterestLimiter, async (req, res) => {
+  try {
+    const { bytes, mimeType } = await pinterest.downloadPinterestMedia(req.body || {});
+    res.set('Cache-Control', 'no-store').type(mimeType).send(bytes);
+  } catch (err) {
+    if (err instanceof pinterest.PinterestImportError) return res.status(err.status).json({ ok: false, error: err.message });
+    console.error('Pinterest download failed:', err?.name || 'Unknown error');
+    res.status(502).json({ ok: false, error: 'Could not download this Pinterest file. Try another pin.' });
+  }
 });
 
 // Public storefront catalog — service_role bypasses RLS.

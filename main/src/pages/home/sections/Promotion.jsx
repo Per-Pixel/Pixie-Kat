@@ -2,6 +2,8 @@ import gsap from "gsap";
 import { useRef, useState } from "react";
 
 import { publicMediaUrl } from "../../../lib/supabase";
+import { siteGraphicUrl } from "../../../lib/storeContent";
+import { useAppearance } from "../../../contexts/AppearanceContext";
 import AnimatedTitle from "../../../components/common/AnimatedTitle";
 import { BentoTilt } from "./Features";
 
@@ -80,12 +82,20 @@ const PromotionCard = ({
   </article>
 );
 
+const promotionGraphicKeys = ["promotion_card_1", "promotion_card_2", "promotion_card_3"];
+const promotionFallbacks = ["/img/promotion/leomord.webp", "/img/promotion/eternal.webp", "/img/promotion/starlight.webp"];
+
 const Promotion = () => {
   const promoFrameRef = useRef(null);
   const smallCarouselRef = useRef(null);
   const [activeSmallIndex, setActiveSmallIndex] = useState(0);
+  const appearance = useAppearance();
 
-  const smallPromotions = promotions;
+  const cards = promotions.map((promotion, index) => ({
+    ...promotion,
+    image: siteGraphicUrl(appearance, promotionGraphicKeys[index], promotionFallbacks[index]),
+  }));
+  const smallPromotions = cards;
 
   const handlePromoMouseMove = (event) => {
     const { clientX, clientY } = event;
@@ -167,7 +177,7 @@ const Promotion = () => {
             ref={promoFrameRef}
             className="pointer-events-none absolute inset-0 rounded-3xl"
             style={{
-              backgroundImage: `url('${publicMediaUrl("/img/hero/promotion-art.png")}')`,
+              backgroundImage: `url('${siteGraphicUrl(appearance, "promotion_frame", "/img/hero/promotion-art.png")}')`,
               backgroundSize: "cover",
               backgroundPosition: "center",
             }}
@@ -205,7 +215,7 @@ const Promotion = () => {
           </div>
 
           <div className="relative z-10 hidden translate-y-16 grid-cols-2 gap-4 sm:grid sm:translate-y-20 sm:gap-6 lg:translate-y-28 lg:grid-cols-3">
-            {promotions.map((promotion, index) => (
+            {cards.map((promotion, index) => (
               index === 0 ? (
                 <BentoTilt
                   key={promotion.title}

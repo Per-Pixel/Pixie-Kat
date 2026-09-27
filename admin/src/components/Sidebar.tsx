@@ -17,7 +17,7 @@ import {
   ChevronDown,
   ChevronRight,
   X,
-  HardDrive,
+  Image,
   Settings,
   ClipboardList,
   Crown,
@@ -154,7 +154,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { label: 'API Console', path: '/providers/smile-coin/api-console' },
       ],
     },
-    { id: 'storage', label: 'Storage', icon: HardDrive, path: '/storage' },
+    { id: 'storage', label: 'Site graphics', icon: Image, path: '/storage' },
     { id: 'activity-logs', label: 'Activity Logs', icon: ClipboardList, path: '/activity-logs' },
     { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
   ];

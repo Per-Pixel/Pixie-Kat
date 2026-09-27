@@ -30,9 +30,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-icons": "^5.3.0",
-    "react-router-dom": "^6.26.0",
-    "react-use": "^17.5.1",
-    "tailwind": "^4.0.0"
+    "react-router-dom": "^7.18.4",
+    "react-use": "^17.5.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
@@ -53,8 +52,8 @@
     "tailwindcss": "^3.4.14",
     "terser": "^5.46.1",
     "typescript": "^5.8.3",
-    "vite": "^5.4.10",
+    "vite": "^6.4.3",
     "vite-plugin-compression": "^0.5.1",
-    "vitest": "^1.6.0"
+    "vitest": "^5.0.2"
   }
 }

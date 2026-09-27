@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { publicMediaUrl } from "../../../lib/supabase";
+import { siteGraphicUrl } from "../../../lib/storeContent";
+import { useAppearance } from "../../../contexts/AppearanceContext";
 import { usePromoSection } from "../../../hooks/usePromoSection";
 
 const fallbackTrendingGames = [
@@ -60,6 +62,7 @@ const TrendingGames = () => {
   const navigate = useNavigate();
   const [active, setActive] = useState(0);
   const { items: promoItems } = usePromoSection("trending");
+  const appearance = useAppearance();
 
   const trendingGames =
     promoItems.length > 0
@@ -72,7 +75,10 @@ const TrendingGames = () => {
           image: item.image_url || publicMediaUrl("/img/games/mobile-legends.webp"),
           link: item.link_url || (item.game_id ? `/games/${item.game_id}` : "/games"),
         }))
-      : fallbackTrendingGames;
+      : fallbackTrendingGames.map((game, index) => ({
+          ...game,
+          image: siteGraphicUrl(appearance, `trending_fallback_${index + 1}`, game.image),
+        }));
 
   useEffect(() => {
     const el = containerRef.current;

@@ -14,6 +14,8 @@ import MobileSquareButton from "../../../components/common/MobileSquareButton";
 import Loading from "../../../components/common/Loading";
 import { readPreferences } from "../../../lib/preferences";
 import { publicMediaUrl, resolveMediaUrls, supabase } from "../../../lib/supabase";
+import { useAppearance } from "../../../contexts/AppearanceContext";
+import { siteGraphicUrl } from "../../../lib/storeContent";
 
 const defaultHeroSettings = {
   heading: "PixieKat",
@@ -51,6 +53,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 const Hero = () => {
   const navigate = useNavigate();
+  const appearance = useAppearance();
   const [loading, setLoading] = useState(() => readPreferences().intro);
   const jinxRef = useRef(null);
   const fazeLogoRef = useRef(null);
@@ -78,7 +81,15 @@ const Hero = () => {
             resolveMediaUrls({
               ...prev,
               ...data.hero_settings,
-              images: { ...prev.images, ...(data.hero_settings.images ?? {}) },
+              images: Object.fromEntries(Object.entries(prev.images).map(([key, defaults]) => {
+                const configured = data.hero_settings.images?.[key] ?? {};
+                return [key, {
+                  ...defaults, ...configured,
+                  desktop: { ...defaults.desktop, ...configured.desktop },
+                  tablet: { ...defaults.tablet, ...configured.tablet },
+                  mobile: { ...defaults.mobile, ...configured.mobile },
+                }];
+              })),
             })
           );
         }
@@ -238,7 +249,7 @@ const Hero = () => {
             controls={false}
             controlsList="nodownload noplaybackrate nofullscreen"
             disablePictureInPicture
-            poster={publicMediaUrl("/img/hero/Jinx.webp")}
+            poster={publicMediaUrl(heroSettings.images.jinx?.url || "/img/hero/Jinx.webp")}
             className="absolute left-0 top-0 size-full object-cover object-center"
             onLoadedData={handleVideoLoad}
           />
@@ -250,7 +261,7 @@ const Hero = () => {
             <div className="relative size-full overflow-hidden rounded-lg">
               <video
                 ref={featureVideoRef}
-                src={publicMediaUrl("/videos/feature-4.mp4")} 
+                src={siteGraphicUrl(appearance, 'hero_contact_video', "/videos/feature-4.mp4")} 
                 autoPlay
                 loop
                 muted
@@ -281,8 +292,8 @@ const Hero = () => {
         {false && !isMobile && (
           <div className="pointer-events-auto absolute bottom-64 right-8 z-50 h-48 w-80 md:h-64 md:w-96">
             <FlipCard
-              frontVideo={publicMediaUrl("/videos/feature-2.mp4")}
-              backVideo={publicMediaUrl("/videos/feature-3.mp4")}
+              frontVideo={siteGraphicUrl(appearance, 'hero_games_front_video', "/videos/feature-2.mp4")}
+              backVideo={siteGraphicUrl(appearance, 'hero_games_back_video', "/videos/feature-3.mp4")}
               title="Popular Games"
               description="Top up your favorite games instantly"
               buttonText="View All Games"
@@ -296,7 +307,7 @@ const Hero = () => {
             <BentoTilt className="size-full overflow-hidden rounded-lg shadow-[0_0_15px_rgba(79,183,221,0.5)]">
               <div className="relative size-full overflow-hidden rounded-lg">
                 <video
-                  src={publicMediaUrl("/videos/feature-4.mp4")} 
+                  src={siteGraphicUrl(appearance, 'hero_contact_video', "/videos/feature-4.mp4")} 
                   autoPlay
                   loop
                   muted
@@ -347,8 +358,8 @@ const Hero = () => {
                 </svg>
               </button>
               <FlipCard
-                frontVideo={publicMediaUrl("/videos/feature-2.mp4")}
-                backVideo={publicMediaUrl("/videos/feature-3.mp4")}
+                frontVideo={siteGraphicUrl(appearance, 'hero_games_front_video', "/videos/feature-2.mp4")}
+                backVideo={siteGraphicUrl(appearance, 'hero_games_back_video', "/videos/feature-3.mp4")}
                 title="Popular Games"
                 description="Top up your favorite games instantly"
                 buttonText="View All Games"

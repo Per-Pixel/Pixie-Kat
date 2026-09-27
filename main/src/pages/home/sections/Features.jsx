@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
 import { TiLocationArrow } from "react-icons/ti";
 
-import { publicMediaUrl } from "../../../lib/supabase";
+import { useAppearance } from "../../../contexts/AppearanceContext";
+import { siteGraphicUrl } from "../../../lib/storeContent";
 
 export const BentoTilt = ({ children, className = "" }) => {
   const [transformStyle, setTransformStyle] = useState("");
@@ -106,7 +107,9 @@ export const BentoCard = ({ src, title, description, isComingSoon }) => {
   );
 };
 
-const Features = () => (
+const Features = () => {
+  const appearance = useAppearance();
+  return (
   <section className="bg-black pb-52">
     <div className="container mx-auto px-3 md:px-10">
       <div className="px-5 py-32">
@@ -122,7 +125,7 @@ const Features = () => (
 
       <BentoTilt className="border-hsla relative mb-7 h-96 w-full overflow-hidden rounded-md md:h-[65vh]">
         <BentoCard
-          src={publicMediaUrl("/videos/feature-1.mp4")}
+          src={siteGraphicUrl(appearance, 'feature_main_video', "/videos/feature-1.mp4")}
           title={
             <>
               Pixie<b>K</b>at
@@ -146,7 +149,7 @@ const Features = () => (
 
         <BentoTilt className="bento-tilt_2">
           <video
-            src={publicMediaUrl("/videos/feature-5.mp4")}
+            src={siteGraphicUrl(appearance, 'feature_small_video', "/videos/feature-5.mp4")}
             loop
             muted
             autoPlay
@@ -162,6 +165,7 @@ const Features = () => (
       </div>
     </div>
   </section>
-);
+  );
+};
 
 export default Features;
