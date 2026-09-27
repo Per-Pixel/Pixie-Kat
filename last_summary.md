@@ -11,7 +11,7 @@
 
 ### Pending / user-side
 
-- Hostinger SMTP (`admin@pixiekat.store` or a `noreply@` mailbox) — user to add in Supabase Auth → SMTP Settings; steps given in chat. Optional dedicated-mailbox advice: keep `admin@` as sender or create `noreply@`.
+- ~~Hostinger SMTP~~ — done. User configured Supabase Auth → SMTP with `smtp.hostinger.com:465`, sender alias `noreply@pixiekat.store` (receiving suspended), authenticating as the `admin@pixiekat.store` mailbox (password set via Hostinger panel — panel Google login is not the mailbox password).
 - Migrations 038 + 039: user says applied.
 - App-level notification emails (order receipts, login alerts honoring `user_settings`) — nodemailer build not started; needs SMTP creds in EB env vars.
 - Open product work unchanged: standalone membership purchase, email/SMS sender, Promo/Blog stubs, Refer & Earn, Dark Mode/Compact View, `products.amount` labels, footer socials, legal copy, `admin/.env` history.
