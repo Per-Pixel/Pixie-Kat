@@ -6,14 +6,24 @@
 - Grant purchased membership plans once the order is paid — checkout charged the plan add-on but never activated it (`038_membership_grant_on_paid_order.sql` trigger on `orders.status`; cancelled again if the order is refunded/failed).
 - Persist support/contact form submissions to `support_requests` (`039_support_requests.sql`) instead of silently discarding them, and wire the admin Messages page to the real inbox with status triage.
 - Add forgot-password flow: reset link from the login page and a `/reset-password` page to set a new password.
-- Wire the Google sign-in button to `signInWithOAuth` (requires the Google provider enabled in Supabase Auth).
+- Wire the Google sign-in button to `signInWithOAuth`, then hide the button until OAuth credentials are configured.
 - Add user-facing TOTP 2FA: enroll/verify/disable at `/account/security/two-factor` and an authenticator-code step during login when an account has 2FA on.
 - Resend the email-verification link from the Security page instead of a dead card.
 - `/games` quick actions: "Purchase" opens order history; "Payments" and "Refer & Earn" show a coming-soon note instead of doing nothing.
 
+### Admin
+- Rebuild `/storage` around a placement-first "Site graphics" workspace: browse graphics by page → section → slot with previews, then upload a file, pick from `public-media`, or import from Pinterest and save just that placement — other spots using the same file stay unchanged.
+- Per-placement saves merge the latest `store_settings` row behind an `updated_at` guard, hydrate default products-carousel slides before editing one, and row-level updates (games/products/promos) only apply while the current image still matches, so a stale editor cannot silently overwrite newer work.
+- Keep the raw library as a secondary "Media files" view with a simple gallery (linked/unlinked filters, exact usage per file); folder tree, bulk actions, and conversion tools move behind "Advanced tools". Deleting is blocked while usage cannot be verified.
+- Add Pinterest import: paste pin/board links, preview extracted images and videos, save selected files to the library or a ZIP, or apply one pin straight to the placement being edited. Fetching is server-side (`/api/admin/pinterest/*`), admin-only, rate-limited, and restricted to Pinterest page/media hosts with per-redirect validation and size/content-type checks.
+
+### Storefront
+- Hardcoded homepage graphics are now admin-editable through `appearance_settings.site_graphics`: promotion background and the three promo cards, contact artworks, feature videos, hero card videos, and the built-in Trending/Exclusive fallback cards (used only until live promo items exist).
+
 ### Repository
 - Remove scratch artifacts (`Test/` harness, temp backup/seed scripts, stale AWS log, stray screenshot) and stop tracking `admin/.env`.
 - Make the super-admin server test independent of the local `.env`.
+- Clear all `npm audit` findings across `admin`, `main`, and `main/server`: remove the mistaken `tailwind` (event-sourcing) dependency from `main`, bump `vite` 5→6 and `vitest` 1→5 and `react-router-dom` 6→7 in `main`, and pin a safe `qs` via `overrides` in `main/server`.
 
 ### Payments
 - Add Aluu Pay (UPI Gateway) as a second payment provider alongside Razorpay.

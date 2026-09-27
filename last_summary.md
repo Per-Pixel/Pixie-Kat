@@ -1,27 +1,43 @@
 # Last Summary
 
-## Session: Repo hygiene + fix broken storefront paths
+## Session: push broken-path fixes, hide Google button
 
 ### Done
 
-- **Hygiene** (`49e70b4`): deleted `Test/` scratch harness, `aws_errors`, `tmp-ml-after.png`, `main/server/tmp-*.{json,mjs}`, `main/scripts/tmp-jjk-layout-shot.mjs`; untracked `admin/.env` (was committed before .gitignore covered it — file stays on disk, still ignored).
-- **Membership grant bug** (`6634cb6`, migration `038`): orders could bill a plan add-on via `metadata.pricing.selected_membership_plan_id` but nothing inserted `user_memberships`. New trigger `sync_membership_from_order` on `orders.status` grants on 'processing'/'completed' (covers wallet RPC inserts and Razorpay/Aluu pending→processing flips) and cancels on 'failed'/'refunded'/'cancelled'. Idempotent via unique partial index on `source_order_id` + already-active guard.
-- **Support forms** (migration `039` + both pages): `GetSupportPage`/`ContactUsPage` were fake submits — now insert into `support_requests` (anon/authenticated insert RLS, user reads own, admin reads/updates). Admin `Messages.tsx` rewritten from hardcoded mock to the real inbox: search, status filter, expand, mark open/resolved, mailto reply.
-- **Forgot/reset password**: dead `href="#"` link → inline forgot mode on auth page (`resetPasswordForEmail` → `/reset-password`); new `ResetPasswordPage` handles the recovery session + `updateUser` with the same strength rules as signup.
-- **Google OAuth**: dead button wired to `signInWithOAuth` — needs the Google provider enabled in Supabase Auth dashboard.
-- **2FA**: new `TwoFactorPage` (`/account/security/two-factor`) — TOTP enroll (QR + manual secret) / `challengeAndVerify` / unenroll via `supabase.auth.mfa`, mirrored into `user_2fa_config`. Login now steps to an authenticator-code screen when `getAuthenticatorAssuranceLevel` says aal2 is required. The looping Security card lands somewhere real.
-- **Email verification**: dead `onClick` card on SecurityPage now resends via `supabase.auth.resend`.
-- **/games mobile buttons**: Purchase → `/account`; Payments + Refer & Earn → "coming soon" toast (MoreMenu pattern).
-- **Server test flake**: `supabase-admin.test.js` deleted env vars, but `dotenv.config()` in the module re-read `.env` on import. Now sets `SUPER_ADMIN_*=''` instead. 36/36 pass.
+- **Pushed the 7 broken-path commits to `origin/main`** (`9059b00..c2ab301`): hygiene, membership-grant trigger (038), support inbox (039), password reset + TOTP 2FA + verification resend, games quick actions, test isolation, docs. Amplify rebuilds from this.
+- **Hid the Google sign-in button** in `main/src/pages/auth/index.jsx` (button, "Or continue with" divider, and `handleGoogleLogin` removed) — deferred until OAuth credentials exist. eslint clean on the file.
 
-### Verified
+### Repo state flag
 
-- `main` eslint 0 errors, vitest 36/36, `vite build` ok. `admin` `tsc -b` clean, vitest 3/3, eslint clean. Server `node --test` 36/36.
+- **`main` was reset back to `c2ab301` while keeping the site-graphics-admin + Pinterest work as uncommitted changes** — 24 modified files + 6 new files on disk (`main/server/pinterest.js`, `PinterestImportPanel.tsx`, pinterest/mediaService/storeContent tests). The work is described below and was fully verified; it needs a commit + push (+ `eb deploy` for the new server file) to go live. Awaiting user decision.
+
+### Pending / user-side
+
+- Supabase Auth dashboard: add `https://pixiekat.com/reset-password` to Redirect URLs (forgot-password fails live without it).
+- Migrations 038 + 039: user says applied.
+- Hostinger email: user asked about it — usable both as Supabase SMTP sender (Auth → SMTP Settings) and as nodemailer backend for app notifications (order receipts, login alerts honoring `user_settings` toggles). Needs a mailbox + SMTP creds; build not started.
+- Open product work unchanged: standalone membership purchase, email/SMS sender, Promo/Blog stubs, Refer & Earn, Dark Mode/Compact View, `products.amount` labels, footer socials, legal copy, `admin/.env` history.
+
+---
+
+## Prior session: Site graphics admin + Pinterest import (UNCOMMITTED on disk)
+
+### Done
+
+- **`/storage` is now placement-first.** The default "Site graphics" view (`admin/src/pages/storage/StoragePage.tsx` + `buildSiteGraphicPlacements` in `mediaService.ts`) lists every storefront graphic by page → section → slot with a preview, live flag, and a source descriptor. The editor shows current vs new preview and accepts an upload, a `public-media` pick, or a Pinterest pin — then saves only that placement.
+- **Safe saves.** `saveGraphicPlacement` re-reads `store_settings`, merges only the nested path, and writes behind an `updated_at` match; products-carousel defaults hydrate before editing a slide; `games`/`products`/`promotional_items` updates apply only while the stored URL still matches what the editor saw. Stale editors get a refresh error instead of clobbering newer work.
+- **Media files view** is a simple gallery (linked/unlinked filters, per-file exact usage, delete blocked until usage verifies); folder tree, bulk ops, and converters live under "Advanced tools".
+- **Pinterest import restored without the old open proxy.** `PinterestImportPanel` has two modes — `placement` (one pin → staged File in the editor) and `library` (up to 20 links, select/deselect, save to a folder or ZIP). Server side is `main/server/pinterest.js` behind `POST /api/admin/pinterest/resolve|download` (admin-gated, rate-limited, Pinterest-hosts-only, per-redirect revalidation, size cap, thumbnail fallback). The old branch's importer (`41f8bbd` on `admin`) was used as reference only — no merge, no public CORS proxies.
+- **Storefront wiring** (`appearance_settings.site_graphics` via `siteGraphicUrl()`): Promotion background + 3 cards, Contact's four artworks, Features videos, hero card videos, and the built-in Trending/Exclusive fallback cards now take admin overrides; DB-backed fields (hero settings, about, promo items, games, products, JJK event, branding) were already in the catalogue. Layout/GSAP untouched — values only. `Story.jsx` is unused, skipped.
+
+### Verified (before the reset)
+
+- `admin`: `tsc -b` clean, vitest 14/14, eslint 0 errors, `vite build` ok.
+- `main`: vitest 39/39, eslint 0 errors, `vite build` ok.
+- `main/server`: `node --test` 43/43 (incl. Pinterest host restriction, redirect validation, HTML-masquerade, size cap).
+- `npm audit`: 0 vulnerabilities in `admin`, `main`, `main/server`. Vitest must stay on 5.x + vite 6 — vitest 3.x breaks on the `~` in this path.
 
 ### Not done / follow-ups
 
-- **Apply migrations 038 + 039 to live Supabase** (SQL editor — same way 036 was applied).
-- Supabase Auth config needed: add `${SITE}/reset-password` to Redirect URLs; enable Google provider for OAuth; confirm signup confirmation emails enabled for the resend flow.
-- No email/SMS sender exists — `user_settings` notification toggles persist but nothing dispatches (needs a provider; bigger feature).
-- Promo/Blog still intentional coming-soon stubs; Dark Mode/Compact View toggles stubbed; `products.amount` still holds machine labels (`Diamond=234+23`).
-- Membership is only purchasable as a top-up add-on (`/pricing` "Choose" → `/games`); standalone plan purchase is a design decision.
+- No live browser QA — `agent-browser` CLI isn't installed; admin `vite dev` 403s on this Windows path, so preview via `vite preview` after a production build.
+- Pinterest private/sign-in-only boards correctly return 422; that's expected, not a bug.
