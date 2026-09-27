@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Headphones, Send, ArrowUp } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 const FloatingActions = () => {
   const reduced = useReducedMotion();
+  const { pathname } = useLocation();
+  const isGameCheckoutRoute = /^\/games\/[^/]+$/.test(pathname);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
@@ -86,11 +89,11 @@ const FloatingActions = () => {
             transition={{ duration: reduced ? 0 : 0.25, ease: 'easeOut' }}
             whileHover={reduced ? undefined : { scale: 1.05 }}
             whileTap={reduced ? undefined : { scale: 0.92 }}
-            className="fixed z-[140] flex size-12 items-center justify-center rounded-full shadow-xl"
+            className={`fixed z-[140] flex size-12 items-center justify-center rounded-full shadow-xl ${isGameCheckoutRoute ? 'bottom-[17rem] lg:bottom-20' : ''}`}
             style={{
               /* On mobile: just above the bottom nav (64px) + small gap.
                  On desktop (lg+): standard 2rem from bottom edge. */
-              bottom: '5rem',
+              bottom: isGameCheckoutRoute ? undefined : '5rem',
               right: '1rem',
               background: 'linear-gradient(135deg, #7c6ef2 0%, #9f8cff 100%)',
               color: '#fff',

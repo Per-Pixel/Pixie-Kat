@@ -20,6 +20,7 @@
 - Add Pinterest import: paste pin/board links, preview extracted images and videos, save selected files to the library or a ZIP, or apply one pin straight to the placement being edited. Fetching is server-side (`/api/admin/pinterest/*`), admin-only, rate-limited, and restricted to Pinterest page/media hosts with per-redirect validation and size/content-type checks.
 
 ### Storefront
+- Rework the Mobile Legends phone layout with a rounded reduced-height game banner, Buy/Guide switch, readable two-column CMS package groups and notes, and a separate how-to view; keep checkout and other games intact while clearing the scroll control from the Pay button.
 - Hardcoded homepage graphics are now admin-editable through `appearance_settings.site_graphics`: promotion background and the three promo cards, contact artworks, feature videos, hero card videos, and the built-in Trending/Exclusive fallback cards (used only until live promo items exist).
 
 ### Repository

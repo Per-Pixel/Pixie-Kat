@@ -6,6 +6,7 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  CirclePlay,
   CreditCard,
   Gem,
   Info,
@@ -74,16 +75,20 @@ const SectionTitle = ({ number, children }) => (
   </div>
 );
 
-const CompactPackageCard = ({ item, selected, onSelect }) => (
+const CompactPackageCard = ({ item, selected, onSelect, mobileLegends = false }) => (
   <button
     type="button"
     onClick={onSelect}
-    className={`relative flex min-h-[84px] w-full flex-col items-stretch justify-between rounded-lg border bg-white p-3 text-left shadow-sm transition sm:min-h-[96px] sm:p-3.5 ${
-      selected ? "border-[#7152ff] bg-[#f6f3ff]" : "border-[#dfe4ec] hover:border-[#c5ccd8]"
-    }`}
+    aria-pressed={selected}
+    className={`relative flex w-full flex-col items-stretch justify-between rounded-lg border bg-white text-left shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7152ff] ${
+      mobileLegends ? "min-h-[116px] p-3 md:min-h-[96px] md:p-3.5" : "min-h-[84px] p-3 sm:min-h-[96px] sm:p-3.5"
+    } ${selected ? "border-[#7152ff]" : "border-[#dfe4ec] hover:border-[#c5ccd8]"}`}
   >
     {selected ? (
-      <span className="absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-[#7152ff] text-white">
+      <span className={mobileLegends
+        ? "absolute right-0 top-0 flex size-6 items-center justify-center rounded-bl-lg rounded-tr-lg bg-[#7152ff] text-white md:-right-1.5 md:-top-1.5 md:size-4 md:rounded-full"
+        : "absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-[#7152ff] text-white"}
+      >
         <Check className="size-3" strokeWidth={3} />
       </span>
     ) : null}
@@ -97,27 +102,37 @@ const CompactPackageCard = ({ item, selected, onSelect }) => (
         {item.priceLabel}
       </p>
       {item.image ? (
-        <img src={item.image} alt="" className="size-6 shrink-0 rounded object-cover sm:size-7" />
+        <img src={item.image} alt="" className={mobileLegends ? `size-7 shrink-0 rounded object-contain md:object-cover ${selected ? "mr-6 md:mr-0" : ""}` : "size-6 shrink-0 rounded object-cover sm:size-7"} />
       ) : (
-        <Gem className="size-5 shrink-0 text-[#8b6dff] sm:size-6" />
+        <Gem className={mobileLegends
+          ? `size-5 shrink-0 text-[#8b6dff] md:size-6 ${selected ? "mr-6 md:mr-0" : ""}`
+          : "size-5 shrink-0 text-[#8b6dff] sm:size-6"}
+        />
       )}
     </div>
-    <p className="mt-4 text-[11px] font-medium leading-tight text-[#3b4350] sm:text-xs">
-      {item.amount || item.name}
+    <p className={mobileLegends
+      ? "mt-4 break-words text-xs font-medium leading-snug text-[#3b4350]"
+      : "mt-4 text-[11px] font-medium leading-tight text-[#3b4350] sm:text-xs"}
+    >
+      {mobileLegends ? item.name : item.amount || item.name}
     </p>
   </button>
 );
 
-const FeaturedPackageCard = ({ item, selected, onSelect }) => (
+const FeaturedPackageCard = ({ item, selected, onSelect, mobileLegends = false }) => (
   <button
     type="button"
     onClick={onSelect}
-    className={`relative flex min-h-[112px] w-full flex-col items-stretch justify-between rounded-lg border bg-white p-4 text-left shadow-sm transition ${
-      selected ? "border-[#7152ff] bg-[#f6f3ff]" : "border-[#dfe4ec] hover:border-[#c5ccd8]"
-    }`}
+    aria-pressed={selected}
+    className={`relative flex min-h-[112px] w-full flex-col items-stretch justify-between rounded-lg border bg-white text-left shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7152ff] ${
+      mobileLegends ? "p-3 md:p-4" : "p-4"
+    } ${selected ? "border-[#7152ff]" : "border-[#dfe4ec] hover:border-[#c5ccd8]"}`}
   >
     {selected ? (
-      <span className="absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-[#7152ff] text-white">
+      <span className={mobileLegends
+        ? "absolute right-0 top-0 flex size-6 items-center justify-center rounded-bl-lg rounded-tr-lg bg-[#7152ff] text-white md:-right-1.5 md:-top-1.5 md:size-4 md:rounded-full"
+        : "absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-[#7152ff] text-white"}
+      >
         <Check className="size-3" strokeWidth={3} />
       </span>
     ) : null}
@@ -126,15 +141,18 @@ const FeaturedPackageCard = ({ item, selected, onSelect }) => (
         {item.priceLabel}
       </p>
       {item.image ? (
-        <img src={item.image} alt="" className="h-6 w-9 shrink-0 rounded object-cover sm:h-7 sm:w-10" />
+        <img src={item.image} alt="" className={mobileLegends ? `size-8 shrink-0 rounded object-contain md:h-7 md:w-10 md:object-cover ${selected ? "mr-6 md:mr-0" : ""}` : "h-6 w-9 shrink-0 rounded object-cover sm:h-7 sm:w-10"} />
       ) : (
-        <Gem className="size-5 shrink-0 text-[#8b6dff] sm:size-6" />
+        <Gem className={mobileLegends
+          ? `size-5 shrink-0 text-[#8b6dff] md:size-6 ${selected ? "mr-6 md:mr-0" : ""}`
+          : "size-5 shrink-0 text-[#8b6dff] sm:size-6"}
+        />
       )}
     </div>
     <div className="mt-4">
-      <p className="text-[11px] font-bold leading-tight text-[#141923] sm:text-xs">{item.name}</p>
+      <p className={mobileLegends ? "break-words text-xs font-bold leading-snug text-[#141923]" : "text-[11px] font-bold leading-tight text-[#141923] sm:text-xs"}>{item.name}</p>
       {item.description ? (
-        <p className="mt-0.5 line-clamp-2 text-[11px] font-medium leading-tight text-[#6d7480]">
+        <p className={mobileLegends ? "mt-1 line-clamp-2 text-xs leading-snug text-[#6d7480]" : "mt-0.5 line-clamp-2 text-[11px] font-medium leading-tight text-[#6d7480]"}>
           {item.description}
         </p>
       ) : null}
@@ -172,8 +190,8 @@ const HowToTopUp = ({ steps }) => {
   );
 };
 
-const InstructionsAlert = ({ title, body }) => (
-  <section className="rounded-xl border border-[#f2c8ad] bg-[#fffaf4] px-6 py-5 text-[#c43a0c]">
+const InstructionsAlert = ({ title, body, className = "" }) => (
+  <section className={`rounded-xl border border-[#f2c8ad] bg-[#fffaf4] px-6 py-5 text-[#c43a0c] ${className}`}>
     <div className="flex items-start gap-3">
       <Info className="mt-1 size-4 shrink-0 text-[#99a1ad]" />
       <div className="space-y-3 text-sm leading-7">
@@ -264,27 +282,27 @@ const MembershipOffer = ({ selectedPackage, plans, activeMembership, selectedPla
   </section>
   );
 };
-const MobileCheckoutBar = ({ selectedPackage, selectedPayment, totalLabel, onPay, onAddToCart, isSubmitting }) => (
+const MobileCheckoutBar = ({ selectedPackage, selectedPayment, totalLabel, onPay, onAddToCart, isSubmitting, mobileLegends = false }) => (
   <div className="fixed inset-x-0 bottom-16 z-[90] mx-auto block max-w-md px-4 md:hidden">
-    <div className="flex h-[72px] items-center gap-3 rounded-t-xl border border-[#e9edf3] bg-white/95 px-3 shadow-[0_-12px_30px_rgba(15,23,42,0.12)] backdrop-blur">
+    <div className={`flex h-[72px] items-center rounded-t-xl border border-[#e9edf3] bg-white/95 shadow-[0_-12px_30px_rgba(15,23,42,0.12)] backdrop-blur ${mobileLegends ? "gap-2 px-2 sm:gap-3 sm:px-3" : "gap-3 px-3"}`}>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold text-[#151922]">{selectedPackage?.name ?? "Select a package"}</p>
+        <p className={mobileLegends ? "truncate text-xs font-bold text-[#151922] sm:text-sm" : "truncate text-sm font-bold text-[#151922]"}>{selectedPackage?.name ?? "Select a package"}</p>
         <p className="text-xs text-[#7b8492]">ID Required</p>
       </div>
-      <div className="min-w-[86px] text-center">
+      <div className={mobileLegends ? "min-w-[70px] text-center sm:min-w-[86px]" : "min-w-[86px] text-center"}>
         <p className="text-[10px] font-bold text-[#9aa2ad]">TOTAL</p>
-        <p className="text-lg font-black text-[#6d4cff]">{totalLabel ?? "..."}</p>
+        <p className={mobileLegends ? "text-sm font-black text-[#6d4cff] sm:text-lg" : "text-lg font-black text-[#6d4cff]"}>{totalLabel ?? "..."}</p>
       </div>
       <button
         type="button"
         onClick={onAddToCart}
         disabled={isSubmitting || !selectedPackage}
         aria-label="Add to cart"
-        className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[#6d4cff]/40 text-[#6d4cff] disabled:opacity-50"
+        className={mobileLegends ? "flex size-9 shrink-0 items-center justify-center rounded-lg border border-[#6d4cff]/40 text-[#6d4cff] disabled:opacity-50 sm:size-10" : "flex size-10 shrink-0 items-center justify-center rounded-lg border border-[#6d4cff]/40 text-[#6d4cff] disabled:opacity-50"}
       >
         <ShoppingCart className="size-4" />
       </button>
-      <button type="button" onClick={onPay} disabled={isSubmitting || !selectedPackage} className="h-10 rounded-lg bg-[#6d4cff] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-70">
+      <button type="button" onClick={onPay} disabled={isSubmitting || !selectedPackage} className={mobileLegends ? "h-10 shrink-0 whitespace-nowrap rounded-lg bg-[#6d4cff] px-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-70 sm:px-4 sm:text-sm" : "h-10 rounded-lg bg-[#6d4cff] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-70"}>
         {isSubmitting ? "..." : `Pay ${totalLabel ?? selectedPayment.name}`}
       </button>
     </div>
@@ -338,6 +356,9 @@ const GamePage = () => {
   const { loading, notFound, game, fields, products } = useGameCatalog(slug);
   const { user, profile, isAuthenticated } = useAuth();
   const { addItem } = useCart();
+  const isMobileLegends = slug === "mobile-legends";
+  const [mobileView, setMobileView] = useState({ slug, view: "buy" });
+  const activeMobileView = mobileView.slug === slug ? mobileView.view : "buy";
 
   const [selectedPackageId, setSelectedPackageId] = useState(null);
   const [selectedPaymentId, setSelectedPaymentId] = useState(paymentMethods[0].id);
@@ -612,6 +633,7 @@ const GamePage = () => {
 
   const steps = game.how_to_steps && game.how_to_steps.length > 0 ? game.how_to_steps : defaultSteps;
   const bannerImage = game.banner_url || game.image_url || defaultBanner;
+  const gameDescription = game.description ? sanitizeRichText(game.description) : null;
   const selectedPackage = packages.find((item) => item.id === selectedPackageId) ?? packages[0] ?? null;
   const selectedPayment = paymentMethods.find((item) => item.id === selectedPaymentId) ?? paymentMethods[0];
   const selectedMembershipPlan = membershipPlans.find((plan) => plan.id === selectedMembershipPlanId) ?? null;
@@ -1074,7 +1096,9 @@ const GamePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(115deg,#fbfaf5_0%,#eef8f7_48%,#faf8f2_100%)] pb-28 pt-24 text-[#10141f] md:pb-16">
+    <div className={`min-h-screen bg-[linear-gradient(115deg,#fbfaf5_0%,#eef8f7_48%,#faf8f2_100%)] pt-24 text-[#10141f] md:pb-16 ${
+      isMobileLegends ? (activeMobileView === "guide" ? "pb-20" : "pb-40") : "pb-28"
+    }`}>
       {showCartReview && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 px-4">
           <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-7 shadow-2xl">
@@ -1144,31 +1168,66 @@ const GamePage = () => {
           </div>
         </div>
       )}
-      <div className="mx-auto grid max-w-[1480px] gap-10 px-4 md:px-8 md:pt-10 lg:grid-cols-[360px_minmax(0,1fr)] lg:px-12">
-        <aside className="space-y-8 lg:sticky lg:top-24 lg:self-start">
+      <div className={isMobileLegends
+        ? "mx-auto grid max-w-[1480px] gap-0 px-0 md:gap-10 md:px-8 md:pt-10 lg:grid-cols-[360px_minmax(0,1fr)] lg:px-12"
+        : "mx-auto grid max-w-[1480px] gap-10 px-4 md:px-8 md:pt-10 lg:grid-cols-[360px_minmax(0,1fr)] lg:px-12"}
+      >
+        <aside className={isMobileLegends ? "space-y-0 md:space-y-8 lg:sticky lg:top-24 lg:self-start" : "space-y-8 lg:sticky lg:top-24 lg:self-start"}>
           <img
             src={bannerImage}
             alt={game.name}
-            className="h-36 w-full rounded-xl object-cover shadow-[0_18px_42px_rgba(15,23,42,0.18)] md:h-36"
+            className={isMobileLegends
+              ? "h-[9.9rem] w-full rounded-xl object-cover md:h-[8.1rem] md:shadow-[0_18px_42px_rgba(15,23,42,0.18)]"
+              : "h-36 w-full rounded-xl object-cover shadow-[0_18px_42px_rgba(15,23,42,0.18)] md:h-36"}
             onError={(event) => {
               event.currentTarget.onerror = null;
               event.currentTarget.src = game.image_url || fallbackGameImage;
             }}
           />
 
+          {isMobileLegends ? (
+            <nav aria-label="Mobile Legends sections" className="grid h-14 grid-cols-2 border-b border-[#dfe4ec] bg-white/75 backdrop-blur md:hidden">
+              <button
+                type="button"
+                aria-pressed={activeMobileView === "buy"}
+                aria-controls="mobile-legends-buy"
+                onClick={() => setMobileView({ slug, view: "buy" })}
+                className={`flex min-h-11 items-center justify-center gap-2 border-b-2 font-general text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#7152ff] ${activeMobileView === "buy" ? "border-[#7152ff] text-[#6d4cff]" : "border-transparent text-[#6d7480]"}`}
+              >
+                <ShoppingCart className="size-4" /> Buy
+              </button>
+              <button
+                type="button"
+                aria-pressed={activeMobileView === "guide"}
+                aria-controls="mobile-legends-guide"
+                onClick={() => setMobileView({ slug, view: "guide" })}
+                className={`flex min-h-11 items-center justify-center gap-2 border-b-2 font-general text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#7152ff] ${activeMobileView === "guide" ? "border-[#7152ff] text-[#6d4cff]" : "border-transparent text-[#6d7480]"}`}
+              >
+                <CirclePlay className="size-4" /> Guide
+              </button>
+            </nav>
+          ) : null}
+
           <div className="hidden md:block">
             <HowToTopUp steps={steps} />
           </div>
 
           {game.instructions ? (
-            <InstructionsAlert title={`${game.name} Notes`} body={game.instructions} />
+            <InstructionsAlert title={`${game.name} Notes`} body={game.instructions} className={isMobileLegends ? "hidden md:block" : ""} />
           ) : null}
         </aside>
 
-        <main className="rounded-[28px] bg-white/75 px-4 py-7 shadow-[0_24px_70px_rgba(15,23,42,0.12)] backdrop-blur md:px-8 lg:px-9">
-          {game.description ? <div className="mb-7 text-sm leading-7 text-[#5f6977] [&_a]:text-[#6d4cff] [&_a]:underline [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-bold [&_h3]:font-bold [&_li]:ml-5 [&_ol]:list-decimal [&_ul]:list-disc" dangerouslySetInnerHTML={{ __html: sanitizeRichText(game.description) }} /> : null}
+        <main
+          id={isMobileLegends ? "mobile-legends-buy" : undefined}
+          className={isMobileLegends
+            ? `${activeMobileView === "guide" ? "hidden md:block" : ""} rounded-none bg-white/75 px-3 py-7 shadow-[0_24px_70px_rgba(15,23,42,0.12)] backdrop-blur md:rounded-[28px] md:px-8 lg:px-9`
+            : "rounded-[28px] bg-white/75 px-4 py-7 shadow-[0_24px_70px_rgba(15,23,42,0.12)] backdrop-blur md:px-8 lg:px-9"}
+        >
+          {gameDescription ? <div className={`${isMobileLegends ? "hidden md:block" : ""} mb-7 text-sm leading-7 text-[#5f6977] [&_a]:text-[#6d4cff] [&_a]:underline [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-bold [&_h3]:font-bold [&_li]:ml-5 [&_ol]:list-decimal [&_ul]:list-disc`} dangerouslySetInnerHTML={{ __html: gameDescription }} /> : null}
           <section>
-            <SectionTitle number="1">Enter Account Details</SectionTitle>
+            <SectionTitle number="1">
+              {isMobileLegends ? <><span className="md:hidden">Put Your ID</span><span className="hidden md:inline">Enter Account Details</span></> : "Enter Account Details"}
+            </SectionTitle>
             {fields.length === 0 ? (
               <p className="text-sm text-[#6d7480]">No account fields configured for this game.</p>
             ) : (
@@ -1221,6 +1280,9 @@ const GamePage = () => {
 
           <section className="mt-7">
             <SectionTitle number="2">Select the Package</SectionTitle>
+            {isMobileLegends && gameDescription ? (
+              <div className="mb-6 text-sm leading-6 text-[#5f6977] md:hidden [&_a]:text-[#6d4cff] [&_a]:underline [&_h2]:mb-2 [&_h2]:text-lg [&_h2]:font-bold [&_h3]:font-bold [&_li]:ml-5 [&_ol]:list-decimal [&_ul]:list-disc" dangerouslySetInnerHTML={{ __html: gameDescription }} />
+            ) : null}
             {packages.length === 0 ? (
               <p className="text-sm text-[#6d7480]">No packages available right now.</p>
             ) : packageLayout === "compact" ? (
@@ -1229,20 +1291,24 @@ const GamePage = () => {
                   {packageSections.map((section, index) => {
                     if (section.type === "note") {
                       return (
-                        <p key={index} className="whitespace-pre-line text-xs leading-relaxed text-[#3b4350]">
+                        <p key={index} className={isMobileLegends
+                          ? "whitespace-pre-line text-sm leading-6 text-[#3b4350] md:text-xs md:leading-relaxed"
+                          : "whitespace-pre-line text-xs leading-relaxed text-[#3b4350]"}
+                        >
                           {section.text}
                         </p>
                       );
                     }
                     if (section.type === "featured") {
                       return (
-                        <div key={index} className="grid grid-cols-3 gap-2.5 sm:gap-3">
+                        <div key={index} className={isMobileLegends ? "grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3" : "grid grid-cols-3 gap-2.5 sm:gap-3"}>
                           {section.items.map((item) => (
                             <FeaturedPackageCard
                               key={item.id}
                               item={item}
                               selected={selectedPackageId === item.id}
                               onSelect={() => setSelectedPackageId(item.id)}
+                              mobileLegends={isMobileLegends}
                             />
                           ))}
                         </div>
@@ -1251,15 +1317,16 @@ const GamePage = () => {
                     return (
                       <div key={index}>
                         {section.title ? (
-                          <h3 className="mb-3 text-lg font-extrabold text-[#10141f]">{section.title}</h3>
+                          <h3 className={isMobileLegends ? "mb-3 text-xl font-bold text-[#10141f] md:text-lg md:font-extrabold" : "mb-3 text-lg font-extrabold text-[#10141f]"}>{section.title}</h3>
                         ) : null}
-                        <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+                        <div className={isMobileLegends ? "grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3" : "grid grid-cols-3 gap-2.5 sm:gap-3"}>
                           {section.items.map((item) => (
                             <CompactPackageCard
                               key={item.id}
                               item={item}
                               selected={selectedPackageId === item.id}
                               onSelect={() => setSelectedPackageId(item.id)}
+                              mobileLegends={isMobileLegends}
                             />
                           ))}
                         </div>
@@ -1270,35 +1337,38 @@ const GamePage = () => {
               ) : (
                 <div>
                   {packageNoteTop ? (
-                    <p className="mb-3 text-xs leading-relaxed text-[#3b4350]">{packageNoteTop}</p>
+                    <p className={isMobileLegends ? "mb-5 whitespace-pre-line text-sm leading-6 text-[#3b4350] md:mb-3 md:text-xs md:leading-relaxed" : "mb-3 text-xs leading-relaxed text-[#3b4350]"}>{packageNoteTop}</p>
                   ) : null}
 
                   {featuredPackages.length > 0 ? (
-                    <div className="mb-3 grid grid-cols-3 gap-2.5 sm:gap-3">
+                    <div className={isMobileLegends ? "mb-6 grid grid-cols-2 gap-2.5 sm:gap-3 md:mb-3 md:grid-cols-3" : "mb-3 grid grid-cols-3 gap-2.5 sm:gap-3"}>
                       {featuredPackages.map((item) => (
                         <FeaturedPackageCard
                           key={item.id}
                           item={item}
                           selected={selectedPackageId === item.id}
                           onSelect={() => setSelectedPackageId(item.id)}
+                          mobileLegends={isMobileLegends}
                         />
                       ))}
                     </div>
                   ) : null}
 
-                  <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+                  {isMobileLegends && gridPackages.length > 0 ? <h3 className="mb-3 text-xl font-bold text-[#10141f] md:hidden">Package</h3> : null}
+                  <div className={isMobileLegends ? "grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3" : "grid grid-cols-3 gap-2.5 sm:gap-3"}>
                     {gridPackages.map((item) => (
                       <CompactPackageCard
                         key={item.id}
                         item={item}
                         selected={selectedPackageId === item.id}
                         onSelect={() => setSelectedPackageId(item.id)}
+                        mobileLegends={isMobileLegends}
                       />
                     ))}
                   </div>
 
                   {packageNoteBottom ? (
-                    <p className="mt-3 text-xs leading-relaxed text-[#6d7480]">{packageNoteBottom}</p>
+                    <p className={isMobileLegends ? "mt-6 whitespace-pre-line text-sm leading-6 text-[#6d7480] md:mt-3 md:text-xs md:leading-relaxed" : "mt-3 text-xs leading-relaxed text-[#6d7480]"}>{packageNoteBottom}</p>
                   ) : null}
                 </div>
               )
@@ -1348,13 +1418,31 @@ const GamePage = () => {
             )}
           </section>
         </main>
+        {isMobileLegends ? (
+          <section
+            id="mobile-legends-guide"
+            aria-label="Mobile Legends guide"
+            className={`${activeMobileView === "guide" ? "" : "hidden"} space-y-8 px-4 py-8 md:hidden`}
+          >
+            <HowToTopUp steps={steps} />
+            {game.instructions ? <InstructionsAlert title={`${game.name} Notes`} body={game.instructions} /> : null}
+          </section>
+        ) : null}
       </div>
 
-      <div className="mx-auto mt-10 grid max-w-[1480px] gap-10 px-4 md:px-8 lg:grid-cols-[360px_minmax(0,1fr)] lg:px-12">
+      <div className={isMobileLegends
+        ? `mx-auto max-w-[1480px] gap-0 px-0 md:mt-10 md:gap-10 md:px-8 lg:grid-cols-[360px_minmax(0,1fr)] lg:px-12 ${activeMobileView === "guide" ? "hidden md:grid" : "grid"}`
+        : "mx-auto mt-10 grid max-w-[1480px] gap-10 px-4 md:px-8 lg:grid-cols-[360px_minmax(0,1fr)] lg:px-12"}
+      >
         <div className="hidden lg:block" />
-        <main className="rounded-[28px] bg-white/75 px-4 py-7 shadow-[0_24px_70px_rgba(15,23,42,0.12)] backdrop-blur md:px-8 lg:col-start-2 lg:px-9">
+        <main className={isMobileLegends
+          ? "rounded-none bg-white/75 px-3 py-4 shadow-[0_24px_70px_rgba(15,23,42,0.12)] backdrop-blur md:rounded-[28px] md:px-8 md:py-7 lg:col-start-2 lg:px-9"
+          : "rounded-[28px] bg-white/75 px-4 py-7 shadow-[0_24px_70px_rgba(15,23,42,0.12)] backdrop-blur md:px-8 lg:col-start-2 lg:px-9"}
+        >
           <section className="mt-7">
-            <SectionTitle number="3">Choose the Payment Method</SectionTitle>
+            <SectionTitle number="3">
+              {isMobileLegends ? <><span className="md:hidden">Payment Method</span><span className="hidden md:inline">Choose the Payment Method</span></> : "Choose the Payment Method"}
+            </SectionTitle>
             <MembershipOffer
               selectedPackage={selectedPackage}
               plans={membershipPlans}
@@ -1372,7 +1460,8 @@ const GamePage = () => {
                     key={method.id}
                     type="button"
                     onClick={() => setSelectedPaymentId(method.id)}
-                    className={`min-h-[84px] rounded-xl border bg-white px-4 py-3 text-left shadow-sm transition ${
+                    aria-pressed={selected}
+                    className={`min-h-[84px] rounded-xl border bg-white px-4 py-3 text-left shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7152ff] ${
                       selected ? "border-[#7152ff] ring-2 ring-[#7152ff]/10" : "border-[#e2e6ee] hover:border-[#cbd2de]"
                     }`}
                   >
@@ -1507,7 +1596,7 @@ const GamePage = () => {
         </main>
       </div>
 
-      {cartNotice ? (
+      {cartNotice && (!isMobileLegends || activeMobileView === "buy") ? (
         <div className="fixed inset-x-0 bottom-44 z-[95] mx-auto max-w-md px-4 md:hidden">
           <div
             className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm font-bold shadow-lg ${
@@ -1529,7 +1618,9 @@ const GamePage = () => {
           </div>
         </div>
       ) : null}
-      <MobileCheckoutBar selectedPackage={selectedPackage} selectedPayment={selectedPayment} totalLabel={paymentTotalLabel} onPay={handleReview} onAddToCart={handleAddToCart} isSubmitting={isSubmitting} />
+      {!isMobileLegends || activeMobileView === "buy" ? (
+        <MobileCheckoutBar selectedPackage={selectedPackage} selectedPayment={selectedPayment} totalLabel={paymentTotalLabel} onPay={handleReview} onAddToCart={handleAddToCart} isSubmitting={isSubmitting} mobileLegends={isMobileLegends} />
+      ) : null}
     </div>
   );
 };
