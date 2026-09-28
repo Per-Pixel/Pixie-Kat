@@ -33,8 +33,7 @@ import {
   readPendingCheckout,
   writePendingCheckout,
 } from "../../lib/cart";
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
+import { API_BASE } from "../../lib/apiBase";
 
 const currencySymbols = { INR: "₹", USD: "$", EUR: "€", BRL: "R$", PKR: "Rs " };
 

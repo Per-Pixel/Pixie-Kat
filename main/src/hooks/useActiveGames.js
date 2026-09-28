@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { publicMediaUrl, resolveMediaUrls, supabase } from "../lib/supabase";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+import { API_BASE } from "../lib/apiBase";
 
 function mapGameRow(g) {
   const resolved = resolveMediaUrls(g);

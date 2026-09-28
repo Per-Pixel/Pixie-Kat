@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { resolveMediaUrls, supabase } from "../../lib/supabase";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+import { API_BASE } from "../../lib/apiBase";
 
 async function fetchViaApi(slug) {
   const res = await fetch(`${API_BASE}/catalog/games/${encodeURIComponent(slug)}`);

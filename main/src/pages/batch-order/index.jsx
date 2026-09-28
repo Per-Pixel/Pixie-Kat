@@ -12,6 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { API_BASE } from "../../lib/apiBase";
 import { useAuth } from "../../contexts/AuthContext";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -152,7 +153,7 @@ export default function BatchOrderPage() {
     verifyTimer.current = setTimeout(async () => {
       setVerifying(true);
       try {
-        const res  = await fetch("/api/verify-player", {
+        const res  = await fetch(`${API_BASE}/verify-player`, {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
           body:    JSON.stringify({
@@ -261,7 +262,7 @@ export default function BatchOrderPage() {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       const items = cart.map((i) => ({ product_id: i.product.id, quantity: i.quantity }));
-      const res = await fetch("/api/batch-validate", {
+      const res = await fetch(`${API_BASE}/batch-validate`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ items }),
@@ -341,7 +342,7 @@ export default function BatchOrderPage() {
             ...(item.playerName ? { player_name: item.playerName } : {}),
           };
 
-          const placeRes = await fetch("/api/place-order", {
+          const placeRes = await fetch(`${API_BASE}/place-order`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({
@@ -359,7 +360,7 @@ export default function BatchOrderPage() {
           runningBalance -= Number(item.product.price);
           setWalletBalance(runningBalance);
 
-          const res  = await fetch("/api/fulfill-order", {
+          const res  = await fetch(`${API_BASE}/fulfill-order`, {
             method:  "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body:    JSON.stringify({ orderId }),

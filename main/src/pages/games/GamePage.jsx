@@ -21,10 +21,9 @@ import { useGameCatalog } from "./useGameCatalog";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCart } from "../../contexts/CartContext";
 import { publicMediaUrl, supabase } from "../../lib/supabase";
+import { API_BASE } from "../../lib/apiBase";
 import { sanitizeRichText } from "../../utils/sanitizeRichText";
 import { loadRazorpayCheckout } from "../../lib/razorpay";
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
 const defaultBanner = publicMediaUrl("/img/hero/game-mlbb-card.webp");
 
 const COUNTRY_DIAL_CODES = [

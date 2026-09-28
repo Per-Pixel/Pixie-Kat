@@ -23,6 +23,7 @@ export default defineConfig({
     host: true,
     port: 5173,
     fs: {
+      strict: false,
       allow: [
         path.resolve(__dirname, './'),
       ],
@@ -57,6 +58,19 @@ export default defineConfig({
     assetsInlineLimit: 4096,
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', 'gsap', 'framer-motion'],
+    include: [
+      'react',
+      'react-dom',
+      'react-dom/client',
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
+      'react-router-dom',
+      'gsap',
+      '@gsap/react',
+      'framer-motion',
+      'clsx',
+      '@supabase/supabase-js',
+      'lucide-react',
+    ],
   },
 });
