@@ -7,7 +7,7 @@ function classifyVerifyFailure(body, hasZoneId = false) {
   const status = Number(body?.status);
 
   const isPlayerNotFound = /role|user.?id|zone.?id|does not exist|not exist|invalid (?:user|role|zone)|player not found/i.test(errMsg);
-  const isConfigError = status === 20007 || /product does not exist|invalid product/i.test(errMsg);
+  const isConfigError = status === 20007 || status === 207 || /product does not exist|invalid product/i.test(errMsg);
 
   if (isConfigError) {
     return 'Player verification is unavailable for this game. You can still place your order.';

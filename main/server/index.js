@@ -1052,14 +1052,16 @@ async function resolveScProductId(product) {
   if (scProductIdCache[product]) return scProductIdCache[product];
   try {
     const list = await smileCoin.callSmileCoin('productlist', { product });
-    const skus = list?.data?.product;
+    // Match the same fallback chain used by fetchProviderPointsSnapshot —
+    // the productlist response shape varies by game/region.
+    const skus = list?.data?.product ?? list?.productList ?? list?.list ?? list?.skus ?? list?.product ?? [];
     if (!Array.isArray(skus) || skus.length === 0) return null;
 
-    // Bundle/subscription SKUs (e.g. "Weekly Elite Bundle", "Monthly Epic Bundle",
-    // "Passe Semanal", "Passagem do crepúsculo") fail getrole with status 20007.
-    // Prefer a standard diamond SKU for role verification — the specific product
+    // Bundle/subscription/pass SKUs (e.g. "Weekly Elite Bundle", "Monthly Epic Bundle",
+    // "Diamond Pass", "Passe Semanal", "Passagem do crepúsculo") fail getrole with status 207 or 20007.
+    // Prefer a standard diamond/coin SKU for role verification — the specific product
     // doesn't matter, we just need any valid one to check the player exists.
-    const bundlePattern = /bundle|pass[ae]|passe|subscription|weekly|monthly|crepúsculo/i;
+    const bundlePattern = /bundle|pass|subscription|weekly|monthly|crepúsculo|pacote/i;
     const standardSku = skus.find(s => s?.spu && !bundlePattern.test(s.spu));
     const picked = standardSku || skus[0];
     const pickedId = String(picked.id);
@@ -1210,7 +1212,7 @@ function classifyVerifyFailure(body, hasZoneId = false) {
   const status = Number(body?.status);
 
   const isPlayerNotFound = /role|user.?id|zone.?id|does not exist|not exist|invalid (?:user|role|zone)|player not found/i.test(errMsg);
-  const isConfigError = status === 20007 || /product does not exist|invalid product/i.test(errMsg);
+  const isConfigError = status === 20007 || status === 207 || /product does not exist|invalid product/i.test(errMsg);
 
   if (isConfigError) {
     return 'Player verification is unavailable for this game. You can still place your order.';
@@ -1293,9 +1295,13 @@ app.post('/api/verify-player', verifyLimiter, async (req, res) => {
         product: scProduct,
         productid: resolvedProductId,
       });
+      const failMsg = classifyVerifyFailure(body, Boolean(zone_id));
+      if (failMsg.includes('unavailable')) {
+        delete scProductIdCache[product || scProduct];
+      }
       return res.json({
         success: false,
-        message: classifyVerifyFailure(body, Boolean(zone_id)),
+        message: failMsg,
       });
     } catch (err) {
       console.error('[verify-player] SmileCoin failed:', err.message);
