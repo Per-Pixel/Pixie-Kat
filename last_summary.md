@@ -8,6 +8,9 @@
   - `feat(cart)`: `STACKABLE_PATTERN = /diamonds?\s*pass/i` exempts Weekly Diamond Pass from the once-per-account cap (client `productAccountLimit` + server `cartProductAccountLimit`); `metadata.max_per_account` still overrides.
 - Changelog: three bullets added under Unreleased → Fixes (Diamond Pass stacking, verify-player robustness, LAN dev API proxy).
 - Tests re-verified before commit: storefront vitest 40/40, server `node --test` 53/53.
+- **Prod fix**: hosted API still showed "verification unavailable" because `eb deploy` is manual — EB was running `app-260927` (pre-fix). Deployed `app-260928_155840657803` (Ready/Green); live `POST /api/verify-player` for `mobilelegends` now returns "Player not found" (real provider rejection) instead of "unavailable".
+- Infra note: `api.pixiekat.com` does not resolve; storefront hits the raw EB CNAME over **HTTP only** (no TLS on the EB domain). If the site is served over HTTPS this becomes a mixed-content blocker — fix with an `api.pixiekat.com` CNAME + ACM cert on the EB load balancer.
+- Reminder: GitHub push deploys only the Amplify frontend; backend changes need `eb deploy` from `main/server`.
 
 ### Carried pending items
 
