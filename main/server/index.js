@@ -1223,6 +1223,104 @@ function classifyVerifyFailure(body, hasZoneId = false) {
   return 'Could not verify this account right now. You can still place your order.';
 }
 
+// ── Free MLBB region check ──────────────────────────────────────────────────
+// api.isan.eu.org wraps Codashop's public nickname lookup and returns
+// { success, name, country }. Unofficial — it annotates successful
+// verifications only and never decides pass/fail. Cached briefly because the
+// storefront re-verifies on every keystroke debounce.
+const MLBB_REGION_URL = 'https://api.isan.eu.org/nickname/ml';
+const MLBB_REGION_TTL_MS = 10 * 60 * 1000;
+const mlbbRegionCache = new Map(); // "uid:zone" -> { data, exp }
+
+function isMlbbGameCode(value) {
+  return /^mobilelegends$/i.test(String(value ?? '').trim());
+}
+
+async function lookupMlbbRegion(userId, zoneId) {
+  const key = `${userId}:${zoneId}`;
+  const cached = mlbbRegionCache.get(key);
+  if (cached && cached.exp > Date.now()) return cached.data;
+  try {
+    const res = await fetch(
+      `${MLBB_REGION_URL}?id=${encodeURIComponent(userId)}&server=${encodeURIComponent(zoneId)}`,
+      { signal: AbortSignal.timeout(8_000) },
+    );
+    const body = await res.json().catch(() => null);
+    const data = body?.success && body.country
+      ? { country: String(body.country), nickname: typeof body.name === 'string' ? body.name : null }
+      : null;
+    if (mlbbRegionCache.size > 5000) mlbbRegionCache.clear();
+    mlbbRegionCache.set(key, { data, exp: Date.now() + MLBB_REGION_TTL_MS });
+    return data;
+  } catch (err) {
+    console.warn('[verify-player] free region lookup failed:', err.message);
+    return null;
+  }
+}
+
+// Region gating — the free lookup returns a country NAME ("Indonesia") while
+// admin config stores ISO codes or names; normalize both sides so they match.
+// Mirrored in src/pages/games/GamePage.jsx and tests/verify-player.test.js.
+const REGION_NAME_TO_CODE = {
+  indonesia: 'ID',
+  brazil: 'BR',
+  malaysia: 'MY',
+  singapore: 'SG',
+  philippines: 'PH',
+  russia: 'RU',
+  'russian federation': 'RU',
+  india: 'IN',
+  japan: 'JP',
+  france: 'FR',
+  turkmenistan: 'TM',
+  thailand: 'TH',
+  vietnam: 'VN',
+  taiwan: 'TW',
+  'south korea': 'KR',
+  korea: 'KR',
+};
+
+function normalizeRegionKey(value) {
+  const s = String(value ?? '').trim();
+  if (!s) return null;
+  return REGION_NAME_TO_CODE[s.toLowerCase()] ?? s.toUpperCase();
+}
+
+function regionIsBlocked(country, list) {
+  if (!country || !Array.isArray(list) || list.length === 0) return false;
+  const keys = new Set([normalizeRegionKey(country), String(country).trim().toUpperCase()]);
+  return list.some(
+    (entry) => keys.has(normalizeRegionKey(entry)) || keys.has(String(entry).trim().toUpperCase())
+  );
+}
+
+// Rejects when the verified account region hits the game's
+// metadata.blocked_regions or the product's metadata.excluded_regions.
+// Fail-open when region is unknown — same posture as verification itself.
+async function assertRegionAllowed(productId, meta) {
+  const region = meta?.verified_region;
+  if (!region) return;
+  const { data: product, error: productError } = await supabaseAdmin
+    .from('products')
+    .select('id, game_id, metadata')
+    .eq('id', productId)
+    .maybeSingle();
+  if (productError) throw productError;
+  if (!product) return; // product validity is enforced downstream
+  const { data: game, error: gameError } = await supabaseAdmin
+    .from('games')
+    .select('metadata')
+    .eq('id', product.game_id)
+    .maybeSingle();
+  if (gameError) throw gameError;
+  if (
+    regionIsBlocked(region, game?.metadata?.blocked_regions) ||
+    regionIsBlocked(region, product.metadata?.excluded_regions)
+  ) {
+    throw new Error(`This product is not available for players in ${String(region).slice(0, 64)}.`);
+  }
+}
+
 // Public player verification — POST /api/verify-player
 // No admin auth required (used by customer-facing game page).
 // Body: { user_id, zone_id?, api_game?, product?, product_id?, smile_coin_product? }
@@ -1238,6 +1336,12 @@ app.post('/api/verify-player', verifyLimiter, async (req, res) => {
   const scProduct = smile_coin_product || product;
   const useSmileCoin = smileCoin.isConfigured() && scProduct;
 
+  // Free MLBB region check runs in parallel with the provider verify and is
+  // merged into the success response below. Never gates the result.
+  const regionPromise = zone_id && (isMlbbGameCode(api_game) || isMlbbGameCode(product) || isMlbbGameCode(scProduct))
+    ? lookupMlbbRegion(String(user_id), String(zone_id))
+    : Promise.resolve(null);
+
   if (!useSmileCoin && smileOne.isConfigured() && api_game) {
     try {
       const userAccount = { user_id: String(user_id) };
@@ -1247,7 +1351,7 @@ app.post('/api/verify-player', verifyLimiter, async (req, res) => {
       if (result) {
         const name = findPlayerName(result);
         if (name) {
-          return res.json({ success: true, username: name, source: 'smilecode' });
+          return res.json({ success: true, username: name, source: 'smilecode', region: await regionPromise });
         }
       }
     } catch (err) {
@@ -1271,6 +1375,7 @@ app.post('/api/verify-player', verifyLimiter, async (req, res) => {
         return res.json({
           success: false,
           message: 'Player verification is unavailable for this game. You can still place your order.',
+          region: await regionPromise,
         });
       }
 
@@ -1285,7 +1390,7 @@ app.post('/api/verify-player', verifyLimiter, async (req, res) => {
       if (Number(body.status) === 200 || body.ok === true) {
         const name = findPlayerName(body) || (body.data ? findPlayerName(body.data) : null);
         if (name) {
-          return res.json({ success: true, username: name, source: 'smilecoin' });
+          return res.json({ success: true, username: name, source: 'smilecoin', region: await regionPromise });
         }
       }
       // Never echo the provider's copy — log it for diagnosis, return safe text.
@@ -1302,6 +1407,7 @@ app.post('/api/verify-player', verifyLimiter, async (req, res) => {
       return res.json({
         success: false,
         message: failMsg,
+        region: await regionPromise,
       });
     } catch (err) {
       console.error('[verify-player] SmileCoin failed:', err.message);
@@ -1314,6 +1420,7 @@ app.post('/api/verify-player', verifyLimiter, async (req, res) => {
         message: isConfigError
           ? 'Player verification is unavailable for this game. You can still place your order.'
           : 'Could not reach verification server. You can still place your order.',
+        region: await regionPromise,
       });
     }
   }
@@ -1583,6 +1690,9 @@ app.post('/api/place-order', placeOrderLimiter, async (req, res) => {
   }
 
   try {
+    const requestMeta = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
+    await assertRegionAllowed(product_id, requestMeta);
+
     if (paymentMethod === 'razorpay') {
       if (!razorpay.isConfigured()) throw new Error('Razorpay is not configured on the payment server');
 
@@ -1843,6 +1953,7 @@ function sanitizeCartItemMeta(meta) {
     );
   }
   if (meta.verified_username) clean.verified_username = String(meta.verified_username).slice(0, 128);
+  if (meta.verified_region) clean.verified_region = String(meta.verified_region).slice(0, 64);
   if (isPlainObject(meta.contact)) {
     clean.contact = {
       email: String(meta.contact.email ?? '').slice(0, 254),
@@ -1957,10 +2068,26 @@ app.post('/api/cart-checkout', cartCheckoutLimiter, async (req, res) => {
     const gameIds = [...new Set([...byId.values()].map((p) => p.game_id))];
     const { data: gameRows } = await supabaseAdmin
       .from('games')
-      .select('id, status')
+      .select('id, status, metadata')
       .in('id', gameIds);
     if ((gameRows ?? []).some((g) => g.status !== 'active')) {
       throw new Error('A game in your cart is no longer available');
+    }
+
+    // Region restrictions — verified_region was detected at verify-player time.
+    // A missing region fails open, matching the storefront's posture.
+    const gameMetaById = new Map((gameRows ?? []).map((g) => [g.id, g.metadata]));
+    for (const u of units) {
+      const region = u.metadata?.verified_region;
+      if (!region) continue;
+      const p = byId.get(u.product_id);
+      const gMeta = p ? gameMetaById.get(p.game_id) : null;
+      if (
+        regionIsBlocked(region, gMeta?.blocked_regions) ||
+        regionIsBlocked(region, p?.metadata?.excluded_regions)
+      ) {
+        throw new Error(`${p?.name ?? 'This item'} is not available for players in ${String(region).slice(0, 64)}.`);
+      }
     }
 
     const currencies = new Set([...byId.values()].map((p) => String(p.currency || '').trim().toUpperCase()));
