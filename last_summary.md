@@ -1,13 +1,14 @@
 # Last Summary
 
-## Session: Mobile Legends phone layout polish
+## Session: Commit + push verify-player LAN fix and Diamond Pass stacking
 
-- Scoped the Mobile Legends phone layout in `main/src/pages/games/GamePage.jsx`: CMS banner, Buy/Guide switch, account fields, two-column CMS package groups, and a separate Guide section using the existing how-to steps and notes. Checkout state, purchase logic, CMS wiring, other game pages, and the desktop layout remain unchanged.
-- Restored the original light/violet styling after the palette correction, restored the mobile banner radius, then reduced the banner height by 10% (`h-44` to `h-[9.9rem]`; `md:h-36` to `md:h-[8.1rem]`). The CMS-selected image still renders at 12px radius.
-- `main/src/components/layout/FloatingActions.jsx` keeps scroll-to-top clear of the docked mobile checkout bar on game routes. `CHANGELOG.md` documents the storefront change. Files touched: `CHANGELOG.md`, `last_summary.md`, `FloatingActions.jsx`, and `GamePage.jsx`.
-- Fresh verification: `npm run build` exit 0; `npm test` 39/39 passed; scoped ESLint clean; `git diff --check` clean. Impeccable detector reports only the existing `border-l-4` warning at `GamePage.jsx:172`. Python Playwright against the preview confirmed banner heights of 158.39px at 320/390px and 129.59px at 768px, 12px radius, no horizontal overflow, working mobile Guide switch, and no page errors.
-- Preview remains running at `http://127.0.0.1:50528/games/mobile-legends`; reload to fetch the corrected build.
+- Committed the prior session's work on `main` in three focused commits and pushed to `origin/main`:
+  - `fix(storefront)`: `src/lib/apiBase.js` falls back to same-origin `/api` in dev when the page host is non-loopback but `VITE_API_BASE_URL` is loopback; all fetch call sites use it. Vite configs gained `fs.strict: false` and a wider `optimizeDeps.include`.
+  - `fix(server)`: verify-player `resolveScProductId` uses the `fetchProviderPointsSnapshot` fallback chain, prefers non-pass SKUs for getrole, treats status 207 as a config error, and evicts the cached SKU when verification is unavailable.
+  - `feat(cart)`: `STACKABLE_PATTERN = /diamonds?\s*pass/i` exempts Weekly Diamond Pass from the once-per-account cap (client `productAccountLimit` + server `cartProductAccountLimit`); `metadata.max_per_account` still overrides.
+- Changelog: three bullets added under Unreleased → Fixes (Diamond Pass stacking, verify-player robustness, LAN dev API proxy).
+- Tests re-verified before commit: storefront vitest 40/40, server `node --test` 53/53.
 
 ### Carried pending items
 
-- Apply `041_user_site_preferences.sql` in Supabase; inspect the malformed EB environment property and verify `SUPER_ADMIN_EMAILS`. Prior product backlog remains documented elsewhere.
+- Inspect the malformed EB environment property and verify `SUPER_ADMIN_EMAILS`. Prior product backlog remains documented elsewhere.
