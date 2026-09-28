@@ -74,7 +74,7 @@ const newId = () =>
   `ci_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
 // addToCart(items, entry) → { ok, items?, merged?, capped?, error? }
-// entry: { gameId, gameSlug, gameName, gameImage, product, fieldValues, fieldLabels, playerName, quantity }
+// entry: { gameId, gameSlug, gameName, gameImage, product, fieldValues, fieldLabels, playerName, playerRegion, quantity }
 export function addToCart(items, entry) {
   const product = entry?.product;
   if (!product?.id) return { ok: false, error: "Missing product." };
@@ -102,7 +102,12 @@ export function addToCart(items, entry) {
     const mergedQty = Math.min(cap, sameAccount.quantity + qty);
     const next = items.map((i) =>
       i.id === sameAccount.id
-        ? { ...i, quantity: mergedQty, playerName: entry.playerName ?? i.playerName }
+        ? {
+            ...i,
+            quantity: mergedQty,
+            playerName: entry.playerName ?? i.playerName,
+            playerRegion: entry.playerRegion ?? i.playerRegion,
+          }
         : i
     );
     return {
@@ -140,6 +145,7 @@ export function addToCart(items, entry) {
     fieldLabels: isObj(entry.fieldLabels) ? { ...entry.fieldLabels } : {},
     accountKey,
     playerName: entry.playerName ?? null,
+    playerRegion: entry.playerRegion ?? null,
     quantity: qty,
     addedAt: Date.now(),
   };
@@ -195,6 +201,7 @@ const sanitizeItem = (i) => {
     accountKey:
       typeof i.accountKey === "string" ? i.accountKey : accountKeyFromFields(i.fieldValues),
     playerName: i.playerName ?? null,
+    playerRegion: i.playerRegion ?? null,
     quantity: clampQty(i.quantity, lineQuantityCap(product)),
     addedAt: Number(i.addedAt) || Date.now(),
   };

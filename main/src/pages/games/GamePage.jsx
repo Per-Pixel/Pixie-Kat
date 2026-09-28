@@ -59,6 +59,42 @@ const currencySymbols = {
   PKR: "Rs ",
 };
 
+// Region gating: the free lookup returns a country NAME ("Indonesia") while
+// admin config uses ISO codes or names — normalize both sides so they match.
+// Mirrored in main/server/index.js; also mirrored in its test file.
+const REGION_NAME_TO_CODE = {
+  indonesia: "ID",
+  brazil: "BR",
+  malaysia: "MY",
+  singapore: "SG",
+  philippines: "PH",
+  russia: "RU",
+  "russian federation": "RU",
+  india: "IN",
+  japan: "JP",
+  france: "FR",
+  turkmenistan: "TM",
+  thailand: "TH",
+  vietnam: "VN",
+  taiwan: "TW",
+  "south korea": "KR",
+  korea: "KR",
+};
+
+const normalizeRegionKey = (value) => {
+  const s = String(value ?? "").trim();
+  if (!s) return null;
+  return REGION_NAME_TO_CODE[s.toLowerCase()] ?? s.toUpperCase();
+};
+
+const regionIsBlocked = (country, list) => {
+  if (!country || !Array.isArray(list) || list.length === 0) return false;
+  const keys = new Set([normalizeRegionKey(country), String(country).trim().toUpperCase()]);
+  return list.some(
+    (entry) => keys.has(normalizeRegionKey(entry)) || keys.has(String(entry).trim().toUpperCase())
+  );
+};
+
 const formatPrice = (value, currency = "INR") => {
   if (value == null || value === "") return "";
   const symbol = currencySymbols[currency] ?? `${currency} `;
@@ -319,7 +355,7 @@ const DynamicField = ({ field, value, onChange }) => {
     "mt-2 h-14 w-full rounded-xl border border-[#dfe4ec] bg-white px-4 text-base font-bold text-[#141923] outline-none placeholder:text-[#9aa2ad]";
 
   return (
-    <label className="block">
+    <label className="block" id={`game-field-${field.field_key}`}>
       <span className="text-xs font-bold text-[#6d7480]">
         {field.label.toUpperCase()}
         {field.is_required ? <span className="text-[#e25c5c]"> *</span> : null}
@@ -374,6 +410,7 @@ const GamePage = () => {
   const [showCartReview, setShowCartReview] = useState(false);
   const [orderComplete, setOrderComplete] = useState(null);
   const [playerName, setPlayerName] = useState(null);
+  const [playerRegion, setPlayerRegion] = useState(null);
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState("");
   const verifyTimer = useRef(null);
@@ -393,6 +430,7 @@ const GamePage = () => {
         comparePrice: p.compare_price ? Number(p.compare_price) : null,
         priceLabel: formatPrice(p.price, p.currency),
         oldPriceLabel: p.compare_price ? formatPrice(p.compare_price, p.currency) : null,
+        metadata: p.metadata ?? {},
       })),
     [products]
   );
@@ -558,6 +596,7 @@ const GamePage = () => {
     if (!providerGameCode) return;
 
     setPlayerName(null);
+    setPlayerRegion(null);
     setVerifyError("");
 
     const userIdKey = fields.find((f) => ["user_id", "userid", "player_id", "account_id"].includes(f.field_key))?.field_key;
@@ -591,6 +630,7 @@ const GamePage = () => {
         } else {
           setVerifyError(json.message || "Player not found. Check your User ID" + (serverIdKey ? " and Zone ID." : "."));
         }
+        setPlayerRegion(json.region ?? null);
       } catch {
         setVerifyError("Could not reach verification server. You can still place your order.");
       } finally {
@@ -644,28 +684,53 @@ const GamePage = () => {
   const totalAmount = Math.max(0, packagePrice - discountAmount + membershipAddOnAmount);
   const paymentTotalLabel = selectedPackage ? formatPrice(totalAmount, selectedPackage.currency) : "...";
 
+  // Region gating — evaluated from the verified account's detected country.
+  // Game-level block (metadata.blocked_regions) rejects every package; package
+  // exclusions (metadata.excluded_regions) reject only the selected denomination.
+  // Unknown region fails open, matching the verify flow's posture.
+  const accountCountry = playerRegion?.country ?? null;
+  const gameRegionBlocked = regionIsBlocked(accountCountry, game?.metadata?.blocked_regions);
+  const packageRegionBlocked =
+    !gameRegionBlocked && regionIsBlocked(accountCountry, selectedPackage?.metadata?.excluded_regions);
+  const regionBlocked = gameRegionBlocked || packageRegionBlocked;
+
   const updateField = (key, value) =>
     setFieldValues((prev) => ({ ...prev, [key]: value }));
 
   const updateContact = (key, value) =>
     setContact((prev) => ({ ...prev, [key]: value }));
 
+  const scrollToElement = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const focusable = el.matches("input, select, textarea") ? el : el.querySelector("input, select, textarea");
+    if (focusable) window.setTimeout(() => focusable.focus({ preventScroll: true }), 450);
+  };
+
+  const failCheckout = (message, targetId) => {
+    setCheckoutError(message);
+    if (targetId) window.setTimeout(() => scrollToElement(targetId), 60);
+  };
+
   const handleReview = () => {
     setCheckoutError("");
-    if (!selectedPackage) { setCheckoutError("Please select a package before checkout."); return; }
+    if (!selectedPackage) { failCheckout("Please select a package before checkout.", "package-section"); return; }
     const missingField = fields.find((f) => f.is_required && !String(fieldValues[f.field_key] ?? "").trim());
-    if (missingField) { setCheckoutError(`Please enter ${missingField.label}.`); return; }
-    if (!contact.email.trim() || !contact.whatsapp.trim()) { setCheckoutError("Please enter your email address and WhatsApp number."); return; }
-    if (!isAuthenticated || !user?.id) { setCheckoutError("Please log in before placing this order."); return; }
+    if (missingField) { failCheckout(`Please enter ${missingField.label}.`, `game-field-${missingField.field_key}`); return; }
+    if (regionBlocked) { failCheckout(`This ${gameRegionBlocked ? "product" : "package"} is not available for players in ${accountCountry}.`, "region-warning"); return; }
+    if (!contact.email.trim() || !contact.whatsapp.trim()) { failCheckout("Please enter your email address and WhatsApp number.", contact.email.trim() ? "contact-whatsapp" : "contact-email"); return; }
+    if (!isAuthenticated || !user?.id) { failCheckout("Please log in before placing this order.", "checkout-error"); return; }
     setShowCartReview(true);
   };
 
   const handleAddToCart = () => {
     setCheckoutError("");
     setCartNotice(null);
-    if (!selectedPackage) { setCheckoutError("Please select a package first."); return; }
+    if (!selectedPackage) { failCheckout("Please select a package first.", "package-section"); return; }
     const missingField = fields.find((f) => f.is_required && !String(fieldValues[f.field_key] ?? "").trim());
-    if (missingField) { setCheckoutError(`Please enter ${missingField.label}.`); return; }
+    if (missingField) { failCheckout(`Please enter ${missingField.label}.`, `game-field-${missingField.field_key}`); return; }
+    if (regionBlocked) { failCheckout(`This ${gameRegionBlocked ? "product" : "package"} is not available for players in ${accountCountry}.`, "region-warning"); return; }
 
     const rawProduct = products.find((p) => p.id === selectedPackage.id) ?? selectedPackage;
     const result = addItem({
@@ -685,6 +750,7 @@ const GamePage = () => {
       fieldValues,
       fieldLabels: Object.fromEntries(fields.map((f) => [f.field_key, f.label])),
       playerName,
+      playerRegion: accountCountry,
       quantity: 1,
     });
 
@@ -704,28 +770,33 @@ const GamePage = () => {
     setCheckoutError("");
 
     if (!selectedPackage) {
-      setCheckoutError("Please select a package before checkout.");
+      failCheckout("Please select a package before checkout.", "package-section");
       return;
     }
 
     const missingField = fields.find((field) => field.is_required && !String(fieldValues[field.field_key] ?? "").trim());
     if (missingField) {
-      setCheckoutError(`Please enter ${missingField.label}.`);
+      failCheckout(`Please enter ${missingField.label}.`, `game-field-${missingField.field_key}`);
+      return;
+    }
+
+    if (regionBlocked) {
+      failCheckout(`This ${gameRegionBlocked ? "product" : "package"} is not available for players in ${accountCountry}.`, "region-warning");
       return;
     }
 
     if (!contact.email.trim() || !contact.whatsapp.trim()) {
-      setCheckoutError("Please enter your email address and WhatsApp number.");
+      failCheckout("Please enter your email address and WhatsApp number.", contact.email.trim() ? "contact-whatsapp" : "contact-email");
       return;
     }
 
     if (!isAuthenticated || !user?.id) {
-      setCheckoutError("Please log in before placing this order.");
+      failCheckout("Please log in before placing this order.", "checkout-error");
       return;
     }
 
     if (selectedPayment.id === "wallet" && Number(profile?.wallet_balance ?? 0) < totalAmount) {
-      setCheckoutError(`Your wallet balance is too low for ${paymentTotalLabel}. Please add money or use Razorpay.`);
+      failCheckout(`Your wallet balance is too low for ${paymentTotalLabel}. Please add money or use Razorpay.`, "checkout-error");
       return;
     }
 
@@ -738,6 +809,7 @@ const GamePage = () => {
       game_name: game.name,
       account_fields: fieldValues,
       verified_username: playerName,
+      verified_region: playerRegion?.country ?? null,
       pricing: {
         package_price: packagePrice,
         membership_discount: discountAmount,
@@ -1124,7 +1196,7 @@ const GamePage = () => {
                 {playerName && (
                   <div className="flex justify-between text-sm">
                     <span className="text-[#6d7480]">Verified Name</span>
-                    <span className="font-bold text-[#1a7f4b]">{playerName}</span>
+                    <span className="font-bold text-[#1a7f4b]">{playerName}{playerRegion?.country ? ` (${playerRegion.country})` : ""}</span>
                   </div>
                 )}
               </div>
@@ -1156,6 +1228,9 @@ const GamePage = () => {
                 <span className="text-2xl font-black text-[#6d4cff]">{paymentTotalLabel}</span>
               </div>
             </div>
+            {checkoutError ? (
+              <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{checkoutError}</p>
+            ) : null}
             <div className="flex gap-3">
               <button type="button" onClick={() => setShowCartReview(false)} className="h-12 flex-1 rounded-xl border border-[#dfe4ec] text-sm font-bold text-[#4b5563]">
                 Go Back
@@ -1263,21 +1338,39 @@ const GamePage = () => {
                     ) : playerName ? (
                       <>
                         <CheckCircle2 className="size-4 shrink-0" />
-                        Verified: <span className="ml-0.5 font-bold">{playerName}</span>
+                        Verified: <span className="ml-0.5 font-bold">{playerName}{playerRegion?.country ? ` (${playerRegion.country})` : ""}</span>
                       </>
                     ) : (
                       <>
                         <AlertCircle className="size-4 shrink-0" />
                         {verifyError}
+                        {playerRegion?.country ? <span className="ml-1 font-bold">(Account region: {playerRegion.country})</span> : null}
                       </>
                     )}
                   </div>
                 )}
+
+                {/* Region availability warning — red when the whole game is
+                    blocked for the account region, amber when only the
+                    selected denomination is excluded. */}
+                {accountCountry && regionBlocked ? (
+                  <div
+                    id="region-warning"
+                    className={`mt-3 flex items-start gap-2.5 rounded-xl px-4 py-3 text-sm font-medium ${
+                      gameRegionBlocked ? "bg-[#fff3f3] text-[#c0392b]" : "bg-[#fffbeb] text-[#92400e]"
+                    }`}
+                  >
+                    <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                    {gameRegionBlocked
+                      ? `This product is not available for players in ${accountCountry}. Orders for this region cannot be fulfilled.`
+                      : `This package is not available for players in ${accountCountry}. Please choose a different denomination.`}
+                  </div>
+                ) : null}
               </>
             )}
           </section>
 
-          <section className="mt-7">
+          <section id="package-section" className="mt-7">
             <SectionTitle number="2">Select the Package</SectionTitle>
             {isMobileLegends && gameDescription ? (
               <div className="mb-6 text-sm leading-6 text-[#5f6977] md:hidden [&_a]:text-[#6d4cff] [&_a]:underline [&_h2]:mb-2 [&_h2]:text-lg [&_h2]:font-bold [&_h3]:font-bold [&_li]:ml-5 [&_ol]:list-decimal [&_ul]:list-disc" dangerouslySetInnerHTML={{ __html: gameDescription }} />
@@ -1492,12 +1585,12 @@ const GamePage = () => {
             </div>
           </section>
 
-          <section className="mt-7">
+          <section id="contact-section" className="mt-7">
             <SectionTitle number="4">Contact Info</SectionTitle>
             <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
               <label className="block">
                 <span className="text-xs font-bold text-[#6d7480]">EMAIL ADDRESS</span>
-                <input className="mt-2 h-14 w-full rounded-xl border border-[#dfe4ec] bg-white px-4 text-base font-bold text-[#141923] outline-none" placeholder="Enter your email" value={contact.email} onChange={(event) => updateContact("email", event.target.value)} />
+                <input id="contact-email" className="mt-2 h-14 w-full rounded-xl border border-[#dfe4ec] bg-white px-4 text-base font-bold text-[#141923] outline-none" placeholder="Enter your email" value={contact.email} onChange={(event) => updateContact("email", event.target.value)} />
               </label>
               <div>
                 <span className="text-xs font-bold text-[#6d7480]">WHATSAPP NUMBER</span>
@@ -1517,13 +1610,13 @@ const GamePage = () => {
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#6d7480]" />
                   </label>
-                  <input className="h-14 rounded-xl border border-[#dfe4ec] bg-white px-4 text-base font-bold text-[#141923] outline-none placeholder:text-[#9aa2ad]" placeholder="WhatsApp number" value={contact.whatsapp} onChange={(event) => updateContact("whatsapp", event.target.value)} />
+                  <input id="contact-whatsapp" className="h-14 rounded-xl border border-[#dfe4ec] bg-white px-4 text-base font-bold text-[#141923] outline-none placeholder:text-[#9aa2ad]" placeholder="WhatsApp number" value={contact.whatsapp} onChange={(event) => updateContact("whatsapp", event.target.value)} />
                 </div>
               </div>
             </div>
 
             {checkoutError ? (
-              <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{checkoutError}</p>
+              <p id="checkout-error" className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{checkoutError}</p>
             ) : null}
 
             <div className="mt-6 border-t border-[#dfe4ec] pt-6">
@@ -1595,7 +1688,14 @@ const GamePage = () => {
         </main>
       </div>
 
-      {cartNotice && (!isMobileLegends || activeMobileView === "buy") ? (
+      {checkoutError && (!isMobileLegends || activeMobileView === "buy") ? (
+        <div className="fixed inset-x-0 bottom-44 z-[95] mx-auto max-w-md px-4 md:hidden">
+          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600 shadow-lg">
+            <AlertCircle className="size-4 shrink-0" />
+            <span className="min-w-0">{checkoutError}</span>
+          </div>
+        </div>
+      ) : cartNotice && (!isMobileLegends || activeMobileView === "buy") ? (
         <div className="fixed inset-x-0 bottom-44 z-[95] mx-auto max-w-md px-4 md:hidden">
           <div
             className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm font-bold shadow-lg ${

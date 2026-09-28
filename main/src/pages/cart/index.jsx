@@ -114,7 +114,7 @@ const CartLine = ({ item, onQuantity, onRemove, disabled }) => {
               ))}
               {item.playerName ? (
                 <span className="flex items-center gap-1 rounded-full bg-emerald-400/15 px-2.5 py-1 font-circular-web text-[11px] font-semibold text-emerald-300">
-                  <UserCheck className="size-3" /> {item.playerName}
+                  <UserCheck className="size-3" /> {item.playerName}{item.playerRegion ? ` (${item.playerRegion})` : ""}
                 </span>
               ) : null}
             </div>
@@ -399,6 +399,7 @@ const CartPage = () => {
         game_name: i.gameName,
         account_fields: i.fieldValues,
         verified_username: i.playerName,
+        verified_region: i.playerRegion,
         contact: { email: contact.email.trim(), whatsapp: contact.whatsapp.trim() },
       },
     })),
