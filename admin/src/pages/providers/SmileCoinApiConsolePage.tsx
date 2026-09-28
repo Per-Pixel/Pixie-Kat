@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, RefreshCw, Terminal, CheckCircle2, XCircle, Trash2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
-  smilecoin, extractSmSkus, SM_CATALOG, SmSku, SmMismatchOrder,
+  smilecoin, extractSmSkus, SM_CATALOG, SmSku, SmMismatchOrder, verifyPlayer, VerifyPlayerResponse,
 } from '../../services/smilecoinService';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -21,7 +21,7 @@ interface CallLog {
   at: string;
 }
 
-const TABS = ['health', 'products', 'productlist', 'servers', 'points', 'rolecheck', 'order', 'mismatches'] as const;
+const TABS = ['health', 'products', 'productlist', 'servers', 'points', 'rolecheck', 'verify', 'order', 'mismatches'] as const;
 type Tab = (typeof TABS)[number];
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -174,7 +174,7 @@ const SmileCoinApiConsolePage: React.FC = () => {
 
         {/* Endpoint badges */}
         <div className="flex flex-wrap gap-2 mt-4">
-          {['GET /api/smilecoin/health', 'GET /api/smilecoin/products', 'GET /api/smilecoin/productlist', 'GET /api/smilecoin/servers', 'GET /api/smilecoin/points', 'POST /api/smilecoin/rolecheck', 'POST /api/smilecoin/order', 'GET /api/smilecoin/mismatches'].map(e => (
+          {['GET /api/smilecoin/health', 'GET /api/smilecoin/products', 'GET /api/smilecoin/productlist', 'GET /api/smilecoin/servers', 'GET /api/smilecoin/points', 'POST /api/smilecoin/rolecheck', 'POST /api/verify-player', 'POST /api/smilecoin/order', 'GET /api/smilecoin/mismatches'].map(e => (
             <span key={e} className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-mono rounded-full">{e}</span>
           ))}
         </div>
@@ -324,6 +324,56 @@ const SmileCoinApiConsolePage: React.FC = () => {
                 />
               </>
             )}
+
+            {/* verify — customer-facing endpoint incl. free MLBB region check */}
+            {tab === 'verify' && (() => {
+              const vr = resp as VerifyPlayerResponse | null;
+              return (
+                <>
+                  <PanelHeader title="POST /api/verify-player" desc="The storefront's own verification — SmileCode → SmileCoin chain, plus the free Codashop region lookup for mobilelegends. This is the exact call the game page makes." />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <InputField label="userid" value={userid} onChange={setUserid} placeholder="e.g. 2560958" />
+                    <InputField label="zoneid" value={zoneid} onChange={setZoneid} placeholder="MLBB zone/server id" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">api_game</label>
+                    <select
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      value={product}
+                      onChange={e => setProduct(e.target.value)}
+                    >
+                      {SM_CATALOG.map(p => <option key={p.slug} value={p.slug}>{p.slug}</option>)}
+                    </select>
+                  </div>
+                  <RunButton
+                    busy={busy}
+                    label="Verify player"
+                    disabled={!userid}
+                    onClick={() => run(
+                      () => verifyPlayer({ user_id: userid, zone_id: zoneid || undefined, api_game: product, product }),
+                      'verify-player'
+                    )}
+                  />
+                  {vr && typeof vr === 'object' && 'success' in vr && (
+                    <div className={`rounded-lg border p-3 text-xs space-y-1 ${
+                      vr.success ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'
+                    }`}>
+                      <div className="flex items-center gap-1.5 font-semibold">
+                        {vr.success ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <XCircle className="w-3.5 h-3.5 text-red-600" />}
+                        {vr.success ? 'Verified' : 'Failed'}
+                        {vr.source && <span className="font-mono font-normal text-gray-500">via {vr.source}</span>}
+                      </div>
+                      {vr.username && <p>Nickname: <span className="font-semibold">{vr.username}</span></p>}
+                      {vr.region?.country && <p>Region: <span className="font-semibold">{vr.region.country}</span></p>}
+                      {vr.message && <p className="text-gray-600">{vr.message}</p>}
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-400">
+                    Only <code className="font-mono">mobilelegends</code> returns <code className="font-mono">region</code> — the free lookup is MLBB-only, cached 10 min, and never affects pass/fail.
+                  </p>
+                </>
+              );
+            })()}
 
             {/* order */}
             {tab === 'order' && (

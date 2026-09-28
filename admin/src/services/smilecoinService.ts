@@ -85,6 +85,15 @@ export interface SmOrderResponse {
   [k: string]: unknown;
 }
 
+export interface VerifyPlayerResponse {
+  success: boolean;
+  username?: string;
+  source?: string;
+  region?: { country: string; nickname: string | null } | null;
+  message?: string;
+  [k: string]: unknown;
+}
+
 export interface SmMismatchOrder {
   id: string;
   user_id: string;
@@ -204,6 +213,22 @@ export const smilecoin = {
     const { data } = await api.post<{ ok: boolean; cleaned: number; total_scanned: number }>('/smilecoin/mismatches/cleanup');
     return data;
   },
+};
+
+/**
+ * Public storefront verification endpoint (POST /api/verify-player) — not a
+ * smilecoin gateway route, but the console is the natural place to exercise it.
+ * For api_game=mobilelegends the response includes `region` (country) from the
+ * free Codashop-backed lookup alongside the verified username.
+ */
+export const verifyPlayer = async (params: {
+  user_id: string;
+  zone_id?: string;
+  api_game?: string;
+  product?: string;
+}): Promise<VerifyPlayerResponse> => {
+  const { data } = await api.post<VerifyPlayerResponse>('/verify-player', params);
+  return data;
 };
 
 /** Extract the SKU array from a productlist response (handles multiple response shapes). */

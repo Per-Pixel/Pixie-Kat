@@ -30,6 +30,7 @@ interface ProductDraft {
   provider_product_id: string;
   secondary_provider_product_id: string;
   expected_provider_price: string;
+  excluded_regions: string;
   stock: string;
   is_popular: boolean; status: ProductStatus;
   currency_prices: CurrencyPrices;
@@ -89,6 +90,7 @@ interface GameForm {
   provider_game_code: string;
   smile_coin_product: string;
   region: string;
+  blocked_regions: string;
   status: GameStatus;
   is_featured: boolean;
   instructions: string;
@@ -113,7 +115,7 @@ const REGIONS = [
 const emptyForm: GameForm = {
   slug: '', name: '', subtitle: '', description: '', image_url: '', banner_url: '',
   category: '', currency_label: 'Diamonds', provider: 'manual', provider_game_code: '',
-  smile_coin_product: '', region: '', status: 'draft', is_featured: false, instructions: '',
+  smile_coin_product: '', region: '', blocked_regions: '', status: 'draft', is_featured: false, instructions: '',
   package_layout: 'default', package_note_top: '', package_note_bottom: '',
 };
 
@@ -145,6 +147,14 @@ const hydrateCurrencyPrices = (base: CurrencyPrices, metadata?: Record<string, u
   return base;
 };
 
+// Region lists are stored as normalized uppercase tokens (ISO codes like
+// "ID"/"BR" or country names) — the storefront/server normalize them too.
+const parseRegionList = (value: string): string[] =>
+  [...new Set(value.split(/[\s,;]+/).map((t) => t.trim().toUpperCase()).filter(Boolean))];
+
+const regionListToString = (value: unknown): string =>
+  Array.isArray(value) ? value.map(String).join(', ') : '';
+
 const productFromDB = (p: Product): ProductDraft => ({
   _key: Math.random().toString(36).slice(2, 10), id: p.id,
   name: p.name ?? '', amount: p.amount ?? '', description: p.description ?? '',
@@ -155,6 +165,7 @@ const productFromDB = (p: Product): ProductDraft => ({
   expected_provider_price: (p.metadata as Record<string, unknown>)?.expected_provider_price != null
     ? String((p.metadata as Record<string, unknown>)?.expected_provider_price)
     : '',
+  excluded_regions: regionListToString((p.metadata as Record<string, unknown>)?.excluded_regions),
   stock: p.stock ? String(p.stock) : '',
   is_popular: p.is_popular ?? false, status: p.status ?? 'active',
   currency_prices: hydrateCurrencyPrices(defaultCurrencyPrices(p.price, p.cost_price, p.currency), p.metadata),
@@ -166,7 +177,7 @@ const emptyProductDraft = (): ProductDraft => ({
   _key: Math.random().toString(36).slice(2, 10),
   name: '', amount: '', description: '', compare_price: '', image_url: '',
   sku: '', provider_product_id: '', secondary_provider_product_id: '',
-  expected_provider_price: '', stock: '',
+  expected_provider_price: '', excluded_regions: '', stock: '',
   is_popular: false, status: 'active',
   currency_prices: defaultCurrencyPrices(),
   is_default: false,
@@ -222,6 +233,7 @@ const GameEditor: React.FC = () => {
         provider_game_code: game.provider_game_code ?? '',
         smile_coin_product: String(meta.smile_coin_product ?? ''),
         region: game.region ?? '',
+        blocked_regions: regionListToString(meta.blocked_regions),
         status: game.status, is_featured: game.is_featured, instructions: game.instructions ?? '',
         package_layout: meta.package_layout === 'compact' ? 'compact' : 'default',
         package_note_top: String(meta.package_note_top ?? ''),
@@ -409,6 +421,8 @@ const GameEditor: React.FC = () => {
       const baseMetadata: Record<string, unknown> = { ...loadedMetadata };
       if (form.smile_coin_product) baseMetadata.smile_coin_product = form.smile_coin_product;
       else delete baseMetadata.smile_coin_product;
+      if (form.blocked_regions.trim()) baseMetadata.blocked_regions = parseRegionList(form.blocked_regions);
+      else delete baseMetadata.blocked_regions;
       if (form.package_layout !== 'default') baseMetadata.package_layout = form.package_layout;
       else delete baseMetadata.package_layout;
       if (form.package_note_top.trim()) baseMetadata.package_note_top = form.package_note_top.trim();
@@ -462,6 +476,7 @@ const GameEditor: React.FC = () => {
             ...(Object.keys(extraCurrencies).length > 0 ? { currencies: extraCurrencies } : {}),
             ...(p.secondary_provider_product_id ? { secondary_provider_product_id: p.secondary_provider_product_id } : {}),
             ...(p.expected_provider_price ? { expected_provider_price: Number(p.expected_provider_price) } : {}),
+            ...(p.excluded_regions.trim() ? { excluded_regions: parseRegionList(p.excluded_regions) } : {}),
           },
         };
       }));
@@ -1110,6 +1125,22 @@ const GameEditor: React.FC = () => {
                               to detect substitution and auto-refund. Leave blank to disable monitoring.
                             </p>
                           </div>
+                          <div>
+                            <label className="label mb-1.5 block text-xs">
+                              Excluded Player Regions <span className="text-gray-400 font-normal">(denomination lock)</span>
+                            </label>
+                            <input
+                              className="input font-mono text-sm"
+                              placeholder="e.g., MY, SG, PH, ID, RU"
+                              value={p.excluded_regions}
+                              onChange={(e) => updateProduct(p._key, { excluded_regions: e.target.value })}
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              This package can't be purchased for accounts verified in these regions — other
+                              packages stay selectable. A warning shows on the game page once the account's
+                              country is detected.
+                            </p>
+                          </div>
                         </div>
                       )}
 
@@ -1372,6 +1403,22 @@ const GameEditor: React.FC = () => {
                     />
                     <p className="mt-1 text-xs text-gray-400">
                       Leave blank to use the Provider Game Code above. Fill this if SmileCoin returns "Product does not exist" on the game page.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="label mb-1.5 block">
+                      Blocked Player Regions
+                      <span className="ml-1 text-xs text-gray-400 font-normal">(comma-separated country codes)</span>
+                    </label>
+                    <input
+                      className="input font-mono text-sm"
+                      placeholder="e.g., ID, BR"
+                      value={form.blocked_regions}
+                      onChange={(e) => change('blocked_regions', e.target.value)}
+                    />
+                    <p className="mt-1 text-xs text-gray-400">
+                      Accounts verified in these regions see a warning and cannot check out. To exclude only
+                      specific denominations, use the per-package field below instead.
                     </p>
                   </div>
                   {form.provider === 'smile_one' && (
