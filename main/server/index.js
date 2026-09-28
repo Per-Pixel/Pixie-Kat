@@ -1796,6 +1796,9 @@ const CART_MAX_LINE_QTY = 10;
 // Passes/bundles redeem once per game account; admins can set an explicit cap
 // via products.metadata.max_per_account / purchase_limit.
 const CART_ACCOUNT_LIMITED_PATTERN = /bundle|pass|subscription|weekly|monthly/i;
+// MLBB Diamond Pass / Weekly Diamond Pass stack on one account — exempt them
+// from the once-per-account rule (mirrors STACKABLE_PATTERN in src/lib/cart.js).
+const CART_STACKABLE_PATTERN = /diamonds?\s*pass/i;
 const CART_USER_ID_KEYS = ['user_id', 'userid', 'player_id', 'account_id', 'uid'];
 const CART_ZONE_ID_KEYS = ['zone_id', 'server_id', 'zoneid', 'server'];
 
@@ -1806,6 +1809,7 @@ function cartProductAccountLimit(product) {
     return Math.min(Math.floor(explicit), CART_MAX_LINE_QTY);
   }
   const text = `${product?.name ?? ''} ${product?.amount ?? ''}`;
+  if (CART_STACKABLE_PATTERN.test(text)) return null;
   return CART_ACCOUNT_LIMITED_PATTERN.test(text) ? 1 : null;
 }
 

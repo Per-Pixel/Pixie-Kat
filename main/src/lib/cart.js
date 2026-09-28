@@ -8,6 +8,8 @@
 //     or product.metadata.max_per_account / purchase_limit — are capped per
 //     account: you cannot add more than the limit for the same
 //     User ID + Server ID, but you can add it again for a different account.
+//     Exception: *Diamond Pass* products stack on one account (MLBB allows
+//     multiple active passes), so they follow the normal per-line cap.
 
 export const CART_STORAGE_KEY = "pixiekat_cart";
 export const PENDING_CHECKOUT_KEY = "pixiekat_pending_checkout";
@@ -22,6 +24,11 @@ const ZONE_ID_KEYS = ["zone_id", "server_id", "zoneid", "server"];
 // Passes/bundles/subscriptions redeem once per game account.
 const ACCOUNT_LIMITED_PATTERN = /bundle|pass|subscription|weekly|monthly|crep[uú]sculo/i;
 
+// MLBB Diamond Pass / Weekly Diamond Pass stack on one game account (the game
+// allows several active passes), so they use the normal per-line cap instead
+// of the once-per-account rule. Twilight Pass and bundles still cap at 1.
+const STACKABLE_PATTERN = /diamonds?\s*pass/i;
+
 const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
 // Per-account cap for a product, or null when the product is unlimited.
@@ -33,6 +40,7 @@ export function productAccountLimit(product) {
     return Math.min(Math.floor(explicit), MAX_ITEM_QUANTITY);
   }
   const text = `${product?.name ?? ""} ${product?.amount ?? ""}`;
+  if (STACKABLE_PATTERN.test(text)) return null;
   return ACCOUNT_LIMITED_PATTERN.test(text) ? 1 : null;
 }
 

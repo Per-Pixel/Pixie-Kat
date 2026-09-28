@@ -22,7 +22,12 @@ const product = (over = {}) => ({
   ...over,
 });
 
-const weeklyPass = product({ id: 'prod-pass', name: 'Weekly Diamonds Pass', amount: 'Weekly Pass' });
+const weeklyPass = product({ id: 'prod-pass', name: 'Twilight Pass', amount: 'Twilight Pass' });
+const weeklyDiamondPass = product({
+  id: 'prod-wdp',
+  name: 'Weekly Diamond Pass',
+  amount: 'Weekly Diamond Pass',
+});
 
 const entry = (over = {}) => ({
   gameId: 'game-1',
@@ -51,8 +56,16 @@ describe('cart rules', () => {
     expect(productAccountLimit(weeklyPass)).toBe(1);
     expect(productAccountLimit(product({ name: 'Monthly Elite Bundle' }))).toBe(1);
     expect(productAccountLimit(product({ name: 'Diamonds 50' }))).toBeNull();
+    expect(productAccountLimit(weeklyDiamondPass)).toBeNull();
+    expect(productAccountLimit(product({ name: 'Diamond Pass' }))).toBeNull();
     expect(productAccountLimit(product({ metadata: { max_per_account: 3 } }))).toBe(3);
     expect(productAccountLimit(product({ metadata: { max_per_account: 99 } }))).toBe(MAX_ITEM_QUANTITY);
+    // explicit admin cap still wins over the stackable exemption
+    expect(
+      productAccountLimit(
+        product({ name: 'Weekly Diamond Pass', metadata: { max_per_account: 2 } })
+      )
+    ).toBe(2);
   });
 
   it('builds account keys from user + server fields', () => {
@@ -92,6 +105,15 @@ describe('cart rules', () => {
     const second = addToCart(first.items, entry({ quantity: 1 }));
     expect(second.ok).toBe(false);
     expect(second.error).toMatch(/at most 10/i);
+  });
+
+  it('merges a stackable pass for the same account instead of blocking', () => {
+    const first = addToCart([], entry({ product: weeklyDiamondPass }));
+    const second = addToCart(first.items, entry({ product: weeklyDiamondPass }));
+    expect(second.ok).toBe(true);
+    expect(second.merged).toBe(true);
+    expect(second.items).toHaveLength(1);
+    expect(second.items[0].quantity).toBe(2);
   });
 
   it('blocks a limited product for the same account', () => {

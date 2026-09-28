@@ -12,6 +12,9 @@
 - `/games` quick actions: "Purchase" opens order history; "Payments" and "Refer & Earn" show a coming-soon note instead of doing nothing.
 - Send real notification emails — `notification_outbox` (040) queues order status events and login alerts via a trigger + `/api/auth/login-session`; the API worker sends them over SMTP honouring the existing Settings toggles (email/order notifications, login alerts). Requires migration 040 + SMTP_* env vars.
 - Sync site preferences (intro/music/reduced motion) to `user_settings.site_preferences` (041) so they follow the account across browsers, devices, and domains instead of being localStorage-only.
+- Let the Weekly Diamond Pass stack on one game account — MLBB supports multiple active passes, so it now follows the normal per-line quantity cap; Twilight Pass and bundles stay once-per-account, and `/api/cart-checkout` enforces the same rule server-side.
+- Make player verification more robust: accept alternate `productlist` response shapes, prefer non-pass SKUs for the role check, treat provider status 207 as a config error, and drop the cached product when verification is unavailable so retries resolve fresh.
+- Route storefront API calls through the same-origin `/api` Vite proxy when the dev server is opened from another LAN device, so verification and cart calls reach the backend instead of the device's own localhost (`src/lib/apiBase.js`).
 
 ### Admin
 - Rebuild `/storage` around a placement-first "Site graphics" workspace: browse graphics by page → section → slot with previews, then upload a file, pick from `public-media`, or import from Pinterest and save just that placement — other spots using the same file stay unchanged.
