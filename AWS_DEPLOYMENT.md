@@ -18,6 +18,13 @@ AWS docs used for this setup:
 - Elastic Beanstalk supports Node.js/Express deployments, custom start commands with `Procfile`, and a `PORT` environment variable behind its NGINX reverse proxy.
 - S3 plus CloudFront is also valid for static React SPAs, but Amplify is simpler for Git-based deploys.
 
+## Current production wiring (as of 2026-09-28)
+
+- Storefront + admin are Amplify branches of one app (`d2qve07e257e1q`): `https://main.d2qve07e257e1q.amplifyapp.com` and `https://admin.d2qve07e257e1q.amplifyapp.com`. `pixiekat.com` is not yet registered.
+- `amplify.yml` forces `VITE_API_BASE_URL` to `/api` at build time, and an Amplify rewrite proxies `/api/*` (status 200) to the API Gateway HTTP proxy `https://c4pmcbw502.execute-api.ap-south-1.amazonaws.com/prod`, which forwards to the EB origin `http://pixiekat-api-prod.eba-p22mabr9.ap-south-1.elasticbeanstalk.com`. This avoids HTTPS→HTTP mixed-content issues without a custom domain or load balancer.
+- `eb deploy` (run from `main/server`) is the only way the API ships — GitHub pushes do not deploy the backend.
+- CloudFront is unavailable until the AWS account is verified for it (AWS Support). When `pixiekat.com` is registered, prefer an `api.pixiekat.com` alternate domain on a CloudFront distribution (or convert EB to load-balanced + ACM) and update the Amplify rewrite target.
+
 ## 1. Deploy The API
 
 Use AWS Elastic Beanstalk for `main/server`.
@@ -56,11 +63,7 @@ SC_UID=...
 SC_KEY=...
 ```
 
-After Elastic Beanstalk deploys, copy its HTTPS environment URL. You will use it as:
-
-```env
-VITE_API_BASE_URL=https://your-elastic-beanstalk-url.elasticbeanstalk.com/api
-```
+After Elastic Beanstalk deploys, note its environment URL (HTTP-only on the `*.elasticbeanstalk.com` CNAME — no TLS without a load balancer or proxy). Front it with an API Gateway HTTP proxy and route the frontend's `/api/*` to it via the Amplify rewrite in `amplify.yml`; the build sets `VITE_API_BASE_URL=/api` itself, so the app-level env var is only a fallback for non-Amplify hosts.
 
 ## 2. Deploy The Main Frontend
 
