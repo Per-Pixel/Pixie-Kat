@@ -42,6 +42,12 @@
  *
  * Proxied RPCs (service_role only — functions no longer callable by anon/authenticated):
  *   POST   /api/admin/analytics                Get admin analytics dashboard data
+ *
+ * Leaderboard:
+ *   GET    /api/leaderboard                    Public standings (period=YYYY-MM, limit)
+ *   GET    /api/leaderboard/me                 Signed-in user's rank history
+ *   GET    /api/admin/leaderboard/preview      Admin preview incl. excluded users
+ *   POST   /api/admin/leaderboard/finalize     Freeze month, grant perks + prizes
  */
 
 import process from 'node:process';
@@ -2784,6 +2790,88 @@ app.post('/api/admin/analytics', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[admin/analytics]', err.message);
     return res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+// ── Leaderboard ──────────────────────────────────────────────────────────────
+// GET  /api/leaderboard?period=YYYY-MM&limit=N   Public standings (service_role RPC proxy)
+// GET  /api/leaderboard/me?months=N             Signed-in user's rank history (requireUser)
+// GET  /api/admin/leaderboard/preview?period=   Admin preview incl. excluded users (requireAdmin)
+// POST /api/admin/leaderboard/finalize          Freeze month + grant perks/prizes (requireAdmin)
+const leaderboardLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many requests. Please wait a minute.' },
+});
+
+app.get('/api/leaderboard', leaderboardLimiter, async (req, res) => {
+  try {
+    const period = String(req.query.period ?? '').trim();
+    if (period && !/^\d{4}-\d{2}$/.test(period)) {
+      return res.status(400).json({ ok: false, error: 'Invalid period, expected YYYY-MM' });
+    }
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
+    const { data, error } = await supabaseAdmin.rpc('get_leaderboard', {
+      p_period: period || null,
+      p_limit: limit,
+    });
+    if (error) throw error;
+    res.json({ ok: true, ...(data ?? {}) });
+  } catch (err) {
+    console.error('[leaderboard]', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load leaderboard' });
+  }
+});
+
+app.get('/api/leaderboard/me', requireUser, async (req, res) => {
+  try {
+    const months = Math.min(Math.max(Number(req.query.months) || 12, 1), 36);
+    const { data, error } = await supabaseAdmin.rpc('get_my_rank_history', {
+      p_months: months,
+      p_user_id: req.user.id,
+    });
+    if (error) throw error;
+    res.json({ ok: true, history: data ?? [] });
+  } catch (err) {
+    console.error('[leaderboard/me]', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load rank history' });
+  }
+});
+
+app.get('/api/admin/leaderboard/preview', requireAdmin, async (req, res) => {
+  try {
+    const period = String(req.query.period ?? '').trim();
+    if (period && !/^\d{4}-\d{2}$/.test(period)) {
+      return res.status(400).json({ ok: false, error: 'Invalid period, expected YYYY-MM' });
+    }
+    const { data, error } = await supabaseAdmin.rpc('get_admin_leaderboard', {
+      p_period: period || null,
+    });
+    if (error) throw error;
+    res.json({ ok: true, ...(data ?? {}) });
+  } catch (err) {
+    console.error('[admin/leaderboard/preview]', err.message);
+    res.status(500).json({ ok: false, error: err.message || 'Failed to load preview' });
+  }
+});
+
+app.post('/api/admin/leaderboard/finalize', requireAdmin, async (req, res) => {
+  try {
+    const period = String(req.body?.period ?? '').trim();
+    if (!/^\d{4}-\d{2}$/.test(period)) {
+      return res.status(400).json({ ok: false, error: 'Invalid period, expected YYYY-MM' });
+    }
+    const { data, error } = await supabaseAdmin.rpc('finalize_leaderboard_period', {
+      p_period: period,
+      p_admin_id: req.adminProfile.id,
+    });
+    if (error) throw error;
+    res.json({ ok: true, ...(data ?? {}) });
+  } catch (err) {
+    console.error('[admin/leaderboard/finalize]', err.message);
+    res.status(400).json({ ok: false, error: err.message || 'Failed to finalize period' });
   }
 });
 

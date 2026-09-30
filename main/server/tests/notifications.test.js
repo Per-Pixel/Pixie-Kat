@@ -56,6 +56,34 @@ test('renderNotification produces subject+html for every kind', () => {
   assert.strictEqual(renderNotification({ ...ORDER_ROW, kind: 'bogus' }), null);
 });
 
+test('renderNotification renders leaderboard_winner with tier and perks', () => {
+  const r = renderNotification({
+    ...ORDER_ROW,
+    kind: 'leaderboard_winner',
+    payload: {
+      period: '2026-09',
+      rank: 1,
+      order_count: 12,
+      tier: 'champion',
+      tier_label: 'Champion',
+      frame: 'champion',
+      gif_avatar: true,
+      wallet_bonus: 250,
+    },
+  });
+  assert.ok(r && r.subject.includes('#1'));
+  assert.ok(r.subject.includes('2026-09'));
+  assert.ok(r.html.includes('Champion'));
+  assert.ok(r.html.includes('GIF profile picture'));
+  assert.ok(r.html.includes('250 PKS'));
+});
+
+test('isKindEnabled: leaderboard_winner rides order_notifications flag', () => {
+  const off = { email_notifications: true, order_notifications: false };
+  assert.strictEqual(isKindEnabled(off, 'leaderboard_winner'), false);
+  assert.strictEqual(isKindEnabled(null, 'leaderboard_winner'), true);
+});
+
 test('renderNotification escapes payload HTML and includes order details', () => {
   const r = renderNotification({
     ...ORDER_ROW,

@@ -22,6 +22,7 @@ const KIND_FLAGS = {
   order_failed: 'order_notifications',
   order_refunded: 'order_notifications',
   login_alert: 'login_alerts',
+  leaderboard_winner: 'order_notifications',
 };
 
 export function isMailerConfigured() {
@@ -126,6 +127,28 @@ export function renderNotification(row) {
           Browser: p.browser,
         }, 'You can turn these alerts off from Account → Settings → Login alerts.'),
       };
+    case 'leaderboard_winner': {
+      const perkNames = [
+        p.frame ? `Avatar frame: ${p.frame}` : null,
+        p.gif_avatar ? 'GIF profile picture' : null,
+        Number(p.wallet_bonus) > 0 ? `${p.wallet_bonus} PKS wallet bonus` : null,
+      ].filter(Boolean).join(', ');
+      return {
+        subject: `You placed #${p.rank} on the ${p.period} PixieKat leaderboard`,
+        html: page(
+          `Rank #${p.rank} — ${p.tier_label || p.tier || 'Winner'}`,
+          `You finished the ${p.period} leaderboard at rank #${p.rank} with ${p.order_count} completed orders.`,
+          {
+            Period: p.period,
+            Rank: `#${p.rank}`,
+            'Completed orders': p.order_count,
+            Tier: p.tier_label || p.tier,
+            'Perks unlocked': perkNames || undefined,
+          },
+          'Perks stay active while you hold a winning rank. Check Account → Rewards & Rank for your history.',
+        ),
+      };
+    }
     default:
       return null;
   }

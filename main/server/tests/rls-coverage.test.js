@@ -42,3 +42,12 @@ test('settings tables allow admin insert and update', () => {
     hasPolicy(table, 'UPDATE');
   }
 });
+
+test('leaderboard tables are covered', () => {
+  hasPolicy('leaderboard_periods', 'SELECT');
+  hasPolicy('leaderboard_awards', 'SELECT');
+  hasPolicy('user_perks', 'SELECT');
+  hasPolicy('user_perks', 'INSERT');
+  hasPolicy('user_perks', 'UPDATE');
+  hasPolicy('user_perks', 'DELETE');
+});
