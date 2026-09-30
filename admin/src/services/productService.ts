@@ -79,7 +79,7 @@ class ProductService extends BaseApiService {
 
   // Create new product
   async createProduct(productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Product>> {
-    return this.create(productData);
+    return this.create<Product>(productData as Partial<Product>);
   }
 
   // Update product
@@ -195,7 +195,11 @@ class ProductService extends BaseApiService {
     formData.append('file', file);
     
     try {
-      const response = await this.post(formData, '/import', {
+      const response = await this.post<ApiResponse<{
+        imported: number;
+        failed: number;
+        errors: Array<{ row: number; error: string }>;
+      }>>(formData, '/import', {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

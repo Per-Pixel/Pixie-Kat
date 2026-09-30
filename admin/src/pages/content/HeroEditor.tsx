@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
 import ImageSourceField from '../../components/common/ImageSourceField';
 import VideoSourceField from '../../components/common/VideoSourceField';
+import { graphicPreviewUrl } from '../../services/mediaService';
 
 type Device = 'desktop' | 'tablet' | 'mobile';
 
@@ -41,15 +42,33 @@ interface HeroSettings {
 
 const defaultTransform = (): ImageTransform => ({ scale: 100, rotate: 0, x: 0, y: 0, pos_left: '50%', pos_top: '50%' });
 
-const defaultHeroImage = (): HeroImage => ({
-  url: '', show_on_phone: false,
-  desktop: defaultTransform(), tablet: defaultTransform(), mobile: defaultTransform(),
+const defaultHeroImage = (
+  url: string, showOnPhone: boolean,
+  desktop: Partial<ImageTransform>, tablet: Partial<ImageTransform>, mobile: Partial<ImageTransform>,
+): HeroImage => ({
+  url, show_on_phone: showOnPhone,
+  desktop: { ...defaultTransform(), ...desktop },
+  tablet: { ...defaultTransform(), ...tablet },
+  mobile: { ...defaultTransform(), ...mobile },
 });
 
 const defaultSettings: HeroSettings = {
   heading: 'PixieKat', subheading: 'Instant Gaming Credits', tagline: 'Fast, Secure, Affordable',
-  button_text: 'Topup Now', button_link: '/games', background_video: 'videos/hero-1.mp4',
-  images: { jinx: defaultHeroImage(), faze: defaultHeroImage(), melissa: defaultHeroImage() },
+  button_text: 'Topup Now', button_link: '/games', background_video: '/videos/hero-1.mp4',
+  images: {
+    jinx: defaultHeroImage('/img/hero/Jinx.webp', false,
+      { scale: 120, pos_left: '43%', pos_top: '60%' },
+      { scale: 100, pos_left: '30%', pos_top: '69%' },
+      { scale: 80, pos_left: '30%', pos_top: '69%' }),
+    faze: defaultHeroImage('/img/hero/Faze.webp', true,
+      { scale: 150, pos_left: '50%', pos_top: '70%' },
+      { scale: 130, pos_left: '50%', pos_top: '70%' },
+      { scale: 110, pos_left: '50%', pos_top: '70%' }),
+    melissa: defaultHeroImage('/img/hero/melissa.webp', false,
+      { scale: 150, pos_left: '59%', pos_top: '65%' },
+      { scale: 120, pos_left: '70%', pos_top: '69%' },
+      { scale: 100, pos_left: '70%', pos_top: '69%' }),
+  },
 };
 
 const imageKeys: Array<{ key: keyof HeroSettings['images']; label: string }> = [
@@ -105,7 +124,19 @@ const HeroEditor: React.FC = () => {
     if (error) {
       toast.error(error.message);
     } else if (data?.hero_settings && Object.keys(data.hero_settings).length > 0) {
-      setSettings((prev) => ({ ...defaultSettings, ...data.hero_settings, images: { ...defaultSettings.images, ...(data.hero_settings.images ?? {}) } }));
+      const saved = data.hero_settings;
+      const images = { ...defaultSettings.images, ...(saved.images ?? {}) };
+      for (const { key } of imageKeys) {
+        const defaults = defaultSettings.images[key];
+        const configured = saved.images?.[key] ?? {};
+        images[key] = {
+          ...defaults, ...configured,
+          desktop: { ...defaults.desktop, ...configured.desktop },
+          tablet: { ...defaults.tablet, ...configured.tablet },
+          mobile: { ...defaults.mobile, ...configured.mobile },
+        };
+      }
+      setSettings({ ...defaultSettings, ...saved, images });
     }
     setLoading(false);
   };
@@ -205,7 +236,7 @@ const HeroEditor: React.FC = () => {
                 >
                   <div className="flex items-center gap-3">
                     {img.url ? (
-                      <img src={img.url} alt="" className="h-10 w-16 rounded object-cover border border-gray-200" />
+                      <img src={graphicPreviewUrl(img.url)} alt="" className="h-10 w-16 rounded object-cover border border-gray-200" />
                     ) : (
                       <div className="h-10 w-16 rounded bg-gray-100 flex items-center justify-center text-gray-400">
                         <ImageIcon className="h-4 w-4" />

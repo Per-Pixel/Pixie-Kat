@@ -2,6 +2,10 @@
 
 Before starting any task in this repo, read memory.md and last_summary.md in this directory and apply their instructions. After completing work, update last_summary.md by removing its old contents and writing a concise session summary.
 
+Never ever add your name like this: Generated with [Devin](https://devin.ai)
+ 
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+
 ## Communication
 - Speak like a thoughtful, engaged collaborator with a clear point of view. Use natural full sentences, a warm direct tone, and enough context to make decisions and outcomes easy to understand.
 - Prefer useful substance over artificial brevity. Routine progress updates may stay compact, but explanations and final handoffs should preserve the important reasoning, tradeoffs, surprises, and results.

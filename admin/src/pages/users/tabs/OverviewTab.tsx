@@ -1,10 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Save, RefreshCw, ShoppingBag, Wallet, Clock, AlertTriangle, Trash2, X } from 'lucide-react';
+import { Camera, Save, RefreshCw, ShoppingBag, Wallet, Clock, AlertTriangle, Trash2, X, Trophy, EyeOff } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { api } from '../../../services/api';
 import { toast } from 'react-hot-toast';
 import type { UserDetailData } from '../useUserDetail';
+import {
+  listUserPerks, grantPerk, revokePerk, setExcluded, periodLabel,
+} from '../../../services/leaderboardService';
+import type { UserPerk } from '../../../services/leaderboardService';
 
 interface Props { data: UserDetailData; refetch: () => void; }
 
@@ -70,6 +74,129 @@ function getAvatarErrorMessage(err: unknown) {
     return 'Profile picture storage is not set up yet. Run supabase/migrations/003_avatar_storage.sql in Supabase.';
   }
   return message || 'Failed to update profile picture';
+}
+
+function LeaderboardCard({ profile, refetch }: { profile: UserDetailData['profile']; refetch: () => void }) {
+  const [perks, setPerks] = useState<UserPerk[]>([]);
+  const [history, setHistory] = useState<Array<{ period: string; rank: number | null; order_count: number; finalized: boolean; tier: string | null }>>([]);
+  const [busy, setBusy] = useState(false);
+  const [frameChoice, setFrameChoice] = useState('gold');
+
+  const load = useCallback(async () => {
+    const [perkRows, historyRes] = await Promise.all([
+      listUserPerks(profile.id).catch(() => [] as UserPerk[]),
+      supabase.rpc('get_my_rank_history', { p_months: 6, p_user_id: profile.id }),
+    ]);
+    setPerks(perkRows);
+    if (!historyRes.error && Array.isArray(historyRes.data)) setHistory(historyRes.data);
+  }, [profile.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const excluded = Boolean(profile.leaderboard_exclude);
+
+  const act = async (fn: () => Promise<unknown>, done: string) => {
+    setBusy(true);
+    try {
+      await fn();
+      toast.success(done);
+      await load();
+      refetch();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const hasPerk = (perk: string) =>
+    perks.some((p) => p.perk === perk && (!p.expires_at || new Date(p.expires_at) > new Date()));
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+          <Trophy className="w-4 h-4 text-amber-500" /> Leaderboard
+        </h3>
+        <button
+          onClick={() => act(() => setExcluded(profile.id, !excluded), excluded ? 'User re-included' : 'User excluded')}
+          disabled={busy}
+          className={`btn btn-outline btn-sm text-xs ${excluded ? 'text-green-600' : 'text-red-600'}`}
+        >
+          <EyeOff className="w-3.5 h-3.5 mr-1" />
+          {excluded ? 'Re-include' : 'Exclude'}
+        </button>
+      </div>
+
+      {/* Recent ranks */}
+      {history.length > 0 ? (
+        <div className="mb-4 space-y-1.5">
+          {history.slice(0, 4).map((row) => (
+            <div key={row.period} className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">{periodLabel(row.period)}</span>
+              <span className="font-semibold text-gray-900">
+                {row.rank ? `#${row.rank}` : '—'}
+                {row.tier ? <span className="ml-1.5 text-xs font-medium text-violet-600 capitalize">{row.tier}</span> : null}
+                <span className="ml-1.5 text-xs text-gray-400">{row.finalized ? 'final' : 'live'}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mb-4 text-sm text-gray-400">No leaderboard rank in recent months.</p>
+      )}
+
+      {/* Active perks */}
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Perks</p>
+      <div className="space-y-2 mb-4">
+        {perks.length === 0 ? (
+          <p className="text-sm text-gray-400">None</p>
+        ) : perks.map((perk) => (
+          <div key={perk.id} className="flex items-center justify-between text-sm">
+            <span className="text-gray-700">
+              {perk.perk === 'avatar_frame' ? `Frame: ${perk.value}` : perk.perk.replace(/_/g, ' ')}
+              <span className="ml-1.5 text-xs text-gray-400">
+                {perk.source}{perk.source_period ? ` · ${perk.source_period}` : ''}
+                {perk.expires_at ? ` · until ${new Date(perk.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+              </span>
+            </span>
+            <button
+              onClick={() => act(() => revokePerk(profile.id, perk.perk), 'Perk revoked')}
+              disabled={busy}
+              className="text-xs font-medium text-red-600 hover:underline"
+            >
+              Revoke
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Manual grants */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4">
+        <select
+          className="input !w-auto !py-1.5 text-xs"
+          value={frameChoice}
+          onChange={(e) => setFrameChoice(e.target.value)}
+        >
+          {['champion', 'diamond', 'gold'].map((f) => <option key={f} value={f}>{f} frame</option>)}
+        </select>
+        <button
+          onClick={() => act(() => grantPerk(profile.id, 'avatar_frame', frameChoice), 'Frame granted')}
+          disabled={busy || hasPerk('avatar_frame')}
+          className="btn btn-outline btn-sm text-xs"
+        >
+          Grant frame
+        </button>
+        <button
+          onClick={() => act(() => grantPerk(profile.id, 'gif_avatar'), 'GIF avatar granted')}
+          disabled={busy || hasPerk('gif_avatar')}
+          className="btn btn-outline btn-sm text-xs"
+        >
+          Grant GIF avatar
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function OverviewTab({ data, refetch }: Props) {
@@ -198,7 +325,7 @@ export default function OverviewTab({ data, refetch }: Props) {
       toast.success('Profile picture updated');
       setAvatarFile(null);
       refetch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error(getAvatarErrorMessage(err));
     } finally {
       setSavingAvatar(false);
@@ -232,7 +359,7 @@ export default function OverviewTab({ data, refetch }: Props) {
       if (fileInputRef.current) fileInputRef.current.value = '';
       toast.success('Profile picture removed');
       refetch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error(getAvatarErrorMessage(err));
     } finally {
       setRemovingAvatar(false);
@@ -287,8 +414,9 @@ export default function OverviewTab({ data, refetch }: Props) {
       toast.success(`Status changed to ${pendingStatus}`);
       setShowStatusModal(false);
       refetch();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to change status');
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string } } };
+      toast.error(apiErr.response?.data?.message || 'Failed to change status');
     }
     setChangingStatus(false);
   };
@@ -476,6 +604,8 @@ export default function OverviewTab({ data, refetch }: Props) {
               ))}
             </div>
           </div>
+
+          <LeaderboardCard profile={profile} refetch={refetch} />
 
           <div className="bg-white rounded-lg border border-gray-200 p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Identifiers</h3>

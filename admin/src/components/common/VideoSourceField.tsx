@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Film, Link, Upload, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
+import { graphicPreviewUrl } from '../../services/mediaService';
 
 const BUCKET = 'media';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
@@ -102,7 +103,7 @@ const VideoSourceField: React.FC<VideoSourceFieldProps> = ({
       {value ? (
         <div className={`relative overflow-hidden rounded-lg border border-gray-200 bg-black ${previewClassName}`}>
           <video
-            src={value}
+            src={graphicPreviewUrl(value)}
             className="h-full w-full object-contain"
             controls
             muted

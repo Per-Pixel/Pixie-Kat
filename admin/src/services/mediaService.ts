@@ -47,6 +47,31 @@ export interface MediaUsage {
   recordName: string;
   field: string;
   adminLink?: string;
+  page?: string;
+  section?: string;
+  slot?: string;
+  live?: boolean;
+}
+
+export interface SiteGraphicPlacement {
+  id: string;
+  page: 'Homepage' | 'Games' | 'Branding' | 'Event';
+  category: UsageCategory;
+  section: string;
+  label: string;
+  description: string;
+  url: string;
+  kind: 'image' | 'video';
+  live: boolean;
+  adminLink?: string;
+  source: {
+    table: 'store_settings' | 'games' | 'products' | 'promotional_items';
+    recordId?: string;
+    column: string;
+    path?: Array<string | number>;
+    itemId?: string | number;
+    storedUrl: string | null;
+  };
 }
 
 export type MediaSort =
@@ -61,31 +86,30 @@ export type ImageOutputFormat = 'image/webp' | 'image/png' | 'image/jpeg';
 
 export function normalizePath(str?: string | null): string {
   if (!str) return '';
-  return str
-    .trim()
-    .replace(/^https?:\/\/[^\/]+\/storage\/v1\/object\/public\/[^\/]+\//, '')
-    .replace(/^\/+/, '')
-    .toLowerCase();
+  try {
+    return decodeURIComponent(str.trim().replace(/^\/+/, '').replace(/[?#].*$/, '')).toLowerCase();
+  } catch {
+    return str.trim().replace(/^\/+/, '').replace(/[?#].*$/, '').toLowerCase();
+  }
 }
 
 export function matchMediaUrl(candidate?: string | null, record?: MediaRecord | null): boolean {
-  if (!candidate || !record) return false;
-  const rawCand = candidate.trim().toLowerCase();
-  const rawUrl = (record.public_url || '').trim().toLowerCase();
-  const rawPath = (record.storage_path || '').trim().toLowerCase();
-  const rawName = (record.filename || '').trim().toLowerCase();
+  if (!candidate?.trim() || !record) return false;
+  const value = candidate.trim();
+  if (value === record.public_url || value === record.storage_path) return true;
 
-  if (rawCand === rawUrl || rawCand === rawPath || rawCand === rawName) return true;
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      const url = new URL(value);
+      const match = url.pathname.match(/^\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+)$/);
+      return Boolean(match && match[1] === record.bucket && normalizePath(match[2]) === normalizePath(record.storage_path));
+    } catch {
+      return false;
+    }
+  }
 
-  const normCand = normalizePath(rawCand);
-  const normPath = normalizePath(rawPath);
-  const normUrl = normalizePath(rawUrl);
-
-  if (normCand && (normCand === normPath || normCand === normUrl)) return true;
-  if (normPath && normCand.endsWith(normPath)) return true;
-  if (rawName && (rawCand.endsWith('/' + rawName) || rawCand === rawName)) return true;
-
-  return false;
+  return record.bucket === PUBLIC_BUCKET && /^(?:\/?(?:img|videos|audio)\/)/i.test(value)
+    && normalizePath(value) === normalizePath(record.storage_path);
 }
 
 function getObjectUrl(bucket: string, path: string): string {
@@ -93,6 +117,13 @@ function getObjectUrl(bucket: string, path: string): string {
   const clean = path.startsWith(prefix) ? path.slice(prefix.length) : path;
   const encodedPath = clean.split('/').map((part) => encodeURIComponent(part)).join('/');
   return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodedPath}`;
+}
+
+export function graphicPreviewUrl(value: string): string {
+  const url = value.trim();
+  return /^\/?(?:img|videos|audio)\//i.test(url)
+    ? getObjectUrl(PUBLIC_BUCKET, url.replace(/^\/+/, ''))
+    : url;
 }
 
 async function decorateRecord(record: MediaRecord): Promise<MediaRecord> {
@@ -159,6 +190,7 @@ export async function syncBucketToTable(): Promise<{ created: number; skipped: n
 export async function listMedia(options?: {
   search?: string;
   mimeType?: string;
+  bucket?: string;
   sort?: MediaSort;
   limit?: number;
   offset?: number;
@@ -184,6 +216,9 @@ export async function listMedia(options?: {
   }
   if (options?.mimeType) {
     query = query.ilike('mime_type', `${options.mimeType}%`);
+  }
+  if (options?.bucket) {
+    query = query.eq('bucket', options.bucket);
   }
   if (options?.limit) {
     query = query.limit(options.limit);
@@ -482,14 +517,323 @@ export interface AllRawUsages {
   profiles: any[];
 }
 
+export const DEFAULT_PRODUCTS_SLIDES = [
+  {
+    id: 1, title: 'PIXIEKAT', subtitle: 'Instant Gaming Credits',
+    description: 'Top up diamonds, coins, and credits for your favorite games — fast, secure, and delivered straight to your account.',
+    cta: 'TOP UP NOW', bgGradient: 'from-blue-700 via-violet-700 to-indigo-900', image: '/img/hero/game-hero-card.gif',
+  },
+  {
+    id: 2, title: 'MOBILE LEGENDS', subtitle: 'Top Up Diamonds',
+    description: 'Get instant diamonds for Mobile Legends. Fast, secure, and reliable top-up service with 24/7 support.',
+    cta: 'TOP UP NOW', bgGradient: 'from-indigo-700 via-fuchsia-700 to-violet-900', image: '/img/hero/game-mlbb-card.webp',
+  },
+  {
+    id: 3, title: 'PUBG GLOBAL', subtitle: 'UC Coins Available',
+    description: 'Purchase UC coins for PUBG Mobile Global. Instant delivery and competitive prices guaranteed.',
+    cta: 'BUY UC COINS', bgGradient: 'from-orange-600 via-rose-700 to-red-900', image: '/img/hero/game-pubg-card.webp',
+  },
+  {
+    id: 4, title: 'GENSHIN IMPACT', subtitle: 'Genesis Crystals',
+    description: 'Top up Genesis Crystals for Genshin Impact. Safe transactions with instant delivery to your account.',
+    cta: 'GET CRYSTALS', bgGradient: 'from-cyan-700 via-sky-700 to-indigo-900', image: '/img/hero/game-genshin-card.webp',
+  },
+];
+
+const homeGraphics: Array<{
+  id: string; key: string; section: string; label: string; description: string;
+  fallback: string; kind: 'image' | 'video';
+}> = [
+  { id: 'home-hero-contact', key: 'hero_contact_video', section: 'Hero', label: 'Contact card video', description: 'Video in the mobile contact card.', fallback: '/videos/feature-4.mp4', kind: 'video' },
+  { id: 'home-hero-games-front', key: 'hero_games_front_video', section: 'Hero', label: 'Popular games card · front', description: 'Front video in the mobile popular games card.', fallback: '/videos/feature-2.mp4', kind: 'video' },
+  { id: 'home-hero-games-back', key: 'hero_games_back_video', section: 'Hero', label: 'Popular games card · back', description: 'Back video in the mobile popular games card.', fallback: '/videos/feature-3.mp4', kind: 'video' },
+  { id: 'home-feature-main', key: 'feature_main_video', section: 'Features', label: 'Main feature video', description: 'Wide video under “Power Up Your Game”.', fallback: '/videos/feature-1.mp4', kind: 'video' },
+  { id: 'home-feature-small', key: 'feature_small_video', section: 'Features', label: 'Small feature video', description: 'Video in the smaller right-hand tile.', fallback: '/videos/feature-5.mp4', kind: 'video' },
+  { id: 'home-promotion-frame', key: 'promotion_frame', section: 'Promotions', label: 'Background artwork', description: 'Artwork behind the promotion cards.', fallback: '/img/hero/promotion-art.png', kind: 'image' },
+  { id: 'home-promotion-1', key: 'promotion_card_1', section: 'Promotions', label: 'MLBB Festive Top-Up Rewards', description: 'Image on the first promotion card.', fallback: '/img/promotion/leomord.webp', kind: 'image' },
+  { id: 'home-promotion-2', key: 'promotion_card_2', section: 'Promotions', label: '2x Recharge Bonus', description: 'Image on the second promotion card.', fallback: '/img/promotion/eternal.webp', kind: 'image' },
+  { id: 'home-promotion-3', key: 'promotion_card_3', section: 'Promotions', label: 'Limited Faze Offer', description: 'Image on the third promotion card.', fallback: '/img/promotion/starlight.webp', kind: 'image' },
+  { id: 'home-contact-left-top', key: 'contact_left_top', section: 'Contact', label: 'Left artwork · top', description: 'First clipped artwork on the left of the contact panel.', fallback: '/img/contact-1.webp', kind: 'image' },
+  { id: 'home-contact-left-bottom', key: 'contact_left_bottom', section: 'Contact', label: 'Left artwork · bottom', description: 'Second clipped artwork on the left of the contact panel.', fallback: '/img/contact-2.webp', kind: 'image' },
+  { id: 'home-contact-right-back', key: 'contact_right_back', section: 'Contact', label: 'Right character · back', description: 'Background layer behind the contact character.', fallback: '/img/swordman-partial.webp', kind: 'image' },
+  { id: 'home-contact-right-front', key: 'contact_right_front', section: 'Contact', label: 'Right character · front', description: 'Foreground character in the contact panel.', fallback: '/img/swordman.webp', kind: 'image' },
+];
+
+const fallbackTrending = [
+  ['Black Myth Wukong', '/img/hero/game-hero-card.gif'],
+  ['Alan Wake 2', '/img/games/mobile-legends.webp'],
+  ['Mortal Kombat 11', '/img/hero/game-pubg-card.webp'],
+  ['Spider-Man 2', '/img/hero/game-genshin-card.webp'],
+  ['The Witcher 3', '/img/games/honor-of-kings.jpg'],
+  ['Honor of Kings', '/img/games/honor-of-kings.jpg'],
+];
+
+const fallbackExclusive = [
+  ['Mobile Legend Bang Bang', '/img/hero/game-mlbb-card.webp'],
+  ['PUBG Mobile Top Up', '/img/hero/game-pubg-card.webp'],
+  ['Genshin Impact Genesis Crystals', '/img/hero/game-genshin-card.webp'],
+  ['Honor of Kings Tokens', '/img/games/honor-of-kings.jpg'],
+  ['Mobile Legends Diamonds', '/img/games/mobile-legends.webp'],
+  ['MLBB Leomord Special Pack', '/img/promotion/leomord.webp'],
+  ['Magic Chess: Go Go Bundle', '/img/promotion/eternal.webp'],
+  ['Starlight Pass Top Up', '/img/promotion/starlight.webp'],
+  ['Jinx Champion Bundle', '/img/hero/Jinx.webp'],
+  ['Faze Clan Promo Pack', '/img/hero/Faze.webp'],
+  ['Melissa Character Pack', '/img/hero/melissa.webp'],
+  ['Hero Special Top Up', '/img/hero/game-hero-card.gif'],
+  ['Battle Arena Premium Pack', '/img/loading/1.jpg'],
+  ['Dragon Quest Crystals', '/img/loading/2.jpg'],
+  ['Fantasy Realm Credits', '/img/loading/3.jpg'],
+  ['Shadow Warriors Bundle', '/img/loading/4.jpg'],
+  ['Cyber Strike Coin Pack', '/img/loading/6.jpg'],
+  ['Valor Points Top Up', '/img/loading/7.jpg'],
+];
+
+type GraphicInput = Omit<SiteGraphicPlacement, 'url' | 'source'> & {
+  currentUrl?: string | null;
+  fallbackUrl?: string;
+  source: Omit<SiteGraphicPlacement['source'], 'storedUrl'>;
+};
+
+export function buildSiteGraphicPlacements(raw: AllRawUsages): SiteGraphicPlacement[] {
+  const placements: SiteGraphicPlacement[] = [];
+  const settings = raw.settings ?? {};
+  const appearance = settings.appearance_settings ?? {};
+  const custom = appearance.site_graphics && typeof appearance.site_graphics === 'object'
+    ? appearance.site_graphics : {};
+  const add = ({ currentUrl, fallbackUrl = '', source, ...rest }: GraphicInput) => {
+    placements.push({ ...rest, url: currentUrl || fallbackUrl, source: { ...source, storedUrl: currentUrl ?? null } });
+  };
+  const addHome = (item: Omit<GraphicInput, 'page' | 'category' | 'live'>) =>
+    add({ page: 'Homepage', category: 'homepage', live: true, ...item });
+
+  const hero = settings.hero_settings ?? {};
+  addHome({
+    id: 'hero-video', section: 'Hero', label: 'Background video',
+    description: 'Full-screen video behind the homepage heading.', kind: 'video',
+    currentUrl: hero.background_video, fallbackUrl: '/videos/hero-1.mp4', adminLink: '/pages/homepage/hero',
+    source: { table: 'store_settings', recordId: 'hero_settings', column: 'hero_settings', path: ['background_video'] },
+  });
+  for (const [key, label, fallback, phone] of [
+    ['jinx', 'Left character', '/img/hero/Jinx.webp', false],
+    ['faze', 'Center artwork', '/img/hero/Faze.webp', true],
+    ['melissa', 'Right character', '/img/hero/melissa.webp', false],
+  ] as const) {
+    addHome({
+      id: `hero-${key}`, section: 'Hero', label,
+      description: `${phone ? 'Shown' : 'Hidden by default'} on phones.${key === 'jinx' ? ' Also supplies the video poster.' : ''}`,
+      kind: 'image', currentUrl: hero.images?.[key]?.url, fallbackUrl: fallback,
+      adminLink: '/pages/homepage/hero',
+      source: { table: 'store_settings', recordId: 'hero_settings', column: 'hero_settings', path: ['images', key, 'url'] },
+    });
+  }
+
+  const about = settings.about_settings ?? {};
+  addHome({
+    id: 'about-image', section: 'About', label: 'Full-screen reveal image',
+    description: 'Image revealed during the scroll-pinned About section.', kind: 'image',
+    currentUrl: about.image?.url ?? about.image_url, fallbackUrl: '/img/about.webp',
+    adminLink: '/pages/homepage/about',
+    source: { table: 'store_settings', recordId: 'about_settings', column: 'about_settings', path: ['image', 'url'] },
+  });
+
+  for (const item of homeGraphics) {
+    addHome({
+      id: item.id, section: item.section, label: item.label, description: item.description,
+      kind: item.kind, currentUrl: custom[item.key], fallbackUrl: item.fallback,
+      source: { table: 'store_settings', recordId: 'appearance_settings', column: 'appearance_settings', path: ['site_graphics', item.key] },
+    });
+  }
+
+  const activePromos = (raw.promoItems ?? []).filter((item) => item.is_active);
+  for (const [section, fallbacks, key] of [
+    ['trending', fallbackTrending, 'Trending games'],
+    ['exclusive_offers', fallbackExclusive, 'Exclusive offers'],
+  ] as const) {
+    if (activePromos.some((item) => item.section === section)) continue;
+    fallbacks.forEach(([label, url], index) => {
+      const fallbackKey = `${section === 'trending' ? 'trending' : 'exclusive'}_fallback_${index + 1}`;
+      addHome({
+        id: `home-fallback-${section === 'trending' ? 'trending' : 'exclusive'}-${index + 1}`,
+        section: key, label, description: 'Built-in card shown until active cards are added in Content.', kind: 'image',
+        currentUrl: custom[fallbackKey], fallbackUrl: url,
+        adminLink: section === 'trending' ? '/pages/homepage/trending-games' : '/pages/homepage/exclusive-offers',
+        source: { table: 'store_settings', recordId: 'appearance_settings', column: 'appearance_settings', path: ['site_graphics', fallbackKey] },
+      });
+    });
+  }
+  for (const item of raw.promoItems ?? []) {
+    if (item.section !== 'trending' && item.section !== 'exclusive_offers') continue;
+    const trending = item.section === 'trending';
+    add({
+      id: `promo-${item.id}`, page: 'Homepage', category: 'homepage',
+      section: trending ? 'Trending games' : 'Exclusive offers', label: item.title || 'Untitled card',
+      description: trending ? 'Card in the horizontal homepage carousel.' : 'Card in the homepage offers grid.',
+      kind: 'image', live: Boolean(item.is_active), currentUrl: item.image_url,
+      fallbackUrl: '/img/games/mobile-legends.webp',
+      adminLink: `/pages/homepage/${trending ? 'trending-games' : 'exclusive-offers'}/${item.id}`,
+      source: { table: 'promotional_items', recordId: item.id, column: 'image_url' },
+    });
+  }
+
+  const slides = Array.isArray(settings.products_page_settings?.slides) && settings.products_page_settings.slides.length
+    ? settings.products_page_settings.slides : DEFAULT_PRODUCTS_SLIDES;
+  slides.forEach((slide: any, index: number) => add({
+    id: `games-slide-${slide.id ?? index + 1}`, page: 'Games', category: 'games',
+    section: 'Games carousel', label: `Slide ${index + 1} · ${slide.title || 'Untitled'}`,
+    description: 'Image behind this slide at the top of the Games page.', kind: 'image', live: true,
+    currentUrl: settings.products_page_settings?.slides?.[index]?.image,
+    fallbackUrl: slide.image, adminLink: '/pages/products',
+    source: { table: 'store_settings', recordId: `products_slide_${slide.id ?? index}`, column: 'products_page_settings', path: ['slides', index, 'image'], itemId: slide.id },
+  }));
+
+  for (const game of raw.games ?? []) {
+    add({
+      id: `game-${game.id}-card`, page: 'Games', category: 'games', section: 'Game cards', label: game.name,
+      description: 'Square game image in the Games catalogue and game details.', kind: 'image',
+      live: game.status === 'active', currentUrl: game.image_url,
+      fallbackUrl: '/img/games/mobile-legends.webp', adminLink: `/products/games/${game.id}`,
+      source: { table: 'games', recordId: game.id, column: 'image_url' },
+    });
+    add({
+      id: `game-${game.id}-banner`, page: 'Games', category: 'games', section: 'Game banners', label: game.name,
+      description: 'Wide banner above this game’s checkout; uses its card image if not set.', kind: 'image',
+      live: game.status === 'active', currentUrl: game.banner_url,
+      fallbackUrl: game.image_url || '/img/games/mobile-legends.webp', adminLink: `/products/games/${game.id}`,
+      source: { table: 'games', recordId: game.id, column: 'banner_url' },
+    });
+  }
+  const gameNames = new Map((raw.games ?? []).map((game) => [game.id, game.name]));
+  const liveGames = new Set((raw.games ?? []).filter((game) => game.status === 'active').map((game) => game.id));
+  for (const product of raw.products ?? []) {
+    add({
+      id: `product-${product.id}`, page: 'Games', category: 'products',
+      section: `${gameNames.get(product.game_id) || 'Game'} · Packages`, label: product.name,
+      description: 'Package image on the game checkout and cart.', kind: 'image',
+      live: product.status === 'active' && liveGames.has(product.game_id), currentUrl: product.image_url,
+      adminLink: product.game_id ? `/products/games/${product.game_id}` : '/products',
+      source: { table: 'products', recordId: product.id, column: 'image_url' },
+    });
+  }
+
+  const jjk = settings.event_jjk_cheaper_settings ?? {};
+  const enabled = [
+    jjk.placement?.homepage_banner && 'Homepage · Exclusive offers',
+    jjk.placement?.games_page && 'Games · Catalogue',
+    jjk.placement?.navbar && 'Navigation',
+  ].filter(Boolean).join(', ');
+  add({
+    id: 'event-jjk-promo', page: 'Event', category: 'events', section: 'JJK event',
+    label: 'Event promo image', description: enabled
+      ? `Shared image shown in ${enabled} when the event is published.`
+      : 'Not placed on the site yet. Enable a placement in the event editor.',
+    kind: 'image', live: jjk.status === 'published' && Boolean(enabled),
+    currentUrl: jjk.placement?.promo_image, fallbackUrl: '/img/games/mobile-legends.webp',
+    adminLink: '/pages/events/jjk-cheaper',
+    source: { table: 'store_settings', recordId: 'event_jjk_cheaper_settings', column: 'event_jjk_cheaper_settings', path: ['placement', 'promo_image'] },
+  });
+  (Array.isArray(jjk.skins) ? jjk.skins : []).forEach((skin: any, index: number) => {
+    for (const [field, label] of [['portrait', 'Showcase portrait'], ['thumbnail', 'Gallery thumbnail']] as const) {
+      add({
+        id: `event-skin-${skin.id ?? index}-${field}`, page: 'Event', category: 'events', section: 'JJK skin showcase',
+        label: `${skin.sorcerer || skin.hero || `Skin ${index + 1}`} · ${label}`,
+        description: field === 'portrait' ? 'Full-size portrait in the event showcase and story.' : 'Small portrait in the event gallery.',
+        kind: 'image', live: jjk.status === 'published' && jjk.visibleSections?.showcase !== false,
+        currentUrl: skin[field], adminLink: '/pages/events/jjk-cheaper',
+        source: { table: 'store_settings', recordId: skin.id ?? String(index), column: 'event_jjk_cheaper_settings', path: ['skins', index, field], itemId: skin.id },
+      });
+    }
+  });
+
+  for (const [key, label, fallback] of [
+    ['logo_url', 'Navigation logo', '/img/logo.png'],
+    ['favicon_url', 'Browser tab icon', ''],
+    ['icon_url', 'App icon', ''],
+  ] as const) {
+    add({
+      id: `brand-${key}`, page: 'Branding', category: 'branding', section: 'Site identity', label,
+      description: key === 'logo_url' ? 'Logo in the site navigation.' : key === 'favicon_url'
+        ? 'Icon in the browser tab.' : 'Icon saved to mobile home screens.',
+      kind: 'image', live: Boolean(appearance[key] || fallback), currentUrl: appearance[key], fallbackUrl: fallback,
+      adminLink: '/settings',
+      source: { table: 'store_settings', recordId: 'appearance_settings', column: 'appearance_settings', path: [key] },
+    });
+  }
+  const pageOrder = { Homepage: 0, Games: 1, Branding: 2, Event: 3 };
+  const homeOrder = ['Hero', 'Trending games', 'Exclusive offers', 'About', 'Features', 'Promotions', 'Contact'];
+  return placements.sort((a, b) => pageOrder[a.page] - pageOrder[b.page]
+    || (a.page === 'Homepage' ? homeOrder.indexOf(a.section) - homeOrder.indexOf(b.section) : 0));
+}
+
+function nestedValue(value: any, path: Array<string | number>): any {
+  return path.reduce((current, key) => current?.[key], value);
+}
+
+function withNestedValue(value: any, path: Array<string | number>, nextValue: string): any {
+  const [key, ...rest] = path;
+  const copy: any = Array.isArray(value) ? [...value] : value && typeof value === 'object' ? { ...value } : typeof key === 'number' ? [] : {};
+  copy[key!] = rest.length ? withNestedValue(copy[key!], rest, nextValue) : nextValue;
+  return copy;
+}
+
+export async function saveGraphicPlacement(placement: SiteGraphicPlacement, url: string): Promise<void> {
+  const nextUrl = url.trim();
+  if (!/^(https?:\/\/|\/?(?:img|videos)\/)/i.test(nextUrl)) {
+    throw new Error('Choose an image or video from the library, or upload a new file.');
+  }
+  const { table, column, recordId, path, itemId, storedUrl } = placement.source;
+
+  if (table !== 'store_settings') {
+    if (!recordId) throw new Error('This graphic no longer has an editable record. Refresh and try again.');
+    let query = supabase.from(table).update({ [column]: nextUrl }).eq('id', recordId);
+    query = storedUrl == null ? query.is(column, null) : query.eq(column, storedUrl);
+    const { data, error } = await query.select('id').maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('This graphic changed in another editor. Refresh before saving.');
+    return;
+  }
+
+  if (!path?.length || ![
+    'hero_settings', 'about_settings', 'products_page_settings', 'event_jjk_cheaper_settings', 'appearance_settings',
+  ].includes(column)) throw new Error('This graphic has no editable setting.');
+  const { data, error } = await supabase.from('store_settings')
+    .select('updated_at, hero_settings, about_settings, products_page_settings, event_jjk_cheaper_settings, appearance_settings')
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error('Store settings are unavailable. Refresh and try again.');
+  const settingColumn = column as keyof Omit<typeof data, 'updated_at'>;
+  let current = data[settingColumn] && typeof data[settingColumn] === 'object' ? data[settingColumn] : {};
+  const oldUrl = nestedValue(current, path)
+    ?? (column === 'about_settings' && path[0] === 'image' ? current.image_url : null);
+  if ((oldUrl || '') !== (storedUrl || '')) {
+    throw new Error('This graphic changed in another editor. Refresh before saving.');
+  }
+  if (column === 'products_page_settings' && (!Array.isArray(current.slides) || !current.slides.length)) {
+    current = { ...current, slides: DEFAULT_PRODUCTS_SLIDES.map((slide) => ({ ...slide })) };
+  }
+  if (itemId != null && String(nestedValue(current, path.slice(0, -1))?.id) !== String(itemId)) {
+    throw new Error('This item was moved or removed. Refresh before saving.');
+  }
+
+  const nextSetting = withNestedValue(current, path, nextUrl);
+  const { data: saved, error: saveError } = await supabase.from('store_settings')
+    .update({ [column]: nextSetting }).eq('id', true).eq('updated_at', data.updated_at)
+    .select('id').maybeSingle();
+  if (saveError) throw saveError;
+  if (!saved) throw new Error('Store settings changed while saving. Refresh before trying again.');
+}
+
 export async function fetchRawUsageData(): Promise<AllRawUsages> {
   const [settingsRes, gamesRes, productsRes, promoRes, profilesRes] = await Promise.all([
-    supabase.from('store_settings').select('*').maybeSingle(),
-    supabase.from('games').select('id, name, slug, image_url, banner_url'),
-    supabase.from('products').select('id, name, game_id, image_url'),
-    supabase.from('promotional_items').select('id, title, section, image_url, link_url'),
+    supabase.from('store_settings').select('hero_settings, about_settings, products_page_settings, event_jjk_cheaper_settings, appearance_settings').maybeSingle(),
+    supabase.from('games').select('id, name, slug, status, image_url, banner_url'),
+    supabase.from('products').select('id, name, game_id, status, image_url'),
+    supabase.from('promotional_items').select('id, title, section, is_active, image_url, link_url').order('sort_order', { ascending: true }),
     supabase.from('profiles').select('id, name, email, avatar_url').not('avatar_url', 'is', null),
   ]);
+  for (const result of [settingsRes, gamesRes, productsRes, promoRes, profilesRes]) {
+    if (result.error) throw result.error;
+  }
 
   return {
     settings: settingsRes.data || {},
@@ -779,25 +1123,48 @@ export function computeMediaUsages(record: MediaRecord, rawData: AllRawUsages): 
   return usages;
 }
 
-export async function fetchAllMediaUsages(records: MediaRecord[]): Promise<Record<string, MediaUsage[]>> {
-  try {
-    const rawData = await fetchRawUsageData();
-    const map: Record<string, MediaUsage[]> = {};
+export async function fetchAllMediaUsages(
+  records: MediaRecord[], rawData?: AllRawUsages
+): Promise<Record<string, MediaUsage[]>> {
+  const source = rawData ?? await fetchRawUsageData();
+  const placements = buildSiteGraphicPlacements(source);
+  const map: Record<string, MediaUsage[]> = {};
 
-    records.forEach((record) => {
-      map[record.id] = computeMediaUsages(record, rawData);
+  records.forEach((record) => {
+    const existing = computeMediaUsages(record, source);
+    const matched = placements.filter((placement) => matchMediaUrl(placement.url, record)).map((placement): MediaUsage => {
+      const { path, column, recordId, table } = placement.source;
+      const field = column === 'event_jjk_cheaper_settings' && path?.[0] === 'skins'
+        ? `skins.${path[path.length - 1]}`
+        : path?.reduce<string>((text, part) => text + (typeof part === 'number' ? `[${part}]` : `${text ? '.' : ''}${part}`), '') || column;
+      return {
+        category: placement.category, subCategory: placement.section, table,
+        recordId: recordId ?? column, recordName: placement.label, field,
+        adminLink: placement.adminLink, page: placement.page, section: placement.section,
+        slot: placement.label, live: placement.live,
+      };
     });
-
-    return map;
-  } catch (err) {
-    console.error('Failed to index media usages:', err);
-    return {};
-  }
+    const used = new Set<string>();
+    map[record.id] = existing.map((usage) => {
+      const index = matched.findIndex((placement) =>
+        placement.table === usage.table && placement.recordId === usage.recordId && placement.field === usage.field
+      );
+      if (index < 0) return usage;
+      used.add(`${matched[index].table}:${matched[index].recordId}:${matched[index].field}`);
+      return matched[index];
+    });
+    for (const usage of matched) {
+      const key = `${usage.table}:${usage.recordId}:${usage.field}`;
+      if (!used.has(key)) map[record.id].push(usage);
+      used.add(key);
+    }
+  });
+  return map;
 }
 
 export async function scanMediaUsage(record: MediaRecord): Promise<MediaUsage[]> {
-  const rawData = await fetchRawUsageData();
-  return computeMediaUsages(record, rawData);
+  const map = await fetchAllMediaUsages([record]);
+  return map[record.id] ?? [];
 }
 
 // ============================================================
@@ -829,87 +1196,3 @@ export async function updateReferencingUrls(
 
   return count;
 }
-
-// ============================================================
-// Default export — adapter for MediaLibrary page
-// ============================================================
-function extractFolder(storagePath: string): string | undefined {
-  if (!storagePath.includes('/')) return undefined;
-  return storagePath.split('/').slice(0, -1).join('/') || undefined;
-}
-
-function recordToAsset(r: MediaRecord) {
-  return {
-    id: r.id,
-    filename: r.filename,
-    originalFilename: r.filename,
-    url: r.public_url,
-    mimeType: r.mime_type ?? 'application/octet-stream',
-    size: r.size_bytes ?? 0,
-    width: r.width ?? undefined,
-    height: r.height ?? undefined,
-    alt: r.alt_text ?? undefined,
-    uploadedBy: r.uploaded_by ?? '',
-    uploadedAt: r.created_at ?? '',
-    folder: extractFolder(r.storage_path),
-    tags: r.tags ?? [],
-  };
-}
-
-const mediaService = {
-  async getMedia(opts?: { folder?: string; search?: string }) {
-    const { data } = await listMedia({ search: opts?.search });
-    const assets = data.map(recordToAsset);
-    if (opts?.folder) {
-      return { assets: assets.filter((a) => a.folder === opts.folder) };
-    }
-    return { assets };
-  },
-
-  async getFolders(): Promise<string[]> {
-    const { data, error } = await supabase.storage.from(PUBLIC_BUCKET).list('', { limit: 1000 });
-    if (error) throw error;
-    return (data ?? [])
-      .filter((item) => item.name && !item.id)
-      .map((item) => item.name);
-  },
-
-  async uploadMedia(opts: { file: File; folder?: string }) {
-    return uploadMedia(opts.file, opts.folder ?? '');
-  },
-
-  async uploadMultiple(files: File[], folder?: string) {
-    const results = await Promise.allSettled(
-      files.map((f) => uploadMedia(f, folder ?? ''))
-    );
-    const succeeded = results.filter((r) => r.status === 'fulfilled');
-    const failed = results.filter((r) => r.status === 'rejected');
-    if (failed.length && !succeeded.length) {
-      throw (failed[0] as PromiseRejectedResult).reason;
-    }
-    return succeeded.map((r) => (r as PromiseFulfilledResult<MediaRecord>).value);
-  },
-
-  async deleteMedia(id: string) {
-    const { data, error } = await supabase.from('media').select('*').eq('id', id).single();
-    if (error) {
-      if (error.code === 'PGRST116') return; // already gone
-      throw error;
-    }
-    return deleteMedia(data as MediaRecord);
-  },
-
-  async bulkDelete(ids: string[]) {
-    const { data, error } = await supabase.from('media').select('*').in('id', ids);
-    if (error) throw error;
-    const results = await Promise.allSettled(
-      (data as MediaRecord[]).map((r) => deleteMedia(r))
-    );
-    const failed = results.filter((r) => r.status === 'rejected');
-    if (failed.length) {
-      console.warn(`[mediaService] bulkDelete: ${failed.length}/${ids.length} deletions failed`);
-    }
-  },
-};
-
-export default mediaService;

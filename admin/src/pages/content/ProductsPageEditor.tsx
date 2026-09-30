@@ -5,6 +5,7 @@ import { Save, RefreshCw, Gamepad2, Plus, Trash2, ChevronUp, ChevronDown, Extern
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
 import ImageSourceField from '../../components/common/ImageSourceField';
+import { DEFAULT_PRODUCTS_SLIDES } from '../../services/mediaService';
 
 interface ProductSlide {
   id: number;
@@ -29,48 +30,7 @@ const GRADIENT_OPTIONS = [
   'from-rose-700 via-pink-700 to-purple-900',
 ];
 
-const defaultSlides: ProductSlide[] = [
-  {
-    id: 1,
-    title: 'PIXIEKAT STORE',
-    subtitle: 'Official Gaming Platform',
-    description:
-      'PIXIEKAT STORE is a practical solution for every game lover to buy game vouchers without having to go to a physical store.',
-    cta: 'WWW.PIXIEKATSTORE.COM',
-    bgGradient: 'from-blue-700 via-violet-700 to-indigo-900',
-    image: '/img/hero/game-hero-card.gif',
-  },
-  {
-    id: 2,
-    title: 'MOBILE LEGENDS',
-    subtitle: 'Top Up Diamonds',
-    description:
-      'Get instant diamonds for Mobile Legends. Fast, secure, and reliable top-up service with 24/7 support.',
-    cta: 'TOP UP NOW',
-    bgGradient: 'from-indigo-700 via-fuchsia-700 to-violet-900',
-    image: '/img/hero/game-mlbb-card.webp',
-  },
-  {
-    id: 3,
-    title: 'PUBG GLOBAL',
-    subtitle: 'UC Coins Available',
-    description:
-      'Purchase UC coins for PUBG Mobile Global. Instant delivery and competitive prices guaranteed.',
-    cta: 'BUY UC COINS',
-    bgGradient: 'from-orange-600 via-rose-700 to-red-900',
-    image: '/img/hero/game-pubg-card.webp',
-  },
-  {
-    id: 4,
-    title: 'GENSHIN IMPACT',
-    subtitle: 'Genesis Crystals',
-    description:
-      'Top up Genesis Crystals for Genshin Impact. Safe transactions with instant delivery to your account.',
-    cta: 'GET CRYSTALS',
-    bgGradient: 'from-cyan-700 via-sky-700 to-indigo-900',
-    image: '/img/hero/game-genshin-card.webp',
-  },
-];
+const defaultSlides: ProductSlide[] = DEFAULT_PRODUCTS_SLIDES.map((slide) => ({ ...slide }));
 
 const defaultSettings: ProductsPageSettings = { slides: defaultSlides };
 

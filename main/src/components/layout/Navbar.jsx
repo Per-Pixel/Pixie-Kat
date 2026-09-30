@@ -3,29 +3,38 @@ import gsap from "gsap";
 import { useWindowScroll } from "react-use";
 import { useEffect, useRef, useState } from "react";
 import { TiLocationArrow } from "react-icons/ti";
-import { Plus, UserRound } from "lucide-react";
+import { Plus, ShoppingCart, UserRound } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
+import { publicMediaUrl } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
+import { useCart } from "../../contexts/CartContext";
 import { useAppearance } from "../../contexts/AppearanceContext";
+import { usePreferences } from "../../contexts/PreferencesContext";
+import { useJjkCheaperPlacement } from "../../hooks/useJjkCheaperPlacement";
 import Button from "../common/Button";
 import DropdownMenu from "../common/DropdownMenu";
 
 const navItems = [
   { name: "Games", path: "/games" },
   { name: "Pricing", path: "/pricing" },
+  { name: "Leaderboard", path: "/leaderboard" },
   { name: "How It Works", path: "/how-it-works" },
   { name: "FAQ", path: "/faq" },
   { name: "Support", path: "/support" }
 ];
 
-const darkTextTopRoutes = ["/games", "/pricing", "/how-it-works", "/faq", "/support"];
+const darkTextTopRoutes = ["/games", "/pricing", "/leaderboard", "/how-it-works", "/faq", "/support"];
 
 const NavBar = () => {
   const { isAuthenticated, profile } = useAuth();
+  const { count: cartCount } = useCart();
   const appearance = useAppearance();
-  const [isAudioPlaying, setIsAudioPlaying] = useState(true);
-  const [isIndicatorActive, setIsIndicatorActive] = useState(true);
+  const { preferences, setPreference } = usePreferences();
+  const musicEnabled = preferences.music;
+  const jjkNavPromo = useJjkCheaperPlacement("navbar");
+  const [isAudioPlaying, setIsAudioPlaying] = useState(musicEnabled);
+  const [isIndicatorActive, setIsIndicatorActive] = useState(musicEnabled);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
 
@@ -33,9 +42,9 @@ const NavBar = () => {
   const navContainerRef = useRef(null);
   const location = useLocation();
 
-  const logoUrl = appearance.logo_url || "/img/logo.png";
+  const logoUrl = publicMediaUrl(appearance.logo_url) || publicMediaUrl("/img/logo.png");
   const brandText = appearance.header_brand_text || "PixieKat";
-  const musicUrl = appearance.music_url || "/audio/loop.mp3";
+  const musicUrl = publicMediaUrl(appearance.music_url) || publicMediaUrl("/audio/loop.mp3");
   const musicRate = Number(appearance.music_playback_rate) || 1;
   const musicVolume = Number(appearance.music_volume);
 
@@ -53,10 +62,10 @@ const NavBar = () => {
     ? "bg-white/95 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.12)]"
     : "bg-white/90 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.22)]";
   const walletBalance = Number(profile?.wallet_balance ?? 0);
+  const avatarUrl = publicMediaUrl(profile?.avatar_url);
 
   const toggleAudioIndicator = () => {
-    setIsAudioPlaying((prev) => !prev);
-    setIsIndicatorActive((prev) => !prev);
+    setPreference("music", !musicEnabled);
   };
 
   const toggleMenu = () => {
@@ -64,13 +73,40 @@ const NavBar = () => {
   };
 
   useEffect(() => {
-    if (!audioElementRef.current) return;
+    const audio = audioElementRef.current;
+    if (!audio) return;
 
-    audioElementRef.current.volume = Number.isFinite(musicVolume) ? musicVolume : 0.5;
-    audioElementRef.current.playbackRate = Math.min(2, Math.max(0.5, musicRate));
-    audioElementRef.current.muted = true;
+    audio.volume = Number.isFinite(musicVolume) ? musicVolume : 0.5;
+    audio.playbackRate = Math.min(2, Math.max(0.5, musicRate));
+
+    if (!musicEnabled) {
+      audio.pause();
+      audio.muted = true;
+      setIsMuted(true);
+      setIsAudioPlaying(false);
+      setIsIndicatorActive(false);
+      return;
+    }
+
+    audio.muted = true;
+
+    const resumeAudio = () => {
+      if (!audioElementRef.current) return;
+      audioElementRef.current.muted = false;
+      setIsMuted(false);
+      audioElementRef.current.play()
+        .then(() => {
+          setIsAudioPlaying(true);
+          setIsIndicatorActive(true);
+          document.removeEventListener('click', resumeAudio);
+          document.removeEventListener('touchstart', resumeAudio);
+          document.removeEventListener('keydown', resumeAudio);
+        })
+        .catch(() => {});
+    };
 
     const attemptPlay = () => {
+      if (!audioElementRef.current) return;
       audioElementRef.current.play()
         .then(() => {
           setTimeout(() => {
@@ -82,21 +118,6 @@ const NavBar = () => {
           }, 1000);
         })
         .catch(() => {
-          const resumeAudio = () => {
-            if (!audioElementRef.current) return;
-            audioElementRef.current.muted = false;
-            setIsMuted(false);
-            audioElementRef.current.play()
-              .then(() => {
-                setIsAudioPlaying(true);
-                setIsIndicatorActive(true);
-                document.removeEventListener('click', resumeAudio);
-                document.removeEventListener('touchstart', resumeAudio);
-                document.removeEventListener('keydown', resumeAudio);
-              })
-              .catch(() => {});
-          };
-
           document.addEventListener('click', resumeAudio, { once: true });
           document.addEventListener('touchstart', resumeAudio, { once: true });
           document.addEventListener('keydown', resumeAudio, { once: true });
@@ -104,13 +125,17 @@ const NavBar = () => {
     };
 
     attemptPlay();
-    setTimeout(attemptPlay, 500);
+    const retryTimer = setTimeout(attemptPlay, 500);
     window.addEventListener('load', attemptPlay);
 
     return () => {
+      clearTimeout(retryTimer);
       window.removeEventListener('load', attemptPlay);
+      document.removeEventListener('click', resumeAudio);
+      document.removeEventListener('touchstart', resumeAudio);
+      document.removeEventListener('keydown', resumeAudio);
     };
-  }, [musicUrl, musicRate, musicVolume]);
+  }, [musicEnabled, musicUrl, musicRate, musicVolume]);
 
   useEffect(() => {
     if (!audioElementRef.current) return;
@@ -211,18 +236,42 @@ const NavBar = () => {
                   {item.name}
                 </Link>
               ))}
-
+              {jjkNavPromo ? (
+                <Link
+                  to={jjkNavPromo.link}
+                  className={`nav-hover-btn ${navTextColorClass} hover:text-violet-300`}
+                >
+                  {jjkNavPromo.title}
+                </Link>
+              ) : null}
             </div>
 
+            <Link
+              to="/cart"
+              aria-label={`Open cart${cartCount > 0 ? ` (${cartCount} items)` : ""}`}
+              className={clsx(
+                "relative ml-6 flex size-11 items-center justify-center rounded-full border border-slate-200/80 backdrop-blur-md transition-transform duration-300 ease-in-out hover:-translate-y-0.5",
+                authPanelClass
+              )}
+            >
+              <ShoppingCart className="size-4" />
+              {cartCount > 0 ? (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-yellow-300 px-1 text-[10px] font-bold text-[#0E041D] ring-2 ring-white">
+                  {cartCount > 99 ? "99+" : cartCount}
+                </span>
+              ) : null}
+            </Link>
+
             {!isAuthenticated ? (
-              <Link to="/login" className="ml-6">
+              <Link to="/login" className="ml-3">
                 <Button
                   title="Login"
+                  morph={false}
                   containerClass="bg-white hover:bg-[#0E041D] rounded-md px-4 py-2 !text-[#0E041D] hover:!text-white transition-colors duration-200"
                 />
               </Link>
             ) : (
-              <div className="ml-6 flex items-center gap-3">
+              <div className="ml-3 flex items-center gap-3">
                 <Link
                   to="/games/mobile-legends/add-money"
                   className={clsx(
@@ -230,25 +279,33 @@ const NavBar = () => {
                     authPanelClass
                   )}
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-[10px] font-semibold text-amber-700">
+                  <span className="flex size-6 items-center justify-center rounded-full bg-amber-100 text-[10px] font-semibold text-amber-700">
                     PKS
                   </span>
                   <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-violet-100 px-2 text-xs font-semibold text-violet-700">
                     {walletBalance.toFixed(2)}
                   </span>
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white">
-                    <Plus className="h-3.5 w-3.5" />
+                  <span className="flex size-6 items-center justify-center rounded-full bg-slate-900 text-white">
+                    <Plus className="size-3.5" />
                   </span>
                 </Link>
 
                 <Link
                   to="/account"
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-violet-200 via-white to-violet-400 text-violet-700 shadow-[0_10px_25px_rgba(168,85,247,0.35)] transition-transform duration-300 ease-in-out hover:-translate-y-0.5"
+                  className="flex size-11 items-center justify-center rounded-full bg-gradient-to-br from-violet-200 via-white to-violet-400 text-violet-700 shadow-[0_10px_25px_rgba(168,85,247,0.35)] transition-transform duration-300 ease-in-out hover:-translate-y-0.5"
                   aria-label="Open account page"
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 backdrop-blur">
-                    <UserRound className="h-4 w-4" />
-                  </span>
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={profile?.name ? `${profile.name}'s avatar` : "Your avatar"}
+                      className="size-9 rounded-full object-cover ring-2 ring-white/80"
+                    />
+                  ) : (
+                    <span className="flex size-8 items-center justify-center rounded-full bg-white/80 backdrop-blur">
+                      <UserRound className="size-4" />
+                    </span>
+                  )}
                 </Link>
               </div>
               )}
@@ -282,15 +339,7 @@ const NavBar = () => {
         </nav>
       </header>
 
-      {isMenuOpen ? (
-        <DropdownMenu
-          onClose={() => {
-            setTimeout(() => {
-              setIsMenuOpen(false);
-            }, 500);
-          }}
-        />
-      ) : null}
+      {isMenuOpen ? <DropdownMenu onClose={() => setIsMenuOpen(false)} /> : null}
     </div>
   );
 };

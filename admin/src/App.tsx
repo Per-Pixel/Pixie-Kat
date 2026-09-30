@@ -17,13 +17,13 @@ import Notifications from './pages/Notifications';
 import Analytics from './pages/Analytics';
 import Wallets from './pages/Wallets';
 import Memberships from './pages/Memberships';
+import LeaderboardPage from './pages/Leaderboard';
 import RevenueProducts from './pages/revenue/RevenueProducts';
 import SalesOverview from './pages/revenue/SalesOverview';
+import ProfitLoss from './pages/revenue/ProfitLoss';
 import Referral from './pages/revenue/Referral';
 import Compose from './pages/messages/Compose';
 import Clients from './pages/auth/Clients';
-import Trash from './pages/Trash';
-import MediaLibrary from './pages/MediaLibrary';
 import AddProduct from './pages/AddProduct';
 import ManageUsers from './pages/ManageUsers';
 import UserDetail from './pages/users/UserDetail';
@@ -110,9 +110,11 @@ const AppRoutes: React.FC = () => {
         <Route path="providers/smile-coin/api-console" element={<SmileCoinApiConsolePage />} />
         <Route path="wallets" element={<Wallets />} />
         <Route path="memberships" element={<Memberships />} />
+        <Route path="leaderboard" element={<LeaderboardPage />} />
         {/* Revenue Routes */}
         <Route path="revenue/sales-overview" element={<SalesOverview />} />
         <Route path="revenue/products" element={<RevenueProducts />} />
+        <Route path="revenue/profit-loss" element={<ProfitLoss />} />
         <Route path="revenue/orders" element={<Orders />} />
         <Route path="revenue/brokers" element={<Resellers />} />
         <Route path="revenue/referral" element={<Referral />} />
@@ -151,7 +153,6 @@ const AppRoutes: React.FC = () => {
         <Route path="pages/footer" element={<FooterEditor />} />
         <Route path="pages/legal" element={<LegalPagesEditor />} />
         {/* CMS Routes */}
-        <Route path="trash" element={<Trash />} />
         <Route path="media" element={<Navigate to="/storage" replace />} />
         {/* Quick Action Routes */}
         <Route path="quick/add-product" element={<AddProduct />} />

@@ -43,7 +43,7 @@ interface OrderRow {
   } | null;
   created_at: string;
   updated_at: string;
-  profiles?: { id: string; name: string; email: string } | null;
+  profiles?: Array<{ id: string; name: string; email: string }> | null;
 }
 
 interface OrderDrawerProps {
@@ -53,7 +53,7 @@ interface OrderDrawerProps {
   onStatusChange?: (orderId: string, newStatus: OrderStatus) => void;
 }
 
-const statusConfig: Record<OrderStatus, { label: string; icon: React.ComponentType<any>; color: string; bg: string; badge: string }> = {
+const statusConfig: Record<OrderStatus, { label: string; icon: React.ElementType; color: string; bg: string; badge: string }> = {
   pending: { label: 'Pending', icon: Clock, color: 'text-yellow-700', bg: 'bg-yellow-50', badge: 'bg-yellow-100 text-yellow-800' },
   processing: { label: 'Processing', icon: RefreshCw, color: 'text-blue-700', bg: 'bg-blue-50', badge: 'bg-blue-100 text-blue-800' },
   completed: { label: 'Completed', icon: CheckCircle, color: 'text-green-700', bg: 'bg-green-50', badge: 'bg-green-100 text-green-800' },
@@ -115,8 +115,8 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
         })
         .eq('id', order.id);
       toast.success('Refund credited to customer wallet');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to credit refund');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to credit refund');
     } finally {
       setCrediting(false);
     }
@@ -135,8 +135,8 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
       toast.success(`Order status updated to ${statusConfig[newStatus].label}`);
       onStatusChange?.(order.id, newStatus);
       onClose();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update status');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
       setUpdatingStatus(false);
     }
@@ -259,12 +259,12 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
                 <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
                     <span className="text-primary-700 text-sm font-semibold">
-                      {(order.profiles?.name || 'U').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                      {(order.profiles?.[0]?.name || 'U').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900">{order.profiles?.name || 'Unknown'}</p>
-                    <p className="text-xs text-gray-500 truncate">{order.profiles?.email || order.user_id}</p>
+                    <p className="text-sm font-semibold text-gray-900">{order.profiles?.[0]?.name || 'Unknown'}</p>
+                    <p className="text-xs text-gray-500 truncate">{order.profiles?.[0]?.email || order.user_id}</p>
                   </div>
                   <a
                     href={`/users/${order.user_id}`}
@@ -386,7 +386,7 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
 };
 
 const DetailRow: React.FC<{
-  icon: React.ComponentType<any>;
+  icon: React.ElementType;
   label: string;
   value: string;
   onCopy?: () => void;

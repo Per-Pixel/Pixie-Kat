@@ -97,12 +97,13 @@ Entrypoint flow: `src/main.jsx` -> `src/App.jsx`.
 | `build` | `vite build` | Create production build |
 | `preview` | `vite preview` | Preview production build locally |
 | `lint` | `eslint .` | Run lint checks |
+| `test` | `vitest --run` | Run unit tests (e.g. `src/animations/menuDeck.test.js` covers the fullscreen menu's shared scroll/pose/parallax math) |
 
 ## Architecture Overview
 
 `src/App.jsx` composes the app shell and route system:
 
-- Providers: `AuthProvider` (`src/contexts/AuthContext.jsx`)
+- Providers: `AuthProvider`, `AppearanceProvider`, `PreferencesProvider`, `CartProvider` (`src/contexts/`)
 - Router: `BrowserRouter` + `Routes`
 - Layout: `Navbar` + route view + `Footer` + `BottomNav`
 - Global loading gate: `components/common/Loading.tsx`
@@ -129,6 +130,7 @@ Routes are defined in `src/App.jsx`.
 | `/auth` | `src/pages/auth/index.jsx` |
 | `/login` | `src/pages/auth/index.jsx` |
 | `/register` | `src/pages/auth/index.jsx` |
+| `/cart` | `src/pages/cart/index.jsx` |
 
 ## Folder Structure
 
@@ -149,7 +151,9 @@ src/
     styles/
       animations.css
   contexts/
+    AppearanceContext.jsx
     AuthContext.jsx
+    PreferencesContext.jsx
   components/
     common/
       AnimatedTitle.jsx
@@ -201,6 +205,8 @@ src/
           page.tsx
 ```
 
+The experimental PixieKat System site is preserved under `dummy-site/` and is not imported by the production `src/main.jsx` entrypoint.
+
 ## Design System
 
 ### Palette Tokens (`tailwind.config.js`)
@@ -248,12 +254,12 @@ Tailwind font families in `tailwind.config.js` map to those local font names.
 
 Primary usage:
 
-- `src/animations/useDummyAnimations.js` (PixieKat System intro, clip-path reveals, scroll-linked parallax, staggered groups, and count-up metrics)
+- `dummy-site/useDummyAnimations.js` (isolated PixieKat System demo intro, clip-path reveals, scroll-linked parallax, staggered groups, and count-up metrics)
 - `src/pages/home/sections/Hero.jsx` (clip-path reveal, floating image loops, parallax hook)
 - `src/pages/home/sections/About.jsx` (scroll-driven mask/clip behavior)
 - `src/components/common/AnimatedTitle.jsx` (scroll-triggered word reveal)
 - `src/components/common/Loading.tsx` (timeline-driven startup sequence)
-- `src/components/layout/Navbar.jsx` and `src/components/common/DropdownMenu.jsx` (UI state transitions)
+- `src/components/layout/Navbar.jsx` and `src/components/common/DropdownMenu.jsx` (UI state transitions; the fullscreen menu is a scroll-synchronized typography carousel + video-card deck driven by `src/animations/menuDeck.js` math and a `ScrollTrigger` scrub on an internal scroller)
 
 ### Framer Motion
 
@@ -281,13 +287,15 @@ Defined mainly in `index.css` and `src/animations/styles/animations.css`:
 
 ### Accessibility Note
 
-Reduced motion gating exists in `useDummyAnimations.js` and `Hero.jsx` through `prefers-reduced-motion`; the PixieKat System site keeps content visible and disables decorative movement when requested.
+Reduced motion gating exists in `Hero.jsx` and `hooks/useReducedMotion.js` through `prefers-reduced-motion`; the isolated dummy site keeps its own motion fallback without affecting the production app. In the fullscreen menu, reduced motion swaps the spatial card deck and list travel for a flat opacity crossfade and a compact static label list, keeps video paused, and preserves scroll/keyboard/CTA selection. The account Site Preferences "Reduce Motion" toggle (`PreferencesContext`, persisted in `localStorage` as `pixie_preferences`) stacks on top of the OS setting — `useReducedMotion` returns true when either is active.
 
 ## Key UI Flows
 
 - Home (`/`): loader -> hero video + layered assets -> section progression (`TrendingGames` -> `About` -> `Features` -> `Story` -> `Contact`).
+- Fullscreen menu (Navbar `Menu` button on desktop, `Explore` tab in `BottomNav` on mobile): a fixed overlay whose internal scroller drives a GSAP `ScrollTrigger` scrub. One shared normalized progress maps scroll position to the active layer index — the oversized left label list translates through a masked window while all six portrait video cards travel continuously in a 3D deck on the right. Labels, footer arrows, and Arrow/Page/Home/End keys select through the same scroll playhead; only the active card's CTA navigates to its destination. Pointer parallax tilts only the card float on fine-pointer devices.
 - Games (`/games`): hero slider -> mobile quick actions -> game grid + modal -> help/contact blocks.
 - Auth (`/auth`, `/login`, `/register`): animated auth form with login/register mode handling.
+- Account (`/account`): profile/orders/wallet hub. `/account/settings` manages notification prefs (Supabase `user_settings`) plus device-level Site Preferences — Background Music (navbar audio autoplay + indicator toggle), Intro Animation (the `Loading` startup sequence in both `App.jsx` and `Hero.jsx`), and Reduce Motion.
 - Informational pages (`/pricing`, `/faq`, `/support`, `/how-it-works`): dark neon-themed content sections with staggered animated blocks and CTA zones.
 
 ## Component Ownership Map
@@ -298,7 +306,7 @@ Reduced motion gating exists in `useDummyAnimations.js` and `Hero.jsx` through `
 | `src/components/layout` | Global layout shell (`Navbar`, `Footer`, `BottomNav`) |
 | `src/pages/*/components` | Route-local UI modules that should stay page-scoped |
 | `src/animations/*` | Shared animation-focused helpers, hooks, and style layer |
-| `src/contexts` | Global providers and state context (current: auth) |
+| `src/contexts` | Global providers and state context (auth, appearance, site preferences) |
 
 ## Assets and Media Conventions
 

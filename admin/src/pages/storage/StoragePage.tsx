@@ -4,10 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import {
   Upload, Search, Image as ImageIcon, Video, FileText, File as FileIcon,
   Download, Trash2, Edit3, Replace, Minimize2, X,
-  Eye, HardDrive, ArrowLeft, Check, AlertTriangle, Grid3X3, List, Wand2,
-  Folder, FolderOpen, ChevronRight, ChevronDown, Sparkles, Play, Volume2,
-  ExternalLink, Layers, Gamepad2, Package, Tag, Palette, Users, Sparkle,
-  Filter, CheckSquare, Square, RefreshCw, Music, Copy,
+  Eye, HardDrive, ArrowLeft, AlertTriangle, Grid3X3, List, Wand2,
+  Folder, FolderOpen, ChevronDown, Sparkles, Play, Volume2,
+  Layers, Gamepad2, Package, Palette, Users, Sparkle,
+  CheckSquare, Square, RefreshCw, Music, Copy, ImagePlus, Check, ChevronRight, Link2,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
@@ -19,15 +19,19 @@ import {
   downloadMedia,
   compressAndUpload,
   convertImageAndUpload,
-  scanMediaUsage,
   fetchAllMediaUsages,
+  fetchRawUsageData,
+  buildSiteGraphicPlacements,
+  graphicPreviewUrl,
+  saveGraphicPlacement,
   syncBucketToTable,
   ImageOutputFormat,
   MediaSort,
   MediaRecord,
   MediaUsage,
-  UsageCategory,
+  SiteGraphicPlacement,
 } from '../../services/mediaService';
+import PinterestImportPanel from './PinterestImportPanel';
 
 const formatBytes = (bytes?: number | null): string => {
   if (bytes == null) return '—';
@@ -53,6 +57,13 @@ const mimeLabel = (mime?: string | null): string => {
   if (mime.startsWith('text/')) return 'Text';
   return 'File';
 };
+
+const usageLocation = (usage: MediaUsage): string => [
+  usage.page || ({ homepage: 'Homepage', games: 'Games', products: 'Games', events: 'Event',
+    cms: 'Pages', branding: 'Branding', profiles: 'Accounts', other: 'Other' }[usage.category]),
+  usage.section || usage.subCategory,
+  usage.slot || usage.recordName,
+].filter(Boolean).join(' › ');
 
 type ViewMode = 'grid' | 'list';
 type MimeFilter = 'all' | 'image/' | 'video/' | 'audio/' | 'application/' | 'text/';
@@ -82,14 +93,17 @@ const imageFormatOptions: Array<{ value: ImageOutputFormat; label: string }> = [
   { value: 'image/jpeg', label: 'JPEG / JPG' },
 ];
 
-const unsupportedVideoFormats = ['GIF', 'MP4', 'MP2', 'AVI', '3GP'];
-
 const StoragePage: React.FC = () => {
   const navigate = useNavigate();
   const [records, setRecords] = useState<MediaRecord[]>([]);
   const [usageMap, setUsageMap] = useState<Record<string, MediaUsage[]>>({});
+  const [placements, setPlacements] = useState<SiteGraphicPlacement[]>([]);
+  const [workspace, setWorkspace] = useState<'site' | 'files'>('site');
+  const [graphicError, setGraphicError] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [usageReady, setUsageReady] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [usageLoading, setUsageLoading] = useState(false);
+  const [usageLoading, setUsageLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<MediaSort>('date-desc');
   const [mimeFilter, setMimeFilter] = useState<MimeFilter>('all');
@@ -100,6 +114,8 @@ const StoragePage: React.FC = () => {
   const [dragOver, setDragOver] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Folder navigation state
@@ -112,20 +128,31 @@ const StoragePage: React.FC = () => {
   // Load all media and batch usage map
   const load = useCallback(async () => {
     setLoading(true);
+    setUsageLoading(true);
+    setUsageReady(false);
+    setFileError(null);
+    setGraphicError(null);
+    const mediaRequest = listMedia({ sort })
+      .then(({ data }) => { setRecords(data); return data; })
+      .catch((err: Error) => { setRecords([]); setFileError(err.message || 'Could not load media files'); return null; })
+      .finally(() => setLoading(false));
+    const graphicsRequest = fetchRawUsageData()
+      .then((raw) => { setPlacements(buildSiteGraphicPlacements(raw)); return raw; })
+      .catch((err: Error) => { setGraphicError(err.message || 'Could not load site graphics'); return null; })
+      .finally(() => setUsageLoading(false));
+    const [data, raw] = await Promise.all([mediaRequest, graphicsRequest]);
+    if (!data || !raw) {
+      setUsageMap({});
+      return;
+    }
     try {
-      const { data } = await listMedia({
-        sort,
-      });
-      setRecords(data);
       // Scan all usages in batch
-      setUsageLoading(true);
-      const usages = await fetchAllMediaUsages(data);
+      const usages = await fetchAllMediaUsages(data, raw);
       setUsageMap(usages);
+      setUsageReady(true);
     } catch (err) {
-      toast.error((err as Error).message || 'Failed to load media');
-    } finally {
-      setLoading(false);
-      setUsageLoading(false);
+      setUsageMap({});
+      setGraphicError((err as Error).message || 'Could not verify where files are used');
     }
   }, [sort]);
 
@@ -149,6 +176,7 @@ const StoragePage: React.FC = () => {
 
   // Dynamic counts for usage folders
   const usageFolderItems = useMemo<FolderItem[]>(() => {
+    if (!usageReady) return [{ id: 'all', name: 'All Media', icon: HardDrive, count: records.length }];
     let inUseCount = 0;
     let unusedCount = 0;
     let homepageCount = 0;
@@ -183,8 +211,8 @@ const StoragePage: React.FC = () => {
 
     return [
       { id: 'all', name: 'All Media', icon: HardDrive, count: records.length },
-      { id: 'in_use', name: 'In Use (Active)', icon: Sparkles, color: 'text-violet-600', count: inUseCount },
-      { id: 'unused', name: 'Unused Assets', icon: AlertTriangle, color: 'text-amber-500', count: unusedCount },
+      { id: 'in_use', name: 'Referenced files', icon: Sparkles, color: 'text-violet-600', count: inUseCount },
+      { id: 'unused', name: 'No known uses', icon: AlertTriangle, color: 'text-amber-500', count: unusedCount },
       {
         id: 'homepage',
         name: 'Homepage',
@@ -205,7 +233,7 @@ const StoragePage: React.FC = () => {
       { id: 'branding', name: 'Branding & Theme', icon: Palette, color: 'text-amber-600', count: brandingCount },
       { id: 'profiles', name: 'User Avatars', icon: Users, color: 'text-cyan-600', count: profilesCount },
     ];
-  }, [records, usageMap]);
+  }, [records, usageMap, usageReady]);
 
   // Dynamic counts for storage folders
   const storageFolderItems = useMemo<FolderItem[]>(() => {
@@ -252,7 +280,7 @@ const StoragePage: React.FC = () => {
 
       // 3. Folder filter
       if (folderTab === 'usage') {
-        if (activeFolder === 'all') return true;
+        if (!usageReady || activeFolder === 'all') return true;
         if (activeFolder === 'in_use') return usages.length > 0;
         if (activeFolder === 'unused') return usages.length === 0;
 
@@ -290,7 +318,7 @@ const StoragePage: React.FC = () => {
 
       return true;
     });
-  }, [records, usageMap, mimeFilter, search, folderTab, activeFolder, activeSubFolder]);
+  }, [records, usageMap, usageReady, mimeFilter, search, folderTab, activeFolder, activeSubFolder]);
 
   // Target upload folder derived from current view
   const targetUploadFolder = useMemo(() => {
@@ -337,7 +365,9 @@ const StoragePage: React.FC = () => {
   };
 
   const handleDelete = async (record: MediaRecord) => {
-    if (!window.confirm(`Delete "${record.filename}"? This cannot be undone.`)) return;
+    if (!usageReady) { toast.error('Check where files are used before deleting. Refresh and try again.'); return; }
+    if (usageMap[record.id]?.length) { toast.error('Remove this file from its site placements before deleting it.'); return; }
+    if (!window.confirm(`Delete "${record.filename}"? Check any code-defined uses first. This cannot be undone.`)) return;
     try {
       await deleteMedia(record);
       setRecords((prev) => prev.filter((r) => r.id !== record.id));
@@ -353,7 +383,11 @@ const StoragePage: React.FC = () => {
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!window.confirm(`Delete ${selectedIds.length} selected files?`)) return;
+    if (!usageReady || selectedIds.some((id) => usageMap[id]?.length)) {
+      toast.error('Check usage and remove site references before deleting selected files.');
+      return;
+    }
+    if (!window.confirm(`Delete ${selectedIds.length} selected files? Check any code-defined uses first.`)) return;
     try {
       for (const id of selectedIds) {
         const record = records.find((r) => r.id === id);
@@ -473,7 +507,6 @@ const StoragePage: React.FC = () => {
   const totalSize = records.reduce((sum, r) => sum + (r.size_bytes ?? 0), 0);
   const imageCount = records.filter((r) => r.mime_type?.startsWith('image/')).length;
   const videoCount = records.filter((r) => r.mime_type?.startsWith('video/')).length;
-  const audioCount = records.filter((r) => r.mime_type?.startsWith('audio/')).length;
 
   const currentFolderTitle = useMemo(() => {
     if (folderTab === 'usage') {
@@ -492,56 +525,62 @@ const StoragePage: React.FC = () => {
   return (
     <div className="space-y-5">
       {/* Top Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-      >
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-gray-900">Storage & Media Manager</h1>
-            {usageLoading && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
-                <RefreshCw className="h-3 w-3 animate-spin" />
-                Indexing usage...
-              </span>
-            )}
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Site graphics</h1>
+          <p className="mt-1 text-sm text-gray-600">Find the spot on your website, then change just that graphic.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <div role="tablist" aria-label="Graphics workspace" className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+            <button type="button" role="tab" aria-selected={workspace === 'site'}
+              onClick={() => setWorkspace('site')}
+              className={`rounded-md px-3 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${workspace === 'site' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+            >Website placements</button>
+            <button type="button" role="tab" aria-selected={workspace === 'files'}
+              onClick={() => setWorkspace('files')}
+              className={`rounded-md px-3 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${workspace === 'files' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+            >Media files</button>
           </div>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Organized folder browsing, video previews, and live media usage tracking across all pages
-          </p>
+          {workspace === 'files' && (
+            <div className="flex flex-wrap items-center gap-2">
+              {advancedOpen && (
+                <button onClick={handleSyncBucket} disabled={syncing} className="btn btn-outline btn-sm" title="Scan storage bucket for untracked files">
+                  <RefreshCw className={`mr-1.5 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+                  {syncing ? 'Scanning...' : 'Sync bucket'}
+                </button>
+              )}
+              <button type="button" onClick={() => setImportOpen((open) => !open)} aria-expanded={importOpen}
+                className="btn btn-outline btn-sm gap-1.5">
+                <Link2 className="h-4 w-4" />Import from Pinterest
+              </button>
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="btn btn-primary btn-sm">
+                <Upload className="mr-1.5 h-4 w-4" />
+                {uploading ? 'Uploading...' : 'Upload files'}
+              </button>
+              <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
+            </div>
+          )}
         </div>
+      </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={handleSyncBucket}
-            disabled={syncing}
-            className="btn btn-outline btn-sm"
-            title="Scan storage bucket for untracked files"
-          >
-            <RefreshCw className={`w-4 h-4 mr-1.5 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Scanning...' : 'Sync Bucket'}
-          </button>
-
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="btn btn-primary btn-sm shadow-sm"
-          >
-            <Upload className="w-4 h-4 mr-1.5" />
-            {uploading ? 'Uploading...' : targetUploadFolder ? `Upload to ${targetUploadFolder}/` : 'Upload Media'}
-          </button>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={(e) => handleUpload(e.target.files)}
-          />
-        </div>
-      </motion.div>
-
+      {workspace === 'site' ? (
+        <SiteGraphicsView placements={placements} loading={usageLoading} error={graphicError}
+          onRefresh={load} onNavigate={navigate} onSaved={load} onOpenFiles={() => setWorkspace('files')} />
+      ) : (
+        <>
+          {(fileError || !usageReady) && !loading && !usageLoading && (
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <span>{fileError || graphicError || 'Could not verify which files are used. Deletion is disabled until usage loads.'}</span>
+              <button type="button" onClick={load} className="btn btn-outline btn-sm">Retry</button>
+            </div>
+          )}
+          {importOpen && <PinterestImportPanel mode="library" onImported={() => { void load(); }} />}
+          {advancedOpen ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-gray-600">Advanced file tools · browse folders, select multiple files, and convert images.</p>
+                <button type="button" onClick={() => { setAdvancedOpen(false); setSelectedIds([]); }} className="btn btn-outline btn-sm">Back to simple view</button>
+              </div>
       {/* Top Stats Overview */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-xl border border-gray-200 p-3.5 shadow-sm">
@@ -569,13 +608,13 @@ const StoragePage: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 p-3.5 shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active In Use</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Referenced files</p>
           <div className="flex items-baseline justify-between mt-1">
             <p className="text-xl font-bold text-emerald-600">
-              {records.filter((r) => (usageMap[r.id] || []).length > 0).length}
+              {usageReady ? records.filter((r) => (usageMap[r.id] || []).length > 0).length : '—'}
             </p>
-            <span className="text-xs text-amber-600 font-medium">
-              {records.filter((r) => (usageMap[r.id] || []).length === 0).length} Unused
+            <span className="text-xs text-amber-700 font-medium">
+              {usageReady ? `${records.filter((r) => (usageMap[r.id] || []).length === 0).length} no known uses` : 'Checking usage'}
             </span>
           </div>
         </div>
@@ -774,6 +813,7 @@ const StoragePage: React.FC = () => {
                   </span>
                   <button
                     onClick={handleBulkDelete}
+                    disabled={!usageReady || selectedIds.some((id) => usageMap[id]?.length)}
                     className="btn btn-sm bg-red-50 text-red-600 hover:bg-red-100 border-red-200"
                   >
                     <Trash2 className="w-3.5 h-3.5 mr-1" />
@@ -789,6 +829,7 @@ const StoragePage: React.FC = () => {
               )}
             </div>
 
+            <p className="text-xs text-gray-600">No known uses means no tracked placement references this file; check code-defined uses before deleting it.</p>
             {/* Search, Type Filter, Sort, View Mode Controls */}
             <div className="grid gap-2.5 md:grid-cols-[minmax(0,1.5fr)_150px_190px_auto]">
               <div className="relative">
@@ -893,6 +934,7 @@ const StoragePage: React.FC = () => {
                 </button>
               </p>
             </div>
+            <p className="mt-2 text-xs text-gray-600">Uploading a file does not put it on the website. Use Website placements to choose where it appears.</p>
           </div>
 
           {/* Media Browser Grid / List */}
@@ -933,6 +975,7 @@ const StoragePage: React.FC = () => {
                     key={record.id}
                     record={record}
                     usages={usages}
+                    usageKnown={usageReady}
                     isSelected={isSelected}
                     onToggleSelect={() => toggleSelect(record.id)}
                     onOpen={() => openDetail(record)}
@@ -945,6 +988,7 @@ const StoragePage: React.FC = () => {
             <MediaListView
               records={filteredRecords}
               usageMap={usageMap}
+              usageKnown={usageReady}
               selectedIds={selectedIds}
               onToggleSelectAll={toggleSelectAll}
               onToggleSelect={toggleSelect}
@@ -955,6 +999,16 @@ const StoragePage: React.FC = () => {
           )}
         </div>
       </div>
+            </>
+          ) : (
+            <SimpleMediaFiles records={records} usages={usageMap} usageKnown={usageReady} loading={loading} error={fileError}
+              search={search} onSearch={setSearch} sort={sort} onSort={setSort} mimeFilter={mimeFilter} onMimeFilter={setMimeFilter}
+              onOpen={openDetail} onAdvanced={() => setAdvancedOpen(true)}
+              onUpload={() => fileInputRef.current?.click()} onImport={() => setImportOpen(true)}
+              onSite={() => setWorkspace('site')} />
+          )}
+        </>
+      )}
 
       {/* Video Lightbox / Fullscreen Preview Modal */}
       <AnimatePresence>
@@ -962,6 +1016,7 @@ const StoragePage: React.FC = () => {
           <VideoModal
             record={previewVideo}
             usages={usageMap[previewVideo.id] || []}
+            usageKnown={usageReady}
             onClose={() => setPreviewVideo(null)}
             onOpenDetail={() => {
               const r = previewVideo;
@@ -993,6 +1048,7 @@ const StoragePage: React.FC = () => {
               <DetailPanel
                 record={selected}
                 usages={usageMap[selected.id] || []}
+                usageKnown={usageReady}
                 onClose={closeDetail}
                 onDelete={handleDelete}
                 onDownload={handleDownload}
@@ -1003,16 +1059,35 @@ const StoragePage: React.FC = () => {
                   navigate(path);
                 }}
                 onRename={async (name, renameStorage) => {
+                  if (renameStorage && (!usageReady || usageMap[selected.id]?.length)) {
+                    throw new Error('Remove site references before moving a file. You can still change its display name.');
+                  }
                   const updated = await renameMedia(selected, name, renameStorage);
                   setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
                   setSelected(updated);
                   toast.success('Renamed');
                 }}
                 onReplace={async (file) => {
-                  const updated = await replaceMedia(selected, file);
-                  setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-                  setSelected(updated);
-                  toast.success('Replaced');
+                  const sameKind = selected.mime_type?.startsWith('image/') ? file.type.startsWith('image/')
+                    : selected.mime_type?.startsWith('video/') ? file.type.startsWith('video/') : file.type === selected.mime_type;
+                  const extension = selected.storage_path.split('.').pop()?.toLowerCase();
+                  if (!sameKind || extension !== file.name.split('.').pop()?.toLowerCase()) {
+                    toast.error('Choose the same file type and extension, or use Website placements to change one image.');
+                    return;
+                  }
+                  if (!usageReady) { toast.error('Check where this file is used before replacing it.'); return; }
+                  const locations = (usageMap[selected.id] || []).map(usageLocation);
+                  if (locations.length && !window.confirm(
+                    `Replace this file everywhere it is used?\n\n${locations.slice(0, 5).join('\n')}${locations.length > 5 ? `\n+${locations.length - 5} more` : ''}\n\nFor one location instead, use Website placements. Cached images may take time to update.`
+                  )) return;
+                  try {
+                    const updated = await replaceMedia(selected, file);
+                    setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+                    setSelected(updated);
+                    toast.success('File replaced in every location');
+                  } catch (err) {
+                    toast.error((err as Error).message || 'Could not replace the file');
+                  }
                 }}
               />
             </motion.div>
@@ -1029,26 +1104,24 @@ const StoragePage: React.FC = () => {
 const MediaGridCard: React.FC<{
   record: MediaRecord;
   usages: MediaUsage[];
+  usageKnown: boolean;
   isSelected: boolean;
   onToggleSelect: () => void;
   onOpen: () => void;
   onPlayVideo: () => void;
-}> = ({ record, usages, isSelected, onToggleSelect, onOpen, onPlayVideo }) => {
+}> = ({ record, usages, usageKnown, isSelected, onToggleSelect, onOpen, onPlayVideo }) => {
   const isImage = record.mime_type?.startsWith('image/');
   const isVideo = record.mime_type?.startsWith('video/');
   const isAudio = record.mime_type?.startsWith('audio/');
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isHovered, setIsHovered] = useState(false);
 
   const handleMouseEnter = () => {
-    setIsHovered(true);
     if (isVideo && videoRef.current) {
       videoRef.current.play().catch(() => {});
     }
   };
 
   const handleMouseLeave = () => {
-    setIsHovered(false);
     if (isVideo && videoRef.current) {
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
@@ -1152,24 +1225,18 @@ const MediaGridCard: React.FC<{
         </div>
 
         {/* Connected Usage Badges */}
-        <div className="mt-2.5 pt-2 border-t border-gray-100">
-          {usages.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-1">
-              <span className="inline-flex items-center gap-1 rounded-md bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 border border-violet-100 truncate max-w-full">
-                <Sparkles className="w-2.5 h-2.5 shrink-0 text-violet-500" />
-                <span className="truncate">{primaryUsage.subCategory || primaryUsage.recordName}</span>
-              </span>
-              {usages.length > 1 && (
-                <span className="rounded bg-gray-100 px-1 py-0.5 text-[9px] font-medium text-gray-600">
-                  +{usages.length - 1}
-                </span>
-              )}
+        <div className="mt-2.5 border-t border-gray-100 pt-2">
+          {!usageKnown ? (
+            <span className="text-xs font-medium text-amber-800">Usage not checked</span>
+          ) : usages.length > 0 ? (
+            <div className="space-y-1">
+              <p className="line-clamp-2 text-xs font-semibold leading-4 text-blue-800" title={usageLocation(primaryUsage)}>
+                {usageLocation(primaryUsage)}
+              </p>
+              {usages.length > 1 && <span className="text-xs text-gray-600">+{usages.length - 1} more locations</span>}
             </div>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 border border-amber-100">
-              <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
-              Unused
-            </span>
+            <span className="text-xs font-medium text-amber-800">No known uses</span>
           )}
         </div>
       </div>
@@ -1183,13 +1250,14 @@ const MediaGridCard: React.FC<{
 const MediaListView: React.FC<{
   records: MediaRecord[];
   usageMap: Record<string, MediaUsage[]>;
+  usageKnown: boolean;
   selectedIds: string[];
   onToggleSelectAll: () => void;
   onToggleSelect: (id: string) => void;
   onOpen: (record: MediaRecord) => void;
   onDownload: (record: MediaRecord) => void;
   onPlayVideo: (record: MediaRecord) => void;
-}> = ({ records, usageMap, selectedIds, onToggleSelectAll, onToggleSelect, onOpen, onDownload, onPlayVideo }) => (
+}> = ({ records, usageMap, usageKnown, selectedIds, onToggleSelectAll, onToggleSelect, onOpen, onDownload, onPlayVideo }) => (
   <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
     <div className="overflow-x-auto">
       <table className="w-full text-left">
@@ -1218,7 +1286,6 @@ const MediaListView: React.FC<{
             const isSelected = selectedIds.includes(record.id);
             const isImage = record.mime_type?.startsWith('image/');
             const isVideo = record.mime_type?.startsWith('video/');
-            const isAudio = record.mime_type?.startsWith('audio/');
             const Icon = mimeIcon(record.mime_type);
 
             return (
@@ -1261,22 +1328,17 @@ const MediaListView: React.FC<{
                     </div>
                   </button>
                 </td>
-                <td className="px-3 py-3">
-                  {usages.length > 0 ? (
-                    <div className="flex flex-col gap-0.5">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-700">
-                        <Sparkles className="w-3 h-3 text-violet-500 shrink-0" />
-                        {usages[0].subCategory || usages[0].recordName}
-                      </span>
-                      {usages.length > 1 && (
-                        <span className="text-[10px] text-gray-400">+{usages.length - 1} other places</span>
-                      )}
+                <td className="max-w-60 px-3 py-3">
+                  {!usageKnown ? (
+                    <span className="text-xs text-amber-800">Usage not checked</span>
+                  ) : usages.length > 0 ? (
+                    <div className="space-y-1">
+                      {usages.slice(0, 2).map((usage, index) => (
+                        <p key={`${usage.table}-${usage.recordId}-${usage.field}-${index}`} className="text-xs font-medium leading-4 text-blue-800">{usageLocation(usage)}</p>
+                      ))}
+                      {usages.length > 2 && <span className="text-xs text-gray-600">+{usages.length - 2} more locations</span>}
                     </div>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
-                      Unused
-                    </span>
-                  )}
+                  ) : <span className="text-xs text-amber-800">No known uses</span>}
                 </td>
                 <td className="px-3 py-3 text-gray-600">{mimeLabel(record.mime_type)}</td>
                 <td className="px-3 py-3 text-gray-600">{formatBytes(record.size_bytes)}</td>
@@ -1331,9 +1393,10 @@ const MediaListView: React.FC<{
 const VideoModal: React.FC<{
   record: MediaRecord;
   usages: MediaUsage[];
+  usageKnown: boolean;
   onClose: () => void;
   onOpenDetail: () => void;
-}> = ({ record, usages, onClose, onOpenDetail }) => {
+}> = ({ record, usages, usageKnown, onClose, onOpenDetail }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xs">
       <motion.div
@@ -1385,14 +1448,9 @@ const VideoModal: React.FC<{
           </div>
 
           <div className="flex items-center gap-2">
-            {usages.length > 0 ? (
-              <span className="inline-flex items-center gap-1 text-violet-300 font-semibold bg-violet-950/60 border border-violet-800/40 px-2.5 py-1 rounded-full">
-                <Sparkles className="w-3 h-3 text-violet-400" />
-                Used in: {usages[0].subCategory || usages[0].recordName}
-              </span>
-            ) : (
-              <span className="text-amber-400">Unused file</span>
-            )}
+            {!usageKnown ? <span className="text-amber-300">Usage not checked</span> : usages.length > 0 ? (
+              <span className="text-violet-200">{usageLocation(usages[0])}{usages.length > 1 ? ` +${usages.length - 1} more` : ''}</span>
+            ) : <span className="text-amber-300">No known uses</span>}
           </div>
         </div>
       </motion.div>
@@ -1406,6 +1464,7 @@ const VideoModal: React.FC<{
 const DetailPanel: React.FC<{
   record: MediaRecord;
   usages: MediaUsage[];
+  usageKnown: boolean;
   onClose: () => void;
   onDelete: (r: MediaRecord) => void;
   onDownload: (r: MediaRecord) => void;
@@ -1415,7 +1474,7 @@ const DetailPanel: React.FC<{
   onReplace: (file: File) => Promise<void>;
   onNavigate: (path: string) => void;
 }> = ({
-  record, usages, onClose, onDelete, onDownload, onCompress, onConvertImage, onRename, onReplace, onNavigate,
+  record, usages, usageKnown, onClose, onDelete, onDownload, onCompress, onConvertImage, onRename, onReplace, onNavigate,
 }) => {
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState(record.filename);
@@ -1424,6 +1483,7 @@ const DetailPanel: React.FC<{
   const [quality, setQuality] = useState(82);
   const [maxWidth, setMaxWidth] = useState(1600);
   const [converting, setConverting] = useState(false);
+  const [replacing, setReplacing] = useState(false);
   const replaceInputRef = useRef<HTMLInputElement>(null);
 
   const isImage = record.mime_type?.startsWith('image/');
@@ -1435,8 +1495,12 @@ const DetailPanel: React.FC<{
       setRenaming(false);
       return;
     }
-    await onRename(newName.trim(), renameStorage);
-    setRenaming(false);
+    try {
+      await onRename(newName.trim(), renameStorage);
+      setRenaming(false);
+    } catch (err) {
+      toast.error((err as Error).message || 'Could not rename this file');
+    }
   };
 
   const handleConvert = async () => {
@@ -1460,7 +1524,9 @@ const DetailPanel: React.FC<{
           <button onClick={() => onDownload(record)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600" title="Download">
             <Download className="w-4 h-4" />
           </button>
-          <button onClick={() => onDelete(record)} className="p-2 rounded-lg hover:bg-red-50 text-red-600" title="Delete">
+          <button onClick={() => onDelete(record)} disabled={!usageKnown || usages.length > 0}
+            className="rounded-lg p-2 text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+            title={!usageKnown ? 'Usage must load before deleting' : usages.length ? 'Remove all references before deleting' : 'Delete file'} aria-label="Delete file">
             <Trash2 className="w-4 h-4" />
           </button>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600">
@@ -1507,45 +1573,27 @@ const DetailPanel: React.FC<{
 
       {/* Connected Usage Section with Direct Links */}
       <div className="p-4 border-b border-gray-200 bg-violet-50/30">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2.5 flex items-center gap-1.5">
-          <Eye className="w-4 h-4 text-violet-600" />
-          Active Usage ({usages.length})
+        <h3 className="mb-2.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gray-700">
+          <Eye className="h-4 w-4 text-blue-600" />
+          Where this file appears {usageKnown && `(${usages.length})`}
         </h3>
-        {usages.length === 0 ? (
-          <div className="rounded-lg bg-amber-50 border border-amber-200/60 p-3 flex items-start gap-2.5">
-            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-bold text-amber-900">Not currently linked anywhere</p>
-              <p className="text-[11px] text-amber-700 mt-0.5">
-                This media is safe to clean up or link to a new game, homepage card, or setting.
-              </p>
-            </div>
-          </div>
+        {!usageKnown ? (
+          <p role="alert" className="text-sm text-amber-900">Usage could not be checked. Refresh the library before changing or deleting this file.</p>
+        ) : usages.length === 0 ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+            No tracked placements use this file. Code-defined graphics may still reference its path; check before deleting it.
+          </p>
         ) : (
           <div className="space-y-2">
             {usages.map((u, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between rounded-xl bg-white border border-violet-100 p-3 shadow-2xs"
-              >
-                <div className="min-w-0 pr-2">
-                  <span className="inline-block px-1.5 py-0.5 rounded bg-violet-100 text-[10px] font-bold text-violet-800 uppercase tracking-wide">
-                    {u.category}
-                  </span>
-                  <p className="text-xs font-semibold text-gray-900 mt-1 truncate">{u.recordName}</p>
-                  <p className="text-[10px] text-gray-500">
-                    {u.subCategory ? `${u.subCategory} · ` : ''}
-                    {u.field}
-                  </p>
+              <div key={`${u.table}-${u.recordId}-${u.field}-${i}`} className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold leading-5 text-gray-950">{usageLocation(u)}</p>
+                  <p className="text-xs text-gray-600">{u.live === false ? 'Not live yet' : 'Referenced on the site'}</p>
                 </div>
                 {u.adminLink && (
-                  <button
-                    type="button"
-                    onClick={() => onNavigate(u.adminLink!)}
-                    className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-violet-50 px-2.5 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 transition-colors"
-                  >
-                    Open Editor
-                    <ExternalLink className="w-3 h-3" />
+                  <button type="button" onClick={() => onNavigate(u.adminLink!)} className="shrink-0 text-left text-xs font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-900">
+                    Open editor
                   </button>
                 )}
               </div>
@@ -1574,9 +1622,10 @@ const DetailPanel: React.FC<{
                 <input
                   type="checkbox"
                   checked={renameStorage}
+                  disabled={!usageKnown || usages.length > 0}
                   onChange={(e) => setRenameStorage(e.target.checked)}
                 />
-                Also rename storage object
+                Also rename storage object {!usageKnown || usages.length > 0 ? '(unavailable while referenced)' : ''}
               </label>
               <div className="flex gap-2">
                 <button onClick={handleRenameSave} className="btn btn-primary btn-sm text-xs">Save</button>
@@ -1637,22 +1686,24 @@ const DetailPanel: React.FC<{
       </div>
 
       {/* Quick Action Buttons */}
-      <div className="p-4 border-b border-gray-200">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2.5">Asset Operations</h3>
+      <div className="border-b border-gray-200 p-4">
+        <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-gray-700">File operations</h3>
+        <p className="mb-3 text-xs leading-5 text-gray-700">Replacing a file changes every location using its path. To change just one placement, use Website placements instead.</p>
         <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => replaceInputRef.current?.click()}
-            className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+          <button onClick={() => replaceInputRef.current?.click()} disabled={!usageKnown || replacing}
+            className="btn btn-outline btn-sm gap-1.5 text-xs"
           >
-            <Replace className="w-3.5 h-3.5" />
-            Replace Asset
+            <Replace className="h-3.5 w-3.5" />
+            {replacing ? 'Replacing...' : 'Replace file everywhere'}
           </button>
-          <input
-            ref={replaceInputRef}
-            type="file"
-            className="hidden"
+          <input ref={replaceInputRef} type="file" className="hidden"
+            accept={isImage ? 'image/*' : isVideo ? 'video/*' : undefined}
             onChange={async (e) => {
-              if (e.target.files?.[0]) await onReplace(e.target.files[0]);
+              const file = e.target.files?.[0];
+              if (file) {
+                setReplacing(true);
+                try { await onReplace(file); } finally { setReplacing(false); e.target.value = ''; }
+              }
             }}
           />
 
@@ -1733,6 +1784,463 @@ const DetailPanel: React.FC<{
               {converting ? 'Converting Copy...' : 'Generate Optimized Copy'}
             </button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SimpleMediaFiles: React.FC<{
+  records: MediaRecord[];
+  usages: Record<string, MediaUsage[]>;
+  usageKnown: boolean;
+  loading: boolean;
+  error: string | null;
+  search: string;
+  onSearch: (value: string) => void;
+  sort: MediaSort;
+  onSort: (value: MediaSort) => void;
+  mimeFilter: MimeFilter;
+  onMimeFilter: (value: MimeFilter) => void;
+  onOpen: (record: MediaRecord) => void;
+  onAdvanced: () => void;
+  onUpload: () => void;
+  onImport: () => void;
+  onSite: () => void;
+}> = ({ records, usages, usageKnown, loading, error, search, onSearch, sort, onSort, mimeFilter, onMimeFilter,
+  onOpen, onAdvanced, onUpload, onImport, onSite }) => {
+  const [status, setStatus] = useState<'all' | 'linked' | 'unlinked'>('all');
+  const linked = usageKnown ? records.filter((record) => usages[record.id]?.length).length : 0;
+  const filtered = useMemo(() => records.filter((record) => {
+    if (mimeFilter !== 'all' && !record.mime_type?.startsWith(mimeFilter)) return false;
+    const locations = (usages[record.id] || []).map(usageLocation).join(' ');
+    const text = `${record.filename} ${record.storage_path} ${locations}`.toLowerCase();
+    if (search.trim() && !text.includes(search.trim().toLowerCase())) return false;
+    return !usageKnown || status === 'all' || (status === 'linked' ? Boolean(usages[record.id]?.length) : !usages[record.id]?.length);
+  }), [records, usages, usageKnown, status, mimeFilter, search]);
+  const filteredOut = Boolean(search || mimeFilter !== 'all' || status !== 'all');
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Media files</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-600">
+              Upload or import a file here, then place it on the website from Website placements. Storing a file alone does not change the site.
+            </p>
+            <button type="button" onClick={onSite} className="mt-1 text-sm font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+              Go to website placements
+            </button>
+          </div>
+          <button type="button" onClick={onAdvanced} className="btn btn-outline btn-sm shrink-0">Advanced file tools</button>
+        </div>
+        <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter files by usage">
+            {[
+              { id: 'all', label: 'All files', count: records.length },
+              { id: 'linked', label: 'Linked', count: linked },
+              { id: 'unlinked', label: 'Not linked', count: records.length - linked },
+            ].map((item) => (
+              <button key={item.id} type="button" aria-pressed={status === item.id}
+                disabled={!usageKnown && item.id !== 'all'}
+                onClick={() => setStatus(item.id as typeof status)}
+                className={`rounded-lg border px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 ${status === item.id ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'}`}
+              >{item.label} <span className="ml-1 text-xs opacity-80">{!usageKnown && item.id !== 'all' ? '—' : item.count}</span></button>
+            ))}
+          </div>
+          <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+            <div className="relative min-w-0 flex-1 lg:w-60">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+              <input type="search" aria-label="Search files or website locations" value={search} onChange={(event) => onSearch(event.target.value)}
+                placeholder="Search file or location" className="input pl-9" />
+            </div>
+            <label className="sr-only" htmlFor="media-type-filter">File type</label>
+            <select id="media-type-filter" value={mimeFilter} onChange={(event) => onMimeFilter(event.target.value as MimeFilter)} className="input sm:w-32">
+              <option value="all">All types</option><option value="image/">Images</option><option value="video/">Videos</option>
+              <option value="audio/">Audio</option><option value="application/">Documents</option><option value="text/">Text</option>
+            </select>
+            <label className="sr-only" htmlFor="media-sort-filter">Sort files</label>
+            <select id="media-sort-filter" value={sort} onChange={(event) => onSort(event.target.value as MediaSort)} className="input sm:w-44">
+              {sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+      {error ? (
+        <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">Media files could not load: {error}</div>
+      ) : loading ? (
+        <div role="status" aria-label="Loading media files" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((item) => <div key={item} className="h-64 animate-pulse rounded-xl bg-gray-200" />)}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white px-6 py-14 text-center">
+          <ImageIcon className="mx-auto h-9 w-9 text-gray-400" />
+          <h3 className="mt-3 text-base font-semibold text-gray-900">{filteredOut ? 'No files match these filters' : 'No media files yet'}</h3>
+          <p className="mt-1 text-sm text-gray-600">{filteredOut ? 'Try clearing the search or choosing another file type.' : 'Upload a file or import one from Pinterest, then assign it to a website placement.'}</p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            {filteredOut ? (
+              <button type="button" onClick={() => { onSearch(''); onMimeFilter('all'); setStatus('all'); }} className="btn btn-outline btn-sm">Clear filters</button>
+            ) : (
+              <><button type="button" onClick={onUpload} className="btn btn-primary btn-sm">Upload files</button>
+                <button type="button" onClick={onImport} className="btn btn-outline btn-sm">Import from Pinterest</button></>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filtered.map((record) => (
+            <SimpleMediaCard key={`${record.id}-${record.updated_at || ''}`} record={record} usages={usages[record.id] || []}
+              usageKnown={usageKnown} onOpen={() => onOpen(record)} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SimpleMediaCard: React.FC<{
+  record: MediaRecord;
+  usages: MediaUsage[];
+  usageKnown: boolean;
+  onOpen: () => void;
+}> = ({ record, usages, usageKnown, onOpen }) => {
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const isImage = record.mime_type?.startsWith('image/');
+  const isVideo = record.mime_type?.startsWith('video/');
+  return (
+    <button type="button" onClick={onOpen}
+      aria-label={`View ${record.filename} and where it is used`}
+      className="group overflow-hidden rounded-xl border border-gray-200 bg-white text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 hover:border-blue-300"
+    >
+      <div className="flex h-40 items-center justify-center bg-gray-950">
+        {isImage && !previewFailed ? <img src={record.public_url} alt="" loading="lazy" onError={() => setPreviewFailed(true)}
+          className="h-full w-full object-contain" />
+          : isVideo ? <Video className="h-10 w-10 text-gray-300" />
+          : <FileIcon className="h-10 w-10 text-gray-300" />}
+      </div>
+      <div className="space-y-2 p-3.5">
+        <div className="flex items-start justify-between gap-2">
+          <span className="min-w-0 truncate text-sm font-semibold text-gray-950 group-hover:text-blue-700" title={record.filename}>{record.filename}</span>
+          <span className="shrink-0 text-xs text-gray-600">{formatBytes(record.size_bytes)}</span>
+        </div>
+        <p className="text-xs text-gray-600">{mimeLabel(record.mime_type)}{record.width && record.height ? ` · ${record.width} × ${record.height} px` : ''}</p>
+        <div className="space-y-1 border-t border-gray-100 pt-2">
+          {!usageKnown ? <span className="text-xs text-amber-800">Checking where used...</span>
+            : usages.length ? (
+              <>
+                <span className="text-xs font-semibold text-blue-800">Linked in {usages.length} {usages.length === 1 ? 'location' : 'locations'}</span>
+                {usages.slice(0, 2).map((usage, index) => <p key={`${usage.recordId}-${usage.field}-${index}`} className="line-clamp-2 text-xs text-gray-800">{usageLocation(usage)}</p>)}
+                {usages.length > 2 && <span className="text-xs text-gray-600">+{usages.length - 2} more in details</span>}
+              </>
+            ) : <span className="text-xs text-gray-700">No tracked placements</span>}
+        </div>
+      </div>
+    </button>
+  );
+};
+
+const graphicPages: Array<'All' | SiteGraphicPlacement['page']> = ['All', 'Homepage', 'Games', 'Branding', 'Event'];
+
+const SiteGraphicsView: React.FC<{
+  placements: SiteGraphicPlacement[];
+  loading: boolean;
+  error: string | null;
+  onRefresh: () => Promise<void>;
+  onSaved: () => Promise<void>;
+  onNavigate: (path: string) => void;
+  onOpenFiles: () => void;
+}> = ({ placements, loading, error, onRefresh, onSaved, onNavigate, onOpenFiles }) => {
+  const [page, setPage] = useState<(typeof graphicPages)[number]>('All');
+  const [query, setQuery] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const filtered = useMemo(() => placements.filter((placement) => {
+    if (page !== 'All' && placement.page !== page) return false;
+    const text = `${placement.page} ${placement.section} ${placement.label} ${placement.description} ${placement.url}`.toLowerCase();
+    return text.includes(query.trim().toLowerCase());
+  }), [placements, page, query]);
+  const groups = useMemo(() => {
+    const result = new Map<string, SiteGraphicPlacement[]>();
+    for (const placement of filtered) {
+      const key = `${placement.page} / ${placement.section}`;
+      result.set(key, [...(result.get(key) || []), placement]);
+    }
+    return result;
+  }, [filtered]);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 rounded-xl bg-[#0c0c18] px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
+        <p className="max-w-2xl text-sm leading-6 text-gray-100">
+          Pick a location, upload a new image or choose an existing one, then save. Other places using the same file stay unchanged.
+        </p>
+        <button type="button" onClick={onOpenFiles} className="shrink-0 text-left text-sm font-semibold text-white underline underline-offset-4 hover:text-blue-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+          Browse media files
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div aria-label="Filter graphics by page" className="flex flex-wrap gap-2">
+            {graphicPages.map((item) => (
+              <button key={item} type="button" aria-pressed={page === item} onClick={() => setPage(item)}
+                className={`rounded-lg border px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${page === item ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'}`}
+              >{item === 'All' ? 'All pages' : item} <span className="ml-1 text-xs opacity-75">{item === 'All' ? placements.length : placements.filter((p) => p.page === item).length}</span></button>
+            ))}
+          </div>
+          <div className="relative w-full lg:w-64">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+            <input type="search" aria-label="Search graphics by location or name" placeholder="Search a location or image"
+              value={query} onChange={(event) => setQuery(event.target.value)} className="input pl-9" />
+          </div>
+        </div>
+        {error && (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <span>Could not check every graphic: {error}</span>
+            <button type="button" onClick={onRefresh} className="btn btn-outline btn-sm">Retry</button>
+          </div>
+        )}
+        {loading && placements.length === 0 ? (
+          <div aria-label="Loading website graphics" className="space-y-3" role="status">
+            {[1, 2, 3].map((item) => <div key={item} className="h-28 animate-pulse rounded-xl bg-gray-200" />)}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="rounded-xl border border-gray-200 bg-white px-6 py-14 text-center">
+            <ImageIcon className="mx-auto h-8 w-8 text-gray-400" />
+            <h2 className="mt-3 text-base font-semibold text-gray-900">{error ? 'Graphics could not load' : 'No graphics match'}</h2>
+            <p className="mt-1 text-sm text-gray-600">{error ? 'Retry the connection to see website placements.' : 'Try another page or search term.'}</p>
+            {!error && <button type="button" onClick={() => { setPage('All'); setQuery(''); }} className="btn btn-outline btn-sm mt-4">Clear filters</button>}
+          </div>
+        ) : (
+          <div className="space-y-7">
+            {[...groups.entries()].map(([group, items]) => (
+              <section key={group} aria-label={group}>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <h2 className="text-sm font-bold text-gray-900">{group}</h2>
+                  <span className="text-xs font-medium text-gray-600">{items.length} {items.length === 1 ? 'graphic' : 'graphics'}</span>
+                </div>
+                <div className="divide-y divide-gray-200 overflow-hidden rounded-xl border border-gray-200 bg-white">
+                  {items.map((placement) => {
+                    const otherUses = placement.url ? placements.filter((other) => other.id !== placement.id && other.url && graphicPreviewUrl(other.url) === graphicPreviewUrl(placement.url)) : [];
+                    return (
+                      <div key={placement.id}>
+                        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+                          <div className="flex h-28 w-full shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-950 sm:h-24 sm:w-40">
+                            {placement.url ? placement.kind === 'video' ? (
+                              <video src={graphicPreviewUrl(placement.url)} muted playsInline preload="metadata" className="h-full w-full object-contain" />
+                            ) : (
+                              <img src={graphicPreviewUrl(placement.url)} alt="" loading="lazy" className="h-full w-full object-contain" />
+                            ) : <ImageIcon className="h-8 w-8 text-gray-500" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="flex flex-wrap items-center gap-1 text-xs font-medium text-gray-600">
+                              <span>{placement.page}</span><ChevronRight className="h-3 w-3" aria-hidden="true" /><span>{placement.section}</span>
+                            </p>
+                            <h3 className="mt-1 text-sm font-semibold text-gray-950">{placement.label}</h3>
+                            <p className="mt-1 text-xs leading-5 text-gray-600">{placement.description}</p>
+                            {otherUses.length > 0 && (
+                              <p className="mt-1 text-xs text-blue-800">
+                                Same file also in {otherUses.slice(0, 2).map((other) => `${other.page} / ${other.section} / ${other.label}`).join(', ')}{otherUses.length > 2 ? ` +${otherUses.length - 2} more` : ''}.
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 items-center justify-between gap-3 sm:flex-col sm:items-end">
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${placement.live ? 'bg-green-50 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
+                              {placement.live ? 'Visible' : placement.url ? 'Not live' : 'Not set'}
+                            </span>
+                            <button type="button" aria-expanded={editingId === placement.id}
+                              aria-controls={`graphic-editor-${placement.id}`}
+                              onClick={() => setEditingId(editingId === placement.id ? null : placement.id)}
+                              className="btn btn-primary btn-sm gap-1.5"
+                            ><ImagePlus className="h-4 w-4" />Change {placement.kind}</button>
+                          </div>
+                        </div>
+                        {editingId === placement.id && (
+                          <GraphicPlacementEditor placement={placement} onSaved={onSaved}
+                            onClose={() => setEditingId(null)} onNavigate={onNavigate} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const GraphicPlacementEditor: React.FC<{
+  placement: SiteGraphicPlacement;
+  onSaved: () => Promise<void>;
+  onClose: () => void;
+  onNavigate: (path: string) => void;
+}> = ({ placement, onSaved, onClose, onNavigate }) => {
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState('');
+  const [selectedUrl, setSelectedUrl] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [pinterestOpen, setPinterestOpen] = useState(false);
+  const [gallerySearch, setGallerySearch] = useState('');
+  const [gallery, setGallery] = useState<MediaRecord[]>([]);
+  const [galleryCount, setGalleryCount] = useState(0);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+  const [galleryError, setGalleryError] = useState('');
+  const allowedTypes = placement.kind === 'video' ? ['video/mp4', 'video/webm'] : ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+  useEffect(() => {
+    if (!file) { setFilePreview(''); return; }
+    const objectUrl = URL.createObjectURL(file);
+    setFilePreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+
+  const searchGallery = async (term: string) => {
+    setGalleryLoading(true);
+    setGalleryError('');
+    try {
+      const result = await listMedia({ bucket: 'public-media', mimeType: placement.kind === 'image' ? 'image/' : 'video/', search: term, limit: 48 });
+      setGallery(result.data);
+      setGalleryCount(result.count);
+    } catch (err) {
+      setGalleryError((err as Error).message || 'Could not load media files');
+    } finally {
+      setGalleryLoading(false);
+    }
+  };
+
+  const save = async () => {
+    if (!file && !selectedUrl) return;
+    setSaving(true);
+    try {
+      let url = selectedUrl;
+      if (file) {
+        const folder = `${placement.page}-${placement.section}`.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const uploaded = await uploadMedia(file, folder);
+        url = uploaded.public_url;
+        setFile(null);
+        setSelectedUrl(url);
+      }
+      await saveGraphicPlacement(placement, url);
+      toast.success(`${placement.page} / ${placement.section} / ${placement.label} updated`);
+      await onSaved();
+      onClose();
+    } catch (err) {
+      toast.error((err as Error).message || 'Could not update this graphic');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const nextPreview = file ? filePreview : selectedUrl ? graphicPreviewUrl(selectedUrl) : '';
+  return (
+    <div id={`graphic-editor-${placement.id}`} className="border-t border-blue-100 bg-blue-50/40 px-4 py-5 sm:px-6">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+        <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+          {[
+            { label: 'Current', url: graphicPreviewUrl(placement.url) },
+            { label: 'New', url: nextPreview },
+          ].map((preview) => (
+            <div key={preview.label} className="min-w-0 flex-1">
+              <p className="mb-1.5 text-xs font-semibold text-gray-700">{preview.label}</p>
+              <div className="flex h-36 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-950">
+                {preview.url ? placement.kind === 'video' ? (
+                  <video src={preview.url} controls muted playsInline preload="metadata" className="h-full w-full object-contain" />
+                ) : (
+                  <img src={preview.url} alt={`${preview.label} graphic for ${placement.label}`} className="h-full w-full object-contain" />
+                ) : <span className="px-3 text-center text-xs text-gray-300">{preview.label === 'New' ? 'Choose a graphic below' : 'No graphic set'}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="w-full space-y-3 lg:w-72">
+          <p className="text-sm font-semibold text-gray-900">Change {placement.page} / {placement.section} / {placement.label}</p>
+          <p className="text-xs leading-5 text-gray-700">
+            {placement.id === 'event-jjk-promo'
+              ? 'This event image is shared by every enabled event promo placement.'
+              : 'Only this placement changes. Other graphics using the same file keep their current image.'}
+          </p>
+          <input ref={fileInput} type="file" accept={allowedTypes.join(',')} className="hidden" aria-label={`Upload for ${placement.label}`}
+            onChange={(event) => {
+              const next = event.target.files?.[0];
+              if (next && allowedTypes.includes(next.type)) { setFile(next); setSelectedUrl(''); }
+              else if (next) toast.error(`Use a supported ${placement.kind} file.`);
+              event.target.value = '';
+            }} />
+          <button type="button" onClick={() => fileInput.current?.click()} disabled={saving} className="btn btn-outline btn-md w-full gap-2">
+            <Upload className="h-4 w-4" />Upload {placement.kind}
+          </button>
+          <button type="button" onClick={() => { setGalleryOpen(!galleryOpen); if (!galleryOpen) searchGallery(''); }} disabled={saving}
+            aria-expanded={galleryOpen} className="btn btn-outline btn-md w-full gap-2">
+            <ImageIcon className="h-4 w-4" />Choose from media files
+          </button>
+          <button type="button" onClick={() => setPinterestOpen((open) => !open)} disabled={saving}
+            aria-expanded={pinterestOpen} className="btn btn-outline btn-md w-full gap-2">
+            <Link2 className="h-4 w-4" />Import from Pinterest
+          </button>
+          {(file || selectedUrl) && (
+            <p role="status" className="flex items-center gap-1.5 text-xs font-medium text-blue-800">
+              <Check className="h-4 w-4" />{file ? file.name : 'Existing file selected'} · Ready to save
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button type="button" onClick={save} disabled={saving || (!file && !selectedUrl)} className="btn btn-primary btn-md">
+              {saving ? 'Saving graphic...' : 'Save graphic'}
+            </button>
+            <button type="button" onClick={onClose} disabled={saving} className="btn btn-ghost btn-md">Cancel</button>
+          </div>
+          {placement.adminLink && (
+            <button type="button" onClick={() => onNavigate(placement.adminLink!)} className="text-left text-xs font-medium text-blue-700 underline underline-offset-2 hover:text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+              Open full content editor
+            </button>
+          )}
+        </div>
+      </div>
+      {pinterestOpen && (
+        <div className="mt-5">
+          <PinterestImportPanel mode="placement" kind={placement.kind} onUse={(downloaded) => {
+            setFile(downloaded);
+            setSelectedUrl('');
+            setPinterestOpen(false);
+            setGalleryOpen(false);
+          }} />
+        </div>
+      )}
+      {galleryOpen && (
+        <div className="mt-5 border-t border-blue-100 pt-4">
+          <form onSubmit={(event) => { event.preventDefault(); searchGallery(gallerySearch); }} className="flex flex-wrap items-end gap-2">
+            <label className="w-full max-w-xs text-xs font-semibold text-gray-800">
+              Find a file by name
+              <input type="search" value={gallerySearch} onChange={(event) => setGallerySearch(event.target.value)} className="input mt-1" placeholder="Search media files" />
+            </label>
+            <button type="submit" disabled={galleryLoading} className="btn btn-outline btn-md">Search</button>
+            <span className="pb-2 text-xs text-gray-600">Showing up to 48 of {galleryCount} matching public files</span>
+          </form>
+          {galleryError ? (
+            <p role="alert" className="mt-3 text-sm text-red-700">{galleryError} <button type="button" onClick={() => searchGallery(gallerySearch)} className="underline">Retry</button></p>
+          ) : galleryLoading ? (
+            <p role="status" className="mt-4 text-sm text-gray-600">Loading files...</p>
+          ) : gallery.length === 0 ? (
+            <p className="mt-4 text-sm text-gray-600">No files found. Upload a new {placement.kind} instead.</p>
+          ) : (
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-6">
+              {gallery.map((item) => (
+                <button key={item.id} type="button" onClick={() => { setFile(null); setSelectedUrl(item.public_url); setGalleryOpen(false); }}
+                  className="overflow-hidden rounded-lg border border-gray-200 bg-white text-left hover:border-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                  <div className="flex h-24 items-center justify-center bg-gray-950">
+                    {placement.kind === 'video' ? <Video className="h-7 w-7 text-gray-300" />
+                      : <img src={item.public_url} alt="" loading="lazy" className="h-full w-full object-contain" />}
+                  </div>
+                  <span className="block truncate px-2 py-2 text-xs text-gray-800" title={item.filename}>{item.filename}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

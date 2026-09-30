@@ -1,56 +1,59 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { publicMediaUrl } from "../../../lib/supabase";
+import { siteGraphicUrl } from "../../../lib/storeContent";
+import { useAppearance } from "../../../contexts/AppearanceContext";
 import { usePromoSection } from "../../../hooks/usePromoSection";
 
 const fallbackTrendingGames = [
   {
     title: "Black Myth Wukong",
     rating: 81,
-    oldPrice: 69,
-    price: 51,
+    oldPrice: 699,
+    price: 594,
     discount: 15,
-    image: "/img/hero/game-hero-card.gif",
+    image: publicMediaUrl("/img/hero/game-hero-card.gif"),
   },
   {
     title: "Alan Wake 2",
     rating: 86,
-    oldPrice: 49,
-    price: 32,
+    oldPrice: 499,
+    price: 399,
     discount: 20,
-    image: "/img/games/mobile-legends.webp",
+    image: publicMediaUrl("/img/games/mobile-legends.webp"),
   },
   {
-    title: "Mortal Combat 11",
+    title: "Mortal Kombat 11",
     rating: 72,
-    oldPrice: 62,
-    price: 54,
+    oldPrice: 629,
+    price: 503,
     discount: 20,
-    image: "/img/hero/game-pubg-card.webp",
+    image: publicMediaUrl("/img/hero/game-pubg-card.webp"),
   },
   {
     title: "Spider-Man 2",
     rating: 87,
-    oldPrice: 59,
-    price: 35,
+    oldPrice: 599,
+    price: 419,
     discount: 30,
-    image: "/img/hero/game-genshin-card.webp",
+    image: publicMediaUrl("/img/hero/game-genshin-card.webp"),
   },
   {
     title: "The Witcher 3",
     rating: 93,
-    oldPrice: 49,
-    price: 32,
+    oldPrice: 449,
+    price: 359,
     discount: 20,
-    image: "/img/games/honor-of-kings.jpg",
+    image: publicMediaUrl("/img/games/honor-of-kings.jpg"),
   },
   {
     title: "Honor of Kings",
     rating: 89,
-    oldPrice: 44,
-    price: 28,
+    oldPrice: 399,
+    price: 259,
     discount: 35,
-    image: "/img/games/honor-of-kings.jpg",
+    image: publicMediaUrl("/img/games/honor-of-kings.jpg"),
   },
 ];
 
@@ -59,6 +62,7 @@ const TrendingGames = () => {
   const navigate = useNavigate();
   const [active, setActive] = useState(0);
   const { items: promoItems } = usePromoSection("trending");
+  const appearance = useAppearance();
 
   const trendingGames =
     promoItems.length > 0
@@ -68,10 +72,13 @@ const TrendingGames = () => {
           oldPrice: item.compare_price ?? 0,
           price: item.price ?? 0,
           discount: item.discount_pct ?? 0,
-          image: item.image_url ?? "/img/games/mobile-legends.webp",
+          image: item.image_url || publicMediaUrl("/img/games/mobile-legends.webp"),
           link: item.link_url || (item.game_id ? `/games/${item.game_id}` : "/games"),
         }))
-      : fallbackTrendingGames;
+      : fallbackTrendingGames.map((game, index) => ({
+          ...game,
+          image: siteGraphicUrl(appearance, `trending_fallback_${index + 1}`, game.image),
+        }));
 
   useEffect(() => {
     const el = containerRef.current;
@@ -100,7 +107,7 @@ const TrendingGames = () => {
       el.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
     };
-  }, []);
+  }, [trendingGames.length]);
 
   return (
     <section className="relative isolate z-50 overflow-visible px-2 py-10 md:px-8">
@@ -129,13 +136,13 @@ const TrendingGames = () => {
 
       <div
         ref={containerRef}
-        className="relative z-50 mt-4 flex gap-6 overflow-x-auto overflow-y-visible pb-2 no-scrollbar"
+        className="no-scrollbar relative z-50 mt-4 flex gap-6 overflow-x-auto overflow-y-visible pb-2"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
         {trendingGames.map((game, idx) => (
           <div
             key={game.title}
-            className="relative min-w-[220px] max-w-[240px] flex-shrink-0 origin-top cursor-pointer rounded-xl border-4 bg-transparent p-3 transition-transform duration-200 ease-out hover:z-50 hover:scale-[1.02] hover:shadow-xl active:z-50 active:scale-95 first:ml-3 md:first:ml-5 lg:first:ml-6"
+            className="relative min-w-[220px] max-w-[240px] shrink-0 origin-top cursor-pointer rounded-xl border-4 bg-transparent p-3 transition-transform duration-200 ease-out first:ml-3 hover:z-50 hover:scale-[1.02] hover:shadow-xl active:z-50 active:scale-95 md:first:ml-5 lg:first:ml-6"
             style={{
               willChange: "transform",
               borderColor: "black",
@@ -151,7 +158,7 @@ const TrendingGames = () => {
                 draggable={false}
                 loading="lazy"
                 decoding="async"
-                fetchpriority={idx === 0 ? "high" : "low"}
+                fetchPriority={idx === 0 ? "high" : "low"}
                 sizes="(max-width: 768px) 220px, 240px"
               />
             </div>

@@ -91,6 +91,29 @@ function extractSkuPrice(skus, productid) {
   return NaN;
 }
 
+function extractSkuPoints(skus, productid) {
+  if (!Array.isArray(skus)) return NaN;
+  const sku = skus.find(s => s && String(s.id) === String(productid));
+  if (!sku) return NaN;
+  const candidates = [sku.smile_points, sku.smile_point, sku.point, sku.points, sku.smile_price];
+  for (const c of candidates) {
+    if (c == null) continue;
+    const n = parseFloat(String(c));
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return NaN;
+}
+
+function resolvePointsCost(product, skus, productid) {
+  if (product?.metadata?.expected_provider_price != null) {
+    const n = Number(product.metadata.expected_provider_price);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  const skuPoints = extractSkuPoints(skus, productid);
+  if (Number.isFinite(skuPoints) && skuPoints > 0) return skuPoints;
+  return NaN;
+}
+
 function pointsDeficiency(balance, cost) {
   if (!Number.isFinite(balance)) return null;
   if (balance <= 0) {
@@ -135,6 +158,34 @@ test('extractSkuPrice matches SKU by id and parses the price', () => {
   assert.ok(Number.isNaN(extractSkuPrice(null, '1')));
 });
 
+test('extractSkuPoints extracts points-only fields and ignores fiat price', () => {
+  const skus = [
+    { id: '1', price: '4.00', smile_points: '39' },
+    { id: '2', price: '8.00', points: 76 },
+    { id: '3', price: '4.00' }, // fiat price only — no points field
+  ];
+  assert.strictEqual(extractSkuPoints(skus, '1'), 39);
+  assert.strictEqual(extractSkuPoints(skus, '2'), 76);
+  assert.ok(Number.isNaN(extractSkuPoints(skus, '3'))); // ignores fiat price 4.00
+  assert.ok(Number.isNaN(extractSkuPoints(skus, '999')));
+});
+
+test('resolvePointsCost prioritizes product metadata Smile Points over SKU fields', () => {
+  const productWithMeta = { metadata: { expected_provider_price: 39 } };
+  const productWithoutMeta = { metadata: {} };
+  const skus = [
+    { id: '10', price: '4.00', smile_points: 35 },
+    { id: '20', price: '4.00' }, // fiat only
+  ];
+
+  // Metadata wins when present
+  assert.strictEqual(resolvePointsCost(productWithMeta, skus, '10'), 39);
+  // SKU points used when no metadata
+  assert.strictEqual(resolvePointsCost(productWithoutMeta, skus, '10'), 35);
+  // Returns NaN when neither metadata nor SKU points exist (fiat price ignored)
+  assert.ok(Number.isNaN(resolvePointsCost(productWithoutMeta, skus, '20')));
+});
+
 test('pointsDeficiency blocks zero/insufficient balance, fails open when unknown', () => {
   // Zero balance → blocked even when the SKU cost is unknown (the "no points" case)
   assert.ok(pointsDeficiency(0, NaN)?.startsWith('Insufficient Smile Points: balance is 0'));
@@ -153,30 +204,30 @@ test('pointsDeficiency blocks zero/insufficient balance, fails open when unknown
   assert.strictEqual(pointsDeficiency(NaN, 100), null);
 });
 
-// ── Expected price fallback chain ──────────────────────────────────────────────
-// Mirrors the logic in ../index.js: metadata.expected_provider_price first,
-// then the live productlist SKU price from pre-flight, then null.
+// ── Expected price resolution ─────────────────────────────────────────────────
+// Mirrors ../index.js: the ONLY valid expected price is
+// metadata.expected_provider_price, and it must be in Smile Points — the unit
+// createorder returns. The productlist SKU `price` field is BRL (a different
+// unit), so it is never used as an expected value; the earlier auto-fallback to
+// the productlist price fired the false "expected 4, got 39" mismatch. No
+// metadata → null (the substitution check is skipped, no false positive).
 
-function resolveExpectedPrice(metadataExpected, preFlightSkuPrice) {
-  if (metadataExpected != null) return Number(metadataExpected);
-  if (Number.isFinite(preFlightSkuPrice)) return preFlightSkuPrice;
-  return null;
+function resolveExpectedPrice(metadataExpected) {
+  return metadataExpected != null ? Number(metadataExpected) : null;
 }
 
-test('resolveExpectedPrice uses metadata first, then productlist fallback, then null', () => {
-  // Metadata set → always wins
-  assert.strictEqual(resolveExpectedPrice(76, 3.9), 76);
-  assert.strictEqual(resolveExpectedPrice('76', 3.9), 76);
-  // No metadata, productlist available → use productlist
-  assert.strictEqual(resolveExpectedPrice(null, 3.9), 3.9);
-  assert.strictEqual(resolveExpectedPrice(undefined, 100), 100);
-  // Neither → null (skipped_no_expected_price)
-  assert.strictEqual(resolveExpectedPrice(null, NaN), null);
-  assert.strictEqual(resolveExpectedPrice(undefined, undefined), null);
+test('resolveExpectedPrice uses metadata (Smile Points) only, else null', () => {
+  // Metadata set → used as the Smile Points expected price
+  assert.strictEqual(resolveExpectedPrice(39), 39);
+  assert.strictEqual(resolveExpectedPrice('76'), 76);
+  assert.strictEqual(resolveExpectedPrice(0), 0);
+  // No metadata → null (substitution check skipped — no cross-unit false positive)
+  assert.strictEqual(resolveExpectedPrice(null), null);
+  assert.strictEqual(resolveExpectedPrice(undefined), null);
 });
 
 test('proportional refund is near-full when wrong (cheap) product is delivered', () => {
-  // Customer orders 10000 diamonds (expected BRL 76), provider delivers elite pass (BRL 3.90)
+  // Customer orders 10000 diamonds (expected 76 Smile Points), provider delivers elite pass (3.9 Smile Points)
   const orderTotal = 500;
   const returned = 3.9;
   const expected = 76;

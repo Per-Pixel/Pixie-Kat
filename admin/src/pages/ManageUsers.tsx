@@ -21,6 +21,11 @@ import { api } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 
+const getApiErrorMessage = (err: unknown, fallback: string) => {
+  const apiErr = err as { response?: { data?: { message?: string } } };
+  return apiErr.response?.data?.message || fallback;
+};
+
 interface RegisteredUser {
   id: string;
   name: string;
@@ -68,20 +73,29 @@ const ManageUsers: React.FC<ManageUsersProps> = ({
 
       if (sbError) throw sbError;
 
-      const enrichedUsers = (rows ?? []).map((u: any) => ({
+      const enrichedUsers: RegisteredUser[] = (rows ?? []).map((u: {
+        id: string;
+        email: string;
+        name?: string | null;
+        phone?: string | null;
+        role?: string | null;
+        status?: string | null;
+        created_at: string;
+        updated_at?: string | null;
+      }) => ({
         id: u.id,
-        name: u.name,
+        name: u.name ?? 'Unknown',
         email: u.email,
-        phone: u.phone,
-        role: u.role || 'user',
-        status: u.status || 'active',
+        phone: u.phone ?? undefined,
+        role: (u.role || 'user') as RegisteredUser['role'],
+        status: (u.status || 'active') as RegisteredUser['status'],
         joinedAt: u.created_at,
-        updatedAt: u.updated_at,
+        updatedAt: u.updated_at ?? undefined,
       }));
       setUsers(enrichedUsers);
       setFilteredUsers(enrichedUsers);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load users');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load users');
     } finally {
       setLoading(false);
     }
@@ -124,7 +138,7 @@ const ManageUsers: React.FC<ManageUsersProps> = ({
 
   const handleSelectUser = (userId: string, selected: boolean) => {
     const next = new Set(selectedUsers);
-    selected ? next.add(userId) : next.delete(userId);
+    if (selected) next.add(userId); else next.delete(userId);
     setSelectedUsers(next);
   };
 
@@ -143,8 +157,8 @@ const ManageUsers: React.FC<ManageUsersProps> = ({
       await api.post(`/admin/users/${userId}/status`, { status, reason });
       toast.success(successMessage);
       await fetchUsers();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to update user');
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Failed to update user'));
     } finally {
       setProcessingAction(null);
     }
@@ -158,8 +172,8 @@ const ManageUsers: React.FC<ManageUsersProps> = ({
       await api.delete(`/admin/users/${userId}`, { data: { confirmation: 'DELETE' } });
       toast.success('User permanently deleted');
       await fetchUsers();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete user');
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Failed to delete user'));
     } finally {
       setProcessingAction(null);
     }
@@ -196,8 +210,8 @@ const ManageUsers: React.FC<ManageUsersProps> = ({
 
       setSelectedUsers(new Set());
       await fetchUsers();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || `Failed to ${action} users`);
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, `Failed to ${action} users`));
     } finally {
       setProcessingAction(null);
     }

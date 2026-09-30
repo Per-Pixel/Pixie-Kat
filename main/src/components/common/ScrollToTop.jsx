@@ -9,7 +9,10 @@ const ScrollToTop = () => {
   const { pathname } = useLocation();
 
   useLayoutEffect(() => {
-    window.scrollTo(0, 0);
+    // "instant" overrides the global `scroll-behavior: smooth` — a smooth
+    // scroll here animates over the whole page and can be interrupted by
+    // lazy content reflow, leaving the new route stranded mid-scroll.
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }, [pathname]);
 
   return null;

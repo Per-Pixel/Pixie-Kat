@@ -107,12 +107,10 @@ function mergeLoadedSettings(raw: Record<string, unknown>): AboutSettings {
     mobile: mergeTransform(rawImage.mobile as Partial<ImageTransform> | undefined),
   };
 
-  const {
-    image_url: _iu,
-    image_alt: _ia,
-    image: _img,
-    ...rest
-  } = raw;
+  const rest = { ...raw };
+  delete rest.image_url;
+  delete rest.image_alt;
+  delete rest.image;
 
   return {
     ...defaultSettings,

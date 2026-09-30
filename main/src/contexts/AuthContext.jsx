@@ -7,7 +7,7 @@ const AuthContext = createContext();
 async function fetchProfile(userId) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, name, username, phone, avatar_url, bio, role, status, wallet_balance, referral_code, email_verified, last_login_at, created_at')
+    .select('id, email, name, username, phone, avatar_url, avatar_frame, perks, leaderboard_opt_out, bio, role, status, wallet_balance, referral_code, email_verified, last_login_at, created_at')
     .eq('id', userId)
     .single();
 
@@ -37,6 +37,15 @@ export const AuthProvider = ({ children }) => {
     }
 
     const p = await fetchProfile(newSession.user.id);
+    if (!p || p.status !== 'active') {
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      setIsLoading(false);
+      await supabase.auth.signOut();
+      return;
+    }
+
     setUser(newSession.user);
     setProfile(p);
     setSession(newSession);

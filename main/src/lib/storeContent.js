@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { publicMediaUrl, resolveMediaUrls, supabase } from "./supabase";
 
 export const DEFAULT_HOW_IT_WORKS = {
   headings: {
@@ -284,10 +284,9 @@ export const DEFAULT_CONTACT = {
   hours_primary: "Mon – Sat: 10am – 7pm",
   hours_secondary: "Sunday: Closed",
   office_lines: [
-    "Pixiekat HQ",
-    "123 Gaming Street, Tech Park",
-    "Bangalore, Karnataka 560001",
-    "India",
+    "PixieKat",
+    "Online game top-up store",
+    "Serving gamers across India",
   ],
   map_embed_url: "",
   whatsapp_message: "Hi PixieKat support!",
@@ -297,13 +296,13 @@ export const DEFAULT_PRODUCTS_PAGE = {
   slides: [
     {
       id: 1,
-      title: "PIXIEKAT STORE",
-      subtitle: "Official Gaming Platform",
+      title: "PIXIEKAT",
+      subtitle: "Instant Gaming Credits",
       description:
-        "PIXIEKAT STORE is a practical solution for every game lover to buy game vouchers without having to go to a physical store.",
-      cta: "WWW.PIXIEKATSTORE.COM",
+        "Top up diamonds, coins, and credits for your favorite games — fast, secure, and delivered straight to your account.",
+      cta: "TOP UP NOW",
       bgGradient: "from-blue-700 via-violet-700 to-indigo-900",
-      image: "/img/hero/game-hero-card.gif",
+      image: publicMediaUrl("/img/hero/game-hero-card.gif"),
     },
     {
       id: 2,
@@ -313,7 +312,7 @@ export const DEFAULT_PRODUCTS_PAGE = {
         "Get instant diamonds for Mobile Legends. Fast, secure, and reliable top-up service with 24/7 support.",
       cta: "TOP UP NOW",
       bgGradient: "from-indigo-700 via-fuchsia-700 to-violet-900",
-      image: "/img/hero/game-mlbb-card.webp",
+      image: publicMediaUrl("/img/hero/game-mlbb-card.webp"),
     },
     {
       id: 3,
@@ -323,7 +322,7 @@ export const DEFAULT_PRODUCTS_PAGE = {
         "Purchase UC coins for PUBG Mobile Global. Instant delivery and competitive prices guaranteed.",
       cta: "BUY UC COINS",
       bgGradient: "from-orange-600 via-rose-700 to-red-900",
-      image: "/img/hero/game-pubg-card.webp",
+      image: publicMediaUrl("/img/hero/game-pubg-card.webp"),
     },
     {
       id: 4,
@@ -333,7 +332,7 @@ export const DEFAULT_PRODUCTS_PAGE = {
         "Top up Genesis Crystals for Genshin Impact. Safe transactions with instant delivery to your account.",
       cta: "GET CRYSTALS",
       bgGradient: "from-cyan-700 via-sky-700 to-indigo-900",
-      image: "/img/hero/game-genshin-card.webp",
+      image: publicMediaUrl("/img/hero/game-genshin-card.webp"),
     },
   ],
 };
@@ -341,14 +340,19 @@ export const DEFAULT_PRODUCTS_PAGE = {
 export const DEFAULT_APPEARANCE = {
   favicon_url: "",
   icon_url: "",
-  logo_url: "/img/logo.png",
+  logo_url: publicMediaUrl("/img/logo.png"),
   header_brand_text: "PixieKat",
   tab_title_active: "PixieKat",
   tab_title_inactive: "Come back to PixieKat!",
-  music_url: "/audio/loop.mp3",
+  music_url: publicMediaUrl("/audio/loop.mp3"),
   music_playback_rate: 1,
   music_volume: 0.5,
 };
+
+export function siteGraphicUrl(appearance, key, fallback) {
+  const override = appearance?.site_graphics?.[key];
+  return publicMediaUrl(typeof override === "string" && override.trim() ? override : fallback);
+}
 
 export function mergeProductsPageSettings(raw) {
   if (!raw || typeof raw !== "object") return { ...DEFAULT_PRODUCTS_PAGE };
@@ -360,7 +364,7 @@ export function mergeProductsPageSettings(raw) {
         description: s?.description || "",
         cta: s?.cta || "",
         bgGradient: s?.bgGradient || "from-blue-700 via-violet-700 to-indigo-900",
-        image: s?.image || "",
+        image: s?.image ? publicMediaUrl(s.image) : "",
       }))
     : DEFAULT_PRODUCTS_PAGE.slides;
   return { slides };
@@ -373,6 +377,10 @@ export function mergeAppearanceSettings(raw) {
   return {
     ...DEFAULT_APPEARANCE,
     ...raw,
+    logo_url: publicMediaUrl(raw.logo_url || DEFAULT_APPEARANCE.logo_url),
+    icon_url: publicMediaUrl(raw.icon_url || DEFAULT_APPEARANCE.icon_url),
+    favicon_url: publicMediaUrl(raw.favicon_url || DEFAULT_APPEARANCE.favicon_url),
+    music_url: publicMediaUrl(raw.music_url || DEFAULT_APPEARANCE.music_url),
     music_playback_rate: Number.isFinite(rate) ? Math.min(2, Math.max(0.5, rate)) : 1,
     music_volume: Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.5,
   };
@@ -441,13 +449,118 @@ export async function fetchJsonSetting(column, fallback) {
 
   if (error) {
     console.error(`Failed to load ${column}:`, error.message);
-    return fallback;
+    return resolveMediaUrls(fallback);
   }
 
   const value = data?.[column];
   if (value && typeof value === "object" && Object.keys(value).length > 0) {
-    return { ...fallback, ...value };
+    return resolveMediaUrls({ ...fallback, ...value });
   }
 
-  return fallback;
+  return resolveMediaUrls(fallback);
+}
+
+export const DEFAULT_FOOTER = {
+  cta_label_text: 'Get In Touch',
+  cta_heading_bold: 'Ready to level up your game?',
+  cta_heading_light: 'Top up your favorite titles instantly or explore our premium membership plans.',
+  contact_email: 'support@pixiekatstore.com',
+  contact_label: 'Reach us at:',
+  copyright_text: '© 2026 PixieKat Store. All rights reserved.',
+  brand_name_text: 'pixie kat store',
+  nav_links: [
+    { label: 'How It Works', href: '/how-it-works' },
+    { label: 'Games', href: '/games' },
+    { label: 'Pricing', href: '/pricing' },
+    { label: 'Support', href: '/support' },
+    { label: 'Terms', href: '/terms' },
+    { label: 'Privacy', href: '/privacy' },
+    { label: 'Refund Policy', href: '/refund-policy' },
+  ],
+  social_links: [
+    { label: 'LinkedIn', href: 'https://linkedin.com', icon: 'linkedin' },
+    { label: 'Facebook', href: 'https://facebook.com', icon: 'facebook' },
+    { label: 'Twitter', href: 'https://twitter.com', icon: 'twitter' },
+  ],
+};
+
+export const DEFAULT_LEGAL = {
+  terms: {
+    title: 'Terms of Service',
+    subtitle: 'Please read these terms carefully before using PixieKat services.',
+    last_updated: '2026-08-01',
+    sections: [
+      {
+        heading: '1. Acceptance of Terms',
+        content: 'By accessing or using PixieKat, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree, you are prohibited from using our services.',
+      },
+      {
+        heading: '2. Account & Top-Up Services',
+        content: 'You are responsible for ensuring correct user IDs, zone IDs, and account info when making digital game top-up transactions. PixieKat is not responsible for incorrect details submitted by the buyer.',
+      },
+      {
+        heading: '3. Modifications to Service',
+        content: 'PixieKat reserves the right to modify prices, product availability, or terms at any time without prior notice.',
+      },
+    ],
+  },
+  privacy: {
+    title: 'Privacy Policy',
+    subtitle: 'How we collect, use, and protect your personal information.',
+    last_updated: '2026-08-01',
+    sections: [
+      {
+        heading: '1. Information We Collect',
+        content: 'We collect account details, order transaction history, game identification numbers, and contact info necessary to fulfill digital orders and provide customer support.',
+      },
+      {
+        heading: '2. Data Protection & Security',
+        content: 'Your personal data is encrypted in transit and at rest. We do not sell your personal data to third parties under any circumstances.',
+      },
+      {
+        heading: '3. Third-Party Services',
+        content: 'Payment processing and automated order fulfillment may transmit necessary transaction fields to authorized gateway and API partners.',
+      },
+    ],
+  },
+  refund: {
+    title: 'Refund & Cancellation Policy',
+    subtitle: 'Guidelines for order refunds, wallet adjustments, and failed transaction processing.',
+    last_updated: '2026-08-01',
+    sections: [
+      {
+        heading: '1. Digital Goods Non-Refundability',
+        content: 'Due to the nature of instant digital top-ups and game vouchers, completed orders where items have been successfully delivered are non-refundable.',
+      },
+      {
+        heading: '2. Failed Orders & Wallet Refunds',
+        content: 'If an order fails or cannot be delivered due to system errors, the payment amount will be automatically refunded back to your PixieKat Wallet balance.',
+      },
+      {
+        heading: '3. Support Requests',
+        content: 'For disputes or order issues, please contact support within 24 hours of transaction with your Order ID and player credentials.',
+      },
+    ],
+  },
+};
+
+export async function fetchFooterSettings() {
+  const raw = await fetchJsonSetting("footer_settings", {});
+  if (!raw || typeof raw !== "object" || Object.keys(raw).length === 0) return DEFAULT_FOOTER;
+  return {
+    ...DEFAULT_FOOTER,
+    ...raw,
+    nav_links: Array.isArray(raw.nav_links) && raw.nav_links.length > 0 ? raw.nav_links : DEFAULT_FOOTER.nav_links,
+    social_links: Array.isArray(raw.social_links) && raw.social_links.length > 0 ? raw.social_links : DEFAULT_FOOTER.social_links,
+  };
+}
+
+export async function fetchLegalSettings() {
+  const raw = await fetchJsonSetting("legal_settings", {});
+  if (!raw || typeof raw !== "object" || Object.keys(raw).length === 0) return DEFAULT_LEGAL;
+  return {
+    terms: { ...DEFAULT_LEGAL.terms, ...(raw.terms || {}) },
+    privacy: { ...DEFAULT_LEGAL.privacy, ...(raw.privacy || {}) },
+    refund: { ...DEFAULT_LEGAL.refund, ...(raw.refund || {}) },
+  };
 }

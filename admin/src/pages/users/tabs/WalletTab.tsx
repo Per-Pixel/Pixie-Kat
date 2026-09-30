@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, Plus, Minus, RefreshCw, ArrowUpRight, ArrowDownLeft, X, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
@@ -48,7 +48,7 @@ export default function WalletTab({ data, refetch }: Props) {
   const [reference, setReference]       = useState('');
   const [submitting, setSubmitting]     = useState(false);
 
-  const fetchTx = async () => {
+  const fetchTx = useCallback(async () => {
     setTxLoading(true);
     const { data: rows } = await supabase
       .from('wallet_transactions')
@@ -58,9 +58,9 @@ export default function WalletTab({ data, refetch }: Props) {
       .limit(50);
     setTransactions((rows as TxRow[]) ?? []);
     setTxLoading(false);
-  };
+  }, [profile.id]);
 
-  useEffect(() => { fetchTx(); }, [profile.id]);
+  useEffect(() => { fetchTx(); }, [fetchTx]);
 
   const submitAdjust = async () => {
     const parsed = parseFloat(amount);
@@ -84,8 +84,9 @@ export default function WalletTab({ data, refetch }: Props) {
       setShowAdjust(false);
       await fetchTx();
       refetch();
-    } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || 'Wallet adjustment failed';
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string } }; message?: string };
+      const msg = apiErr.response?.data?.message || apiErr.message || 'Wallet adjustment failed';
       if (msg.includes('Insufficient wallet balance')) {
         toast.error(`Insufficient balance. ${msg}`);
       } else if (msg.includes('Could not find the function') || msg.includes('adjust_wallet_balance')) {

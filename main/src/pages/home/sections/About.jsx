@@ -3,17 +3,17 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/all";
 import { useEffect, useState } from "react";
 import AnimatedTitle from "../../../components/common/AnimatedTitle";
-import { supabase } from "../../../lib/supabase";
+import { publicMediaUrl, supabase } from "../../../lib/supabase";
 
 gsap.registerPlugin(ScrollTrigger);
 
 const defaultCopy = {
-  welcome_text: "Welcome to Pixiekat",
+  welcome_text: "Welcome to PixieKat",
   title_html: "T<b>o</b>p up your <br /> fav<b>o</b>rite games",
   subtext_line1: "Fast credits, instant delivery — game more, wait less",
   subtext_line2:
-    "Pixiekat brings you the quickest way to top up diamonds, coins, and credits across all your favorite mobile and PC titles",
-  image_url: "/img/about.webp",
+    "PixieKat brings you the quickest way to top up diamonds, coins, and credits across all your favorite mobile and PC titles",
+  image_url: publicMediaUrl("/img/about.webp"),
   image_alt: "Background",
 };
 
@@ -48,7 +48,7 @@ function pickCopy(raw) {
       typeof raw.subtext_line2 === "string" && raw.subtext_line2
         ? raw.subtext_line2
         : defaultCopy.subtext_line2,
-    image_url: imageUrl,
+    image_url: publicMediaUrl(imageUrl),
     image_alt: imageAlt,
   };
 }

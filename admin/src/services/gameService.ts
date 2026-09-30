@@ -59,7 +59,7 @@ class GameService extends BaseApiService {
 
   // Create new game
   async createGame(gameData: Omit<Game, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Game>> {
-    return this.create(gameData);
+    return this.create<Game>(gameData as Partial<Game>);
   }
 
   // Update game
@@ -96,7 +96,7 @@ class GameService extends BaseApiService {
     formData.append('image', file);
     
     try {
-      const response = await this.post(formData, `/${id}/image`, {
+      const response = await this.post<ApiResponse<{ imageUrl: string }>>(formData, `/${id}/image`, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -206,7 +206,11 @@ class GameService extends BaseApiService {
     formData.append('file', file);
     
     try {
-      const response = await this.post(formData, '/import', {
+      const response = await this.post<ApiResponse<{
+        imported: number;
+        failed: number;
+        errors: Array<{ row: number; error: string }>;
+      }>>(formData, '/import', {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

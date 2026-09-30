@@ -73,7 +73,7 @@ const PromoList: React.FC<PromoListProps> = ({ section, title, description, base
     setItems(withOrder);
     try {
       await reorderPromoItems(withOrder.map(({ id, sort_order }) => ({ id, sort_order })));
-    } catch (err) {
+    } catch {
       toast.error('Reorder failed');
       load();
     }

@@ -40,7 +40,6 @@ const Compose: React.FC = () => {
     }
     
     // Handle send logic here
-    console.log('Sending message:', { recipients, subject, message });
     alert('Message sent successfully!');
     
     // Reset form

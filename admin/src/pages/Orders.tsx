@@ -4,7 +4,7 @@ import {
   Search, Filter, Download, Eye, RefreshCw, AlertCircle,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import OrderDrawer from '../components/orders/OrderDrawer';
 import clsx from 'clsx';
@@ -33,7 +33,7 @@ interface OrderRow {
   } | null;
   created_at: string;
   updated_at: string;
-  profiles?: { id: string; name: string; email: string } | null;
+  profiles?: Array<{ id: string; name: string; email: string }> | null;
 }
 
 const statusStyles: Record<OrderStatus, string> = {
@@ -64,7 +64,7 @@ function downloadCsv(orders: OrderRow[]) {
   const rows = [
     ['Order ID', 'Customer', 'Email', 'Product', 'Quantity', 'Amount', 'Currency', 'Status', 'Payment Method', 'Payment ID', 'Razorpay Order ID', 'Date'],
     ...orders.map((o) => [
-      o.id, o.profiles?.name ?? 'Unknown', o.profiles?.email ?? '',
+      o.id, o.profiles?.[0]?.name ?? 'Unknown', o.profiles?.[0]?.email ?? '',
       o.product_name, String(o.quantity), String(o.total_amount),
       o.currency, o.status, o.payment_method ?? '', o.payment_id ?? '', o.razorpay_order_id ?? '', o.created_at,
     ]),
@@ -81,6 +81,7 @@ function downloadCsv(orders: OrderRow[]) {
 
 const Orders: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,12 +119,14 @@ const Orders: React.FC = () => {
     let list = orders.filter((o) => {
       if (status !== 'all' && o.status !== status) return false;
       if (!term) return true;
-      return [o.id, o.product_name, o.payment_id ?? '', o.razorpay_order_id ?? '', o.profiles?.name ?? '', o.profiles?.email ?? '']
+      return [o.id, o.product_name, o.payment_id ?? '', o.razorpay_order_id ?? '', o.profiles?.[0]?.name ?? '', o.profiles?.[0]?.email ?? '']
         .some((v) => v.toLowerCase().includes(term));
     });
     list = [...list].sort((a, b) => {
-      let av: any = a[sortField], bv: any = b[sortField];
-      if (sortField === 'total_amount') { av = Number(av); bv = Number(bv); }
+      const avRaw: unknown = a[sortField];
+      const bvRaw: unknown = b[sortField];
+      const av = sortField === 'total_amount' ? Number(avRaw) : String(avRaw ?? '');
+      const bv = sortField === 'total_amount' ? Number(bvRaw) : String(bvRaw ?? '');
       if (av < bv) return sortDir === 'asc' ? -1 : 1;
       if (av > bv) return sortDir === 'asc' ? 1 : -1;
       return 0;
@@ -148,7 +151,25 @@ const Orders: React.FC = () => {
       : <ChevronDown className="w-3.5 h-3.5 text-primary-600 ml-1" />;
   };
 
-  const openDrawer = (order: OrderRow) => { setSelectedOrder(order); setDrawerOpen(true); };
+  const openDrawer = (order: OrderRow) => {
+    setSelectedOrder(order);
+    setDrawerOpen(true);
+    setSearchParams({ order: order.id }, { replace: true });
+  };
+
+  const closeDrawer = () => {
+    setDrawerOpen(false);
+    setSelectedOrder(null);
+    if (searchParams.get('order')) setSearchParams({}, { replace: true });
+  };
+
+  // Deep-link support: /revenue/orders?order=<id> opens the drawer directly
+  useEffect(() => {
+    const orderId = searchParams.get('order');
+    if (!orderId || drawerOpen || orders.length === 0) return;
+    const match = orders.find((o) => o.id === orderId);
+    if (match) { setSelectedOrder(match); setDrawerOpen(true); }
+  }, [orders, searchParams, drawerOpen]);
 
   return (
     <div className="space-y-6">
@@ -196,7 +217,7 @@ const Orders: React.FC = () => {
           </div>
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
-            <select value={status} onChange={(e) => { setStatus(e.target.value as any); setPage(1); }}
+            <select value={status} onChange={(e) => { setStatus(e.target.value as 'all' | OrderStatus); setPage(1); }}
               className="input min-w-40 capitalize">
               {statusOptions.map((o) => (
                 <option key={o} value={o}>{o.replace('_', ' ')}</option>
@@ -263,9 +284,9 @@ const Orders: React.FC = () => {
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <button type="button" onClick={() => navigate(`/users/${order.user_id}`)} className="text-left">
                           <p className="text-sm font-medium text-primary-700 hover:text-primary-900">
-                            {order.profiles?.name ?? 'Unknown'}
+                            {order.profiles?.[0]?.name ?? 'Unknown'}
                           </p>
-                          <p className="text-xs text-gray-400">{order.profiles?.email ?? order.user_id}</p>
+                          <p className="text-xs text-gray-400">{order.profiles?.[0]?.email ?? order.user_id}</p>
                         </button>
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap text-sm text-gray-900">{order.product_name}</td>
@@ -325,7 +346,7 @@ const Orders: React.FC = () => {
       <OrderDrawer
         order={selectedOrder}
         isOpen={drawerOpen}
-        onClose={() => { setDrawerOpen(false); setSelectedOrder(null); }}
+        onClose={closeDrawer}
         onStatusChange={(id, newStatus) => {
           setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status: newStatus } : o));
         }}

@@ -12,16 +12,18 @@ export interface User {
   totalOrders?: number;
   totalSpent?: number;
   lastActiveAt?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
 
-export enum UserRole {
-  ADMIN = 'admin',
-  RESELLER = 'reseller',
-  SUPPORT = 'support',
-}
+export const UserRole = {
+  ADMIN: 'admin',
+  RESELLER: 'reseller',
+  SUPPORT: 'support',
+} as const;
+
+export type UserRole = typeof UserRole[keyof typeof UserRole];
 
 export interface AuthState {
   user: User | null;

@@ -9,9 +9,13 @@ import { BentoTilt } from "./Features";
 import SlideTextButton from "../../../animations/components/SlideTextButton";
 import FlipCard from "../../../components/common/FlipCard";
 import { useParallaxScroll } from "../../../animations/hooks/useParallaxScroll";
+import { useReducedMotion } from "../../../hooks/useReducedMotion";
 import MobileSquareButton from "../../../components/common/MobileSquareButton";
 import Loading from "../../../components/common/Loading";
-import { supabase } from "../../../lib/supabase";
+import { readPreferences } from "../../../lib/preferences";
+import { publicMediaUrl, resolveMediaUrls, supabase } from "../../../lib/supabase";
+import { useAppearance } from "../../../contexts/AppearanceContext";
+import { siteGraphicUrl } from "../../../lib/storeContent";
 
 const defaultHeroSettings = {
   heading: "PixieKat",
@@ -19,24 +23,24 @@ const defaultHeroSettings = {
   tagline: "Fast, Secure, Affordable",
   button_text: "Topup Now",
   button_link: "/games",
-  background_video: "/videos/hero-1.mp4",
+  background_video: publicMediaUrl("/videos/hero-1.mp4"),
   images: {
     jinx: {
-      url: "/img/hero/Jinx.webp",
+      url: publicMediaUrl("/img/hero/Jinx.webp"),
       show_on_phone: false,
       desktop: { scale: 120, rotate: 0, x: 0, y: 0, pos_left: "43%", pos_top: "60%" },
       tablet:  { scale: 100, rotate: 0, x: 0, y: 0, pos_left: "30%", pos_top: "69%" },
       mobile:  { scale: 80,  rotate: 0, x: 0, y: 0, pos_left: "30%", pos_top: "69%" },
     },
     faze: {
-      url: "/img/hero/Faze.webp",
+      url: publicMediaUrl("/img/hero/Faze.webp"),
       show_on_phone: true,
       desktop: { scale: 150, rotate: 0, x: 0, y: 0, pos_left: "50%", pos_top: "70%" },
       tablet:  { scale: 130, rotate: 0, x: 0, y: 0, pos_left: "50%", pos_top: "70%" },
       mobile:  { scale: 110, rotate: 0, x: 0, y: 0, pos_left: "50%", pos_top: "70%" },
     },
     melissa: {
-      url: "/img/hero/melissa.webp",
+      url: publicMediaUrl("/img/hero/melissa.webp"),
       show_on_phone: false,
       desktop: { scale: 150, rotate: 0, x: 0, y: 0, pos_left: "59%", pos_top: "65%" },
       tablet:  { scale: 120, rotate: 0, x: 0, y: 0, pos_left: "70%", pos_top: "69%" },
@@ -49,7 +53,8 @@ gsap.registerPlugin(ScrollTrigger);
 
 const Hero = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const appearance = useAppearance();
+  const [loading, setLoading] = useState(() => readPreferences().intro);
   const jinxRef = useRef(null);
   const fazeLogoRef = useRef(null);
   const lunoxRef = useRef(null);
@@ -72,11 +77,21 @@ const Hero = () => {
       .maybeSingle()
       .then(({ data }) => {
         if (data?.hero_settings && Object.keys(data.hero_settings).length > 0) {
-          setHeroSettings((prev) => ({
-            ...prev,
-            ...data.hero_settings,
-            images: { ...prev.images, ...(data.hero_settings.images ?? {}) },
-          }));
+          setHeroSettings((prev) =>
+            resolveMediaUrls({
+              ...prev,
+              ...data.hero_settings,
+              images: Object.fromEntries(Object.entries(prev.images).map(([key, defaults]) => {
+                const configured = data.hero_settings.images?.[key] ?? {};
+                return [key, {
+                  ...defaults, ...configured,
+                  desktop: { ...defaults.desktop, ...configured.desktop },
+                  tablet: { ...defaults.tablet, ...configured.tablet },
+                  mobile: { ...defaults.mobile, ...configured.mobile },
+                }];
+              })),
+            })
+          );
         }
       });
   }, []);
@@ -120,7 +135,7 @@ const Hero = () => {
   };
 
   // Apply parallax scroll with reduced motion gating
-  const prefersReduced = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const prefersReduced = useReducedMotion();
   useParallaxScroll(parallaxContainerRef, { 
     speed: prefersReduced ? 0 : 0.2, 
     direction: "vertical", 
@@ -224,7 +239,7 @@ const Hero = () => {
       >
         <div>
           <video
-            src={heroSettings.background_video || "/videos/hero-1.mp4"}
+            src={publicMediaUrl(heroSettings.background_video) || publicMediaUrl("/videos/hero-1.mp4")}
             autoPlay
             loop
             muted
@@ -234,7 +249,7 @@ const Hero = () => {
             controls={false}
             controlsList="nodownload noplaybackrate nofullscreen"
             disablePictureInPicture
-            poster="/img/hero/Jinx.webp"
+            poster={publicMediaUrl(heroSettings.images.jinx?.url || "/img/hero/Jinx.webp")}
             className="absolute left-0 top-0 size-full object-cover object-center"
             onLoadedData={handleVideoLoad}
           />
@@ -242,11 +257,11 @@ const Hero = () => {
 
         {/* Desktop view: bottom-left rectangular video */}
         {false && !isMobile && (
-          <BentoTilt className="absolute bottom-10 left-6 md:bottom-12 md:left-10 lg:left-16 z-50 h-44 w-72 md:h-56 md:w-96 pointer-events-auto rounded-lg overflow-hidden shadow-[0_0_15px_rgba(79,183,221,0.5)]">
-            <div className="relative size-full rounded-lg overflow-hidden">
+          <BentoTilt className="pointer-events-auto absolute bottom-10 left-6 z-50 h-44 w-72 overflow-hidden rounded-lg shadow-[0_0_15px_rgba(79,183,221,0.5)] md:bottom-12 md:left-10 md:h-56 md:w-96 lg:left-16">
+            <div className="relative size-full overflow-hidden rounded-lg">
               <video
                 ref={featureVideoRef}
-                src="/videos/feature-4.mp4" 
+                src={siteGraphicUrl(appearance, 'hero_contact_video', "/videos/feature-4.mp4")} 
                 autoPlay
                 loop
                 muted
@@ -256,16 +271,16 @@ const Hero = () => {
                 controls={false}
                 controlsList="nodownload noplaybackrate nofullscreen"
                 disablePictureInPicture
-                poster="/img/hero/Faze.webp"
+                poster={publicMediaUrl("/img/hero/Faze.webp")}
                 className="absolute left-0 top-0 size-full object-cover object-center"
               />
               <div className="relative z-20 flex size-full flex-col justify-between p-5">
-                <div className="absolute bottom-3 left-3 z-80">
+                <div className="z-80 absolute bottom-3 left-3">
                   <SlideTextButton
                     title="Contact Us"
                     leftIcon={<TiLocationArrow />}
                     containerClass="bg-blue-50 text-xs py-2 px-4 text-black flex-center gap-1"
-                    onClick={() => console.log("Contact Us clicked")}
+                    onClick={() => {}}
                   />
                 </div>
               </div>
@@ -275,10 +290,10 @@ const Hero = () => {
 
         {/* Desktop view: right side card with flip animation */}
         {false && !isMobile && (
-          <div className="absolute bottom-64 right-8 z-50 h-48 w-80 md:h-64 md:w-96 pointer-events-auto">
-            <FlipCard 
-              frontVideo="/videos/feature-2.mp4"
-              backVideo="/videos/feature-3.mp4"
+          <div className="pointer-events-auto absolute bottom-64 right-8 z-50 h-48 w-80 md:h-64 md:w-96">
+            <FlipCard
+              frontVideo={siteGraphicUrl(appearance, 'hero_games_front_video', "/videos/feature-2.mp4")}
+              backVideo={siteGraphicUrl(appearance, 'hero_games_back_video', "/videos/feature-3.mp4")}
               title="Popular Games"
               description="Top up your favorite games instantly"
               buttonText="View All Games"
@@ -288,11 +303,11 @@ const Hero = () => {
 
         {/* Mobile view: Contact Us card that appears when toggled */}
         {showContactUs && (
-          <div className="absolute left-1/2 top-1/2 z-[500] -translate-x-1/2 -translate-y-1/2 h-80 w-80 pointer-events-auto">
-            <BentoTilt className="h-full w-full rounded-lg overflow-hidden shadow-[0_0_15px_rgba(79,183,221,0.5)]">
-              <div className="relative size-full rounded-lg overflow-hidden">
+          <div className="pointer-events-auto absolute left-1/2 top-1/2 z-[500] size-80 -translate-x-1/2 -translate-y-1/2">
+            <BentoTilt className="size-full overflow-hidden rounded-lg shadow-[0_0_15px_rgba(79,183,221,0.5)]">
+              <div className="relative size-full overflow-hidden rounded-lg">
                 <video
-                  src="/videos/feature-4.mp4" 
+                  src={siteGraphicUrl(appearance, 'hero_contact_video', "/videos/feature-4.mp4")} 
                   autoPlay
                   loop
                   muted
@@ -302,20 +317,20 @@ const Hero = () => {
                   controls={false}
                   controlsList="nodownload noplaybackrate nofullscreen"
                   disablePictureInPicture
-                  className="absolute left-0 top-0 size-full object-cover object-center pointer-events-none"
+                  className="pointer-events-none absolute left-0 top-0 size-full object-cover object-center"
                 />
                 <div className="relative z-20 flex size-full flex-col justify-between p-5">
                   <button 
-                    className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 z-[600]"
+                    className="absolute right-2 top-2 z-[600] rounded-full bg-black bg-opacity-50 p-1"
                     onClick={toggleContactUs}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="size-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
-                  <div className="absolute bottom-5 left-5 z-80 text-center w-[90%]">
-                    <h2 className="text-white text-xl mb-3 font-bold">Contact Us</h2>
-                    <p className="text-white text-sm mb-4">Get in touch with our support team for any assistance</p>
+                  <div className="z-80 absolute bottom-5 left-5 w-[90%] text-center">
+                    <h2 className="mb-3 text-xl font-bold text-white">Contact Us</h2>
+                    <p className="mb-4 text-sm text-white">Get in touch with our support team for any assistance</p>
                     <SlideTextButton
                       title="Contact Support"
                       leftIcon={<TiLocationArrow />}
@@ -331,20 +346,20 @@ const Hero = () => {
 
         {/* Mobile view: Popular Games card that appears when toggled */}
         {showPopularGames && (
-          <div className="absolute left-1/2 top-1/2 z-[500] -translate-x-1/2 -translate-y-1/2 h-80 w-80 pointer-events-auto">
-            <div className="relative h-full w-full">
+          <div className="pointer-events-auto absolute left-1/2 top-1/2 z-[500] size-80 -translate-x-1/2 -translate-y-1/2">
+            <div className="relative size-full">
               <button 
-                className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 z-[600]"
+                className="absolute right-2 top-2 z-[600] rounded-full bg-black bg-opacity-50 p-1"
                 onClick={togglePopularGames}
                 aria-label="Close Popular Games"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="size-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              <FlipCard 
-                frontVideo="/videos/feature-2.mp4"
-                backVideo="/videos/feature-3.mp4"
+              <FlipCard
+                frontVideo={siteGraphicUrl(appearance, 'hero_games_front_video', "/videos/feature-2.mp4")}
+                backVideo={siteGraphicUrl(appearance, 'hero_games_back_video', "/videos/feature-3.mp4")}
                 title="Popular Games"
                 description="Top up your favorite games instantly"
                 buttonText="View All Games"
@@ -359,38 +374,38 @@ const Hero = () => {
         {/* Parallax container for all character images (lightweight wrapper) */}
         <div 
           ref={parallaxContainerRef}
-          className="absolute inset-0 z-20 pointer-events-none"
+          className="pointer-events-none absolute inset-0 z-20"
           style={{ willChange: 'transform' }}
         >
           {/* Jinx image */}
           {(() => { const r = getImgTx('jinx'); if (!r) return null; const { img, tx } = r; return (!isPhone || img.show_on_phone) ? (
           <div className="absolute z-30" style={{ left: tx.pos_left, top: tx.pos_top, transform: `translate(-50%,-50%) scale(${tx.scale/100}) rotate(${tx.rotate}deg) translate(${tx.x}px,${tx.y}px)`, willChange: 'transform' }}>
-            <img ref={jinxRef} src={img.url} alt="Jinx" className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-120"}`} loading="lazy" decoding="async" fetchpriority="low" sizes="(max-width: 768px) 360px, 480px" />
+            <img ref={jinxRef} src={img.url} alt="Jinx" className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-120"}`} loading="lazy" decoding="async" fetchPriority="low" sizes="(max-width: 768px) 360px, 480px" />
           </div>) : null; })()}
 
           {/* Faze image */}
           {(() => { const r = getImgTx('faze'); if (!r) return null; const { img, tx } = r; return (!isPhone || img.show_on_phone) ? (
           <div className="absolute z-50" style={{ left: tx.pos_left, top: tx.pos_top, transform: `translate(-50%,-50%) scale(${tx.scale/100}) rotate(${tx.rotate}deg) translate(${tx.x}px,${tx.y}px)`, willChange: 'transform' }}>
-            <img ref={fazeLogoRef} src={img.url} alt="Faze" className={`h-auto ${isPhone ? "w-[461px]" : "w-64 md:w-80"}`} loading="lazy" decoding="async" fetchpriority="low" sizes="(max-width: 768px) 256px, 320px" />
+            <img ref={fazeLogoRef} src={img.url} alt="Faze" className={`h-auto ${isPhone ? "w-[461px]" : "w-64 md:w-80"}`} loading="lazy" decoding="async" fetchPriority="low" sizes="(max-width: 768px) 256px, 320px" />
           </div>) : null; })()}
 
           {/* Melissa image */}
           {(() => { const r = getImgTx('melissa'); if (!r) return null; const { img, tx } = r; return (!isPhone || img.show_on_phone) ? (
           <div className="absolute z-20" style={{ left: tx.pos_left, top: tx.pos_top, transform: `translate(-50%,-50%) scale(${tx.scale/100}) rotate(${tx.rotate}deg) translate(${tx.x}px,${tx.y}px)`, willChange: 'transform' }}>
-            <img ref={lunoxRef} src={img.url} alt="Lunox" className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-130"}`} loading="lazy" decoding="async" fetchpriority="low" sizes="(max-width: 768px) 360px, 520px" />
+            <img ref={lunoxRef} src={img.url} alt="Lunox" className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-130"}`} loading="lazy" decoding="async" fetchPriority="low" sizes="(max-width: 768px) 360px, 520px" />
           </div>) : null; })()}
         </div>
 
         {/* Mobile contact square button next to Pixiekat title */}
         {(
           <MobileSquareButton
-            className="absolute top-24 right-5 z-[60]"
+            className="absolute right-5 top-24 z-[60]"
             onClick={toggleContactUs}
             ariaLabel="Toggle Contact Us Card"
           />
         )}
 
-        <h1 className="special-font hero-heading absolute bottom-5 right-5 z-40 text-blue-75 text-shadow">
+        <h1 className="special-font hero-heading text-shadow absolute bottom-5 right-5 z-40 text-blue-75">
           ST<b>O</b>RE
         </h1>
 

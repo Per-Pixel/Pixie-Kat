@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { fallbackGameImage, gamesData } from "../games/gamesData";
+import { publicMediaUrl } from "../../lib/supabase";
 
 const paymentMethods = [
   { id: "binance", name: "Binance", description: "Secure online crypto payment", priceLabel: "10.42 USDT", note: "(~ Rs 1000)", accent: "text-[#6542ff]", logo: "BINANCE" },
@@ -61,7 +62,7 @@ const AddMoneyPage = () => {
           <button
             type="button"
             onClick={() => navigate("/games")}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300/80 bg-white/80 text-slate-600 shadow-sm backdrop-blur"
+            className="inline-flex size-11 items-center justify-center rounded-full border border-slate-300/80 bg-white/80 text-slate-600 shadow-sm backdrop-blur"
             aria-label="Back to games"
           >
             <ArrowLeft size={22} />
@@ -83,7 +84,7 @@ const AddMoneyPage = () => {
                   <p className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">Selected game</p>
                   <h2 className="mt-2 text-2xl font-bold">{game.name}</h2>
                   <p className="mt-2 max-w-2xl text-sm text-slate-300">
-                    Add {game.coinName.toLowerCase()} fast and continue checkout in a focused payment flow inspired by your reference design.
+                    Add {game.coinName.toLowerCase()} to your wallet, then head straight to a quick, focused checkout.
                   </p>
                 </div>
                 <Link
@@ -101,8 +102,8 @@ const AddMoneyPage = () => {
             <section>
               <h3 className="text-[28px] font-bold tracking-tight text-slate-800">Enter coins</h3>
               <div className="mt-4 rounded-[22px] border border-slate-200 bg-white/80 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
-                <div className="flex items-center gap-3 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[radial-gradient(circle_at_30%_30%,#ffe3a3,#f6a800)] text-[11px] font-black text-amber-950 shadow-inner">
+                <div className="flex items-center gap-3 rounded-[18px] border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex size-10 items-center justify-center rounded-full bg-[radial-gradient(circle_at_30%_30%,#ffe3a3,#f6a800)] text-[11px] font-black text-amber-950 shadow-inner">
                     PKS
                   </div>
                   <input
@@ -145,13 +146,13 @@ const AddMoneyPage = () => {
                       type="button"
                       whileTap={{ scale: 0.985 }}
                       onClick={() => setSelectedMethod(method.id)}
-                      className={`rounded-[22px] border bg-white px-4 py-4 text-left shadow-[0_10px_25px_rgba(15,23,42,0.06)] transition ${
+                      className={`rounded-[22px] border bg-white p-4 text-left shadow-[0_10px_25px_rgba(15,23,42,0.06)] transition ${
                         isSelected
                           ? "border-[#6b4dff] ring-2 ring-[#6b4dff]/30"
                           : "border-slate-200 hover:border-slate-300"
                       }`}
                     >
-                      <div className="grid grid-cols-[96px_minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-row sm:items-center">
+                      <div className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-row sm:items-center">
                         <div className="flex h-12 w-full items-center justify-center rounded-[12px] border border-slate-200 bg-white px-3 text-lg font-bold text-slate-500 shadow-sm sm:w-auto sm:min-w-28">
                           {method.logo}
                         </div>
@@ -161,7 +162,7 @@ const AddMoneyPage = () => {
                         </div>
                         <div className="min-w-0 text-right">
                           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">You pay</p>
-                          <p className={`text-2xl font-black tracking-tight ${method.accent ?? "text-slate-900"}`}>
+                          <p className={`text-lg font-black tracking-tight sm:text-2xl ${method.accent ?? "text-slate-900"}`}>
                             {method.priceLabel}
                           </p>
                           {method.note ? <p className="text-xs text-slate-400">{method.note}</p> : null}
@@ -189,7 +190,7 @@ const AddMoneyPage = () => {
       <div className="mx-auto mt-8 w-full max-w-[1400px]">
         <footer className="overflow-hidden rounded-[28px] bg-[#1f1f1f] px-4 py-8 text-white shadow-[0_24px_60px_rgba(0,0,0,0.22)] sm:px-6 md:px-8">
           <div className="flex flex-col items-center text-center">
-            <img src="/img/logo.png" alt="PixieKat logo" className="h-14 w-auto object-contain" />
+            <img src={publicMediaUrl("/img/logo.png")} alt="PixieKat logo" className="h-14 w-auto object-contain" />
             <p className="mt-4 text-sm text-white/70 sm:text-base">
               Seamless game top-ups and digital vouchers.
             </p>

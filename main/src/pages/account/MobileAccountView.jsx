@@ -3,12 +3,12 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
+  ArrowRight,
   CalendarDays,
   ChevronDown,
-  Download,
-  Headset,
   PencilLine,
   Search,
+  Trophy,
   UserPlus,
   Settings,
 } from "lucide-react";
@@ -24,6 +24,10 @@ import {
 import { pageBackground } from "./accountShared";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { useUserOrders } from "../../hooks/useUserOrders";
+import AvatarFrame from "../../components/common/AvatarFrame";
+import { currentPeriod, fetchMyRankHistory, periodLabel, rankForPeriod } from "../../lib/leaderboard";
+import { RewardsPanel } from "./DesktopAccountView";
 
 const toCardOrder = (order) => {
   const fields = order.metadata?.account_fields ?? {};
@@ -44,12 +48,14 @@ const toCardOrder = (order) => {
 };
 
 const statusOptions = [
-  "Status",
-  "Success",
-  "Waiting for Payment",
-  "Refund",
-  "Chargeback",
-  "In processing",
+  { label: "All statuses", value: "all" },
+  { label: "Completed", value: "completed" },
+  { label: "Waiting for payment", value: "pending" },
+  { label: "Refunded", value: "refunded" },
+  { label: "Failed", value: "failed" },
+  { label: "Processing", value: "processing" },
+  { label: "Cancelled", value: "cancelled" },
+  { label: "On hold", value: "on_hold" },
 ];
 
 const monthRows = [
@@ -66,12 +72,17 @@ const socialIcons = [FaFacebookF, FaYoutube, FaInstagram, FaTwitter, FaTiktok, F
 const getPathnameSuffix = (pathname) => pathname.replace(/^\/account\/?/, "");
 
 const ProfileHero = ({ profile }) => (
-  <div className="mt-4 rounded-[18px] bg-gradient-to-r from-[#5724ff] to-[#4FB7DD] px-4 py-4 text-white shadow-[0_16px_30px_rgba(87,36,255,0.2)]">
+  <div className="mt-4 rounded-[18px] bg-gradient-to-r from-[#5724ff] to-[#4FB7DD] p-4 text-white shadow-[0_16px_30px_rgba(87,36,255,0.2)]">
     <div className="flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-lg font-black backdrop-blur">
-          {profile.initials}
-        </div>
+        <AvatarFrame frame={profile.avatarFrame} paddingClass="p-[3px]">
+          <div className="flex size-14 items-center justify-center overflow-hidden rounded-full bg-white/20 text-lg font-black backdrop-blur">
+            {profile.avatarUrl
+              ? <img src={profile.avatarUrl} alt={profile.displayName} className="size-full rounded-full object-cover" />
+              : profile.initials
+            }
+          </div>
+        </AvatarFrame>
         <div className="min-w-0">
           <p className="truncate text-[1.35rem] font-extrabold leading-tight">{profile.displayName}</p>
           <p className="text-base font-semibold text-white/85">Good night</p>
@@ -80,30 +91,30 @@ const ProfileHero = ({ profile }) => (
 
       <div className="flex items-center gap-2 text-white">
         <button type="button" className="rounded-md p-1.5" aria-label="Invite friend">
-          <UserPlus className="h-6 w-6" />
+          <UserPlus className="size-6" />
         </button>
         <Link to="/account/edit-profile" className="rounded-md p-1.5" aria-label="Edit profile">
-          <PencilLine className="h-6 w-6" />
+          <PencilLine className="size-6" />
         </Link>
         <Link to="/account/settings" className="rounded-md p-1.5" aria-label="Manage settings">
-          <Settings className="h-6 w-6" />
+          <Settings className="size-6" />
         </Link>
       </div>
     </div>
   </div>
 );
 
-const StatsCard = ({ navigate }) => (
-  <div className="mt-3 rounded-[18px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 shadow-[0_16px_30px_rgba(91,79,118,0.12)] backdrop-blur-xl">
+const StatsCard = ({ navigate, profile }) => (
+  <div className="mt-3 rounded-[18px] border border-white/70 bg-white/[0.88] p-4 text-slate-900 shadow-[0_16px_30px_rgba(91,79,118,0.12)] backdrop-blur-xl">
     <div className="grid grid-cols-2 gap-4 divide-x divide-slate-200">
       <div className="pr-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-gradient-to-br from-amber-100 to-amber-300 text-xs font-black text-amber-900 shadow-inner">
+          <div className="flex size-11 items-center justify-center rounded-[12px] bg-gradient-to-br from-amber-100 to-amber-300 text-xs font-black text-amber-900 shadow-inner">
             PKS
           </div>
           <div>
-            <p className="text-sm text-slate-500">Saldo:</p>
-            <p className="text-[2rem] font-black leading-none tracking-tight text-slate-950">58132.6</p>
+            <p className="text-sm text-slate-500">Balance:</p>
+            <p className="text-[2rem] font-black leading-none tracking-tight text-slate-950">{Number(profile.walletBalance).toFixed(2)}</p>
           </div>
         </div>
         <div className="mt-4 flex gap-2">
@@ -111,25 +122,18 @@ const StatsCard = ({ navigate }) => (
             to="/games/mobile-legends/add-money"
             className="rounded-full bg-gradient-to-r from-[#5724ff] to-[#4FB7DD] px-3 py-2 text-xs font-bold text-white shadow-[0_10px_18px_rgba(87,36,255,0.18)]"
           >
-            Recarregar
+            Top Up
           </Link>
-          <button
-            type="button"
-            onClick={() => navigate("/account/redeem-code?tab=redeem")}
-            className="rounded-full bg-gradient-to-r from-[#5724ff] to-[#4FB7DD] px-3 py-2 text-xs font-bold text-white shadow-[0_10px_18px_rgba(87,36,255,0.18)]"
-          >
-            Activation Code
-          </button>
         </div>
       </div>
 
       <div className="pl-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-gradient-to-br from-emerald-100 to-emerald-300 text-lg font-black text-emerald-900 shadow-inner">
+          <div className="flex size-11 items-center justify-center rounded-[12px] bg-gradient-to-br from-emerald-100 to-emerald-300 text-lg font-black text-emerald-900 shadow-inner">
             %
           </div>
           <div>
-            <p className="text-sm text-slate-500">Cupom:</p>
+            <p className="text-sm text-slate-500">Coupons:</p>
             <p className="text-[2rem] font-black leading-none tracking-tight text-slate-950">0</p>
           </div>
         </div>
@@ -139,7 +143,7 @@ const StatsCard = ({ navigate }) => (
             onClick={() => navigate("/account/redeem-code?tab=redeem")}
             className="rounded-full bg-gradient-to-r from-[#5724ff] to-[#4FB7DD] px-4 py-2 text-xs font-bold text-white shadow-[0_10px_18px_rgba(87,36,255,0.18)]"
           >
-            Usar
+            Redeem
           </button>
         </div>
       </div>
@@ -163,10 +167,10 @@ const CalendarOverlay = ({ onClose, range, setRange }) => {
   };
 
   return (
-    <div className="absolute left-2 top-10 z-30 w-[18.8rem] rounded-[10px] bg-white p-3 text-slate-800 shadow-[0_16px_38px_rgba(15,23,42,0.25)]">
+    <div className="absolute left-2 top-10 z-30 w-[calc(100vw-2rem)] max-w-[18.8rem] rounded-[10px] bg-white p-3 text-slate-800 shadow-[0_16px_38px_rgba(15,23,42,0.25)]">
       <div className="mb-3 flex items-center justify-between px-1 text-sm font-semibold">
         <button type="button" onClick={onClose} aria-label="Close calendar">&laquo;</button>
-        <span>March 2026</span>
+        <span>{new Date().toLocaleString("en-US", { month: "long", year: "numeric" })}</span>
         <span className="w-4" />
       </div>
       <div className="grid grid-cols-7 gap-y-2 text-center text-xs font-semibold text-slate-600">
@@ -180,7 +184,7 @@ const CalendarOverlay = ({ onClose, range, setRange }) => {
             {row.map((day, dayIndex) => {
               const isOutside = (index === 0 && day > 21) || (index === 5 && day < 5);
               const isSelected = day === range.start || day === range.end;
-              const isInRange = range.start && range.end && day > range.start && day < range.end && index > 0 && index < 5;
+              const isInRange = range.start != null && range.end != null && day > range.start && day < range.end && index > 0 && index < 5;
 
               return (
                 <button
@@ -204,7 +208,16 @@ const CalendarOverlay = ({ onClose, range, setRange }) => {
           </div>
         ))}
       </div>
-      <div className="absolute bottom-[-8px] left-[11.5rem] h-4 w-4 rotate-45 bg-white" />
+      <div className="mt-3 flex justify-end border-t border-slate-200 pt-2">
+        <button
+          type="button"
+          onClick={() => { setRange({ start: null, end: null }); onClose(); }}
+          className="text-xs font-semibold text-[#315f95]"
+        >
+          Show all time
+        </button>
+      </div>
+      <div className="absolute bottom-[-8px] left-[11.5rem] size-4 rotate-45 bg-white" />
     </div>
   );
 };
@@ -268,26 +281,64 @@ const OrderCard = ({ order, compact = false, onClick }) => (
   </button>
 );
 
+const MOBILE_ORDER_PAGE_SIZE = 6;
+
 const DashboardPanel = ({ navigate }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("all-orders");
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [status, setStatus] = useState("Status");
-  const [range, setRange] = useState({ start: 17, end: 24 });
-  const [rawOrders, setRawOrders] = useState([]);
-  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [gameMenuOpen, setGameMenuOpen] = useState(false);
+  const [status, setStatus] = useState("all");
+  const [game, setGame] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [range, setRange] = useState({ start: null, end: null });
+  const [page, setPage] = useState(1);
+  const currentYearMonth = new Date().toISOString().slice(0, 7);
+  const { orders: rawOrders, loading: ordersLoading, error: ordersError, refresh: refreshOrders } = useUserOrders(user?.id);
 
-  useEffect(() => {
-    if (!user?.id) { setOrdersLoading(false); return; }
-    supabase
-      .from("orders")
-      .select("id, product_name, total_amount, currency, status, created_at, metadata")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(30)
-      .then(({ data }) => { setRawOrders(data ?? []); setOrdersLoading(false); });
-  }, [user?.id]);
+  const gameOptions = useMemo(
+    () => [...new Set(rawOrders.map((order) => order.metadata?.game_name).filter(Boolean))].sort(),
+    [rawOrders],
+  );
+
+  const visibleOrders = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    let from = null;
+    let to = null;
+    if (range.start != null) {
+      const now = new Date();
+      from = new Date(now.getFullYear(), now.getMonth(), range.start);
+      to = new Date(now.getFullYear(), now.getMonth(), (range.end ?? range.start) + 1);
+    }
+    return rawOrders.filter((order) => {
+      if (status !== "all" && order.status !== status) return false;
+      if (game !== "all" && order.metadata?.game_name !== game) return false;
+      if (from && new Date(order.created_at) < from) return false;
+      if (to && new Date(order.created_at) >= to) return false;
+      if (!query) return true;
+      const fields = order.metadata?.account_fields ?? {};
+      const searchable = [
+        order.id,
+        order.product_name,
+        order.metadata?.game_name,
+        fields.user_id,
+        fields.userid,
+        fields.player_id,
+        fields.account_id,
+        fields.zone_id,
+        fields.server_id,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return searchable.includes(query);
+    });
+  }, [rawOrders, searchQuery, status, game, range]);
+
+  const totalPages = Math.max(1, Math.ceil(visibleOrders.length / MOBILE_ORDER_PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageOrders = visibleOrders.slice((currentPage - 1) * MOBILE_ORDER_PAGE_SIZE, currentPage * MOBILE_ORDER_PAGE_SIZE);
 
   return (
     <div className="mt-4 rounded-t-[18px] bg-slate-900/90 px-3 py-4 text-white shadow-[0_18px_34px_rgba(15,23,42,0.15)]">
@@ -321,8 +372,13 @@ const DashboardPanel = ({ navigate }) => {
                 onClick={() => setCalendarOpen((value) => !value)}
                 className="flex h-12 w-full items-center justify-between rounded-[6px] border border-[#315f95] px-3 text-sm text-[#94b4d0]"
               >
-                <span>Purchase Time&nbsp;&nbsp; {`2026-03-${String(range.start).padStart(2, "0")}`} &nbsp; - &nbsp; {`2026-03-${String(range.end ?? range.start).padStart(2, "0")}`}</span>
-                <CalendarDays className="h-4 w-4" />
+                <span>
+                  Purchase Time&nbsp;&nbsp;
+                  {range.start == null
+                    ? "All time"
+                    : `${currentYearMonth}-${String(range.start).padStart(2, "0")} - ${currentYearMonth}-${String(range.end ?? range.start).padStart(2, "0")}`}
+                </span>
+                <CalendarDays className="size-4" />
               </button>
               {calendarOpen ? (
                 <CalendarOverlay onClose={() => setCalendarOpen(false)} range={range} setRange={setRange} />
@@ -336,22 +392,23 @@ const DashboardPanel = ({ navigate }) => {
                   onClick={() => setStatusMenuOpen((value) => !value)}
                   className="flex h-12 w-full items-center justify-between rounded-[6px] border border-[#315f95] px-3 text-left text-sm text-[#94b4d0]"
                 >
-                  <span>{status}</span>
-                  <ChevronDown className={`h-4 w-4 transition ${statusMenuOpen ? "rotate-180" : ""}`} />
+                  <span>{statusOptions.find((option) => option.value === status)?.label ?? "All statuses"}</span>
+                  <ChevronDown className={`size-4 transition ${statusMenuOpen ? "rotate-180" : ""}`} />
                 </button>
                 {statusMenuOpen ? (
                   <div className="absolute left-0 top-[3.35rem] z-20 w-full rounded-[6px] border border-[#315f95] bg-slate-900 text-base shadow-[0_12px_24px_rgba(15,23,42,0.28)]">
                     {statusOptions.map((option, index) => (
                       <button
-                        key={option}
+                        key={option.value}
                         type="button"
                         onClick={() => {
-                          setStatus(option);
+                          setStatus(option.value);
                           setStatusMenuOpen(false);
+                          setPage(1);
                         }}
                         className={`block w-full px-4 py-3 text-left ${index === 0 ? "bg-[#0f9fca]/20 text-white" : "text-[#94b4d0]"}`}
                       >
-                        {option}
+                        {option.label}
                       </button>
                     ))}
                   </div>
@@ -363,34 +420,97 @@ const DashboardPanel = ({ navigate }) => {
                 <input
                   type="text"
                   placeholder="UID/Email"
+                  value={searchQuery}
+                  onChange={(event) => { setSearchQuery(event.target.value); setPage(1); }}
                   className="w-full bg-transparent outline-none placeholder:text-[#94b4d0]"
                 />
               </label>
 
               <button type="button" className="flex h-12 items-center justify-center rounded-[6px] bg-[#315f95] text-slate-200" aria-label="Search orders">
-                <Search className="h-5 w-5" />
+                <Search className="size-5" />
               </button>
             </div>
 
+            {gameOptions.length > 0 ? (
+              <div className="relative mt-3">
+                <button
+                  type="button"
+                  onClick={() => setGameMenuOpen((value) => !value)}
+                  className="flex h-12 w-full items-center justify-between rounded-[6px] border border-[#315f95] px-3 text-left text-sm text-[#94b4d0]"
+                >
+                  <span className="truncate">{game === "all" ? "All games" : game}</span>
+                  <ChevronDown className={`size-4 shrink-0 transition ${gameMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+                {gameMenuOpen ? (
+                  <div className="absolute left-0 top-[3.35rem] z-20 max-h-56 w-full overflow-y-auto rounded-[6px] border border-[#315f95] bg-slate-900 text-base shadow-[0_12px_24px_rgba(15,23,42,0.28)]">
+                    {[{ label: "All games", value: "all" }, ...gameOptions.map((name) => ({ label: name, value: name }))].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setGame(option.value);
+                          setGameMenuOpen(false);
+                          setPage(1);
+                        }}
+                        className={`block w-full truncate px-4 py-3 text-left ${option.value === game ? "bg-[#0f9fca]/20 text-white" : "text-[#94b4d0]"}`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
             <p className="mt-4 text-sm leading-6 text-slate-300">
-              Note: Order Time is displayed in UTC-3, please be aware that the time show may differ from your local time zone.
+              Order times are shown in your local time zone.
             </p>
 
-            {ordersLoading ? (
-              <div className="mt-6 py-8 text-center text-sm text-slate-400">Loading orders…</div>
-            ) : rawOrders.length === 0 ? (
-              <div className="mt-6 rounded-[14px] border border-dashed border-[#315f95] px-4 py-10 text-center text-sm text-slate-400">No orders yet.</div>
-            ) : (
-              <div className="mt-6 max-h-[28rem] space-y-4 overflow-y-auto pr-1 [scrollbar-color:#64748b_transparent] [scrollbar-width:thin]">
-                {rawOrders.map((raw) => (
-                  <OrderCard
-                    key={raw.id}
-                    order={toCardOrder(raw)}
-                    compact
-                    onClick={() => navigate(`/account/orders/${raw.id}`)}
-                  />
-                ))}
+            {ordersError ? (
+              <div className="mt-6 rounded-[14px] border border-red-400/40 bg-red-950/30 px-4 py-8 text-center text-sm text-red-200">
+                <p>We couldn’t load your orders right now.</p>
+                <button type="button" onClick={refreshOrders} className="mt-3 font-semibold underline">Try again</button>
               </div>
+            ) : ordersLoading ? (
+              <div className="mt-6 py-8 text-center text-sm text-slate-400">Loading orders…</div>
+            ) : visibleOrders.length === 0 ? (
+              <div className="mt-6 rounded-[14px] border border-dashed border-[#315f95] px-4 py-10 text-center text-sm text-slate-400">
+                {rawOrders.length === 0 ? "No orders yet." : "No orders match these filters."}
+              </div>
+            ) : (
+              <>
+                <div className="mt-6 space-y-4">
+                  {pageOrders.map((raw) => (
+                    <OrderCard
+                      key={raw.id}
+                      order={toCardOrder(raw)}
+                      compact
+                      onClick={() => navigate(`/account/orders/${raw.id}`)}
+                    />
+                  ))}
+                </div>
+                {totalPages > 1 ? (
+                  <div className="mt-5 flex items-center justify-between text-sm">
+                    <button
+                      type="button"
+                      onClick={() => setPage((value) => Math.max(1, value - 1))}
+                      disabled={currentPage === 1}
+                      className="rounded-[6px] border border-[#315f95] px-4 py-2 font-semibold text-[#94b4d0] transition enabled:hover:bg-slate-700/60 disabled:opacity-40"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-[#94b4d0]">Page {currentPage} of {totalPages}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                      disabled={currentPage === totalPages}
+                      className="rounded-[6px] border border-[#315f95] px-4 py-2 font-semibold text-[#94b4d0] transition enabled:hover:bg-slate-700/60 disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                ) : null}
+              </>
             )}
           </div>
         )}
@@ -400,7 +520,7 @@ const DashboardPanel = ({ navigate }) => {
 };
 
 const MobilePageScaffold = ({ children }) => (
-  <div className="min-h-screen px-0 pb-24 pt-24 text-white" style={pageBackground}>
+  <div className="min-h-screen px-0 py-24 text-white" style={pageBackground}>
     <div className="px-3">{children}</div>
   </div>
 );
@@ -409,9 +529,9 @@ const BackHeader = ({ title, children }) => {
   const navigate = useNavigate();
 
   return (
-    <div className="mt-3 flex items-center gap-3 rounded-[22px] border border-white/70 bg-white/85 px-3 py-3 text-slate-900 shadow-[0_14px_30px_rgba(91,79,118,0.12)] backdrop-blur-xl">
+    <div className="mt-3 flex items-center gap-3 rounded-[22px] border border-white/70 bg-white/85 p-3 text-slate-900 shadow-[0_14px_30px_rgba(91,79,118,0.12)] backdrop-blur-xl">
       <button type="button" onClick={() => navigate(-1)} aria-label="Go back">
-        <ArrowLeft className="h-6 w-6" />
+        <ArrowLeft className="size-6" />
       </button>
       <div className="min-w-0 flex-1">{children ?? <p className="truncate text-base font-semibold">{title}</p>}</div>
     </div>
@@ -508,7 +628,7 @@ const RedeemContent = ({ activeTab, profile }) => {
         </div>
 
         <div>
-          <p className="text-sm text-slate-400">Balance: <span className="font-semibold text-white">India (India)</span> <span className="ml-2 font-semibold text-amber-300">58132.6</span></p>
+          <p className="text-sm text-slate-400">Balance: <span className="ml-2 font-semibold text-amber-300">{Number(profile.walletBalance).toFixed(2)}</span></p>
           <button type="button" className="mt-2 text-sm font-semibold text-[#5724ff]">View all</button>
         </div>
 
@@ -557,16 +677,66 @@ const RedeemCodeScreen = ({ profile }) => {
 
           <div className="flex flex-wrap gap-4 text-slate-300">
             {socialIcons.map((Icon, index) => (
-              <span key={index} className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-700/70 text-xl">
+              <span key={index} className="flex size-12 items-center justify-center rounded-full bg-slate-700/70 text-xl">
                 <Icon />
               </span>
             ))}
           </div>
 
-          <p className="text-sm tracking-wide text-slate-400">COPYRIGHT @ 2024 PIXIEKAT</p>
+          <p className="text-sm tracking-wide text-slate-400">© {new Date().getFullYear()} PixieKat. All rights reserved.</p>
         </div>
       </motion.div>
     </MobilePageScaffold>
+  );
+};
+
+const RankStrip = () => {
+  const { user } = useAuth();
+  const [rankState, setRankState] = useState({ userId: null, row: null, status: "loading" });
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    let cancelled = false;
+    fetchMyRankHistory(1)
+      .then(({ history }) => {
+        if (!cancelled) setRankState({ userId: user.id, row: rankForPeriod(history, currentPeriod()), status: "ready" });
+      })
+      .catch(() => {
+        if (!cancelled) setRankState({ userId: user.id, row: null, status: "error" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const current = rankState.userId === user?.id ? rankState : { row: null, status: "loading" };
+  const rankText = current.status === "loading" ? "Loading…" : current.status === "error" ? "Unavailable" : current.row?.rank ? `#${current.row.rank}` : "Unranked";
+
+  return (
+    <Link
+      to="/account?section=rewards"
+      className="relative mt-3 flex min-h-28 items-center justify-between gap-3 overflow-hidden rounded-[18px] bg-[#0E041D] p-4 text-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300"
+    >
+      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-violet-300" />
+      <span className="flex min-w-0 items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-yellow-300/50 text-yellow-300">
+          <Trophy aria-hidden="true" className="size-5" />
+        </span>
+        <span className="min-w-0">
+          <span className="block font-general text-[10px] font-semibold uppercase tracking-wider text-yellow-300">{periodLabel(currentPeriod())} / Your rank</span>
+          <strong className="mt-1 block break-words font-zentry text-3xl font-black uppercase leading-none">{rankText}</strong>
+          {current.row ? (
+            <span className="mt-1 block font-circular-web text-xs text-blue-100/70">
+              {current.row.hidden ? "Private · " : ""}{current.row.order_count} completed order{Number(current.row.order_count) === 1 ? "" : "s"}
+            </span>
+          ) : null}
+        </span>
+      </span>
+      <span className="flex shrink-0 flex-col items-center gap-1 border-l border-white/20 pl-2 font-general text-[10px] font-semibold uppercase text-yellow-300">
+        <ArrowRight aria-hidden="true" className="size-4" />
+        Rewards
+      </span>
+    </Link>
   );
 };
 
@@ -576,7 +746,8 @@ const DashboardScreen = ({ profile, onLogout }) => {
   return (
     <MobilePageScaffold>
       <ProfileHero profile={profile} />
-      <StatsCard navigate={navigate} />
+      <StatsCard navigate={navigate} profile={profile} />
+      <RankStrip />
       <DashboardPanel navigate={navigate} />
       <div className="px-3 pb-2 pt-4 text-center">
         <button type="button" onClick={onLogout} className="text-sm font-semibold text-slate-600 underline underline-offset-4">
@@ -590,6 +761,16 @@ const DashboardScreen = ({ profile, onLogout }) => {
 const MobileAccountView = ({ profile, onLogout }) => {
   const location = useLocation();
   const suffix = getPathnameSuffix(location.pathname);
+  const section = new URLSearchParams(location.search).get("section");
+
+  if (section === "rewards") {
+    return (
+      <MobilePageScaffold>
+        <BackHeader title="Account" />
+        <RewardsPanel profile={profile} />
+      </MobilePageScaffold>
+    );
+  }
 
   if (suffix.startsWith("redeem-code")) {
     return <RedeemCodeScreen profile={profile} />;

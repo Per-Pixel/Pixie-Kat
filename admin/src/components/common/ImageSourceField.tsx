@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { ImagePlus, Link, Upload, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { listMedia, MediaRecord, uploadMedia } from '../../services/mediaService';
+import { graphicPreviewUrl, listMedia, MediaRecord, uploadMedia } from '../../services/mediaService';
 
 interface ImageSourceFieldProps {
   label: string;
@@ -96,7 +96,7 @@ const ImageSourceField: React.FC<ImageSourceFieldProps> = ({
 
       {value ? (
         <div className={`relative overflow-hidden rounded-lg border border-gray-200 bg-gray-50 ${previewClassName}`}>
-          <img src={value} alt="" className="h-full w-full object-cover" />
+          <img src={graphicPreviewUrl(value)} alt="" className="h-full w-full object-cover" />
           <button
             type="button"
             onClick={() => onChange('')}

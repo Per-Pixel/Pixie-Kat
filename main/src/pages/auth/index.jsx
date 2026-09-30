@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, UserRound, ArrowLeft } from 'lucide-react';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { publicMediaUrl, supabase } from '../../lib/supabase';
 
 const Auth = () => {
   const [formData, setFormData] = useState({
@@ -15,6 +16,10 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [mfaFactor, setMfaFactor] = useState(null);
+  const [mfaCode, setMfaCode] = useState('');
 
   const { isAuthenticated, login, register } = useAuth();
   const navigate = useNavigate();
@@ -22,17 +27,25 @@ const Auth = () => {
 
   const from = location.state?.from?.pathname || '/';
   const isRegisterRoute = location.pathname === '/register';
-  const pageTitle = isRegisterRoute ? 'Sign Up' : 'Welcome!';
-  const submitLabel = isRegisterRoute ? 'Create Account' : 'Login';
-  const helperText = isRegisterRoute
-    ? 'Create your account'
-    : 'Log in with email';
+  const pageTitle = forgotMode ? 'Reset Password' : isRegisterRoute ? 'Sign Up' : 'Welcome!';
+  const submitLabel = forgotMode ? 'Send Reset Link' : isRegisterRoute ? 'Create Account' : 'Login';
+  const helperText = forgotMode
+    ? 'We\'ll email you a link to set a new password'
+    : isRegisterRoute
+      ? 'Create your account'
+      : 'Log in with email';
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !mfaFactor) {
       navigate(from, { replace: true });
     }
-  }, [from, isAuthenticated, navigate]);
+  }, [from, isAuthenticated, navigate, mfaFactor]);
+
+  useEffect(() => {
+    setForgotMode(false);
+    setResetSent(false);
+    setError('');
+  }, [location.pathname]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -43,8 +56,54 @@ const Auth = () => {
     setError('');
   };
 
+  const handleForgotPassword = async () => {
+    if (!formData.email.trim()) {
+      setError('Enter your email address first');
+      return;
+    }
+    setIsLoading(true);
+    setError('');
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        formData.email.trim(),
+        { redirectTo: `${window.location.origin}/reset-password` }
+      );
+      if (resetError) {
+        setError(resetError.message);
+      } else {
+        setResetSent(true);
+      }
+    } catch (err) {
+      setError(err.message || 'Could not send reset email');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMfaVerify = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    const { error: mfaError } = await supabase.auth.mfa.challengeAndVerify({
+      factorId: mfaFactor.id,
+      code: mfaCode.trim(),
+    });
+    setIsLoading(false);
+    if (mfaError) {
+      setError(mfaError.message);
+      return;
+    }
+    navigate(from, { replace: true });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (forgotMode) {
+      await handleForgotPassword();
+      return;
+    }
+
     setIsLoading(true);
     setError('');
 
@@ -105,6 +164,17 @@ const Auth = () => {
       const result = await login(formData.email, formData.password);
 
       if (result.success) {
+        // Account with 2FA enrolled needs the authenticator code before we move on
+        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2') {
+          const { data: factors } = await supabase.auth.mfa.listFactors();
+          const totp = factors?.totp?.[0];
+          if (totp) {
+            setMfaFactor(totp);
+            setIsLoading(false);
+            return;
+          }
+        }
         navigate(from, { replace: true });
       } else {
         setError(result.error || 'Login failed');
@@ -125,23 +195,23 @@ const Auth = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6 }}
-          className="relative flex h-full w-full max-w-lg flex-col items-center justify-center"
+          className="relative flex size-full max-w-lg flex-col items-center justify-center"
         >
           <div className="mb-8 text-center">
             <img
-              src="/img/swordman.webp"
+              src={publicMediaUrl("/img/swordman.webp")}
               alt="PixieKat"
-              className="mx-auto mb-6 h-64 w-64 rounded-3xl object-cover shadow-2xl"
+              className="mx-auto mb-6 size-64 rounded-3xl object-cover shadow-2xl"
             />
             <div className="flex items-center justify-center gap-2">
-              <div className="h-12 w-12 rounded-lg bg-white p-2">
-                <img src="/img/logo.png" alt="Logo" className="h-full w-full object-contain" />
+              <div className="size-12 rounded-lg bg-white p-2">
+                <img src={publicMediaUrl("/img/logo.png")} alt="Logo" className="size-full object-contain" />
               </div>
               <h2 className="text-3xl font-bold" style={{ color: '#1a1a2e' }}>PixieKat</h2>
             </div>
           </div>
           <p className="mt-4 text-center text-lg" style={{ color: '#1a1a2e99' }}>
-            The refill store that will always be at your disposal.
+            Fast, secure game top-ups — ready whenever you are.
           </p>
         </motion.div>
       </div>
@@ -157,7 +227,7 @@ const Auth = () => {
             className="absolute left-4 top-4 z-10 flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium transition-all"
             style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.8)' }}
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="size-4" />
             Back
           </Link>
 
@@ -168,14 +238,14 @@ const Auth = () => {
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
             >
               <img
-                src="/img/swordman.webp"
+                src={publicMediaUrl("/img/swordman.webp")}
                 alt="PixieKat"
                 className="h-52 w-full object-cover object-center"
               />
               {/* Logo strip inside card */}
               <div className="flex items-center justify-center gap-2 py-3">
-                <div className="h-8 w-8 rounded-md bg-white p-1 shadow">
-                  <img src="/img/logo.png" alt="Logo" className="h-full w-full object-contain" />
+                <div className="size-8 rounded-md bg-white p-1 shadow">
+                  <img src={publicMediaUrl("/img/logo.png")} alt="Logo" className="size-full object-contain" />
                 </div>
                 <span className="text-base font-bold text-white">PixieKat</span>
               </div>
@@ -193,8 +263,8 @@ const Auth = () => {
           >
             {/* Desktop back arrow (inside form column, hidden on mobile) */}
             <div className="mb-8 hidden lg:block">
-              <Link to="/" className="mb-6 inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors">
-                <ArrowLeft className="h-5 w-5" />
+              <Link to="/" className="mb-6 inline-flex items-center gap-2 text-white/60 transition-colors hover:text-white">
+                <ArrowLeft className="size-5" />
                 <span className="text-sm">Back</span>
               </Link>
               <h1 className="mb-2 text-4xl font-bold text-white">{pageTitle}</h1>
@@ -204,16 +274,83 @@ const Auth = () => {
             {/* Mobile heading (shown below banner) */}
             <div className="mb-6 lg:hidden">
               <h1 className="mb-1 text-3xl font-bold text-white">{pageTitle}</h1>
-              <p className="text-white/60 text-sm">{helperText}</p>
+              <p className="text-sm text-white/60">{helperText}</p>
             </div>
 
+            {mfaFactor ? (
+              <form onSubmit={handleMfaVerify} className="space-y-5">
+                <p className="text-sm text-white/60">
+                  This account has two-factor authentication on. Enter the 6-digit code from your authenticator app.
+                </p>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-white/80">Authenticator Code</label>
+                  <div className="relative">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                      <Lock className="size-5 text-white/40" />
+                    </div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={mfaCode}
+                      onChange={(e) => { setMfaCode(e.target.value.replace(/\D/g, '')); setError(''); }}
+                      required
+                      className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white transition-all duration-200 placeholder:text-white/40 focus:bg-white/10 focus:outline-none"
+                      onFocus={e => { e.target.style.borderColor = '#DFDFF050'; e.target.style.boxShadow = '0 0 0 2px #DFDFF020'; }}
+                      onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
+                      placeholder="6-digit code"
+                    />
+                  </div>
+                </div>
+
+                {error ? (
+                  <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3">
+                    <p className="text-sm text-red-400">{error}</p>
+                  </div>
+                ) : null}
+
+                <motion.button
+                  type="submit"
+                  disabled={isLoading}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  className={`w-full rounded-xl px-6 py-3.5 font-semibold shadow-lg transition-all duration-300 ${
+                    isLoading ? 'cursor-not-allowed opacity-50' : 'hover:opacity-90'
+                  }`}
+                  style={{
+                    backgroundColor: '#DFDFF0',
+                    color: '#1a1a2e',
+                    boxShadow: isLoading ? 'none' : '0 4px 24px #DFDFF040'
+                  }}
+                >
+                  <div className="flex items-center justify-center">
+                    {isLoading ? (
+                      <div className="mr-2 size-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                    ) : null}
+                    {isLoading ? 'Verifying...' : 'Verify'}
+                  </div>
+                </motion.button>
+
+                <div className="text-center text-sm">
+                  <button
+                    type="button"
+                    onClick={async () => { setMfaFactor(null); setMfaCode(''); await supabase.auth.signOut(); }}
+                    style={{ color: '#DFDFF0' }}
+                    className="transition-opacity hover:opacity-80"
+                  >
+                    Use a different account
+                  </button>
+                </div>
+              </form>
+            ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
-              {isRegisterRoute ? (
+              {isRegisterRoute && !forgotMode ? (
                 <div>
                   <label className="mb-2 block text-sm font-medium text-white/80">Name</label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                      <UserRound className="h-5 w-5 text-white/40" />
+                      <UserRound className="size-5 text-white/40" />
                     </div>
                     <input
                       type="text"
@@ -221,7 +358,7 @@ const Auth = () => {
                       value={formData.name}
                       onChange={handleInputChange}
                       required
-                      className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white placeholder-white/40 transition-all duration-200 focus:bg-white/10 focus:outline-none focus:ring-2"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white transition-all duration-200 placeholder:text-white/40 focus:bg-white/10 focus:outline-none focus:ring-2"
                       style={{ '--tw-ring-color': '#DFDFF040', outlineColor: 'transparent' }}
                       onFocus={e => { e.target.style.borderColor = '#DFDFF050'; e.target.style.boxShadow = '0 0 0 2px #DFDFF020'; }}
                       onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
@@ -235,7 +372,7 @@ const Auth = () => {
                 <label className="mb-2 block text-sm font-medium text-white/80">Email</label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                    <Mail className="h-5 w-5 text-white/40" />
+                    <Mail className="size-5 text-white/40" />
                   </div>
                   <input
                     type="email"
@@ -243,7 +380,7 @@ const Auth = () => {
                     value={formData.email}
                     onChange={handleInputChange}
                     required
-                    className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white placeholder-white/40 transition-all duration-200 focus:bg-white/10 focus:outline-none"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white transition-all duration-200 placeholder:text-white/40 focus:bg-white/10 focus:outline-none"
                     onFocus={e => { e.target.style.borderColor = '#DFDFF050'; e.target.style.boxShadow = '0 0 0 2px #DFDFF020'; }}
                     onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
                     placeholder="Email"
@@ -251,11 +388,18 @@ const Auth = () => {
                 </div>
               </div>
 
+              {forgotMode ? (
+                <p className="text-sm text-white/60">
+                  Enter the email on your account and we&apos;ll send a password reset link.
+                </p>
+              ) : null}
+
+              {!forgotMode ? (
               <div>
                 <label className="mb-2 block text-sm font-medium text-white/80">Password</label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                    <Lock className="h-5 w-5 text-white/40" />
+                    <Lock className="size-5 text-white/40" />
                   </div>
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -263,7 +407,7 @@ const Auth = () => {
                     value={formData.password}
                     onChange={handleInputChange}
                     required
-                    className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-12 text-white placeholder-white/40 transition-all duration-200 focus:bg-white/10 focus:outline-none"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-12 py-3.5 text-white transition-all duration-200 placeholder:text-white/40 focus:bg-white/10 focus:outline-none"
                     onFocus={e => { e.target.style.borderColor = '#DFDFF050'; e.target.style.boxShadow = '0 0 0 2px #DFDFF020'; }}
                     onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
                     placeholder="Password"
@@ -273,17 +417,18 @@ const Auth = () => {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-white/80"
                   >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
                   </button>
                 </div>
               </div>
+              ) : null}
 
-              {isRegisterRoute ? (
+              {isRegisterRoute && !forgotMode ? (
                 <div>
                   <label className="mb-2 block text-sm font-medium text-white/80">Confirm Password</label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                      <Lock className="h-5 w-5 text-white/40" />
+                      <Lock className="size-5 text-white/40" />
                     </div>
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -291,7 +436,7 @@ const Auth = () => {
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
                       required
-                      className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white placeholder-white/40 transition-all duration-200 focus:bg-white/10 focus:outline-none"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-white transition-all duration-200 placeholder:text-white/40 focus:bg-white/10 focus:outline-none"
                       onFocus={e => { e.target.style.borderColor = '#DFDFF050'; e.target.style.boxShadow = '0 0 0 2px #DFDFF020'; }}
                       onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
                       placeholder="Confirm your password"
@@ -303,10 +448,34 @@ const Auth = () => {
               {!isRegisterRoute ? (
                 <div className="flex items-center justify-between">
                   <div className="text-sm">
-                    <a href="#" style={{ color: '#DFDFF0' }} className="hover:opacity-80 transition-opacity">
-                      Forgot password?
-                    </a>
+                    {forgotMode ? (
+                      <button
+                        type="button"
+                        onClick={() => { setForgotMode(false); setResetSent(false); setError(''); }}
+                        style={{ color: '#DFDFF0' }}
+                        className="transition-opacity hover:opacity-80"
+                      >
+                        Back to login
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => { setForgotMode(true); setError(''); }}
+                        style={{ color: '#DFDFF0' }}
+                        className="transition-opacity hover:opacity-80"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
                   </div>
+                </div>
+              ) : null}
+
+              {resetSent ? (
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
+                  <p className="text-sm text-emerald-300">
+                    Reset link sent — check your inbox and spam folder. The link opens a page to set a new password.
+                  </p>
                 </div>
               ) : null}
 
@@ -332,46 +501,13 @@ const Auth = () => {
               >
                 <div className="flex items-center justify-center">
                   {isLoading ? (
-                    <div className="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                    <div className="mr-2 size-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
                   ) : null}
                   {isLoading ? `${submitLabel}...` : submitLabel}
                 </div>
               </motion.button>
             </form>
-
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-[#0a0a0a] px-4 text-white/40">Or continue with</span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 font-medium text-white transition-all duration-300 hover:bg-white/10"
-            >
-              <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                />
-              </svg>
-              Login with Google
-            </button>
+            )}
 
             <div className="mt-6 text-center text-sm text-white/60">
               {isRegisterRoute ? 'Already have an account? ' : "Don't have an account? "}

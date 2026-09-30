@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Save, RefreshCw, FileText, Plus, Trash2, Shield, Calendar } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Save, RefreshCw, Plus, Trash2, Shield, Calendar } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
 import clsx from 'clsx';
@@ -24,18 +24,6 @@ export interface LegalSettings {
 }
 
 type LegalTabKey = 'terms' | 'privacy' | 'refund';
-
-const defaultPolicy = (title: string, subtitle: string): PolicyDoc => ({
-  title,
-  subtitle,
-  last_updated: new Date().toISOString().slice(0, 10),
-  sections: [
-    {
-      heading: '1. Overview',
-      content: 'Enter the main policy terms and details here.',
-    },
-  ],
-});
 
 const defaultLegalSettings: LegalSettings = {
   terms: {

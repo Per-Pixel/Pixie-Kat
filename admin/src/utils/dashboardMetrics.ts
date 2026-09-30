@@ -527,10 +527,11 @@ export function computeDashboardMetrics(
   period: DashboardPeriod,
   reference: Date = new Date(),
   paymentMethod?: string,
+  includeInternalOrders = false,
 ): DashboardMetrics {
   const adminIds = new Set(data.profiles.filter((p) => p.role === 'admin').map((p) => p.id));
   const periodOrders = data.orders.filter(
-    (o) => !adminIds.has(o.user_id) && isInPeriod(o.created_at, period, reference) && (!paymentMethod || o.payment_method === paymentMethod),
+    (o) => (includeInternalOrders || !adminIds.has(o.user_id)) && isInPeriod(o.created_at, period, reference) && (!paymentMethod || o.payment_method === paymentMethod),
   );
 
   const financial = computeFinancials(periodOrders);

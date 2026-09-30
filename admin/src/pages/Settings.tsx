@@ -12,7 +12,7 @@ import clsx from 'clsx';
 
 type Tab = 'store' | 'appearance' | 'payment' | 'notifications' | 'security';
 
-const tabs: Array<{ id: Tab; label: string; icon: React.ComponentType<any> }> = [
+const tabs: Array<{ id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: 'store', label: 'Store', icon: Store },
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'payment', label: 'Payment', icon: CreditCard },
@@ -42,6 +42,82 @@ const defaultAppearance: AppearanceSettings = {
   music_url: '/audio/loop.mp3',
   music_playback_rate: 1,
   music_volume: 0.5,
+};
+
+interface StoreSettings {
+  store_name: string;
+  support_email: string;
+  default_currency: string;
+  timezone: string;
+  support_phone: string;
+  maintenance_mode: boolean;
+}
+
+interface PaymentSettings {
+  wallet_enabled: boolean;
+  stripe_enabled: boolean;
+  paypal_enabled: boolean;
+  crypto_enabled: boolean;
+  bank_transfer_enabled: boolean;
+  tax_rate: number;
+  prices_include_tax: boolean;
+}
+
+interface NotificationSettings {
+  email_on_new_order: boolean;
+  email_on_refund: boolean;
+  email_on_new_user: boolean;
+  email_on_failed_payment: boolean;
+  sms_on_new_order: boolean;
+  sms_recipient: string;
+  in_app_notifications: boolean;
+  daily_revenue_report: boolean;
+  weekly_analytics_report: boolean;
+}
+
+interface SecuritySettings {
+  two_factor_required: boolean;
+  login_alerts: boolean;
+  failed_attempt_lock: boolean;
+  session_timeout_minutes: number;
+}
+
+const defaultStore: StoreSettings = {
+  store_name: 'PixieKat',
+  support_email: 'support@pixiekat.com',
+  default_currency: 'PKS',
+  timezone: 'Asia/Kuala_Lumpur',
+  support_phone: '+60 12-345 6789',
+  maintenance_mode: false,
+};
+
+const defaultPayment: PaymentSettings = {
+  wallet_enabled: true,
+  stripe_enabled: false,
+  paypal_enabled: false,
+  crypto_enabled: false,
+  bank_transfer_enabled: false,
+  tax_rate: 0,
+  prices_include_tax: true,
+};
+
+const defaultNotifications: NotificationSettings = {
+  email_on_new_order: true,
+  email_on_refund: true,
+  email_on_new_user: false,
+  email_on_failed_payment: true,
+  sms_on_new_order: false,
+  sms_recipient: '',
+  in_app_notifications: true,
+  daily_revenue_report: true,
+  weekly_analytics_report: true,
+};
+
+const defaultSecurity: SecuritySettings = {
+  two_factor_required: false,
+  login_alerts: true,
+  failed_attempt_lock: true,
+  session_timeout_minutes: 60,
 };
 
 interface ToggleProps {
@@ -79,63 +155,118 @@ const SectionCard: React.FC<{ title: string; description?: string; children: Rea
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('store');
   const [saving, setSaving] = useState(false);
-  const [appearanceLoading, setAppearanceLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [comingSoon, setComingSoon] = useState<{ open: boolean; feature: string }>({ open: false, feature: '' });
 
   // Store settings state
-  const [storeName, setStoreName] = useState('PixieKat');
-  const [storeEmail, setStoreEmail] = useState('support@pixiekat.com');
-  const [currency, setCurrency] = useState('PKS');
-  const [timezone, setTimezone] = useState('Asia/Kuala_Lumpur');
-  const [supportPhone, setSupportPhone] = useState('+60 12-345 6789');
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [store, setStore] = useState<StoreSettings>(defaultStore);
 
   // Appearance (persisted)
   const [appearance, setAppearance] = useState<AppearanceSettings>(defaultAppearance);
 
+  // Payment settings state
+  const [payment, setPayment] = useState<PaymentSettings>(defaultPayment);
+
   // Notification settings state
-  const [emailOnNewOrder, setEmailOnNewOrder] = useState(true);
-  const [emailOnRefund, setEmailOnRefund] = useState(true);
-  const [emailOnNewUser, setEmailOnNewUser] = useState(false);
-  const [emailOnFailed, setEmailOnFailed] = useState(true);
-  const [smsOnOrder, setSmsOnOrder] = useState(false);
-  const [pushNotifs, setPushNotifs] = useState(true);
-  const [dailyReport, setDailyReport] = useState(true);
-  const [weeklyReport, setWeeklyReport] = useState(true);
+  const [notifications, setNotifications] = useState<NotificationSettings>(defaultNotifications);
 
   // Security state
-  const [twoFactor, setTwoFactor] = useState(false);
-  const [sessionTimeout, setSessionTimeout] = useState('60');
-  const [loginAlerts, setLoginAlerts] = useState(true);
-  const [failedAttemptLock, setFailedAttemptLock] = useState(true);
+  const [security, setSecurity] = useState<SecuritySettings>(defaultSecurity);
 
-  const loadAppearance = async () => {
-    setAppearanceLoading(true);
-    const { data, error } = await supabase
+  const loadSettings = async () => {
+    setLoading(true);
+    const storePromise = supabase
       .from('store_settings')
-      .select('appearance_settings')
+      .select('store_name, support_email, support_phone, default_currency, timezone, maintenance_mode, appearance_settings, tax_rate, prices_include_tax, wallet_enabled, stripe_enabled, paypal_enabled, crypto_enabled, bank_transfer_enabled')
       .maybeSingle();
 
-    if (error) {
-      toast.error(error.message);
-    } else if (data?.appearance_settings && typeof data.appearance_settings === 'object') {
-      const raw = data.appearance_settings as Partial<AppearanceSettings>;
-      setAppearance({
-        ...defaultAppearance,
-        ...raw,
-        music_playback_rate: Number.isFinite(Number(raw.music_playback_rate))
-          ? Number(raw.music_playback_rate)
-          : 1,
-        music_volume: Number.isFinite(Number(raw.music_volume))
-          ? Number(raw.music_volume)
-          : 0.5,
+    const notificationPromise = supabase
+      .from('admin_notification_settings')
+      .select('*')
+      .maybeSingle();
+
+    const securityPromise = supabase
+      .from('admin_security_settings')
+      .select('*')
+      .maybeSingle();
+
+    const [storeResult, notificationResult, securityResult] = await Promise.all([
+      storePromise,
+      notificationPromise,
+      securityPromise,
+    ]);
+
+    if (storeResult.error) {
+      toast.error(storeResult.error.message);
+    } else if (storeResult.data) {
+      const data = storeResult.data;
+      setStore({
+        store_name: data.store_name ?? defaultStore.store_name,
+        support_email: data.support_email ?? defaultStore.support_email,
+        support_phone: data.support_phone ?? defaultStore.support_phone,
+        default_currency: data.default_currency ?? defaultStore.default_currency,
+        timezone: data.timezone ?? defaultStore.timezone,
+        maintenance_mode: data.maintenance_mode ?? defaultStore.maintenance_mode,
+      });
+      setPayment({
+        wallet_enabled: data.wallet_enabled ?? defaultPayment.wallet_enabled,
+        stripe_enabled: data.stripe_enabled ?? defaultPayment.stripe_enabled,
+        paypal_enabled: data.paypal_enabled ?? defaultPayment.paypal_enabled,
+        crypto_enabled: data.crypto_enabled ?? defaultPayment.crypto_enabled,
+        bank_transfer_enabled: data.bank_transfer_enabled ?? defaultPayment.bank_transfer_enabled,
+        tax_rate: data.tax_rate ?? defaultPayment.tax_rate,
+        prices_include_tax: data.prices_include_tax ?? defaultPayment.prices_include_tax,
+      });
+
+      if (data.appearance_settings && typeof data.appearance_settings === 'object') {
+        const raw = data.appearance_settings as Partial<AppearanceSettings>;
+        setAppearance({
+          ...defaultAppearance,
+          ...raw,
+          music_playback_rate: Number.isFinite(Number(raw.music_playback_rate))
+            ? Number(raw.music_playback_rate)
+            : 1,
+          music_volume: Number.isFinite(Number(raw.music_volume))
+            ? Number(raw.music_volume)
+            : 0.5,
+        });
+      }
+    }
+
+    if (notificationResult.error) {
+      toast.error(notificationResult.error.message);
+    } else if (notificationResult.data) {
+      const data = notificationResult.data;
+      setNotifications({
+        email_on_new_order: data.email_on_new_order ?? defaultNotifications.email_on_new_order,
+        email_on_refund: data.email_on_refund ?? defaultNotifications.email_on_refund,
+        email_on_new_user: data.email_on_new_user ?? defaultNotifications.email_on_new_user,
+        email_on_failed_payment: data.email_on_failed_payment ?? defaultNotifications.email_on_failed_payment,
+        sms_on_new_order: data.sms_on_new_order ?? defaultNotifications.sms_on_new_order,
+        sms_recipient: data.sms_recipient ?? defaultNotifications.sms_recipient,
+        in_app_notifications: data.in_app_notifications ?? defaultNotifications.in_app_notifications,
+        daily_revenue_report: data.daily_revenue_report ?? defaultNotifications.daily_revenue_report,
+        weekly_analytics_report: data.weekly_analytics_report ?? defaultNotifications.weekly_analytics_report,
       });
     }
-    setAppearanceLoading(false);
+
+    if (securityResult.error) {
+      toast.error(securityResult.error.message);
+    } else if (securityResult.data) {
+      const data = securityResult.data;
+      setSecurity({
+        two_factor_required: data.two_factor_required ?? defaultSecurity.two_factor_required,
+        login_alerts: data.login_alerts ?? defaultSecurity.login_alerts,
+        failed_attempt_lock: data.failed_attempt_lock ?? defaultSecurity.failed_attempt_lock,
+        session_timeout_minutes: data.session_timeout_minutes ?? defaultSecurity.session_timeout_minutes,
+      });
+    }
+
+    setLoading(false);
   };
 
   useEffect(() => {
-    loadAppearance();
+    loadSettings();
   }, []);
 
   const handleSave = async () => {
@@ -160,15 +291,107 @@ const Settings: React.FC = () => {
       return;
     }
 
-    await new Promise((r) => setTimeout(r, 800));
+    if (activeTab === 'store') {
+      const { error } = await supabase
+        .from('store_settings')
+        .upsert({
+          id: true,
+          store_name: store.store_name,
+          support_email: store.support_email,
+          support_phone: store.support_phone,
+          default_currency: store.default_currency,
+          timezone: store.timezone,
+          maintenance_mode: store.maintenance_mode,
+        }, { onConflict: 'id' });
+      setSaving(false);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success('Store settings saved');
+      return;
+    }
+
+    if (activeTab === 'payment') {
+      const { error } = await supabase
+        .from('store_settings')
+        .upsert({
+          id: true,
+          wallet_enabled: payment.wallet_enabled,
+          stripe_enabled: payment.stripe_enabled,
+          paypal_enabled: payment.paypal_enabled,
+          crypto_enabled: payment.crypto_enabled,
+          bank_transfer_enabled: payment.bank_transfer_enabled,
+          tax_rate: Math.min(100, Math.max(0, Number(payment.tax_rate) || 0)),
+          prices_include_tax: payment.prices_include_tax,
+        }, { onConflict: 'id' });
+      setSaving(false);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success('Payment settings saved');
+      return;
+    }
+
+    if (activeTab === 'notifications') {
+      const { error } = await supabase
+        .from('admin_notification_settings')
+        .upsert({
+          id: true,
+          email_on_new_order: notifications.email_on_new_order,
+          email_on_refund: notifications.email_on_refund,
+          email_on_new_user: notifications.email_on_new_user,
+          email_on_failed_payment: notifications.email_on_failed_payment,
+          sms_on_new_order: notifications.sms_on_new_order,
+          sms_recipient: notifications.sms_recipient,
+          in_app_notifications: notifications.in_app_notifications,
+          daily_revenue_report: notifications.daily_revenue_report,
+          weekly_analytics_report: notifications.weekly_analytics_report,
+        }, { onConflict: 'id' });
+      setSaving(false);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success('Notification settings saved');
+      return;
+    }
+
+    if (activeTab === 'security') {
+      const { error } = await supabase
+        .from('admin_security_settings')
+        .upsert({
+          id: true,
+          two_factor_required: security.two_factor_required,
+          login_alerts: security.login_alerts,
+          failed_attempt_lock: security.failed_attempt_lock,
+          session_timeout_minutes: Math.min(1440, Math.max(5, Number(security.session_timeout_minutes) || 60)),
+        }, { onConflict: 'id' });
+      setSaving(false);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success('Security settings saved');
+      return;
+    }
+
     setSaving(false);
-    toast.success('Settings saved successfully!');
   };
 
   const openComingSoon = (feature: string) => setComingSoon({ open: true, feature });
 
   const setAppearanceField = <K extends keyof AppearanceSettings>(key: K, value: AppearanceSettings[K]) =>
     setAppearance((prev) => ({ ...prev, [key]: value }));
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -218,25 +441,25 @@ const Settings: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="label mb-1.5 block">Store Name</label>
-                      <input className="input" value={storeName} onChange={(e) => setStoreName(e.target.value)} />
+                      <input className="input" value={store.store_name} onChange={(e) => setStore((s) => ({ ...s, store_name: e.target.value }))} />
                     </div>
                     <div>
                       <label className="label mb-1.5 block">Support Email</label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input className="input pl-10" type="email" value={storeEmail} onChange={(e) => setStoreEmail(e.target.value)} />
+                        <input className="input pl-10" type="email" value={store.support_email} onChange={(e) => setStore((s) => ({ ...s, support_email: e.target.value }))} />
                       </div>
                     </div>
                     <div>
                       <label className="label mb-1.5 block">Support Phone</label>
                       <div className="relative">
                         <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input className="input pl-10" value={supportPhone} onChange={(e) => setSupportPhone(e.target.value)} />
+                        <input className="input pl-10" value={store.support_phone} onChange={(e) => setStore((s) => ({ ...s, support_phone: e.target.value }))} />
                       </div>
                     </div>
                     <div>
                       <label className="label mb-1.5 block">Default Currency</label>
-                      <select className="input" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                      <select className="input" value={store.default_currency} onChange={(e) => setStore((s) => ({ ...s, default_currency: e.target.value }))}>
                         <option value="PKS">PKS (PixieKat Store)</option>
                         <option value="MYR">MYR (Malaysian Ringgit)</option>
                         <option value="USD">USD (US Dollar)</option>
@@ -246,7 +469,7 @@ const Settings: React.FC = () => {
                     </div>
                     <div>
                       <label className="label mb-1.5 block">Timezone</label>
-                      <select className="input" value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+                      <select className="input" value={store.timezone} onChange={(e) => setStore((s) => ({ ...s, timezone: e.target.value }))}>
                         <option value="Asia/Kuala_Lumpur">Asia/Kuala Lumpur (UTC+8)</option>
                         <option value="Asia/Singapore">Asia/Singapore (UTC+8)</option>
                         <option value="Asia/Jakarta">Asia/Jakarta (UTC+7)</option>
@@ -258,12 +481,12 @@ const Settings: React.FC = () => {
 
                 <SectionCard title="Store Status" description="Control store visibility">
                   <Toggle
-                    checked={maintenanceMode}
-                    onChange={setMaintenanceMode}
+                    checked={store.maintenance_mode}
+                    onChange={(v) => setStore((s) => ({ ...s, maintenance_mode: v }))}
                     label="Maintenance Mode"
                     description="Temporarily close the store for maintenance. Customers will see a maintenance page."
                   />
-                  {maintenanceMode && (
+                  {store.maintenance_mode && (
                     <div className="mt-3 flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                       <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                       <p className="text-xs text-amber-800">Maintenance mode is ON. Your store is hidden from customers.</p>
@@ -277,126 +500,120 @@ const Settings: React.FC = () => {
             {activeTab === 'appearance' && (
               <motion.div key="appearance" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                 className="space-y-6">
-                {appearanceLoading ? (
-                  <p className="text-sm text-gray-500 py-8 text-center">Loading appearance settings…</p>
-                ) : (
-                  <>
-                    <div className="flex items-start gap-2 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                      <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-blue-800">
-                        Saved to <code className="text-xs bg-blue-100 px-1 rounded">store_settings.appearance_settings</code>.
-                        Use PNG or ICO for favicon (16×16 / 32×32). Hard-refresh the storefront if icons look cached.
-                      </p>
+                <div className="flex items-start gap-2 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                  <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-blue-800">
+                    Saved to <code className="text-xs bg-blue-100 px-1 rounded">store_settings.appearance_settings</code>.
+                    Use PNG or ICO for favicon (16×16 / 32×32). Hard-refresh the storefront if icons look cached.
+                  </p>
+                </div>
+
+                <SectionCard title="Branding" description="Logo, favicon, and header identity on the storefront">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <ImageSourceField
+                      label="Logo"
+                      value={appearance.logo_url}
+                      onChange={(url) => setAppearanceField('logo_url', url)}
+                      folder="appearance"
+                      placeholder="/img/logo.png"
+                      previewClassName="h-16 w-16"
+                    />
+                    <div>
+                      <label className="label mb-1.5 block">Header brand text</label>
+                      <input
+                        className="input"
+                        value={appearance.header_brand_text}
+                        onChange={(e) => setAppearanceField('header_brand_text', e.target.value)}
+                        placeholder="PixieKat"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Shown next to the logo in the navbar</p>
                     </div>
+                    <ImageSourceField
+                      label="Favicon"
+                      value={appearance.favicon_url}
+                      onChange={(url) => setAppearanceField('favicon_url', url)}
+                      folder="appearance"
+                      placeholder="Upload a 32×32 PNG or ICO"
+                      previewClassName="h-10 w-10"
+                    />
+                    <ImageSourceField
+                      label="App icon (apple-touch)"
+                      value={appearance.icon_url}
+                      onChange={(url) => setAppearanceField('icon_url', url)}
+                      folder="appearance"
+                      placeholder="Optional higher-res icon"
+                      previewClassName="h-16 w-16"
+                    />
+                  </div>
+                </SectionCard>
 
-                    <SectionCard title="Branding" description="Logo, favicon, and header identity on the storefront">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <ImageSourceField
-                          label="Logo"
-                          value={appearance.logo_url}
-                          onChange={(url) => setAppearanceField('logo_url', url)}
-                          folder="appearance"
-                          placeholder="/img/logo.png"
-                          previewClassName="h-16 w-16"
-                        />
-                        <div>
-                          <label className="label mb-1.5 block">Header brand text</label>
-                          <input
-                            className="input"
-                            value={appearance.header_brand_text}
-                            onChange={(e) => setAppearanceField('header_brand_text', e.target.value)}
-                            placeholder="PixieKat"
-                          />
-                          <p className="text-xs text-gray-400 mt-1">Shown next to the logo in the navbar</p>
-                        </div>
-                        <ImageSourceField
-                          label="Favicon"
-                          value={appearance.favicon_url}
-                          onChange={(url) => setAppearanceField('favicon_url', url)}
-                          folder="appearance"
-                          placeholder="Upload a 32×32 PNG or ICO"
-                          previewClassName="h-10 w-10"
-                        />
-                        <ImageSourceField
-                          label="App icon (apple-touch)"
-                          value={appearance.icon_url}
-                          onChange={(url) => setAppearanceField('icon_url', url)}
-                          folder="appearance"
-                          placeholder="Optional higher-res icon"
-                          previewClassName="h-16 w-16"
+                <SectionCard title="Browser tab titles" description="Titles swap when the visitor leaves or returns to the tab">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="label mb-1.5 block">Active tab title</label>
+                      <input
+                        className="input"
+                        value={appearance.tab_title_active}
+                        onChange={(e) => setAppearanceField('tab_title_active', e.target.value)}
+                        placeholder="PixieKat"
+                      />
+                    </div>
+                    <div>
+                      <label className="label mb-1.5 block">Inactive tab title</label>
+                      <input
+                        className="input"
+                        value={appearance.tab_title_inactive}
+                        onChange={(e) => setAppearanceField('tab_title_inactive', e.target.value)}
+                        placeholder="Come back to PixieKat!"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Shown when the browser tab is hidden</p>
+                    </div>
+                  </div>
+                </SectionCard>
+
+                <SectionCard title="Background music" description="Navbar loop track — speed uses HTML audio playbackRate (0.5–2×)">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="label mb-1.5 block">Music URL</label>
+                      <input
+                        className="input"
+                        value={appearance.music_url}
+                        onChange={(e) => setAppearanceField('music_url', e.target.value)}
+                        placeholder="/audio/loop.mp3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label mb-1.5 block">
+                          Playback speed ({Number(appearance.music_playback_rate).toFixed(2)}×)
+                        </label>
+                        <input
+                          type="range"
+                          min={0.5}
+                          max={2}
+                          step={0.05}
+                          className="w-full"
+                          value={appearance.music_playback_rate}
+                          onChange={(e) => setAppearanceField('music_playback_rate', Number(e.target.value))}
                         />
                       </div>
-                    </SectionCard>
-
-                    <SectionCard title="Browser tab titles" description="Titles swap when the visitor leaves or returns to the tab">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="label mb-1.5 block">Active tab title</label>
-                          <input
-                            className="input"
-                            value={appearance.tab_title_active}
-                            onChange={(e) => setAppearanceField('tab_title_active', e.target.value)}
-                            placeholder="PixieKat"
-                          />
-                        </div>
-                        <div>
-                          <label className="label mb-1.5 block">Inactive tab title</label>
-                          <input
-                            className="input"
-                            value={appearance.tab_title_inactive}
-                            onChange={(e) => setAppearanceField('tab_title_inactive', e.target.value)}
-                            placeholder="Come back to PixieKat!"
-                          />
-                          <p className="text-xs text-gray-400 mt-1">Shown when the browser tab is hidden</p>
-                        </div>
+                      <div>
+                        <label className="label mb-1.5 block">
+                          Volume ({Math.round(Number(appearance.music_volume) * 100)}%)
+                        </label>
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          className="w-full"
+                          value={appearance.music_volume}
+                          onChange={(e) => setAppearanceField('music_volume', Number(e.target.value))}
+                        />
                       </div>
-                    </SectionCard>
-
-                    <SectionCard title="Background music" description="Navbar loop track — speed uses HTML audio playbackRate (0.5–2×)">
-                      <div className="space-y-4">
-                        <div>
-                          <label className="label mb-1.5 block">Music URL</label>
-                          <input
-                            className="input"
-                            value={appearance.music_url}
-                            onChange={(e) => setAppearanceField('music_url', e.target.value)}
-                            placeholder="/audio/loop.mp3"
-                          />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="label mb-1.5 block">
-                              Playback speed ({Number(appearance.music_playback_rate).toFixed(2)}×)
-                            </label>
-                            <input
-                              type="range"
-                              min={0.5}
-                              max={2}
-                              step={0.05}
-                              className="w-full"
-                              value={appearance.music_playback_rate}
-                              onChange={(e) => setAppearanceField('music_playback_rate', Number(e.target.value))}
-                            />
-                          </div>
-                          <div>
-                            <label className="label mb-1.5 block">
-                              Volume ({Math.round(Number(appearance.music_volume) * 100)}%)
-                            </label>
-                            <input
-                              type="range"
-                              min={0}
-                              max={1}
-                              step={0.05}
-                              className="w-full"
-                              value={appearance.music_volume}
-                              onChange={(e) => setAppearanceField('music_volume', Number(e.target.value))}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </SectionCard>
-                  </>
-                )}
+                    </div>
+                  </div>
+                </SectionCard>
               </motion.div>
             )}
 
@@ -411,29 +628,38 @@ const Settings: React.FC = () => {
                 <SectionCard title="Active Payment Methods" description="Enable or disable payment gateways">
                   <div className="divide-y divide-gray-100">
                     {[
-                      { name: 'Wallet Balance', desc: 'Internal PixieKat wallet — always active', active: true, native: true },
-                      { name: 'Stripe', desc: 'Credit/debit card payments via Stripe', active: false, native: false },
-                      { name: 'PayPal', desc: 'PayPal checkout integration', active: false, native: false },
-                      { name: 'Cryptocurrency', desc: 'Accept BTC, ETH, USDT via payment processor', active: false, native: false },
-                      { name: 'Bank Transfer', desc: 'Manual bank transfer with receipt upload', active: false, native: false },
+                      { key: 'wallet_enabled' as const, name: 'Wallet Balance', desc: 'Internal PixieKat wallet — always active', native: true },
+                      { key: 'stripe_enabled' as const, name: 'Stripe', desc: 'Credit/debit card payments via Stripe', native: false },
+                      { key: 'paypal_enabled' as const, name: 'PayPal', desc: 'PayPal checkout integration', native: false },
+                      { key: 'crypto_enabled' as const, name: 'Cryptocurrency', desc: 'Accept BTC, ETH, USDT via payment processor', native: false },
+                      { key: 'bank_transfer_enabled' as const, name: 'Bank Transfer', desc: 'Manual bank transfer with receipt upload', native: false },
                     ].map((gw) => (
                       <div key={gw.name} className="flex items-center justify-between py-3">
                         <div>
                           <p className="text-sm font-medium text-gray-900">{gw.name}</p>
                           <p className="text-xs text-gray-500">{gw.desc}</p>
                         </div>
-                        {gw.native ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
-                            <CheckCircle className="w-3.5 h-3.5" /> Always On
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => openComingSoon(`${gw.name} Integration`)}
-                            className="text-xs font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 px-3 py-1.5 rounded-lg transition-colors"
-                          >
-                            Configure →
-                          </button>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {gw.native ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
+                              <CheckCircle className="w-3.5 h-3.5" /> Always On
+                            </span>
+                          ) : (
+                            <>
+                              <Toggle
+                                checked={payment[gw.key]}
+                                onChange={(v) => setPayment((p) => ({ ...p, [gw.key]: v }))}
+                                label=""
+                              />
+                              <button
+                                onClick={() => openComingSoon(`${gw.name} Integration`)}
+                                className="text-xs font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 px-3 py-1.5 rounded-lg transition-colors"
+                              >
+                                Configure →
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -443,14 +669,26 @@ const Settings: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="label mb-1.5 block">Tax Rate (%)</label>
-                      <input className="input" type="number" defaultValue="0" min="0" max="100" step="0.1" />
+                      <input
+                        className="input"
+                        type="number"
+                        value={payment.tax_rate}
+                        min={0}
+                        max={100}
+                        step={0.1}
+                        onChange={(e) => setPayment((p) => ({ ...p, tax_rate: Number(e.target.value) }))}
+                      />
                       <p className="text-xs text-gray-400 mt-1">Set 0 to disable tax</p>
                     </div>
                     <div>
                       <label className="label mb-1.5 block">Price Display</label>
-                      <select className="input">
-                        <option>Tax Inclusive</option>
-                        <option>Tax Exclusive</option>
+                      <select
+                        className="input"
+                        value={payment.prices_include_tax ? 'inclusive' : 'exclusive'}
+                        onChange={(e) => setPayment((p) => ({ ...p, prices_include_tax: e.target.value === 'inclusive' }))}
+                      >
+                        <option value="inclusive">Tax Inclusive</option>
+                        <option value="exclusive">Tax Exclusive</option>
                       </select>
                     </div>
                   </div>
@@ -464,28 +702,33 @@ const Settings: React.FC = () => {
                 className="space-y-6">
                 <SectionCard title="Email Notifications" description="Receive email alerts for store events">
                   <div className="divide-y divide-gray-100">
-                    <Toggle checked={emailOnNewOrder} onChange={setEmailOnNewOrder} label="New Order" description="Get emailed when a new order is placed" />
-                    <Toggle checked={emailOnFailed} onChange={setEmailOnFailed} label="Failed Payment" description="Get alerted when a payment fails" />
-                    <Toggle checked={emailOnRefund} onChange={setEmailOnRefund} label="Refund Request" description="Notify when a customer requests a refund" />
-                    <Toggle checked={emailOnNewUser} onChange={setEmailOnNewUser} label="New User Registration" description="Email when someone creates an account" />
+                    <Toggle checked={notifications.email_on_new_order} onChange={(v) => setNotifications((n) => ({ ...n, email_on_new_order: v }))} label="New Order" description="Get emailed when a new order is placed" />
+                    <Toggle checked={notifications.email_on_failed_payment} onChange={(v) => setNotifications((n) => ({ ...n, email_on_failed_payment: v }))} label="Failed Payment" description="Get alerted when a payment fails" />
+                    <Toggle checked={notifications.email_on_refund} onChange={(v) => setNotifications((n) => ({ ...n, email_on_refund: v }))} label="Refund Request" description="Notify when a customer requests a refund" />
+                    <Toggle checked={notifications.email_on_new_user} onChange={(v) => setNotifications((n) => ({ ...n, email_on_new_user: v }))} label="New User Registration" description="Email when someone creates an account" />
                   </div>
                 </SectionCard>
 
                 <SectionCard title="SMS Notifications" description="Mobile alerts for critical events">
-                  <Toggle checked={smsOnOrder} onChange={setSmsOnOrder} label="Order Alerts via SMS" description="Requires SMS gateway setup" />
-                  {smsOnOrder && (
+                  <Toggle checked={notifications.sms_on_new_order} onChange={(v) => setNotifications((n) => ({ ...n, sms_on_new_order: v }))} label="Order Alerts via SMS" description="Requires SMS gateway setup" />
+                  {notifications.sms_on_new_order && (
                     <div className="mt-3">
                       <label className="label mb-1.5 block">SMS Recipient Number</label>
-                      <input className="input" placeholder="+60 12-345 6789" />
+                      <input
+                        className="input"
+                        placeholder="+60 12-345 6789"
+                        value={notifications.sms_recipient}
+                        onChange={(e) => setNotifications((n) => ({ ...n, sms_recipient: e.target.value }))}
+                      />
                     </div>
                   )}
                 </SectionCard>
 
                 <SectionCard title="Reports & Summaries">
                   <div className="divide-y divide-gray-100">
-                    <Toggle checked={dailyReport} onChange={setDailyReport} label="Daily Revenue Report" description="Receive a daily summary of sales and orders" />
-                    <Toggle checked={weeklyReport} onChange={setWeeklyReport} label="Weekly Analytics Report" description="Weekly performance digest every Monday" />
-                    <Toggle checked={pushNotifs} onChange={setPushNotifs} label="In-App Notifications" description="Show notifications inside the admin panel" />
+                    <Toggle checked={notifications.daily_revenue_report} onChange={(v) => setNotifications((n) => ({ ...n, daily_revenue_report: v }))} label="Daily Revenue Report" description="Receive a daily summary of sales and orders" />
+                    <Toggle checked={notifications.weekly_analytics_report} onChange={(v) => setNotifications((n) => ({ ...n, weekly_analytics_report: v }))} label="Weekly Analytics Report" description="Weekly performance digest every Monday" />
+                    <Toggle checked={notifications.in_app_notifications} onChange={(v) => setNotifications((n) => ({ ...n, in_app_notifications: v }))} label="In-App Notifications" description="Show notifications inside the admin panel" />
                   </div>
                 </SectionCard>
               </motion.div>
@@ -497,11 +740,11 @@ const Settings: React.FC = () => {
                 className="space-y-6">
                 <SectionCard title="Authentication" description="Control admin access security">
                   <div className="divide-y divide-gray-100">
-                    <Toggle checked={twoFactor} onChange={setTwoFactor} label="Two-Factor Authentication (2FA)"
+                    <Toggle checked={security.two_factor_required} onChange={(v) => setSecurity((s) => ({ ...s, two_factor_required: v }))} label="Two-Factor Authentication (2FA)"
                       description="Require an OTP code on every admin login" />
-                    <Toggle checked={loginAlerts} onChange={setLoginAlerts} label="Login Alerts"
+                    <Toggle checked={security.login_alerts} onChange={(v) => setSecurity((s) => ({ ...s, login_alerts: v }))} label="Login Alerts"
                       description="Email notification when a new device logs in" />
-                    <Toggle checked={failedAttemptLock} onChange={setFailedAttemptLock} label="Account Lockout"
+                    <Toggle checked={security.failed_attempt_lock} onChange={(v) => setSecurity((s) => ({ ...s, failed_attempt_lock: v }))} label="Account Lockout"
                       description="Lock account after 5 consecutive failed login attempts" />
                   </div>
                 </SectionCard>
@@ -510,8 +753,14 @@ const Settings: React.FC = () => {
                   <div className="space-y-4">
                     <div>
                       <label className="label mb-1.5 block">Session Timeout (minutes)</label>
-                      <input className="input w-32" type="number" value={sessionTimeout}
-                        onChange={(e) => setSessionTimeout(e.target.value)} min="5" max="1440" />
+                      <input
+                        className="input w-32"
+                        type="number"
+                        value={security.session_timeout_minutes}
+                        onChange={(e) => setSecurity((s) => ({ ...s, session_timeout_minutes: Number(e.target.value) }))}
+                        min={5}
+                        max={1440}
+                      />
                       <p className="text-xs text-gray-400 mt-1">Inactive sessions are logged out after this duration</p>
                     </div>
                   </div>

@@ -18,7 +18,7 @@ export interface PaginatedResponse<T> {
 export interface ApiError {
   message: string;
   code?: string;
-  details?: any;
+  details?: unknown;
 }
 
 export interface BulkOperationResult<T> {
@@ -42,7 +42,7 @@ export interface UploadResult {
 export interface ExportOptions {
   format: 'csv' | 'xlsx' | 'json';
   fields?: string[];
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
 }
 
 export interface ImportResult {
@@ -56,18 +56,20 @@ export interface ImportResult {
 }
 
 // HTTP Status Codes
-export enum HttpStatus {
-  OK = 200,
-  CREATED = 201,
-  NO_CONTENT = 204,
-  BAD_REQUEST = 400,
-  UNAUTHORIZED = 401,
-  FORBIDDEN = 403,
-  NOT_FOUND = 404,
-  CONFLICT = 409,
-  UNPROCESSABLE_ENTITY = 422,
-  INTERNAL_SERVER_ERROR = 500,
-}
+export const HttpStatus = {
+  OK: 200,
+  CREATED: 201,
+  NO_CONTENT: 204,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  UNPROCESSABLE_ENTITY: 422,
+  INTERNAL_SERVER_ERROR: 500,
+} as const;
+
+export type HttpStatus = typeof HttpStatus[keyof typeof HttpStatus];
 
 // API Request Types
 export interface ListParams {
@@ -76,7 +78,7 @@ export interface ListParams {
   search?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
 }
 
 export interface CreateRequest<T> {

@@ -1,80 +1,84 @@
 import { useNavigate } from "react-router-dom";
 
+import { publicMediaUrl } from "../../../lib/supabase";
+import { siteGraphicUrl } from "../../../lib/storeContent";
+import { useAppearance } from "../../../contexts/AppearanceContext";
 import { usePromoSection } from "../../../hooks/usePromoSection";
+import { useJjkCheaperPlacement } from "../../../hooks/useJjkCheaperPlacement";
 
 const fallbackExclusiveOffers = [
   {
     title: "Mobile Legend Bang Bang",
-    image: "/img/hero/game-mlbb-card.webp",
+    image: publicMediaUrl("/img/hero/game-mlbb-card.webp"),
   },
   {
     title: "PUBG Mobile Top Up",
-    image: "/img/hero/game-pubg-card.webp",
+    image: publicMediaUrl("/img/hero/game-pubg-card.webp"),
   },
   {
     title: "Genshin Impact Genesis Crystals",
-    image: "/img/hero/game-genshin-card.webp",
+    image: publicMediaUrl("/img/hero/game-genshin-card.webp"),
     flag: "🇮🇳",
   },
   {
     title: "Honor of Kings Tokens",
-    image: "/img/games/honor-of-kings.jpg",
+    image: publicMediaUrl("/img/games/honor-of-kings.jpg"),
   },
   {
     title: "Mobile Legends Diamonds",
-    image: "/img/games/mobile-legends.webp",
+    image: publicMediaUrl("/img/games/mobile-legends.webp"),
   },
   {
     title: "MLBB Leomord Special Pack",
-    image: "/img/promotion/leomord.webp",
+    image: publicMediaUrl("/img/promotion/leomord.webp"),
   },
   {
     title: "Magic Chess: Go Go Bundle",
-    image: "/img/promotion/eternal.webp",
+    image: publicMediaUrl("/img/promotion/eternal.webp"),
   },
   {
     title: "Starlight Pass Top Up",
-    image: "/img/promotion/starlight.webp",
+    image: publicMediaUrl("/img/promotion/starlight.webp"),
   },
   {
     title: "Jinx Champion Bundle",
-    image: "/img/hero/Jinx.webp",
+    image: publicMediaUrl("/img/hero/Jinx.webp"),
   },
   {
     title: "Faze Clan Promo Pack",
-    image: "/img/hero/Faze.webp",
+    image: publicMediaUrl("/img/hero/Faze.webp"),
   },
   {
     title: "Melissa Character Pack",
-    image: "/img/hero/melissa.webp",
+    image: publicMediaUrl("/img/hero/melissa.webp"),
   },
   {
     title: "Hero Special Top Up",
-    image: "/img/hero/game-hero-card.gif",
+    image: publicMediaUrl("/img/hero/game-hero-card.gif"),
   },
   {
     title: "Battle Arena Premium Pack",
-    image: "/img/loading/1.jpg",
+    image: publicMediaUrl("/img/loading/1.jpg"),
   },
   {
     title: "Dragon Quest Crystals",
-    image: "/img/loading/2.jpg",
+    image: publicMediaUrl("/img/loading/2.jpg"),
   },
   {
     title: "Fantasy Realm Credits",
-    image: "/img/loading/3.jpg",
+    image: publicMediaUrl("/img/loading/3.jpg"),
   },
   {
     title: "Shadow Warriors Bundle",
-    image: "/img/loading/4.jpg",
+    image: publicMediaUrl("/img/loading/4.jpg"),
   },
   {
     title: "Cyber Strike Coin Pack",
-    image: "/img/loading/6.jpg",
+    image: publicMediaUrl("/img/loading/6.jpg"),
   },
   {
     title: "Valor Points Top Up",
-    image: "/img/loading/7.jpg",
+    image: publicMediaUrl("/img/loading/7.jpg"),
   },
 ];
 
@@ -93,7 +97,7 @@ const ExclusiveOfferCard = ({ title, image, flag, link }) => {
         loading="lazy"
         decoding="async"
         draggable={false}
-        className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
+        className="absolute inset-0 size-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
       />
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
@@ -106,7 +110,7 @@ const ExclusiveOfferCard = ({ title, image, flag, link }) => {
         <span className="absolute right-2 top-2 text-sm leading-none">{flag}</span>
       )}
 
-      <p className="absolute bottom-2 left-2 right-2 line-clamp-2 font-general text-[11px] font-semibold leading-snug text-white">
+      <p className="absolute inset-x-2 bottom-2 line-clamp-2 font-general text-[11px] font-semibold leading-snug text-white">
         {title}
       </p>
     </div>
@@ -115,16 +119,23 @@ const ExclusiveOfferCard = ({ title, image, flag, link }) => {
 
 const ExclusiveOffers = () => {
   const { items: promoItems } = usePromoSection("exclusive_offers");
+  const jjkPromo = useJjkCheaperPlacement("homepage_banner");
+  const appearance = useAppearance();
 
   const exclusiveOffers =
     promoItems.length > 0
       ? promoItems.map((item) => ({
           title: item.title,
-          image: item.image_url ?? "/img/games/mobile-legends.webp",
+          image: item.image_url || publicMediaUrl("/img/games/mobile-legends.webp"),
           flag: item.flag ?? undefined,
           link: item.link_url || (item.game_id ? `/games/${item.game_id}` : "/games"),
         }))
-      : fallbackExclusiveOffers;
+      : fallbackExclusiveOffers.map((offer, index) => ({
+          ...offer,
+          image: siteGraphicUrl(appearance, `exclusive_fallback_${index + 1}`, offer.image),
+        }));
+
+  const offers = jjkPromo ? [jjkPromo, ...exclusiveOffers] : exclusiveOffers;
 
   return (
     <section className="bg-[#dfdff0] px-2 py-12 md:px-8 md:py-16">
@@ -140,9 +151,9 @@ const ExclusiveOffers = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4 lg:grid-cols-6 md:gap-4">
-        {exclusiveOffers.map((offer) => (
-          <ExclusiveOfferCard key={offer.title} {...offer} />
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4 md:gap-4 lg:grid-cols-6">
+        {offers.map((offer) => (
+          <ExclusiveOfferCard key={`${offer.title}-${offer.link || ""}`} {...offer} />
         ))}
       </div>
     </section>

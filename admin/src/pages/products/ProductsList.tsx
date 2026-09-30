@@ -243,7 +243,7 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-gray-100">
                 <div>
                   <label className="label block mb-1.5 text-xs">Status</label>
-                  <select value={localStatusFilter} onChange={(e) => setLocalStatusFilter(e.target.value as any)} className="input capitalize">
+                  <select value={localStatusFilter} onChange={(e) => setLocalStatusFilter(e.target.value as ProductStatus | 'all')} className="input capitalize">
                     <option value="all">All Statuses</option>
                     <option value="active">Active</option>
                     <option value="draft">Draft</option>

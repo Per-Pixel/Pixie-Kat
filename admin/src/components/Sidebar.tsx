@@ -17,11 +17,12 @@ import {
   ChevronDown,
   ChevronRight,
   X,
-  HardDrive,
+  Image,
   Settings,
   ClipboardList,
   Crown,
   Plug,
+  Trophy,
 } from 'lucide-react';
 
 interface SubSubMenuItem {
@@ -38,7 +39,7 @@ interface SubMenuItem {
 interface MenuItem {
   id: string;
   label: string;
-  icon: React.ComponentType<any>;
+  icon: React.ElementType;
   path?: string;
   subItems?: SubMenuItem[];
 }
@@ -80,6 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { id: 'users', label: 'Users', icon: Users, path: '/users' },
     { id: 'wallets', label: 'Wallets', icon: Wallet, path: '/wallets' },
     { id: 'memberships', label: 'Memberships', icon: Crown, path: '/memberships' },
+    { id: 'leaderboard', label: 'Leaderboard', icon: Trophy, path: '/leaderboard' },
     { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics' },
     {
       id: 'content',
@@ -114,6 +116,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { label: 'Overview', path: '/revenue/sales-overview' },
         { label: 'Products', path: '/revenue/products' },
         { label: 'Orders', path: '/revenue/orders' },
+        { label: 'Profit & Loss', path: '/revenue/profit-loss' },
         { label: 'Brokers', path: '/revenue/brokers' },
         { label: 'Referral', path: '/revenue/referral' },
       ],
@@ -153,7 +156,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { label: 'API Console', path: '/providers/smile-coin/api-console' },
       ],
     },
-    { id: 'storage', label: 'Storage', icon: HardDrive, path: '/storage' },
+    { id: 'storage', label: 'Site graphics', icon: Image, path: '/storage' },
     { id: 'activity-logs', label: 'Activity Logs', icon: ClipboardList, path: '/activity-logs' },
     { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
   ];

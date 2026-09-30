@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bell, ShoppingCart, TrendingUp, Shield, Settings,
-  Check, X, AlertTriangle, Info, ChevronDown, Filter,
+  Check, X, ChevronDown, Filter,
   CheckCheck, Trash2, RefreshCw,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -25,7 +25,7 @@ interface Notification {
   action?: string;
 }
 
-const categoryConfig: Record<Exclude<NotifCategory, 'all'>, { label: string; icon: React.ComponentType<any>; color: string; bg: string }> = {
+const categoryConfig: Record<Exclude<NotifCategory, 'all'>, { label: string; icon: React.ElementType; color: string; bg: string }> = {
   orders:   { label: 'Orders',   icon: ShoppingCart, color: 'text-blue-600',   bg: 'bg-blue-50' },
   sales:    { label: 'Sales',    icon: TrendingUp,   color: 'text-emerald-600', bg: 'bg-emerald-50' },
   security: { label: 'Security', icon: Shield,       color: 'text-red-600',     bg: 'bg-red-50' },
@@ -38,7 +38,7 @@ const priorityConfig: Record<NotifPriority, { label: string; badge: string; dot:
   low:    { label: 'Low',    badge: 'bg-gray-100 text-gray-600',   dot: 'bg-gray-400' },
 };
 
-const tabs: Array<{ id: NotifCategory; label: string; icon: React.ComponentType<any> }> = [
+const tabs: Array<{ id: NotifCategory; label: string; icon: React.ElementType }> = [
   { id: 'all',      label: 'All',      icon: Bell },
   { id: 'orders',   label: 'Orders',   icon: ShoppingCart },
   { id: 'sales',    label: 'Sales',    icon: TrendingUp },
@@ -210,7 +210,7 @@ const Notifications: React.FC = () => {
     try {
       const data = await fetchLiveNotifications();
       setNotifications(data);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load notifications');
     } finally {
       setLoading(false);

@@ -1,26 +1,29 @@
 import gsap from "gsap";
 import { useRef, useState } from "react";
 
+import { publicMediaUrl } from "../../../lib/supabase";
+import { siteGraphicUrl } from "../../../lib/storeContent";
+import { useAppearance } from "../../../contexts/AppearanceContext";
 import AnimatedTitle from "../../../components/common/AnimatedTitle";
 import { BentoTilt } from "./Features";
 
 const promotions = [
   {
-    title: "MLBB Festive TopUp Rewards: Earn 5% Coda Reward",
+    title: "MLBB Festive Top-Up Rewards: Earn 5% Back",
     description:
-      "Celebrate this festive season by topping up MLBB Diamonds with GCash on Codashop and earn 5% Coda Rewards.",
+      "Celebrate the season on PixieKat — top up Mobile Legends diamonds and earn 5% back with every pack.",
     details:
-      "How to earn? Make a minimum purchase of 70 Diamonds and pay with GCash to enjoy extra rewards for your next top up.",
-    image: "/img/promotion/leomord.webp",
+      "How it works: buy any pack of 70 diamonds or more and the bonus lands with your order. No codes, no extra steps.",
+    image: publicMediaUrl("/img/promotion/leomord.webp"),
     discount: "5%",
   },
   {
-    title: "2x Recharge Bonus is Back + 10% Coda Rewards!",
+    title: "2x Recharge Bonus Is Back + 10% Member Rewards",
     description:
-      "Great news, Commanders. The 2x Recharge Bonus in Magic Chess: Go Go has been reset.",
+      "Great news, Commanders. The 2x recharge bonus in Magic Chess: Go Go has been reset.",
     details:
-      "Even if you bought it before, you can buy it again now. Enjoy double Diamonds on eligible first recharge bundles and extra 10% rewards.",
-    image: "/img/promotion/eternal.webp",
+      "Even if you claimed it before, you can claim it again — double diamonds on eligible first-recharge bundles, plus extra member rewards on top.",
+    image: publicMediaUrl("/img/promotion/eternal.webp"),
     discount: "10%",
   },
   {
@@ -29,7 +32,7 @@ const promotions = [
       "Power up faster with bonus value and unlock more in-game rewards while the promotion lasts.",
     details:
       "Top up during the active period to receive bonus credits and seasonal perks. Limited-time offer, terms and conditions apply.",
-    image: "/img/promotion/starlight.webp",
+    image: publicMediaUrl("/img/promotion/starlight.webp"),
     discount: "15%",
   },
 ];
@@ -79,12 +82,20 @@ const PromotionCard = ({
   </article>
 );
 
+const promotionGraphicKeys = ["promotion_card_1", "promotion_card_2", "promotion_card_3"];
+const promotionFallbacks = ["/img/promotion/leomord.webp", "/img/promotion/eternal.webp", "/img/promotion/starlight.webp"];
+
 const Promotion = () => {
   const promoFrameRef = useRef(null);
   const smallCarouselRef = useRef(null);
   const [activeSmallIndex, setActiveSmallIndex] = useState(0);
+  const appearance = useAppearance();
 
-  const smallPromotions = promotions;
+  const cards = promotions.map((promotion, index) => ({
+    ...promotion,
+    image: siteGraphicUrl(appearance, promotionGraphicKeys[index], promotionFallbacks[index]),
+  }));
+  const smallPromotions = cards;
 
   const handlePromoMouseMove = (event) => {
     const { clientX, clientY } = event;
@@ -166,7 +177,7 @@ const Promotion = () => {
             ref={promoFrameRef}
             className="pointer-events-none absolute inset-0 rounded-3xl"
             style={{
-              backgroundImage: "url('/img/hero/promotion-art.png')",
+              backgroundImage: `url('${siteGraphicUrl(appearance, "promotion_frame", "/img/hero/promotion-art.png")}')`,
               backgroundSize: "cover",
               backgroundPosition: "center",
             }}
@@ -176,7 +187,7 @@ const Promotion = () => {
             <div
               ref={smallCarouselRef}
               onScroll={handleSmallCarouselScroll}
-              className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+              className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               {smallPromotions.map((promotion) => (
                 <div
@@ -204,7 +215,7 @@ const Promotion = () => {
           </div>
 
           <div className="relative z-10 hidden translate-y-16 grid-cols-2 gap-4 sm:grid sm:translate-y-20 sm:gap-6 lg:translate-y-28 lg:grid-cols-3">
-            {promotions.map((promotion, index) => (
+            {cards.map((promotion, index) => (
               index === 0 ? (
                 <BentoTilt
                   key={promotion.title}

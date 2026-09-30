@@ -25,7 +25,7 @@ In your Supabase project dashboard:
 In your Supabase project:
 1. Go to **SQL Editor**
 2. Run each file in `supabase/migrations/` in numeric order:
-   - `001_initial_schema.sql` through `020_fix_linter_indexes.sql`
+   - Every file in `supabase/migrations/` in numeric order, including the latest Razorpay checkout migration
 
 All migrations should complete with no errors.
 
@@ -57,6 +57,12 @@ FRONTEND_URL=http://localhost:5173
 CORS_ORIGIN=http://localhost:5173
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here   # ← service role, NOT anon
+
+# Razorpay — server-side only
+RAZORPAY_KEY_ID=your-razorpay-key-id
+RAZORPAY_KEY_SECRET=your-razorpay-key-secret
+RAZORPAY_WEBHOOK_SECRET=your-razorpay-webhook-secret
+RAZORPAY_SUPPORTED_CURRENCIES=INR
 ```
 
 ---

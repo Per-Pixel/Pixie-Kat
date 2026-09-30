@@ -3,6 +3,22 @@
 ## Overview
 This document outlines the implementation of a comprehensive Content Management System (CMS) for the PixieKat admin panel, enabling non-technical users to manage website pages, media, and content with device-specific controls.
 
+## Site graphics & media workspace (`/storage`)
+
+`/storage` opens on **Site graphics**, a placement-first catalogue built by `buildSiteGraphicPlacements()` in `admin/src/services/mediaService.ts`. Each placement is a real storefront location (page → section → slot) with a preview, a `live` flag, and a `source` describing exactly what to update (`store_settings` JSON path, or a row in `games`/`products`/`promotional_items`).
+
+Changing a graphic goes through `saveGraphicPlacement(placement, url)`:
+
+- `store_settings` placements re-read the row, merge only the nested `path`, and save behind an `updated_at` match — a stale editor gets a "changed in another editor" error instead of overwriting. `products_page_settings` hydrates the default slides before editing one slide; `about_settings.image.url` also recognises the legacy `image_url` key.
+- Table placements (`games`, `products`, `promotional_items`) update only while the column still holds the URL the editor saw.
+- Hardcoded homepage graphics are editable via `appearance_settings.site_graphics.<key>`; the storefront resolves them with `siteGraphicUrl()` in `main/src/lib/storeContent.js`, falling back to the shipped asset.
+
+**Media files** is the secondary workspace: a simple gallery (linked/unlinked filters, per-file usage list) by default, with the folder tree, bulk actions, and conversion tools under "Advanced tools". File deletion is disabled until the usage scan completes.
+
+### Pinterest import
+
+`PinterestImportPanel` supports two modes: `placement` (one pin → downloaded `File` staged in the placement editor) and `library` (up to 20 links, select/deselect, save to a storage folder or download a ZIP). All fetching is server-side via `POST /api/admin/pinterest/resolve` and `POST /api/admin/pinterest/download` (`main/server/pinterest.js`), admin-gated and rate-limited. Only Pinterest page hosts and `*.pinimg.com` media hosts are fetched; every redirect hop is re-validated, HTML masquerading as media is rejected, and responses are size-capped with a thumbnail fallback when the original fails. Private or sign-in-only boards return a 422 with a clear message.
+
 ## Implementation Status
 
 ### ✅ Completed (Phase 1)

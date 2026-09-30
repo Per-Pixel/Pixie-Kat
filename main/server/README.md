@@ -50,6 +50,15 @@ The server will run on `http://localhost:3001`
 
 - `GET /api/protected` - Example protected route
 
+### Payments
+
+- `POST /api/place-order` - Create a wallet order or a Razorpay order for an authenticated user
+- `POST /api/razorpay/verify-payment` - Verify Razorpay Checkout's signed payment response
+- `POST /api/webhooks/razorpay` - Receive signed `payment.captured` events from Razorpay
+- `POST /api/fulfill-order` - Deliver a confirmed order through the configured provider
+
+Razorpay order creation and signature verification require `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`. Configure the Razorpay Dashboard webhook URL as `<API_ORIGIN>/api/webhooks/razorpay` and set its signing secret as `RAZORPAY_WEBHOOK_SECRET`. `RAZORPAY_SUPPORTED_CURRENCIES` defaults to `INR`; add another currency only after enabling it on the Razorpay account and configuring matching product prices.
+
 ## Database
 
 SQLite database (`auth.db`) is automatically created on first run with the following schema:

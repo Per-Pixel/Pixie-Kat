@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { StickyNote, Plus, Flag, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -34,7 +34,7 @@ export default function NotesTab({ data }: Props) {
   const [priority, setPriority] = useState<'normal' | 'important' | 'flag'>('normal');
   const [saving, setSaving] = useState(false);
 
-  const fetchNotes = async () => {
+  const fetchNotes = useCallback(async () => {
     setLoading(true);
     const { data: rows } = await supabase
       .from('admin_user_notes')
@@ -43,9 +43,9 @@ export default function NotesTab({ data }: Props) {
       .order('created_at', { ascending: false });
     setNotes((rows as Note[]) ?? []);
     setLoading(false);
-  };
+  }, [data.profile.id]);
 
-  useEffect(() => { fetchNotes(); }, [data.profile.id]);
+  useEffect(() => { fetchNotes(); }, [fetchNotes]);
 
   const addNote = async () => {
     if (!content.trim() || content.trim().length < 10) {

@@ -15,6 +15,10 @@ export interface UserProfile {
   language: string;
   wallet_balance: number;
   referral_code?: string | null;
+  avatar_frame?: string | null;
+  perks?: Record<string, unknown>;
+  leaderboard_opt_out?: boolean;
+  leaderboard_exclude?: boolean;
   email_verified: boolean;
   last_login_at?: string | null;
   created_at: string;

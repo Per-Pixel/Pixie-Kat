@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Bell, Shield, Monitor, ChevronRight, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Bell, Shield, Monitor, ChevronRight, X, Loader2, SlidersHorizontal, Trophy } from "lucide-react";
 import { pageBackground } from "./accountShared";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePreferences } from "../../contexts/PreferencesContext";
 import { supabase } from "../../lib/supabase";
 
 const ToggleSwitch = ({ label, description, enabled, onChange }) => (
@@ -21,7 +22,7 @@ const ToggleSwitch = ({ label, description, enabled, onChange }) => (
     >
       <span
         aria-hidden="true"
-        className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+        className={`pointer-events-none inline-block size-6 rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out${
           enabled ? "translate-x-5" : "translate-x-0"
         }`}
       />
@@ -32,8 +33,8 @@ const ToggleSwitch = ({ label, description, enabled, onChange }) => (
 const SettingsSection = ({ title, icon: Icon, children }) => (
   <div className="mb-8">
     <div className="mb-4 flex items-center gap-3 border-b border-slate-100 pb-3">
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-[#6c49ff]">
-        <Icon className="h-5 w-5" />
+      <div className="flex size-10 items-center justify-center rounded-xl bg-slate-100 text-[#6c49ff]">
+        <Icon className="size-5" />
       </div>
       <h2 className="text-xl font-bold text-slate-900">{title}</h2>
     </div>
@@ -45,7 +46,10 @@ const SettingsSection = ({ title, icon: Icon, children }) => (
 
 const SettingsPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
+  const { preferences, setPreference } = usePreferences();
+
+  const [leaderboardOptOut, setLeaderboardOptOut] = useState(false);
 
   const [notifications, setNotifications] = useState({
     email_notifications: true,
@@ -84,6 +88,22 @@ const SettingsPage = () => {
     setSaving(null);
   };
 
+  useEffect(() => {
+    setLeaderboardOptOut(profile?.leaderboard_opt_out ?? false);
+  }, [profile?.leaderboard_opt_out]);
+
+  const toggleLeaderboard = async () => {
+    const next = !leaderboardOptOut;
+    setLeaderboardOptOut(next);
+    setSaving("leaderboard_opt_out");
+    await supabase
+      .from("profiles")
+      .update({ leaderboard_opt_out: next, updated_at: new Date().toISOString() })
+      .eq("id", user.id);
+    await refreshProfile();
+    setSaving(null);
+  };
+
   const handleComingSoon = (featureName) => {
     setComingSoonFeature(featureName);
     setShowComingSoon(true);
@@ -101,9 +121,9 @@ const SettingsPage = () => {
           <div className="mb-8 flex items-center gap-4">
             <button
               onClick={() => navigate("/account")}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 shadow-sm transition hover:bg-white"
+              className="flex size-10 items-center justify-center rounded-full bg-white/80 shadow-sm transition hover:bg-white"
             >
-              <ArrowLeft className="h-5 w-5 text-slate-600" />
+              <ArrowLeft className="size-5 text-slate-600" />
             </button>
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-950">Manage Settings</h1>
           </div>
@@ -111,7 +131,7 @@ const SettingsPage = () => {
           <section className="rounded-[28px] border border-white/70 bg-white/80 p-6 shadow-[0_18px_50px_rgba(91,79,118,0.14)] backdrop-blur-xl sm:p-10">
             {loadingPrefs ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-7 w-7 animate-spin text-[#6c49ff]" />
+                <Loader2 className="size-7 animate-spin text-[#6c49ff]" />
               </div>
             ) : (
               <>
@@ -147,8 +167,8 @@ const SettingsPage = () => {
                     onChange={() => toggleNotification("login_alerts")}
                   />
                   {saving && (
-                    <p className="text-xs text-[#6c49ff] font-medium pt-1 flex items-center gap-1">
-                      <Loader2 className="h-3 w-3 animate-spin" /> Saving…
+                    <p className="flex items-center gap-1 pt-1 text-xs font-medium text-[#6c49ff]">
+                      <Loader2 className="size-3 animate-spin" /> Saving…
                     </p>
                   )}
                 </SettingsSection>
@@ -157,25 +177,56 @@ const SettingsPage = () => {
                   <button
                     type="button"
                     onClick={() => navigate("/account/security/change-password")}
-                    className="flex w-full items-center justify-between py-4 text-left group"
+                    className="group flex w-full items-center justify-between py-4 text-left"
                   >
                     <div>
-                      <p className="text-base font-bold text-slate-800 group-hover:text-[#6c49ff] transition-colors">Change Password</p>
+                      <p className="text-base font-bold text-slate-800 transition-colors group-hover:text-[#6c49ff]">Change Password</p>
                       <p className="mt-1 text-sm text-slate-500">Update your login password.</p>
                     </div>
-                    <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-[#6c49ff] transition-colors" />
+                    <ChevronRight className="size-5 text-slate-400 transition-colors group-hover:text-[#6c49ff]" />
                   </button>
                   <button
                     type="button"
                     onClick={() => navigate("/account/security")}
-                    className="flex w-full items-center justify-between py-4 text-left group border-t border-slate-100"
+                    className="group flex w-full items-center justify-between border-t border-slate-100 py-4 text-left"
                   >
                     <div>
-                      <p className="text-base font-bold text-slate-800 group-hover:text-[#6c49ff] transition-colors">Security Center</p>
+                      <p className="text-base font-bold text-slate-800 transition-colors group-hover:text-[#6c49ff]">Security Center</p>
                       <p className="mt-1 text-sm text-slate-500">Manage 2FA, active sessions, and more.</p>
                     </div>
-                    <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-[#6c49ff] transition-colors" />
+                    <ChevronRight className="size-5 text-slate-400 transition-colors group-hover:text-[#6c49ff]" />
                   </button>
+                </SettingsSection>
+
+                <SettingsSection title="Leaderboard" icon={Trophy}>
+                  <ToggleSwitch
+                    label="Show me on the leaderboard"
+                    description="Display your username and avatar on the public monthly leaderboard. Turning this off keeps your private rank in Rewards & Rank."
+                    enabled={!leaderboardOptOut}
+                    onChange={toggleLeaderboard}
+                  />
+                </SettingsSection>
+
+                <SettingsSection title="Site Preferences" icon={SlidersHorizontal}>
+                  <ToggleSwitch
+                    label="Background Music"
+                    description="Play ambient music while browsing the site."
+                    enabled={preferences.music}
+                    onChange={() => setPreference("music", !preferences.music)}
+                  />
+                  <ToggleSwitch
+                    label="Intro Animation"
+                    description="Show the PixieKat intro the next time the site loads."
+                    enabled={preferences.intro}
+                    onChange={() => setPreference("intro", !preferences.intro)}
+                  />
+                  <ToggleSwitch
+                    label="Reduce Motion"
+                    description="Minimize animations and autoplaying videos across the site."
+                    enabled={preferences.reducedMotion}
+                    onChange={() => setPreference("reducedMotion", !preferences.reducedMotion)}
+                  />
+                  <p className="pt-2 text-xs text-slate-400">Saved on this device and applied instantly.</p>
                 </SettingsSection>
 
                 <SettingsSection title="Display Preferences" icon={Monitor}>
@@ -225,7 +276,7 @@ const SettingsPage = () => {
                   onClick={() => setShowComingSoon(false)}
                   className="rounded-full bg-slate-100 p-2 text-slate-500 hover:bg-slate-200"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="size-5" />
                 </button>
               </div>
               <p className="mt-4 text-base text-slate-600">

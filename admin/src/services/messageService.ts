@@ -95,7 +95,7 @@ class MessageService extends BaseApiService {
 
   // Create new message
   async createMessage(messageData: Omit<Message, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Message>> {
-    return this.create(messageData);
+    return this.create<Message>(messageData as Partial<Message>);
   }
 
   // Update message
@@ -146,7 +146,7 @@ class MessageService extends BaseApiService {
     }
 
     try {
-      const response = await this.post(formData, `/${messageId}/replies`, {
+      const response = await this.post<ApiResponse<MessageReply>>(formData, `/${messageId}/replies`, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -270,7 +270,7 @@ class MessageService extends BaseApiService {
     condition: string;
     response: string;
     priority?: number;
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<unknown>> {
     return this.post(data, '/auto-responses');
   }
 
