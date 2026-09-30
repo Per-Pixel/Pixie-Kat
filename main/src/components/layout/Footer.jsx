@@ -78,12 +78,14 @@ const Footer = () => {
     gsap.set(brandLogo, { scale: 0, opacity: 0, rotation: -180 });
     gsap.set(brandLetters, { yPercent: 100, opacity: 0 });
 
-    // ONE timeline, ONE ScrollTrigger
+    // ONE timeline, ONE ScrollTrigger. `once` keeps the reveal played even
+    // when the page height shifts (e.g. cart -> order confirmation swap) —
+    // "reverse" could leave the footer invisible after such a collapse.
     const tl = gsap.timeline({
       scrollTrigger: {
         trigger: root,
         start: "top 85%",
-        toggleActions: "play none none reverse",
+        once: true,
       },
       defaults: { ease: "power3.out" },
     });

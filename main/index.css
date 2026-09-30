@@ -1291,6 +1291,13 @@ html {
   }
 }
 
+/* BottomNav is fixed (h-16) below 768px — keep the footer bottom bar tappable */
+@media (max-width: 767px) {
+  .footer-bottom {
+    padding-bottom: 5.5rem;
+  }
+}
+
 /* ===================================================
    MOUSE-GLOW — interactive cursor-following light
    =================================================== */

@@ -62,6 +62,7 @@ const NavBar = () => {
     ? "bg-white/95 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.12)]"
     : "bg-white/90 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.22)]";
   const walletBalance = Number(profile?.wallet_balance ?? 0);
+  const avatarUrl = publicMediaUrl(profile?.avatar_url);
 
   const toggleAudioIndicator = () => {
     setPreference("music", !musicEnabled);
@@ -294,9 +295,17 @@ const NavBar = () => {
                   className="flex size-11 items-center justify-center rounded-full bg-gradient-to-br from-violet-200 via-white to-violet-400 text-violet-700 shadow-[0_10px_25px_rgba(168,85,247,0.35)] transition-transform duration-300 ease-in-out hover:-translate-y-0.5"
                   aria-label="Open account page"
                 >
-                  <span className="flex size-8 items-center justify-center rounded-full bg-white/80 backdrop-blur">
-                    <UserRound className="size-4" />
-                  </span>
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={profile?.name ? `${profile.name}'s avatar` : "Your avatar"}
+                      className="size-9 rounded-full object-cover ring-2 ring-white/80"
+                    />
+                  ) : (
+                    <span className="flex size-8 items-center justify-center rounded-full bg-white/80 backdrop-blur">
+                      <UserRound className="size-4" />
+                    </span>
+                  )}
                 </Link>
               </div>
               )}

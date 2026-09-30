@@ -1,32 +1,33 @@
 # Last Session Summary
 
-## This session: storefront leaderboard redesign — "The monthly climb" (uncommitted)
+## This session: post-checkout scroll/footer fixes + navbar avatar (uncommitted)
 
-Redesigned all player-facing leaderboard surfaces on top of the existing feature branch. All data contracts, RPCs, and behavior preserved; visual/UX layer only.
+Fixed two reported issues on the storefront. All changes are in `main/`, uncommitted on `main` branch.
 
-- `main/src/pages/leaderboard/index.jsx` — rewritten. Lavender hero ("The monthly climb.", season selector, status chip), private `RankTicket` (sign-in / rank / hidden / not-ranked / error states), dark `#0E041D` podium stage (rank 1 central, ghost numerals, spent when `show_amounts`), rank-rail standings (table ≥md, ordered list <md), dynamic reward bands on a violet rail. All states: loading/error-retry/disabled/empty.
-- `main/src/pages/home/sections/Leaderboard.jsx` — clipped dark teaser panel, "The climb is on.", leader spotlight + rail rows, still honors `teaser_count` and hides when disabled/empty.
-- `main/src/components/leaderboard/LeaderboardAvatar.jsx` — NEW shared avatar+frame+fallback primitive used by board, teaser, account.
-- `main/src/pages/account/DesktopAccountView.jsx` + `MobileAccountView.jsx` — Rewards & Rank restyled to match (dark rank summary, perk cards, history: xl table / stacked rail below xl); mobile `RankStrip` restyled, same data.
-- `main/src/lib/leaderboard.js` — added `rankForPeriod(history, period)` + 3 regression tests. Fixes real bug: account panel used `history[0]` as "current rank" and could show a prior finalized month when current month has no row. Same helper now used by RankTicket, RewardsPanel, RankStrip.
-- `CHANGELOG.md` — bullet added under [Unreleased] → Storefront.
+### Issue 1 — "order page loads from bottom, footer doesn't work" after checkout
+Root cause chain:
+- `/cart` checkout swaps the tall cart list for a short confirmation via `setDone()` with no navigation → `ScrollToTop` never fires → browser clamps the old scroll position → user lands pinned at the bottom.
+- `ScrollToTop` used `window.scrollTo(0,0)` which inherits `html { scroll-behavior: smooth }` → every route change played a slow animated scroll that could be interrupted by lazy-content reflow, stranding users mid-page.
+- Footer reveal used GSAP `toggleActions: "play none none reverse"` → when page height collapsed, the trigger could reverse-hide the footer (all children at `opacity: 0` → "footer doesn't work").
+- Fixed `BottomNav` (h-16, `md:hidden`) overlaid `.footer-bottom`, which had no bottom clearance on mobile → footer links untappable.
 
-## Verified this session
+Changes:
+- `src/components/common/ScrollToTop.jsx` — `scrollTo({ top:0, left:0, behavior:"instant" })`.
+- `src/pages/cart/index.jsx` — `doneRef` + `useLayoutEffect` scrolls the confirmation into view (`block:"center"`, instant) when `done` appears; "Order history" button now goes to `/account?section=orders` (was `/account/orders`, which fell through to the Profile section on desktop).
+- `src/components/layout/Footer.jsx` — ScrollTrigger `once: true` instead of reverse-on-leave.
+- `main/index.css` — `@media (max-width: 767px)` `.footer-bottom { padding-bottom: 5.5rem }` to clear the fixed BottomNav.
 
-- main `vitest` 53/53, `eslint` 0 errors (42 pre-existing warnings), `vite build` OK
-- impeccable detect: side-tab borders fixed (rail+notch instead); remaining `text-violet-300` heading flags are brand-token false positives
-- Browser QA at 1440/768/390/320: no horizontal overflow, long names wrap, podium/table/rail/rewards all render; keyboard focus outlines verified; `prefers-reduced-motion` renders without animation (PageWrapper already handles it)
-- Note: page uses `scroll-behavior:smooth` on `<html>` — browser-automation `scrollTo` needs `behavior:'instant'` or screenshots capture pre-scroll state
+### Issue 2 — no profile photo in top navbar
+- `src/components/layout/Navbar.jsx` — account link now renders `profile.avatar_url` (via `publicMediaUrl`) as a rounded `size-9` image; `UserRound` icon kept as fallback.
 
-## Still true from previous session
+### Verified
+- `eslint` 0 errors (42 pre-existing warnings), `vite build` OK, `vitest` 53/53.
+- Not browser-tested live — scroll behavior changes are logic-verified; spot-check `/cart` checkout + `/account/orders/:id` on mobile when convenient.
 
+### Still true from previous sessions
 - Migration `supabase/migrations/043_leaderboard.sql` NOT yet applied to Supabase — apply via SQL editor, sanity-check finalize on a past month.
-- Entire leaderboard feature (migration, server routes, admin UI, storefront) is uncommitted on `main` — do not push/commit without explicit ask.
 - Parked: pg_cron auto-finalize, per-game/referral boards, share cards.
 
-## Conventions learned
-
-- `protect_profile_updates()` trigger (010) is the real profiles column gate — not the OR'd RLS policies.
-- `is_service_role()` checks JWT `role` claim; service-role rpc calls have `auth.uid() = NULL`.
-- Admin writes store_settings via direct supabase upsert `{id:true, <col>_settings}`; user perks via `user_perks` admin RLS + `refresh_user_perks` rpc.
-- Public RPC strips `user_id`; never identify a signed-in user by matching public display names — use `get_my_rank_history` + `rankForPeriod`.
+### Conventions learned
+- `html { scroll-behavior: smooth }` in `main/index.css` makes bare `scrollTo(0,0)`/`scrollIntoView({behavior:"auto"})` animate — always pass `behavior:"instant"` for corrective scrolls.
+- Account sections are driven by `?section=` query (`/account?section=orders|wallet|rewards|profile`); `/account/orders` alone is NOT a valid section path — it renders the default profile/dashboard view. `/account/orders/:id` is order details.

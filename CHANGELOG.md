@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Fixes
+- Checkout UX: the order confirmation now scrolls into view instead of leaving you pinned at the bottom of the collapsed cart, route changes jump to the top instantly (the global `scroll-behavior: smooth` turned `scrollTo(0,0)` into an interruptible animated scroll), the footer reveal plays once rather than hiding again when page height shifts, and the mobile bottom nav no longer covers the footer links. "Order history" now lands on the Orders section instead of Profile.
+- Show the account avatar in the top navbar when logged in, falling back to the profile icon.
 - Grant purchased membership plans once the order is paid — checkout charged the plan add-on but never activated it (`038_membership_grant_on_paid_order.sql` trigger on `orders.status`; cancelled again if the order is refunded/failed).
 - Persist support/contact form submissions to `support_requests` (`039_support_requests.sql`) instead of silently discarding them, and wire the admin Messages page to the real inbox with status triage.
 - Add forgot-password flow: reset link from the login page and a `/reset-password` page to set a new password.

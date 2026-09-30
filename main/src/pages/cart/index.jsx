@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -238,6 +238,13 @@ const CartPage = () => {
   const [lineResults, setLineResults] = useState({});
   const [pendingCheckout, setPendingCheckout] = useState(null);
   const [done, setDone] = useState(null);
+  const doneRef = useRef(null);
+
+  // When the confirmation replaces the (taller) cart list, the browser clamps
+  // scroll to the new bottom — bring the confirmation back into view.
+  useLayoutEffect(() => {
+    if (done) doneRef.current?.scrollIntoView({ block: "center", behavior: "instant" });
+  }, [done]);
 
   const walletBalance = Number(profile?.wallet_balance ?? 0);
   const currencies = useMemo(() => [...new Set(items.map((i) => String(i.product.currency || "PKS").toUpperCase()))], [items]);
@@ -668,7 +675,7 @@ const CartPage = () => {
           ) : null}
 
           {done ? (
-            <motion.div {...riseIn(reduced)} className="mx-auto max-w-2xl">
+            <motion.div ref={doneRef} {...riseIn(reduced)} className="mx-auto max-w-2xl">
               <div className="border-hsla rounded-md bg-white/[0.03] p-8 text-center">
                 <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-emerald-400/15">
                   <CheckCircle2 className="size-7 text-emerald-300" />
@@ -708,7 +715,7 @@ const CartPage = () => {
                   <Button
                     title="Order history"
                     containerClass="bg-blue-50 flex-center"
-                    onClick={() => navigate("/account/orders")}
+                    onClick={() => navigate("/account?section=orders")}
                   />
                 </div>
               </div>
