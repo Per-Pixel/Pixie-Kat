@@ -53,6 +53,8 @@ const BatchOrderPage = lazy(() => import("./pages/batch-order"));
 
 const CartPage = lazy(() => import("./pages/cart"));
 
+const LeaderboardPage = lazy(() => import("./pages/leaderboard"));
+
 const JjkCheaperPage = lazy(() => import("./pages/events/jjk-cheaper"));
 
 const LegalPage = lazy(() => import("./pages/legal/LegalPage"));
@@ -274,6 +276,8 @@ function App() {
                   <Route path="/batch-order" element={<BatchOrderPage />} />
 
                   <Route path="/cart" element={<CartPage />} />
+
+                  <Route path="/leaderboard" element={<LeaderboardPage />} />
 
                   <Route path="/event/jjk-cheaper" element={<JjkCheaperPage />} />
 

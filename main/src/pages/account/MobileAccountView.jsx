@@ -3,10 +3,12 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
+  ArrowRight,
   CalendarDays,
   ChevronDown,
   PencilLine,
   Search,
+  Trophy,
   UserPlus,
   Settings,
 } from "lucide-react";
@@ -23,6 +25,9 @@ import { pageBackground } from "./accountShared";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { useUserOrders } from "../../hooks/useUserOrders";
+import AvatarFrame from "../../components/common/AvatarFrame";
+import { currentPeriod, fetchMyRankHistory, periodLabel, rankForPeriod } from "../../lib/leaderboard";
+import { RewardsPanel } from "./DesktopAccountView";
 
 const toCardOrder = (order) => {
   const fields = order.metadata?.account_fields ?? {};
@@ -70,9 +75,14 @@ const ProfileHero = ({ profile }) => (
   <div className="mt-4 rounded-[18px] bg-gradient-to-r from-[#5724ff] to-[#4FB7DD] p-4 text-white shadow-[0_16px_30px_rgba(87,36,255,0.2)]">
     <div className="flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex size-14 items-center justify-center rounded-full bg-white/20 text-lg font-black backdrop-blur">
-          {profile.initials}
-        </div>
+        <AvatarFrame frame={profile.avatarFrame} paddingClass="p-[3px]">
+          <div className="flex size-14 items-center justify-center overflow-hidden rounded-full bg-white/20 text-lg font-black backdrop-blur">
+            {profile.avatarUrl
+              ? <img src={profile.avatarUrl} alt={profile.displayName} className="size-full rounded-full object-cover" />
+              : profile.initials
+            }
+          </div>
+        </AvatarFrame>
         <div className="min-w-0">
           <p className="truncate text-[1.35rem] font-extrabold leading-tight">{profile.displayName}</p>
           <p className="text-base font-semibold text-white/85">Good night</p>
@@ -95,7 +105,7 @@ const ProfileHero = ({ profile }) => (
 );
 
 const StatsCard = ({ navigate, profile }) => (
-  <div className="bg-white/88 mt-3 rounded-[18px] border border-white/70 p-4 text-slate-900 shadow-[0_16px_30px_rgba(91,79,118,0.12)] backdrop-blur-xl">
+  <div className="mt-3 rounded-[18px] border border-white/70 bg-white/[0.88] p-4 text-slate-900 shadow-[0_16px_30px_rgba(91,79,118,0.12)] backdrop-blur-xl">
     <div className="grid grid-cols-2 gap-4 divide-x divide-slate-200">
       <div className="pr-4">
         <div className="flex items-center gap-3">
@@ -680,6 +690,56 @@ const RedeemCodeScreen = ({ profile }) => {
   );
 };
 
+const RankStrip = () => {
+  const { user } = useAuth();
+  const [rankState, setRankState] = useState({ userId: null, row: null, status: "loading" });
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    let cancelled = false;
+    fetchMyRankHistory(1)
+      .then(({ history }) => {
+        if (!cancelled) setRankState({ userId: user.id, row: rankForPeriod(history, currentPeriod()), status: "ready" });
+      })
+      .catch(() => {
+        if (!cancelled) setRankState({ userId: user.id, row: null, status: "error" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const current = rankState.userId === user?.id ? rankState : { row: null, status: "loading" };
+  const rankText = current.status === "loading" ? "Loading…" : current.status === "error" ? "Unavailable" : current.row?.rank ? `#${current.row.rank}` : "Unranked";
+
+  return (
+    <Link
+      to="/account?section=rewards"
+      className="relative mt-3 flex min-h-28 items-center justify-between gap-3 overflow-hidden rounded-[18px] bg-[#0E041D] p-4 text-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300"
+    >
+      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-violet-300" />
+      <span className="flex min-w-0 items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-yellow-300/50 text-yellow-300">
+          <Trophy aria-hidden="true" className="size-5" />
+        </span>
+        <span className="min-w-0">
+          <span className="block font-general text-[10px] font-semibold uppercase tracking-wider text-yellow-300">{periodLabel(currentPeriod())} / Your rank</span>
+          <strong className="mt-1 block break-words font-zentry text-3xl font-black uppercase leading-none">{rankText}</strong>
+          {current.row ? (
+            <span className="mt-1 block font-circular-web text-xs text-blue-100/70">
+              {current.row.hidden ? "Private · " : ""}{current.row.order_count} completed order{Number(current.row.order_count) === 1 ? "" : "s"}
+            </span>
+          ) : null}
+        </span>
+      </span>
+      <span className="flex shrink-0 flex-col items-center gap-1 border-l border-white/20 pl-2 font-general text-[10px] font-semibold uppercase text-yellow-300">
+        <ArrowRight aria-hidden="true" className="size-4" />
+        Rewards
+      </span>
+    </Link>
+  );
+};
+
 const DashboardScreen = ({ profile, onLogout }) => {
   const navigate = useNavigate();
 
@@ -687,6 +747,7 @@ const DashboardScreen = ({ profile, onLogout }) => {
     <MobilePageScaffold>
       <ProfileHero profile={profile} />
       <StatsCard navigate={navigate} profile={profile} />
+      <RankStrip />
       <DashboardPanel navigate={navigate} />
       <div className="px-3 pb-2 pt-4 text-center">
         <button type="button" onClick={onLogout} className="text-sm font-semibold text-slate-600 underline underline-offset-4">
@@ -700,6 +761,16 @@ const DashboardScreen = ({ profile, onLogout }) => {
 const MobileAccountView = ({ profile, onLogout }) => {
   const location = useLocation();
   const suffix = getPathnameSuffix(location.pathname);
+  const section = new URLSearchParams(location.search).get("section");
+
+  if (section === "rewards") {
+    return (
+      <MobilePageScaffold>
+        <BackHeader title="Account" />
+        <RewardsPanel profile={profile} />
+      </MobilePageScaffold>
+    );
+  }
 
   if (suffix.startsWith("redeem-code")) {
     return <RedeemCodeScreen profile={profile} />;

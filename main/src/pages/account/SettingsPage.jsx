@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Bell, Shield, Monitor, ChevronRight, X, Loader2, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Bell, Shield, Monitor, ChevronRight, X, Loader2, SlidersHorizontal, Trophy } from "lucide-react";
 import { pageBackground } from "./accountShared";
 import { useAuth } from "../../contexts/AuthContext";
 import { usePreferences } from "../../contexts/PreferencesContext";
@@ -46,8 +46,10 @@ const SettingsSection = ({ title, icon: Icon, children }) => (
 
 const SettingsPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const { preferences, setPreference } = usePreferences();
+
+  const [leaderboardOptOut, setLeaderboardOptOut] = useState(false);
 
   const [notifications, setNotifications] = useState({
     email_notifications: true,
@@ -83,6 +85,22 @@ const SettingsPage = () => {
       .from("user_settings")
       .update({ [key]: newVal, updated_at: new Date().toISOString() })
       .eq("user_id", user.id);
+    setSaving(null);
+  };
+
+  useEffect(() => {
+    setLeaderboardOptOut(profile?.leaderboard_opt_out ?? false);
+  }, [profile?.leaderboard_opt_out]);
+
+  const toggleLeaderboard = async () => {
+    const next = !leaderboardOptOut;
+    setLeaderboardOptOut(next);
+    setSaving("leaderboard_opt_out");
+    await supabase
+      .from("profiles")
+      .update({ leaderboard_opt_out: next, updated_at: new Date().toISOString() })
+      .eq("id", user.id);
+    await refreshProfile();
     setSaving(null);
   };
 
@@ -178,6 +196,15 @@ const SettingsPage = () => {
                     </div>
                     <ChevronRight className="size-5 text-slate-400 transition-colors group-hover:text-[#6c49ff]" />
                   </button>
+                </SettingsSection>
+
+                <SettingsSection title="Leaderboard" icon={Trophy}>
+                  <ToggleSwitch
+                    label="Show me on the leaderboard"
+                    description="Display your username and avatar on the public monthly leaderboard. Turning this off keeps your private rank in Rewards & Rank."
+                    enabled={!leaderboardOptOut}
+                    onChange={toggleLeaderboard}
+                  />
                 </SettingsSection>
 
                 <SettingsSection title="Site Preferences" icon={SlidersHorizontal}>

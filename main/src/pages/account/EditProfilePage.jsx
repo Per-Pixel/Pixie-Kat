@@ -5,6 +5,7 @@ import { ArrowLeft, Camera, User, Phone, AtSign, Save, FileText, Loader2, CheckC
 import { pageBackground } from "./accountShared";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import AvatarFrame from "../../components/common/AvatarFrame";
 
 const AVATAR_BUCKET = "avatars";
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
@@ -46,6 +47,13 @@ const EditProfilePage = ({ profile }) => {
   const [saveError, setSaveError] = useState("");
   const [saved, setSaved] = useState(false);
 
+  // GIF avatars are a leaderboard perk — the storage policy enforces the same
+  // check server-side, this is just the friendly gate.
+  const canUseGif = Boolean(profile?.perks?.gif_avatar);
+  const acceptTypes = canUseGif
+    ? "image/png,image/jpeg,image/webp,image/gif"
+    : "image/png,image/jpeg,image/webp";
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setSaveError("");
@@ -58,6 +66,11 @@ const EditProfilePage = ({ profile }) => {
     if (file) {
       if (!file.type.startsWith("image/")) {
         setSaveError("Please choose an image file.");
+        return;
+      }
+
+      if (file.type === "image/gif" && !canUseGif) {
+        setSaveError("GIF profile pictures are a leaderboard reward. Reach a monthly tier that includes it to unlock GIF avatars.");
         return;
       }
 
@@ -157,22 +170,25 @@ const EditProfilePage = ({ profile }) => {
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* Profile Picture */}
               <div className="flex flex-col items-center gap-4">
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   ref={fileInputRef}
                   onChange={handleImageChange}
-                  accept="image/*"
+                  accept={acceptTypes}
                   className="hidden"
                 />
-                
-                <div className="relative flex size-32 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#e8dcff] via-white to-[#9a82ff] p-[6px] shadow-[0_14px_26px_rgba(122,97,255,0.2)]">
-                  <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#7a5bff] to-[#b097ff] text-4xl font-black text-white">
-                    {profileImagePreview ? (
-                      <img src={profileImagePreview} alt="Profile" className="size-full object-cover" />
-                    ) : (
-                      profile?.initials || "PK"
-                    )}
-                  </div>
+
+                <div className="relative">
+                  <AvatarFrame frame={profile?.avatarFrame} paddingClass="p-[6px]"
+                    className="shadow-[0_14px_26px_rgba(122,97,255,0.2)]">
+                    <div className="flex size-32 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#7a5bff] to-[#b097ff] text-4xl font-black text-white">
+                      {profileImagePreview ? (
+                        <img src={profileImagePreview} alt="Profile" className="size-full object-cover" />
+                      ) : (
+                        profile?.initials || "PK"
+                      )}
+                    </div>
+                  </AvatarFrame>
                   <button
                     type="button"
                     onClick={triggerFileInput}
@@ -182,6 +198,11 @@ const EditProfilePage = ({ profile }) => {
                   </button>
                 </div>
                 <p className="text-sm font-medium text-slate-500">Tap to change profile picture</p>
+                {!canUseGif && (
+                  <p className="max-w-xs text-center text-xs text-slate-400">
+                    JPG, PNG or WebP. Reach a monthly leaderboard tier to unlock GIF avatars.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-5">

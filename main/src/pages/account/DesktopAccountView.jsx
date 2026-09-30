@@ -24,6 +24,9 @@ import {
 
 import { pageBackground } from "./accountShared";
 import { useUserOrders } from "../../hooks/useUserOrders";
+import AvatarFrame from "../../components/common/AvatarFrame";
+import LeaderboardAvatar from "../../components/leaderboard/LeaderboardAvatar";
+import { currentPeriod, fetchMyRankHistory, frameStyle, periodLabel, rankForPeriod } from "../../lib/leaderboard";
 
 const sectionItems = [
   { id: "profile", label: "My Profile", icon: UserRound },
@@ -131,14 +134,17 @@ const ProfilePanel = ({ profile }) => {
     <SectionCard>
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-          <Link to="/account/edit-profile" className="relative flex size-24 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#e8dcff] via-white to-[#9a82ff] p-[5px] shadow-[0_14px_26px_rgba(122,97,255,0.2)] transition-opacity hover:opacity-90">
-            <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#7a5bff] to-[#b097ff] text-2xl font-black text-white">
-              {profile.avatarUrl
-                ? <img src={profile.avatarUrl} alt={profile.displayName} className="size-full rounded-full object-cover" />
-                : profile.initials
-              }
-            </div>
-            <span className="absolute -bottom-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-md">
+          <Link to="/account/edit-profile" className="relative shrink-0 transition-opacity hover:opacity-90">
+            <AvatarFrame frame={profile.avatarFrame} paddingClass="p-[5px]"
+              className="shadow-[0_14px_26px_rgba(122,97,255,0.2)]">
+              <div className="flex size-24 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#7a5bff] to-[#b097ff] text-2xl font-black text-white">
+                {profile.avatarUrl
+                  ? <img src={profile.avatarUrl} alt={profile.displayName} className="size-full rounded-full object-cover" />
+                  : profile.initials
+                }
+              </div>
+            </AvatarFrame>
+            <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-md">
               Update
             </span>
           </Link>
@@ -630,22 +636,184 @@ const WalletPanel = ({ profile }) => {
   );
 };
 
-const RewardsPanel = () => (
-  <div className="space-y-7">
-    <div>
-      <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500">Account</p>
-      <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-[2.55rem]">My Rewards</h1>
-    </div>
+const RankTrend = ({ rank, previousRank }) => {
+  const delta = rank && previousRank ? previousRank - rank : null;
+  const label = delta === null ? "—" : delta > 0 ? `Up ${delta}` : delta < 0 ? `Down ${Math.abs(delta)}` : "Same";
+  return (
+    <span className={`font-general text-xs font-semibold ${delta > 0 ? "text-emerald-700" : delta < 0 ? "text-red-600" : "text-blue-200/60"}`}>
+      {label}
+    </span>
+  );
+};
 
-    <SectionCard>
-      <div className="rounded-[22px] bg-slate-100/95 px-6 py-14 text-center text-slate-500">
-        <p className="mx-auto max-w-2xl text-lg">
-          No rewards yet. Keep playing to unlock your first reward.
-        </p>
-      </div>
-    </SectionCard>
-  </div>
+const RankStatus = ({ finalized }) => (
+  <span className={`inline-block border px-2 py-1 font-general text-[10px] font-semibold uppercase tracking-wide ${finalized ? "border-violet-300/30 bg-violet-300/10 text-violet-300" : "border-amber-600/30 bg-amber-600/10 text-amber-800"}`}>
+    {finalized ? "Final" : "Provisional"}
+  </span>
 );
+
+export const RewardsPanel = ({ profile }) => {
+  const [history, setHistory] = useState(null);
+  const [historyError, setHistoryError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchMyRankHistory(12)
+      .then(({ history: rows }) => {
+        if (!cancelled) setHistory(rows ?? []);
+      })
+      .catch((err) => {
+        if (!cancelled) setHistoryError(err.message || "Could not load rank history.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const current = rankForPeriod(history, currentPeriod());
+  const frame = profile?.avatarFrame ? frameStyle(profile.avatarFrame) : null;
+  const hasGif = Boolean(profile?.perks?.gif_avatar);
+
+  return (
+    <div className="space-y-7">
+      <div>
+        <p className="font-general text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-300">Account / Season</p>
+        <h1 className="mt-2 font-zentry text-4xl font-black uppercase leading-none text-blue-200 sm:text-5xl">Rewards &amp; Rank</h1>
+        <p className="mt-3 font-circular-web text-sm text-blue-200/70">Your current place, active perks, and month-by-month results.</p>
+      </div>
+
+      {/* Current rank + perks */}
+      <section aria-labelledby="account-current-rank" className="relative overflow-hidden rounded-[24px] bg-[#0E041D] p-5 text-blue-50 sm:p-7">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ backgroundImage: "radial-gradient(circle at 90% 10%, rgba(87,36,255,0.45), transparent 60%)" }} />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <h2 id="account-current-rank" className="font-general text-[10px] font-semibold uppercase tracking-[0.2em] text-yellow-300">
+            Your rank / {periodLabel(currentPeriod())}
+          </h2>
+          <Link to="/leaderboard" className="inline-flex min-h-11 items-center gap-2 rounded-full bg-yellow-300 px-5 py-2 font-general text-xs font-semibold uppercase text-blue-200 transition-colors hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-300">
+            View leaderboard <ArrowRight aria-hidden="true" className="size-4" />
+          </Link>
+        </div>
+        <div className="relative mt-7 flex flex-wrap items-center gap-5">
+          <LeaderboardAvatar avatarUrl={profile?.avatarUrl} frame={profile?.avatarFrame} sizeClass="size-20 sm:size-24" fallback={<span className="font-zentry text-3xl font-black">{profile?.initials}</span>} />
+          <div className="min-w-0 flex-1">
+            <p className="font-general text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-100/60">Current standing</p>
+            <p aria-live="polite" className="mt-1 break-words font-zentry text-4xl font-black uppercase leading-none text-blue-50 sm:text-6xl">
+              {historyError ? "Unavailable" : history === null ? "Loading…" : current ? `#${current.rank}` : "Unranked this month"}
+            </p>
+            {current ? <p className="mt-2 font-circular-web text-sm text-blue-100/75">{current.order_count} completed order{Number(current.order_count) === 1 ? "" : "s"} this month</p> : null}
+            {history !== null && !historyError && !current ? <p className="mt-2 font-circular-web text-sm text-blue-100/70">Complete an order to join this month’s board.</p> : null}
+            {current?.hidden ? (
+              <p className="mt-2 font-circular-web text-xs font-medium text-yellow-300">
+                {current.hidden_reason === "opted_out"
+                  ? "Hidden publicly — you're opted out in Settings."
+                  : "Hidden publicly by the store."}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div aria-hidden="true" className="relative mt-7 flex items-center gap-3 border-t border-white/20 pt-4">
+          <span className="size-2 bg-yellow-300" /><span className="h-px flex-1 bg-white/20" />
+          <span className="font-general text-[10px] uppercase tracking-wider text-blue-100/60">Monthly rank rail</span>
+        </div>
+      </section>
+
+      {/* Perks */}
+      <SectionCard>
+        <h2 className="font-zentry text-3xl font-black uppercase text-blue-200">Active perks</h2>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className={`relative border-l-2 p-4 pl-6 ${frame ? "border-violet-300 bg-violet-300/5" : "border-blue-200/15 bg-blue-100"}`}>
+            <span aria-hidden="true" className={`absolute -left-1 top-6 size-2 ${frame ? "bg-violet-300" : "bg-blue-200/20"}`} />
+            <p className="font-general text-[10px] font-semibold uppercase tracking-wide text-violet-300">Avatar frame</p>
+            <p className="mt-2 font-general text-base font-semibold text-blue-200">{frame ? `${frame.label} frame active` : "No frame active"}</p>
+            <p className="mt-1 font-circular-web text-sm text-blue-200/65">{frame ? "Your frame is visible around your avatar." : "Finish in a monthly tier that includes one to earn a frame."}</p>
+          </div>
+          <div className={`relative border-l-2 p-4 pl-6 ${hasGif ? "border-violet-300 bg-violet-300/5" : "border-blue-200/15 bg-blue-100"}`}>
+            <span aria-hidden="true" className={`absolute -left-1 top-6 size-2 ${hasGif ? "bg-violet-300" : "bg-blue-200/20"}`} />
+            <p className="font-general text-[10px] font-semibold uppercase tracking-wide text-violet-300">GIF profile picture</p>
+            <p className="mt-2 font-general text-base font-semibold text-blue-200">{hasGif ? "Unlocked" : "Locked"}</p>
+            <p className="mt-1 font-circular-web text-sm text-blue-200/65">{hasGif ? "Upload a GIF in Edit Profile." : "Earn a tier that includes GIF avatars."}</p>
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* Rank history */}
+      <SectionCard>
+        <h2 className="font-zentry text-3xl font-black uppercase text-blue-200">Monthly rank history</h2>
+        <p className="mt-2 font-circular-web text-sm text-blue-200/65">Your orders, places, and awarded tiers by month.</p>
+        {historyError ? (
+          <p role="alert" className="mt-5 font-circular-web text-sm text-red-600">{historyError}</p>
+        ) : history === null ? (
+          <p role="status" className="mt-6 font-circular-web text-sm text-blue-200/65">Loading rank history…</p>
+        ) : history.length === 0 ? (
+          <div className="mt-5 border-l-2 border-violet-300 bg-blue-100 p-5">
+            <p className="font-circular-web text-sm text-blue-200/75">No rank yet — complete an order this month to appear on the leaderboard.</p>
+            <Link to="/games" className="mt-4 inline-flex min-h-11 items-center gap-2 font-general text-xs font-semibold uppercase text-violet-300 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
+              Browse games <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
+          </div>
+        ) : (
+          <>
+            <div className="mt-5 hidden overflow-x-auto border-l-2 border-violet-300 xl:block">
+              <table className="w-full text-left text-sm">
+                <caption className="sr-only">Your monthly rank history</caption>
+                <thead className="border-b border-blue-200/10 bg-blue-100">
+                  <tr className="font-general text-[10px] font-semibold uppercase tracking-wide text-blue-200/60">
+                    <th scope="col" className="px-4 py-3">Month</th>
+                    <th scope="col" className="px-4 py-3">Rank</th>
+                    <th scope="col" className="px-4 py-3">Orders</th>
+                    <th scope="col" className="px-4 py-3">Trend</th>
+                    <th scope="col" className="px-4 py-3">Tier</th>
+                    <th scope="col" className="px-4 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-blue-200/10">
+                  {history.map((row, index) => (
+                    <tr key={row.period} className="transition-colors hover:bg-violet-300/5">
+                      <td className="whitespace-nowrap p-4 font-general text-sm font-semibold text-blue-200">{periodLabel(row.period)}</td>
+                      <td className="p-4 font-zentry text-2xl font-black text-violet-300">{row.rank ? `#${row.rank}` : "—"}</td>
+                      <td className="p-4 font-circular-web text-blue-200/75">{row.order_count ?? "—"}</td>
+                      <td className="p-4"><RankTrend rank={row.rank} previousRank={history[index + 1]?.rank} /></td>
+                      <td className="p-4 font-circular-web text-blue-200/75">{row.tier || "—"}</td>
+                      <td className="p-4"><RankStatus finalized={row.finalized} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <ol className="mt-5 border-l-2 border-violet-300 xl:hidden">
+              {history.map((row, index) => (
+                <li key={row.period} className="relative border-b border-blue-200/10 py-5 pl-5 last:border-b-0">
+                  <span aria-hidden="true" className="absolute -left-1 top-8 size-2 bg-violet-300" />
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="font-general text-sm font-semibold text-blue-200">{periodLabel(row.period)}</p>
+                      <div className="mt-2"><RankStatus finalized={row.finalized} /></div>
+                    </div>
+                    <p className="font-zentry text-4xl font-black leading-none text-violet-300">{row.rank ? `#${row.rank}` : "—"}</p>
+                  </div>
+                  <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-blue-200/10 pt-3">
+                    <div>
+                      <dt className="font-general text-[10px] uppercase text-blue-200/55">Orders</dt>
+                      <dd className="mt-1 font-circular-web text-sm text-blue-200">{row.order_count ?? "—"}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-general text-[10px] uppercase text-blue-200/55">Trend</dt>
+                      <dd className="mt-1"><RankTrend rank={row.rank} previousRank={history[index + 1]?.rank} /></dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="font-general text-[10px] uppercase text-blue-200/55">Tier</dt>
+                      <dd className="mt-1 break-words font-circular-web text-sm text-blue-200">{row.tier || "—"}</dd>
+                    </div>
+                  </dl>
+                </li>
+              ))}
+            </ol>
+          </>
+        )}
+      </SectionCard>
+    </div>
+  );
+};
 
 const QuickActions = () => (
   <SectionCard>
@@ -690,7 +858,7 @@ const DesktopAccountView = ({ profile, onLogout }) => {
       case "wallet":
         return <WalletPanel profile={profile} />;
       case "rewards":
-        return <RewardsPanel />;
+        return <RewardsPanel profile={profile} />;
       case "profile":
       default:
         return <ProfilePanel profile={profile} />;

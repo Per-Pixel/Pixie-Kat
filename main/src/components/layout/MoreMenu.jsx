@@ -8,6 +8,7 @@ import {
   Percent,
   ShieldQuestion,
   ShoppingCart,
+  Trophy,
   UserRound,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -18,6 +19,7 @@ const menuItems = [
   { id: "profile", label: "Profile", icon: UserRound, path: "/account" },
   { id: "cart", label: "Cart", icon: ShoppingCart, path: "/cart" },
   { id: "membership", label: "Membership", icon: Crown, path: "/pricing" },
+  { id: "leaderboard", label: "Leaderboard", icon: Trophy, path: "/leaderboard" },
   { id: "promo", label: "Promo", icon: Percent, comingSoon: true },
   { id: "blog", label: "Blog", icon: Newspaper, comingSoon: true },
   { id: "support", label: "Support", icon: ShieldQuestion, path: "/support" },

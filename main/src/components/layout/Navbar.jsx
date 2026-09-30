@@ -18,12 +18,13 @@ import DropdownMenu from "../common/DropdownMenu";
 const navItems = [
   { name: "Games", path: "/games" },
   { name: "Pricing", path: "/pricing" },
+  { name: "Leaderboard", path: "/leaderboard" },
   { name: "How It Works", path: "/how-it-works" },
   { name: "FAQ", path: "/faq" },
   { name: "Support", path: "/support" }
 ];
 
-const darkTextTopRoutes = ["/games", "/pricing", "/how-it-works", "/faq", "/support"];
+const darkTextTopRoutes = ["/games", "/pricing", "/leaderboard", "/how-it-works", "/faq", "/support"];
 
 const NavBar = () => {
   const { isAuthenticated, profile } = useAuth();
