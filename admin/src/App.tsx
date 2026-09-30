@@ -17,6 +17,7 @@ import Notifications from './pages/Notifications';
 import Analytics from './pages/Analytics';
 import Wallets from './pages/Wallets';
 import Memberships from './pages/Memberships';
+import LeaderboardPage from './pages/Leaderboard';
 import RevenueProducts from './pages/revenue/RevenueProducts';
 import SalesOverview from './pages/revenue/SalesOverview';
 import ProfitLoss from './pages/revenue/ProfitLoss';
@@ -109,6 +110,7 @@ const AppRoutes: React.FC = () => {
         <Route path="providers/smile-coin/api-console" element={<SmileCoinApiConsolePage />} />
         <Route path="wallets" element={<Wallets />} />
         <Route path="memberships" element={<Memberships />} />
+        <Route path="leaderboard" element={<LeaderboardPage />} />
         {/* Revenue Routes */}
         <Route path="revenue/sales-overview" element={<SalesOverview />} />
         <Route path="revenue/products" element={<RevenueProducts />} />

@@ -22,6 +22,7 @@ import {
   ClipboardList,
   Crown,
   Plug,
+  Trophy,
 } from 'lucide-react';
 
 interface SubSubMenuItem {
@@ -80,6 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { id: 'users', label: 'Users', icon: Users, path: '/users' },
     { id: 'wallets', label: 'Wallets', icon: Wallet, path: '/wallets' },
     { id: 'memberships', label: 'Memberships', icon: Crown, path: '/memberships' },
+    { id: 'leaderboard', label: 'Leaderboard', icon: Trophy, path: '/leaderboard' },
     { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics' },
     {
       id: 'content',
