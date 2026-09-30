@@ -1,27 +1,32 @@
-# Last Summary
+# Last Session Summary
 
-## Session: Region-aware checkout blocking for unsupported MLBB regions
+## This session: storefront leaderboard redesign — "The monthly climb" (uncommitted)
 
-Business rule from the user: the MLBB product "is not available for players in the following regions: Indonesia (ID) and Brazil (BR)", and certain denominations are excluded for MY, SG, PH, ID, RU (exact denomination list still pending — user message cut off).
+Redesigned all player-facing leaderboard surfaces on top of the existing feature branch. All data contracts, RPCs, and behavior preserved; visual/UX layer only.
 
-- **Region gating implemented end-to-end.** New helpers `normalizeRegionKey`/`regionIsBlocked` map country names ("Indonesia") and codes ("ID") to a normalized key so lookup output matches admin config in either direction. Mirrored in `main/server/index.js`, `main/src/pages/games/GamePage.jsx`, and `main/server/tests/verify-player.test.js` (6 new tests; 60/60 server suite green).
-- **Game-level block**: `games.metadata.blocked_regions` — seeded `["ID","BR"]` on `mobile-legends` live via `scripts/set-mlbb-blocked-regions.mjs` (merge PATCH; other metadata untouched) and durable via migration `042_mlbb_blocked_regions.sql`. Confirmed it flows through `/api/catalog/games/mobile-legends`.
-- **Product-level exclusions**: `products.metadata.excluded_regions` — blocks only that denomination; other packages stay selectable. No products seeded yet — waiting on the user's denomination list.
-- **Storefront** (`GamePage.jsx`): after verification, a red warning shows under the verify badge when the game blocks the region ("This product is not available for players in X"), amber when only the selected package is excluded ("choose a different denomination"). Pay, Review & Pay, and Add to Cart all fail visibly and scroll to `#region-warning`. Unknown/missing region fails open. Cart items now carry `playerRegion`; cart page sends `verified_region` per item and shows "(Country)" next to the verified name.
-- **Server enforcement** (`index.js`): `assertRegionAllowed` runs at the top of `/api/place-order` for every payment method (wallet/razorpay/aluu), checking the authoritative product + game rows from DB — client metadata only supplies `verified_region`, never the blocklists. `/api/cart-checkout` gained the same per-unit check; `sanitizeCartItemMeta` now whitelists `verified_region`.
-- **Admin** (`GameEditor.tsx`): "Blocked Player Regions" input on the game's provider settings; per-package "Excluded Player Regions" input under provider fields. Both hydrate from metadata and save back as normalized uppercase arrays without touching unrelated keys. `parseRegionList`/`regionListToString` helpers added. tsc clean.
-- Verified: server tests 60/60, storefront vitest 40/40, eslint clean (3 pre-existing warnings in index.js unchanged), admin `tsc --noEmit` clean.
-- **Pending**: the MY/SG/PH/ID/RU denomination list (which packages get `excluded_regions`); `eb deploy` from `main/server` to ship the backend.
+- `main/src/pages/leaderboard/index.jsx` — rewritten. Lavender hero ("The monthly climb.", season selector, status chip), private `RankTicket` (sign-in / rank / hidden / not-ranked / error states), dark `#0E041D` podium stage (rank 1 central, ghost numerals, spent when `show_amounts`), rank-rail standings (table ≥md, ordered list <md), dynamic reward bands on a violet rail. All states: loading/error-retry/disabled/empty.
+- `main/src/pages/home/sections/Leaderboard.jsx` — clipped dark teaser panel, "The climb is on.", leader spotlight + rail rows, still honors `teaser_count` and hides when disabled/empty.
+- `main/src/components/leaderboard/LeaderboardAvatar.jsx` — NEW shared avatar+frame+fallback primitive used by board, teaser, account.
+- `main/src/pages/account/DesktopAccountView.jsx` + `MobileAccountView.jsx` — Rewards & Rank restyled to match (dark rank summary, perk cards, history: xl table / stacked rail below xl); mobile `RankStrip` restyled, same data.
+- `main/src/lib/leaderboard.js` — added `rankForPeriod(history, period)` + 3 regression tests. Fixes real bug: account panel used `history[0]` as "current rank" and could show a prior finalized month when current month has no row. Same helper now used by RankTicket, RewardsPanel, RankStrip.
+- `CHANGELOG.md` — bullet added under [Unreleased] → Storefront.
 
-## Earlier this thread
+## Verified this session
 
-- Mobile Pay button appeared dead: validation error rendered off-screen — now scrolls/focuses the missing field + shows a banner above the mobile bar.
-- Provider whitelist IP: **`35.154.145.21`** (managed Elastic IP on `pixiekat-api-prod`, stable).
-- Free MLBB region check (`api.isan.eu.org/nickname/ml`, Codashop-backed, fail-open) wired into `/api/verify-player`; region returned on success AND failure responses; admin API console gained a `verify` tab.
-- Probe of real order accounts: India ×20 ✓, France ✓, Japan ✓, Turkmenistan ✓, **Indonesia ×3 ✗** (Smile getrole 20008). Store is ~all India; Indonesia block is preventive, not fixing live breakage.
+- main `vitest` 53/53, `eslint` 0 errors (42 pre-existing warnings), `vite build` OK
+- impeccable detect: side-tab borders fixed (rail+notch instead); remaining `text-violet-300` heading flags are brand-token false positives
+- Browser QA at 1440/768/390/320: no horizontal overflow, long names wrap, podium/table/rail/rewards all render; keyboard focus outlines verified; `prefers-reduced-motion` renders without animation (PageWrapper already handles it)
+- Note: page uses `scroll-behavior:smooth` on `<html>` — browser-automation `scrollTo` needs `behavior:'instant'` or screenshots capture pre-scroll state
 
-### Carried pending items (unchanged)
+## Still true from previous session
 
-- Replace the service-role JWT in Amplify `VITE_SUPABASE_ANON_KEY` with the real anon key; rotate the exposed service-role key.
-- Register `pixiekat.com`, then front API with `api.pixiekat.com` (CloudFront once account verified, or LB+ACM).
-- Inspect the malformed EB environment property and verify `SUPER_ADMIN_EMAILS`. Prior product backlog remains documented elsewhere.
+- Migration `supabase/migrations/043_leaderboard.sql` NOT yet applied to Supabase — apply via SQL editor, sanity-check finalize on a past month.
+- Entire leaderboard feature (migration, server routes, admin UI, storefront) is uncommitted on `main` — do not push/commit without explicit ask.
+- Parked: pg_cron auto-finalize, per-game/referral boards, share cards.
+
+## Conventions learned
+
+- `protect_profile_updates()` trigger (010) is the real profiles column gate — not the OR'd RLS policies.
+- `is_service_role()` checks JWT `role` claim; service-role rpc calls have `auth.uid() = NULL`.
+- Admin writes store_settings via direct supabase upsert `{id:true, <col>_settings}`; user perks via `user_perks` admin RLS + `refresh_user_perks` rpc.
+- Public RPC strips `user_id`; never identify a signed-in user by matching public display names — use `get_my_rank_history` + `rankForPeriod`.
