@@ -1,33 +1,27 @@
 # Last Session Summary
 
-## This session: post-checkout scroll/footer fixes + navbar avatar (uncommitted)
+## This session: post-checkout fixes + navbar avatar + full AWS deploy sync
 
-Fixed two reported issues on the storefront. All changes are in `main/`, uncommitted on `main` branch.
+### Storefront fixes (commit fafa03d, pushed to main)
+- `ScrollToTop` now uses `behavior:"instant"` — global `scroll-behavior:smooth` was turning `scrollTo(0,0)` into an interruptible animated scroll on every route change.
+- `/cart` order confirmation scrolls itself into view (`block:"center"`, instant) when it replaces the cart — previously users stayed pinned at the bottom of the collapsed page.
+- Footer reveal is `once:true` (was `play none none reverse` — could hide the whole footer when page height collapsed); `.footer-bottom` gets 5.5rem bottom padding <768px so the fixed BottomNav no longer covers the links.
+- Navbar account button renders `profile.avatar_url` when logged in (UserRound icon fallback).
+- "Order history" button now targets `/account?section=orders` — `/account/orders` silently fell through to the Profile tab on desktop.
 
-### Issue 1 — "order page loads from bottom, footer doesn't work" after checkout
-Root cause chain:
-- `/cart` checkout swaps the tall cart list for a short confirmation via `setDone()` with no navigation → `ScrollToTop` never fires → browser clamps the old scroll position → user lands pinned at the bottom.
-- `ScrollToTop` used `window.scrollTo(0,0)` which inherits `html { scroll-behavior: smooth }` → every route change played a slow animated scroll that could be interrupted by lazy-content reflow, stranding users mid-page.
-- Footer reveal used GSAP `toggleActions: "play none none reverse"` → when page height collapsed, the trigger could reverse-hide the footer (all children at `opacity: 0` → "footer doesn't work").
-- Fixed `BottomNav` (h-16, `md:hidden`) overlaid `.footer-bottom`, which had no bottom clearance on mobile → footer links untappable.
-
-Changes:
-- `src/components/common/ScrollToTop.jsx` — `scrollTo({ top:0, left:0, behavior:"instant" })`.
-- `src/pages/cart/index.jsx` — `doneRef` + `useLayoutEffect` scrolls the confirmation into view (`block:"center"`, instant) when `done` appears; "Order history" button now goes to `/account?section=orders` (was `/account/orders`, which fell through to the Profile section on desktop).
-- `src/components/layout/Footer.jsx` — ScrollTrigger `once: true` instead of reverse-on-leave.
-- `main/index.css` — `@media (max-width: 767px)` `.footer-bottom { padding-bottom: 5.5rem }` to clear the fixed BottomNav.
-
-### Issue 2 — no profile photo in top navbar
-- `src/components/layout/Navbar.jsx` — account link now renders `profile.avatar_url` (via `publicMediaUrl`) as a rounded `size-9` image; `UserRound` icon kept as fallback.
+### Deploy state — leaderboard is live
+- **Storefront**: `main` pushed → Amplify auto-builds.
+- **API**: `eb deploy` ran (app-260930_143436267277) — `/api/leaderboard` now returns 200 with real rows (`enabled:true`). The previous deploy (09-28) predated the leaderboard routes; EB only ships via `eb deploy`, never via git push.
+- **Admin**: `admin` branch was 98 behind / 24 diverged — merged `main` into `admin` (6282c81), pushed → Amplify admin rebuild gets the leaderboard console. All conflicts resolved to main's side; admin-only dead files (`MediaLibrary`, `Trash`, `PinterestGrepperPage`, old `cms/*`) remain but are unrouted — safe to delete in a cleanup pass. `admin/.env` was untracked on purpose (main deleted it); local file restored and gitignored.
+- **Supabase**: migration 043 IS applied (live RPC proves it) — the earlier "not applied" note was stale.
 
 ### Verified
-- `eslint` 0 errors (42 pre-existing warnings), `vite build` OK, `vitest` 53/53.
-- Not browser-tested live — scroll behavior changes are logic-verified; spot-check `/cart` checkout + `/account/orders/:id` on mobile when convenient.
-
-### Still true from previous sessions
-- Migration `supabase/migrations/043_leaderboard.sql` NOT yet applied to Supabase — apply via SQL editor, sanity-check finalize on a past month.
-- Parked: pg_cron auto-finalize, per-game/referral boards, share cards.
+- main: eslint 0 errors (42 pre-existing warnings), vite build OK, vitest 53/53.
+- admin: vite build OK post-merge.
+- Live: `GET /api/leaderboard` → 200 with standings.
 
 ### Conventions learned
-- `html { scroll-behavior: smooth }` in `main/index.css` makes bare `scrollTo(0,0)`/`scrollIntoView({behavior:"auto"})` animate — always pass `behavior:"instant"` for corrective scrolls.
-- Account sections are driven by `?section=` query (`/account?section=orders|wallet|rewards|profile`); `/account/orders` alone is NOT a valid section path — it renders the default profile/dashboard view. `/account/orders/:id` is order details.
+- `html { scroll-behavior: smooth }` in `main/index.css` makes bare `scrollTo`/`scrollIntoView` animate — always pass `behavior:"instant"` for corrective scrolls.
+- Account sections use `?section=` (`/account?section=orders|wallet|rewards|profile`); `/account/orders` alone is not a section path. `/account/orders/:id` is order details.
+- `admin` branch = Amplify deploy vehicle for `admin/`; sync via merge-from-main, conflicts resolve to main. EB API needs manual `eb deploy`.
+- PowerShell: `curl` is Invoke-WebRequest — use `curl.exe` for real curl flags.
