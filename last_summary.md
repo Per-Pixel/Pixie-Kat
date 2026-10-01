@@ -1,27 +1,32 @@
 # Last Session Summary
 
-## This session: post-checkout fixes + navbar avatar + full AWS deploy sync
+## This session: mobile order-confirmation fix — the real remaining bug
 
-### Storefront fixes (commit fafa03d, pushed to main)
-- `ScrollToTop` now uses `behavior:"instant"` — global `scroll-behavior:smooth` was turning `scrollTo(0,0)` into an interruptible animated scroll on every route change.
-- `/cart` order confirmation scrolls itself into view (`block:"center"`, instant) when it replaces the cart — previously users stayed pinned at the bottom of the collapsed page.
-- Footer reveal is `once:true` (was `play none none reverse` — could hide the whole footer when page height collapsed); `.footer-bottom` gets 5.5rem bottom padding <768px so the fixed BottomNav no longer covers the links.
-- Navbar account button renders `profile.avatar_url` when logged in (UserRound icon fallback).
-- "Order history" button now targets `/account?section=orders` — `/account/orders` silently fell through to the Profile tab on desktop.
+### Root cause found
+The user's "order confirm still broken on mobile" survived the earlier `/cart` fix (commit fafa03d) because there are **two** checkout confirmations:
 
-### Deploy state — leaderboard is live
-- **Storefront**: `main` pushed → Amplify auto-builds.
-- **API**: `eb deploy` ran (app-260930_143436267277) — `/api/leaderboard` now returns 200 with real rows (`enabled:true`). The previous deploy (09-28) predated the leaderboard routes; EB only ships via `eb deploy`, never via git push.
-- **Admin**: `admin` branch was 98 behind / 24 diverged — merged `main` into `admin` (6282c81), pushed → Amplify admin rebuild gets the leaderboard console. All conflicts resolved to main's side; admin-only dead files (`MediaLibrary`, `Trash`, `PinterestGrepperPage`, old `cms/*`) remain but are unrouted — safe to delete in a cleanup pass. `admin/.env` was untracked on purpose (main deleted it); local file restored and gitignored.
-- **Supabase**: migration 043 IS applied (live RPC proves it) — the earlier "not applied" note was stale.
+1. `/cart` → `done` state — already fixed (scrollIntoView).
+2. `/games/:id` → `orderComplete` state in `main/src/pages/games/GamePage.jsx` (~line 1089) — a separate full-screen `min-h-screen` confirmation card that had **no scroll correction at all**. On mobile this is the primary buy flow: the ~4000px buy page collapses to a 100vh card and the browser clamps scroll to the bottom, so the user lands staring at the footer instead of "Order Placed!".
+
+### Fixes this session (uncommitted until noted)
+- `GamePage.jsx`: added `useLayoutEffect` on `orderComplete` — `window.scrollTo({top:0, behavior:"instant"})` + `ScrollTrigger.refresh()`. Guarded with `orderCompleteShownRef` so later status updates (`paymentPending` → `fulfilled`, setOrderComplete is called again at ~1001/1016/1030) don't re-yank scroll while the user is reading.
+- `cart/index.jsx`: added `ScrollTrigger.refresh()` to the existing done-effect (the collapse leaves the footer's ScrollTrigger `start` stale/beyond max scroll → reveal could never fire), plus the same `doneShownRef` guard — `setDone` fires more than once and `setDone(null)` at checkout start resets the ref for repeat purchases.
+- Import: `import { ScrollTrigger } from "gsap/ScrollTrigger"` in both files (gsap 3.13 already a dep; Footer.jsx registers the plugin globally).
+- CHANGELOG.md: extended the existing Checkout UX bullet to mention the game-checkout path.
 
 ### Verified
-- main: eslint 0 errors (42 pre-existing warnings), vite build OK, vitest 53/53.
-- admin: vite build OK post-merge.
-- Live: `GET /api/leaderboard` → 200 with standings.
+- Playwright repro at 390x844 on `/games/mobile-legends`: footer reveal fired and survived the collapse in all scenarios — the earlier `once:true` fix works; the actual bug was purely scroll-landing on the game page.
+- `npm run lint`: 0 errors (same 42 pre-existing warnings). `npm run build`: OK. `npm test`: 53/53.
+
+### Deploy state — leaderboard is live (from prior session)
+- Storefront `main` → Amplify auto-builds on push.
+- API: `eb deploy` ran (app-260930_143436267277) — `/api/leaderboard` returns 200 with rows (`enabled:true`); migration 043 IS applied.
+- `admin` branch merged from main (6282c81) and pushed → admin Amplify gets leaderboard console. Admin-only dead files (`MediaLibrary`, `Trash`, `PinterestGrepperPage`, old `cms/*`) remain unrouted — safe cleanup pass someday.
 
 ### Conventions learned
 - `html { scroll-behavior: smooth }` in `main/index.css` makes bare `scrollTo`/`scrollIntoView` animate — always pass `behavior:"instant"` for corrective scrolls.
+- Two checkout confirmations exist: cart `done` and GamePage `orderComplete` — fix scroll behavior in BOTH.
+- After any tall→short page collapse, call `ScrollTrigger.refresh()` or scroll-gated reveals (footer) keep stale start positions.
 - Account sections use `?section=` (`/account?section=orders|wallet|rewards|profile`); `/account/orders` alone is not a section path. `/account/orders/:id` is order details.
 - `admin` branch = Amplify deploy vehicle for `admin/`; sync via merge-from-main, conflicts resolve to main. EB API needs manual `eb deploy`.
 - PowerShell: `curl` is Invoke-WebRequest — use `curl.exe` for real curl flags.

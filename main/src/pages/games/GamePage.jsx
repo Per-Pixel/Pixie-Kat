@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   AlertCircle,
   ArrowLeft,
@@ -409,6 +410,18 @@ const GamePage = () => {
 
   const [showCartReview, setShowCartReview] = useState(false);
   const [orderComplete, setOrderComplete] = useState(null);
+  const orderCompleteShownRef = useRef(false);
+
+  // The confirmation replaces the whole (tall) page — without this the
+  // browser clamps the old scroll position and the user lands at the
+  // bottom staring at the footer instead of the confirmation. Guard so
+  // later status updates (paymentPending -> fulfilled) don't re-yank scroll.
+  useLayoutEffect(() => {
+    if (!orderComplete || orderCompleteShownRef.current) return;
+    orderCompleteShownRef.current = true;
+    window.scrollTo({ top: 0, behavior: "instant" });
+    ScrollTrigger.refresh();
+  }, [orderComplete]);
   const [playerName, setPlayerName] = useState(null);
   const [playerRegion, setPlayerRegion] = useState(null);
   const [verifying, setVerifying] = useState(false);
