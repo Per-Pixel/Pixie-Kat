@@ -7,6 +7,7 @@ import {
   Zap, Globe, Clock, TrendingUp, Shield, ArrowRight,
 } from 'lucide-react';
 import { fetchSmileOneStatus, SmileOneStatus } from '../../services/providerService';
+import { yokcash, YcHealthResponse } from '../../services/yokcashService';
 
 const USD_TO_INR = 83.5;
 
@@ -35,6 +36,18 @@ const PROVIDERS: ProviderCard[] = [
     gradient: 'from-blue-50 to-indigo-50',
     features: ['Live SKU Sync', 'Auto Pricing', 'Multi-Region'],
     regions: ['PH', 'ID', 'MY', 'SG', 'BR'],
+  },
+  {
+    id: 'yokcash',
+    name: 'Yokcash',
+    logo: 'YC',
+    tagline: 'Beta — IP whitelisted',
+    description: 'Indonesian top-up supplier — MLBB, Free Fire and more. Prices in IDR.',
+    path: '/providers/yokcash',
+    color: 'from-emerald-500 to-teal-600',
+    gradient: 'from-emerald-50 to-teal-50',
+    features: ['Health Check', 'IDR Pricing', 'Status Callbacks'],
+    regions: ['ID'],
   },
   {
     id: 'codashop',
@@ -121,6 +134,8 @@ const ProvidersPage: React.FC = () => {
   const navigate = useNavigate();
   const [smileStatus, setSmileStatus] = useState<SmileOneStatus | null>(null);
   const [smileLoading, setSmileLoading] = useState(true);
+  const [yokStatus, setYokStatus] = useState<YcHealthResponse | null>(null);
+  const [yokLoading, setYokLoading] = useState(true);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
@@ -137,7 +152,22 @@ const ProvidersPage: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadSmileStatus(); }, []);
+  const loadYokStatus = async () => {
+    setYokLoading(true);
+    try {
+      const s = await yokcash.health();
+      setYokStatus(s);
+      setLastChecked(new Date());
+    } catch {
+      setYokStatus({ configured: false, connected: false, message: 'Could not reach server' });
+    } finally {
+      setYokLoading(false);
+    }
+  };
+
+  const loadAll = () => { loadSmileStatus(); loadYokStatus(); };
+
+  useEffect(() => { loadAll(); }, []);
 
   const getSmileStatus = (): 'connected' | 'error' | 'unconfigured' | 'loading' => {
     if (smileLoading) return 'loading';
@@ -146,7 +176,16 @@ const ProvidersPage: React.FC = () => {
     return 'error';
   };
 
+  const getYokStatus = (): 'connected' | 'error' | 'unconfigured' | 'loading' => {
+    if (yokLoading) return 'loading';
+    if (!yokStatus?.configured) return 'unconfigured';
+    if (yokStatus.connected) return 'connected';
+    return 'error';
+  };
+
   const smileConnected = getSmileStatus() === 'connected';
+  const yokConnected = getYokStatus() === 'connected';
+  const activeCount = (smileConnected ? 1 : 0) + (yokConnected ? 1 : 0);
 
   return (
     <div className="space-y-8">
@@ -163,11 +202,11 @@ const ProvidersPage: React.FC = () => {
             <p className="text-gray-500 ml-9">Connect API providers, browse live catalogs, sync to your game pages.</p>
           </div>
           <button
-            onClick={loadSmileStatus}
-            disabled={smileLoading}
+            onClick={loadAll}
+            disabled={smileLoading || yokLoading}
             className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${smileLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${(smileLoading || yokLoading) ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>
@@ -175,7 +214,7 @@ const ProvidersPage: React.FC = () => {
         {/* Summary strip */}
         <div className="mt-5 flex flex-wrap gap-4">
           {[
-            { icon: Wifi, label: 'Active APIs', value: smileConnected ? '1 of 3' : '0 of 3', color: smileConnected ? 'text-emerald-600' : 'text-gray-400' },
+            { icon: Wifi, label: 'Active APIs', value: `${activeCount} of 4`, color: activeCount > 0 ? 'text-emerald-600' : 'text-gray-400' },
             { icon: DollarSign, label: 'Balance', value: smileStatus?.usd_balance != null ? `$${smileStatus.usd_balance.toFixed(2)}` : '—', color: 'text-primary-600' },
             { icon: Globe, label: 'Regions', value: '5 Supported', color: 'text-purple-600' },
             { icon: Clock, label: 'Last Sync', value: lastChecked ? lastChecked.toLocaleTimeString() : 'Never', color: 'text-gray-500' },
@@ -198,7 +237,8 @@ const ProvidersPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {PROVIDERS.map((provider, i) => {
           const isSmile = provider.id === 'smile_one';
-          const status = isSmile ? getSmileStatus() : 'unconfigured';
+          const isYok = provider.id === 'yokcash';
+          const status = isSmile ? getSmileStatus() : isYok ? getYokStatus() : 'unconfigured';
           const clickable = !!provider.path;
           const isHovered = hoveredCard === provider.id;
 
@@ -270,11 +310,34 @@ const ProvidersPage: React.FC = () => {
                   </motion.div>
                 )}
 
+                {/* Yokcash IDR balance */}
+                {isYok && yokStatus?.saldo != null && yokStatus.connected && (
+                  <div className="mb-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-3 border border-emerald-100">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 bg-white rounded-lg shadow-sm flex items-center justify-center">
+                        <DollarSign className="w-4 h-4 text-emerald-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">API Balance</p>
+                        <p className="text-lg font-bold text-gray-900">
+                          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(yokStatus.saldo)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Error message */}
                 {isSmile && smileStatus && !smileStatus.connected && smileStatus.message && (
                   <div className="mb-4 flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
                     <WifiOff className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                     <p className="text-xs text-red-600">{smileStatus.message}</p>
+                  </div>
+                )}
+                {isYok && yokStatus && !yokStatus.connected && yokStatus.message && (
+                  <div className="mb-4 flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
+                    <WifiOff className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                    <p className="text-xs text-red-600">{yokStatus.message}</p>
                   </div>
                 )}
 
@@ -317,13 +380,13 @@ const ProvidersPage: React.FC = () => {
                     <span className="text-xs text-gray-400 italic">Integration coming soon</span>
                   )}
 
-                  {isSmile && (
+                  {(isSmile || isYok) && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); loadSmileStatus(); }}
+                      onClick={(e) => { e.stopPropagation(); isSmile ? loadSmileStatus() : loadYokStatus(); }}
                       className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
                       title="Re-check connection"
                     >
-                      <RefreshCw className={`w-3.5 h-3.5 ${smileLoading ? 'animate-spin' : ''}`} />
+                      <RefreshCw className={`w-3.5 h-3.5 ${(isSmile ? smileLoading : yokLoading) ? 'animate-spin' : ''}`} />
                     </button>
                   )}
                 </div>
