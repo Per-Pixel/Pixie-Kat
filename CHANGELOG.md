@@ -3,7 +3,7 @@
 ## [Unreleased]
 
 ### Fixes
-- Checkout UX: the order confirmation now scrolls into view instead of leaving you pinned at the bottom of the collapsed cart, route changes jump to the top instantly (the global `scroll-behavior: smooth` turned `scrollTo(0,0)` into an interruptible animated scroll), the footer reveal plays once rather than hiding again when page height shifts, and the mobile bottom nav no longer covers the footer links. "Order history" now lands on the Orders section instead of Profile.
+- Checkout UX: the order confirmation now scrolls into view instead of leaving you pinned at the bottom of the collapsed page — on both the cart and the single-game checkout (`orderComplete`), which previously had no scroll correction at all. Route changes jump to the top instantly (the global `scroll-behavior: smooth` turned `scrollTo(0,0)` into an interruptible animated scroll), ScrollTrigger positions refresh after the collapse so the footer reveal still fires, the reveal itself plays once rather than hiding again when page height shifts, and the mobile bottom nav no longer covers the footer links. "Order history" now lands on the Orders section instead of Profile.
 - Show the account avatar in the top navbar when logged in, falling back to the profile icon.
 - Grant purchased membership plans once the order is paid — checkout charged the plan add-on but never activated it (`038_membership_grant_on_paid_order.sql` trigger on `orders.status`; cancelled again if the order is refunded/failed).
 - Persist support/contact form submissions to `support_requests` (`039_support_requests.sql`) instead of silently discarding them, and wire the admin Messages page to the real inbox with status triage.
@@ -36,6 +36,7 @@
 - Region-aware checkout blocking: `games.metadata.blocked_regions` rejects all packages for the account's region (MLBB is seeded with `ID` + `BR` via `042_mlbb_blocked_regions.sql`), and `products.metadata.excluded_regions` blocks only that denomination while other packages stay selectable. The detected country is shown as a red (game-level) or amber (denomination) warning under the verify badge, checkout buttons fail with a visible message, and `/api/place-order` + `/api/cart-checkout` enforce the same rules server-side against a sanitized `verified_region`. Unknown regions fail open.
 - Rework the Mobile Legends phone layout with a rounded reduced-height game banner, Buy/Guide switch, readable two-column CMS package groups and notes, and a separate how-to view; keep checkout and other games intact while clearing the scroll control from the Pay button.
 - Hardcoded homepage graphics are now admin-editable through `appearance_settings.site_graphics`: promotion background and the three promo cards, contact artworks, feature videos, hero card videos, and the built-in Trending/Exclusive fallback cards (used only until live promo items exist).
+- Show the MLBB first-purchase double-Diamond explainer between the 50/150/250/500-tier packs and the regular base+bonus packages — the compact grid splits at the first `Diamond=N+M` amount; admin `package_sections` still overrides when configured.
 
 ### Repository
 - Remove scratch artifacts (`Test/` harness, temp backup/seed scripts, stale AWS log, stray screenshot) and stop tracking `admin/.env`.

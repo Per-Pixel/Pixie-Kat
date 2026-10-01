@@ -53,6 +53,7 @@ import ProvidersPage from './pages/providers/ProvidersPage';
 import SmileOneDetailPage from './pages/providers/SmileOneDetailPage';
 import SmileCoinDetailPage from './pages/providers/SmileCoinDetailPage';
 import SmileCoinApiConsolePage from './pages/providers/SmileCoinApiConsolePage';
+import YokcashApiConsolePage from './pages/providers/YokcashApiConsolePage';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -108,6 +109,7 @@ const AppRoutes: React.FC = () => {
         <Route path="providers/smile-one" element={<SmileOneDetailPage />} />
         <Route path="providers/smile-coin" element={<SmileCoinDetailPage />} />
         <Route path="providers/smile-coin/api-console" element={<SmileCoinApiConsolePage />} />
+        <Route path="providers/yokcash" element={<YokcashApiConsolePage />} />
         <Route path="wallets" element={<Wallets />} />
         <Route path="memberships" element={<Memberships />} />
         <Route path="leaderboard" element={<LeaderboardPage />} />

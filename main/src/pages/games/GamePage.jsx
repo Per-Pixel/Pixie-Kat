@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   AlertCircle,
   ArrowLeft,
@@ -44,6 +45,16 @@ const defaultSteps = [
   { title: "Make Payment", description: "Choose your preferred payment method." },
   { title: "Confirmation", description: "Items are added instantly after payment." },
 ];
+
+// MLBB first-purchase promo explainer — rendered between the double-diamond
+// tiers and the regular base+bonus packs in the compact package grid.
+const MOBILE_LEGENDS_DOUBLE_NOTE = `1. From 01/01/2025 (Server Time), the first purchase of Diamonds at specific levels (50, 150, 250 and 500 Diamonds) in the Top-up menu will award double the Diamonds.
+2. Total Diamonds received for each level:
+First purchase of the 50 Diamond level: 50 Base Diamonds + 50 Bonus Diamonds = 100 Diamonds in total
+First purchase of the 150 Diamond level: 150 Base Diamonds + 150 Bonus Diamonds = 300 Diamonds in total
+First purchase of the 250 Diamond level: 250 Base Diamonds + 250 Bonus Diamonds = 500 Diamonds total
+First purchase of the 500 Diamond level: 500 Base Diamonds + 500 Bonus Diamonds = 1000 Diamonds in total
+3. For each tier, the double Diamond bonus only applies to your first purchase, regardless of the payment channel or platform.`;
 
 const paymentMethods = [
   { id: "aluu", logo: "UPI", name: "UPI Gateway", description: "Pay instantly with any UPI app", icon: Smartphone },
@@ -409,6 +420,18 @@ const GamePage = () => {
 
   const [showCartReview, setShowCartReview] = useState(false);
   const [orderComplete, setOrderComplete] = useState(null);
+  const orderCompleteShownRef = useRef(false);
+
+  // The confirmation replaces the whole (tall) page — without this the
+  // browser clamps the old scroll position and the user lands at the
+  // bottom staring at the footer instead of the confirmation. Guard so
+  // later status updates (paymentPending -> fulfilled) don't re-yank scroll.
+  useLayoutEffect(() => {
+    if (!orderComplete || orderCompleteShownRef.current) return;
+    orderCompleteShownRef.current = true;
+    window.scrollTo({ top: 0, behavior: "instant" });
+    ScrollTrigger.refresh();
+  }, [orderComplete]);
   const [playerName, setPlayerName] = useState(null);
   const [playerRegion, setPlayerRegion] = useState(null);
   const [verifying, setVerifying] = useState(false);
@@ -459,6 +482,18 @@ const GamePage = () => {
     () => (packageLayout === "compact" ? packages.filter((p) => !featuredIdSet.has(p.id)) : packages),
     [packages, featuredIdSet, packageLayout]
   );
+
+  // MLBB: the first grid packs are the first-purchase "double" tiers — their
+  // amount is a flat "Diamond=N" with no "+bonus" part ("Diamond=55" vs the
+  // regular "Diamond=78+8"). Split the grid at the first regular pack so the
+  // promo note can sit between the two groups.
+  const doubleNoteSplit = useMemo(() => {
+    if (!isMobileLegends) return -1;
+    const idx = gridPackages.findIndex(
+      (p) => !/^Diamond=\d+$/i.test(String(p.amount ?? "").trim())
+    );
+    return idx > 0 && idx < gridPackages.length ? idx : -1;
+  }, [gridPackages, isMobileLegends]);
 
   // Optional admin-defined section order (metadata.package_sections). When set it
   // fully describes the compact layout: note text blocks, featured wide cards,
@@ -1447,17 +1482,47 @@ const GamePage = () => {
                   ) : null}
 
                   {isMobileLegends && gridPackages.length > 0 ? <h3 className="mb-3 text-xl font-bold text-[#10141f] md:hidden">Package</h3> : null}
-                  <div className={isMobileLegends ? "grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3" : "grid grid-cols-3 gap-2.5 sm:gap-3"}>
-                    {gridPackages.map((item) => (
-                      <CompactPackageCard
-                        key={item.id}
-                        item={item}
-                        selected={selectedPackageId === item.id}
-                        onSelect={() => setSelectedPackageId(item.id)}
-                        mobileLegends={isMobileLegends}
-                      />
-                    ))}
-                  </div>
+                  {doubleNoteSplit > 0 ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3">
+                        {gridPackages.slice(0, doubleNoteSplit).map((item) => (
+                          <CompactPackageCard
+                            key={item.id}
+                            item={item}
+                            selected={selectedPackageId === item.id}
+                            onSelect={() => setSelectedPackageId(item.id)}
+                            mobileLegends
+                          />
+                        ))}
+                      </div>
+                      <p className="my-4 whitespace-pre-line text-xs leading-5 text-[#3b4350] md:my-3 md:text-[11px] md:leading-normal">
+                        {MOBILE_LEGENDS_DOUBLE_NOTE}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3">
+                        {gridPackages.slice(doubleNoteSplit).map((item) => (
+                          <CompactPackageCard
+                            key={item.id}
+                            item={item}
+                            selected={selectedPackageId === item.id}
+                            onSelect={() => setSelectedPackageId(item.id)}
+                            mobileLegends
+                          />
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className={isMobileLegends ? "grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3" : "grid grid-cols-3 gap-2.5 sm:gap-3"}>
+                      {gridPackages.map((item) => (
+                        <CompactPackageCard
+                          key={item.id}
+                          item={item}
+                          selected={selectedPackageId === item.id}
+                          onSelect={() => setSelectedPackageId(item.id)}
+                          mobileLegends={isMobileLegends}
+                        />
+                      ))}
+                    </div>
+                  )}
 
                   {packageNoteBottom ? (
                     <p className={isMobileLegends ? "mt-6 whitespace-pre-line text-sm leading-6 text-[#6d7480] md:mt-3 md:text-xs md:leading-relaxed" : "mt-3 text-xs leading-relaxed text-[#6d7480]"}>{packageNoteBottom}</p>

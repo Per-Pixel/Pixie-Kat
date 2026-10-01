@@ -62,6 +62,7 @@ import { supabaseAdmin, verifyAdminRequest, verifyUserRequest, isSuperAdmin } fr
 import { validateEmail } from './utils/validation.js';
 import * as smileOne from './smileone.js';
 import * as smileCoin from './smilecoin.js';
+import * as yokcash from './yokcash.js';
 import * as razorpay from './razorpay.js';
 import * as aluu from './aluu.js';
 import * as pinterest from './pinterest.js';
@@ -1048,6 +1049,141 @@ app.post('/api/smilecoin/mismatches/cleanup', requireAdmin, async (req, res) => 
     console.error('[smilecoin/mismatches/cleanup]', err.message);
     res.status(500).json({ ok: false, error: err.message });
   }
+});
+
+// ── Yokcash (yokcash.com) routes ─────────────────────────────────────────────
+// Plain JSON-POST provider; auth = api_key in body + source-IP whitelist on
+// their side. Prod calls must come from the EB env's Elastic IP.
+
+// GET /api/yokcash/health — live check: makes a real /saldo call, so
+// connected=true proves BOTH the API key and the IP whitelist are working.
+app.get('/api/yokcash/health', requireAdmin, async (_req, res) => {
+  if (!yokcash.isConfigured()) {
+    return res.json({
+      configured: false,
+      connected:  false,
+      message:    'Missing YOKCASH_API_KEY in server env',
+    });
+  }
+  try {
+    const body      = await yokcash.saldo();
+    const connected = body?.status === true;
+    res.json({
+      configured: true,
+      connected,
+      saldo:    body?.data?.saldo ?? null,
+      currency: 'IDR',
+      message:  connected ? 'Connected' : (body?.msg || 'Yokcash rejected the request — check API key / IP whitelist'),
+    });
+  } catch (err) {
+    res.json({ configured: true, connected: false, message: err.message });
+  }
+});
+
+// GET /api/yokcash/services — full service catalog (prices in IDR)
+app.get('/api/yokcash/services', requireAdmin, async (_req, res) => {
+  try {
+    const body = await yokcash.services();
+    res.json({ ok: body?.status === true, msg: body?.msg, services: body?.data ?? [] });
+  } catch (err) {
+    console.error('[yokcash/services]', err.message);
+    res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
+// GET /api/yokcash/status?order_id=<yokcash invoice>
+app.get('/api/yokcash/status', requireAdmin, async (req, res) => {
+  const orderId = String(req.query.order_id || '').trim();
+  if (!orderId) return res.status(400).json({ ok: false, error: 'Missing ?order_id=' });
+  try {
+    const body = await yokcash.orderStatus(orderId);
+    res.json({ ok: body?.status === true, msg: body?.msg, data: body?.data ?? null });
+  } catch (err) {
+    console.error('[yokcash/status]', err.message);
+    res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
+// POST /api/yokcash/order — real order, spends IDR balance.
+// Body: { service_id, target ("userId|zoneId" or "userId"), kontak, idtrx?, callback? }
+app.post('/api/yokcash/order', requireSuperAdmin, async (req, res) => {
+  if (!yokcash.ALLOW_TEST_ORDER) {
+    return res.status(403).json({
+      ok:     false,
+      dryRun: true,
+      error:  'Test orders disabled (YOKCASH_ALLOW_TEST_ORDER=false). Set to true in server env to enable.',
+    });
+  }
+  const { service_id, target, kontak, idtrx, callback } = req.body || {};
+  if (!service_id || !target || !kontak) {
+    return res.status(400).json({ ok: false, error: 'Missing service_id, target, or kontak' });
+  }
+  try {
+    const body = await yokcash.placeOrder({
+      service_id, target, kontak, callback,
+      idtrx: idtrx || `PKTEST${Date.now()}`,
+    });
+    res.json({ ok: body?.status === true, msg: body?.msg, data: body?.data ?? null });
+  } catch (err) {
+    console.error('[yokcash/order]', err.message);
+    res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
+// POST /api/yokcash/order/dry-run — show the exact payload without sending it
+app.post('/api/yokcash/order/dry-run', requireAdmin, (req, res) => {
+  const { service_id, target, kontak, idtrx, callback } = req.body || {};
+  if (!service_id || !target || !kontak) {
+    return res.status(400).json({ ok: false, error: 'Missing service_id / target / kontak' });
+  }
+  res.json({
+    ok:      true,
+    dryRun:  true,
+    wouldSend: { service_id, target, kontak, idtrx: idtrx || `PKTEST${Date.now()}`, ...(callback ? { callback } : {}) },
+    note:    'api_key is injected server-side; never leaves the server',
+    testOrdersEnabled: yokcash.ALLOW_TEST_ORDER,
+  });
+});
+
+// POST /api/webhooks/yokcash — order status callback.
+// Yokcash posts {id, idtrx, keterangan, status} from 103.146.202.42. Requests
+// arrive via API Gateway, so the real source IP sits at the FRONT of
+// x-forwarded-for — remoteAddress only shows the gateway's IP.
+app.post('/api/webhooks/yokcash', async (req, res) => {
+  const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || getClientIp(req);
+  if (ip !== yokcash.CALLBACK_IP) {
+    console.warn(`[yokcash/webhook] rejected callback from ${ip} (expected ${yokcash.CALLBACK_IP})`);
+    return res.status(403).json({ ok: false });
+  }
+
+  const { id, idtrx, status, keterangan } = req.body || {};
+  console.log(`[yokcash/webhook] idtrx=${idtrx} invoice=${id} status=${status}`);
+
+  // idtrx is our order id — attach the callback to the order's metadata.
+  // Only metadata is written: order.status transitions stay owned by the
+  // fulfillment flow until Yokcash callbacks are proven in production.
+  if (idtrx) {
+    try {
+      const { data: order } = await supabaseAdmin
+        .from('orders')
+        .select('id, metadata')
+        .eq('id', String(idtrx))
+        .maybeSingle();
+      if (order) {
+        await supabaseAdmin
+          .from('orders')
+          .update({ metadata: { ...(order.metadata || {}), yokcash_callback: { id, status, keterangan, received_at: new Date().toISOString() } } })
+          .eq('id', order.id);
+      } else {
+        console.warn(`[yokcash/webhook] no local order matches idtrx=${idtrx}`);
+      }
+    } catch (err) {
+      console.error('[yokcash/webhook] metadata update failed:', err.message);
+    }
+  }
+
+  // Always ack after IP validation — don't leak which ids exist.
+  res.json({ ok: true });
 });
 
 // Cache: product code → first valid productid from SmileCoin productlist

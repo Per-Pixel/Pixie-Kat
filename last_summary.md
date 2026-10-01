@@ -1,33 +1,62 @@
 # Last Session Summary
 
-## This session: post-checkout scroll/footer fixes + navbar avatar (uncommitted)
+## This session: AWS cost audit + Yokcash provider research
 
-Fixed two reported issues on the storefront. All changes are in `main/`, uncommitted on `main` branch.
+### Yokcash API (docs.yokcash.com) — candidate provider alongside Smile/Smilecoin
+- JSON POST to `https://api.yokcash.com/` — endpoints: `service` (catalog, IDR
+  price tiers harga/gold/silver/pro), `order`, `status`, `saldo`.
+- Auth = `api_key` in body + **server IP must be registered in their dashboard**
+  (same whitelist constraint as SmileCode).
+- `target` = `userId|zoneId` (pipe-separated, maps straight to MLBB
+  user_id/zone_id). `idtrx` = our order id, deduped server-side.
+- Callbacks arrive from THEIR IP `103.146.202.42` — validate `getClientIp(req)`
+  on our callback route when implemented. Callback param marked "(SOON)".
+- Prices are IDR → need FX handling vs INR storefront pricing.
+- NOT implemented yet — no code written.
+- Status: user got the API key from Yokcash admin via chat; admin said "otw"
+  on whitelisting our IP. Key saved locally as `YOKCASH_API_KEY` in
+  `main/server/.env` AND pushed to EB env `pixiekat-api-prod`
+  (update-environment merge — all 28 prior vars intact, env back Ready/Green).
+  Next: build `main/server/yokcash.js` + admin debug route (mirror the
+  `/api/admin/sc-*` pattern), `eb deploy`, test /saldo + /service from prod.
+- Oddity spotted in EB env vars (left as-is): `VITE_MAIN_SITE_UR` (truncated
+  name, unused by server code) and a literal junk var named
+  `ser is log in automatic fill the PORT`. Safe cleanup candidates.
 
-### Issue 1 — "order page loads from bottom, footer doesn't work" after checkout
-Root cause chain:
-- `/cart` checkout swaps the tall cart list for a short confirmation via `setDone()` with no navigation → `ScrollToTop` never fires → browser clamps the old scroll position → user lands pinned at the bottom.
-- `ScrollToTop` used `window.scrollTo(0,0)` which inherits `html { scroll-behavior: smooth }` → every route change played a slow animated scroll that could be interrupted by lazy-content reflow, stranding users mid-page.
-- Footer reveal used GSAP `toggleActions: "play none none reverse"` → when page height collapsed, the trigger could reverse-hide the footer (all children at `opacity: 0` → "footer doesn't work").
-- Fixed `BottomNav` (h-16, `md:hidden`) overlaid `.footer-bottom`, which had no bottom clearance on mobile → footer links untappable.
+### AWS bill investigation (account 147826551459, IAM user Admin_PixieKat)
+Sept bill ~$31.50. Root causes found and **removed** (user-confirmed):
+- `pixiekat-api-prod-v2` EB env in ap-southeast-1 (Singapore) — leftover July
+  deployment: t3.micro + Classic LB across 2 AZs = 3 public IPs (~$10.69/mo IPs;
+  would jump ~$26/mo more when EC2/ELB free tier lapses). **Terminated** —
+  instance shutting down, CLB + IPs released with it.
+- `pixiekat-main` Amplify app (d8mwmwzadn7qk, Singapore) — old duplicate of the
+  Mumbai app. **Deleted.**
+- Orphaned WAF WebACL `CreatedByAmplify-d36qca47rnuu5h...` (global/us-east-1,
+  $8.90/mo) — the Amplify app it protected no longer exists in any region.
+  **Deleted** (needed LockToken from get-web-acl).
+- Kept: Mumbai prod EB `pixiekat-api-prod` (t3.micro + EIP **35.154.145.21**),
+  Mumbai Amplify `Pixie-Kat` (d2qve07e257e1q). Expected Oct bill ≈ $12 + tax.
 
-Changes:
-- `src/components/common/ScrollToTop.jsx` — `scrollTo({ top:0, left:0, behavior:"instant" })`.
-- `src/pages/cart/index.jsx` — `doneRef` + `useLayoutEffect` scrolls the confirmation into view (`block:"center"`, instant) when `done` appears; "Order history" button now goes to `/account?section=orders` (was `/account/orders`, which fell through to the Profile section on desktop).
-- `src/components/layout/Footer.jsx` — ScrollTrigger `once: true` instead of reverse-on-leave.
-- `main/index.css` — `@media (max-width: 767px)` `.footer-bottom { padding-bottom: 5.5rem }` to clear the fixed BottomNav.
+### IP-whitelist answer (SmileCode + Yokcash)
+- EB single-instance env has EB-managed Elastic IP **35.154.145.21** — survives
+  deploys/instance replacement; released only if the ENV is terminated/rebuilt.
+- Whitelist that IP in smile.one portal (fixes SmileCode "IP-whitelist
+  failures" worked around at index.js:1341) and in Yokcash dashboard.
+- Permanent fix if ever needed: private subnets + NAT gateway + own EIP
+  (~$32/mo) — also required for load-balanced envs.
 
-### Issue 2 — no profile photo in top navbar
-- `src/components/layout/Navbar.jsx` — account link now renders `profile.avatar_url` (via `publicMediaUrl`) as a rounded `size-9` image; `UserRound` icon kept as fallback.
+### Environment notes
+- AWS CLI on this machine: configured, ap-south-1 default, admin-level IAM user.
+- Shell is PowerShell — no `&&`, no bash loops; write `--filter` JSON to file
+  with `file://` for aws ce calls.
+- Billing usage-type prefixes: APS1 = ap-southeast-1 (Singapore), APS3 =
+  ap-south-1 (Mumbai).
+- ap-south-2 is not opted-in on this account (APIs fail auth — normal).
+- Public IPv4 ($0.005/hr ≈ $3.65/mo each) is NOT free-tier covered — was ~60%
+  of the bill.
 
-### Verified
-- `eslint` 0 errors (42 pre-existing warnings), `vite build` OK, `vitest` 53/53.
-- Not browser-tested live — scroll behavior changes are logic-verified; spot-check `/cart` checkout + `/account/orders/:id` on mobile when convenient.
-
-### Still true from previous sessions
-- Migration `supabase/migrations/043_leaderboard.sql` NOT yet applied to Supabase — apply via SQL editor, sanity-check finalize on a past month.
-- Parked: pg_cron auto-finalize, per-game/referral boards, share cards.
-
-### Conventions learned
-- `html { scroll-behavior: smooth }` in `main/index.css` makes bare `scrollTo(0,0)`/`scrollIntoView({behavior:"auto"})` animate — always pass `behavior:"instant"` for corrective scrolls.
-- Account sections are driven by `?section=` query (`/account?section=orders|wallet|rewards|profile`); `/account/orders` alone is NOT a valid section path — it renders the default profile/dashboard view. `/account/orders/:id` is order details.
+### Prior session state (still true)
+- MLBB double-pack promo note on GamePage.jsx was committed last session per
+  prior summary lineage; EB API deploy is manual (`eb deploy`); Amplify
+  auto-builds on push to main.
+- `main/.env.local` (gitignored) points dev at prod API for live catalog data.

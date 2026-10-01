@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -239,11 +240,22 @@ const CartPage = () => {
   const [pendingCheckout, setPendingCheckout] = useState(null);
   const [done, setDone] = useState(null);
   const doneRef = useRef(null);
+  const doneShownRef = useRef(false);
 
   // When the confirmation replaces the (taller) cart list, the browser clamps
-  // scroll to the new bottom — bring the confirmation back into view.
+  // scroll to the new bottom — bring the confirmation back into view. The
+  // collapse also leaves ScrollTrigger positions stale, so refresh them or
+  // the footer reveal can never fire. Guarded so later status updates to the
+  // same confirmation don't re-yank scroll.
   useLayoutEffect(() => {
-    if (done) doneRef.current?.scrollIntoView({ block: "center", behavior: "instant" });
+    if (!done) {
+      doneShownRef.current = false;
+      return;
+    }
+    if (doneShownRef.current) return;
+    doneShownRef.current = true;
+    doneRef.current?.scrollIntoView({ block: "center", behavior: "instant" });
+    ScrollTrigger.refresh();
   }, [done]);
 
   const walletBalance = Number(profile?.wallet_balance ?? 0);

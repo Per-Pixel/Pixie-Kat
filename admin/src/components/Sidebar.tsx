@@ -153,6 +153,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { label: 'All Providers', path: '/providers' },
         { label: 'Smile One', path: '/providers/smile-one' },
         { label: 'Smile Coin', path: '/providers/smile-coin' },
+        { label: 'Yokcash', path: '/providers/yokcash' },
         { label: 'API Console', path: '/providers/smile-coin/api-console' },
       ],
     },
