@@ -50,7 +50,12 @@ export async function call(endpoint, params = {}) {
   const url = `${BASE_URL}/${endpoint.replace(/^\/+/, '')}`;
   const res = await fetch(url, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept':        'application/json',
+      // Cloudflare bot rules can 403 the bare undici/node UA on whitelisted IPs
+      'User-Agent':    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+    },
     body:    JSON.stringify({ api_key: apiKey, ...params }),
     signal:  AbortSignal.timeout(15_000),
   });
@@ -69,6 +74,19 @@ export async function call(endpoint, params = {}) {
 
 export function isConfigured() {
   return Boolean(String(process.env.YOKCASH_API_KEY || '').trim());
+}
+
+/**
+ * Ask Yokcash's /v3/checkip which source IP it sees for our request. This is
+ * the exact value Yokcash support needs for the IP whitelist — it's on the
+ * a-api.yokcash.com host (reachable pre-whitelist), not api.yokcash.com.
+ * Response text is "<client_ip>, <edge_ip>"; we return the client IP.
+ */
+export async function checkIp() {
+  const url = String(process.env.YOKCASH_CHECKIP_URL || 'https://a-api.yokcash.com/v3/checkip');
+  const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+  const text = (await res.text()).trim();
+  return { httpStatus: res.status, ip: text.split(',')[0]?.trim() || null, raw: text.slice(0, 100) };
 }
 
 // ── Public helpers ────────────────────────────────────────────────────────────

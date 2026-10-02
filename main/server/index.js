@@ -39,6 +39,8 @@
  *   POST   /api/aluu/check-payment             Poll Aluu order status after redirect
  *   POST   /api/aluu/check-cart-payment        Poll an Aluu cart group payment
  *   POST   /api/webhooks/aluu                  Receive signed Aluu payment webhooks
+ *   POST   /api/wallet/topup                   Add coins to the wallet (Razorpay/Aluu, 1 coin = ₹1, max 10,000)
+ *   POST   /api/membership/purchase            Buy a membership plan (wallet / Razorpay / Aluu)
  *
  * Proxied RPCs (service_role only — functions no longer callable by anon/authenticated):
  *   POST   /api/admin/analytics                Get admin analytics dashboard data
@@ -1058,10 +1060,19 @@ app.post('/api/smilecoin/mismatches/cleanup', requireAdmin, async (req, res) => 
 // GET /api/yokcash/health — live check: makes a real /saldo call, so
 // connected=true proves BOTH the API key and the IP whitelist are working.
 app.get('/api/yokcash/health', requireAdmin, async (_req, res) => {
+  // Always resolve the egress IP Yokcash sees (their /v3/checkip) — this is the
+  // exact value support needs for the whitelist, so surface it even when the
+  // saldo call itself fails.
+  let egress = null;
+  try {
+    egress = await yokcash.checkIp();
+  } catch { /* checkip unreachable — leave null */ }
+
   if (!yokcash.isConfigured()) {
     return res.json({
       configured: false,
       connected:  false,
+      server_ip:  egress?.ip ?? null,
       message:    'Missing YOKCASH_API_KEY in server env',
     });
   }
@@ -1071,13 +1082,42 @@ app.get('/api/yokcash/health', requireAdmin, async (_req, res) => {
     res.json({
       configured: true,
       connected,
-      saldo:    body?.data?.saldo ?? null,
-      currency: 'IDR',
-      message:  connected ? 'Connected' : (body?.msg || 'Yokcash rejected the request — check API key / IP whitelist'),
+      server_ip: egress?.ip ?? null,
+      saldo:     body?.data?.saldo ?? null,
+      currency:  'IDR',
+      message:   connected ? 'Connected' : (body?.msg || 'Yokcash rejected the request — check API key / IP whitelist'),
     });
   } catch (err) {
-    res.json({ configured: true, connected: false, message: err.message });
+    res.json({ configured: true, connected: false, server_ip: egress?.ip ?? null, message: err.message });
   }
+});
+
+// GET /api/yokcash/ip-proof — PUBLIC, no auth. Live "curl checkip" page for
+// Yokcash support: shows exactly which egress IP their API sees from this
+// server. Reveals nothing sensitive — the IP is already public via DNS.
+app.get('/api/yokcash/ip-proof', async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  let egress = null;
+  try { egress = await yokcash.checkIp(); } catch { /* rendered below */ }
+  const at = new Date().toISOString();
+  const ok  = Boolean(egress?.ip);
+  res.status(ok ? 200 : 502).send(`<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pixie-Kat server IP check — Yokcash</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f1117;color:#e6e6e6;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .card{background:#171a23;border:1px solid #2a2f3f;border-radius:12px;padding:28px 32px;max-width:640px;width:90%}
+  .cmd{color:#8ab4ff}.out{background:#0b0d12;border-radius:8px;padding:14px 16px;margin:14px 0;white-space:pre-wrap;word-break:break-all}
+  .ip{font-size:28px;color:#7ee787;font-weight:700;margin:10px 0}
+  .meta{color:#8b93a7;font-size:12px;line-height:1.6}
+  .err{color:#ff7b72}
+</style></head><body><div class="card">
+  <div>$ <span class="cmd">curl https://a-api.yokcash.com/v3/checkip</span></div>
+  <div class="out">${ok ? egress.raw.replace(/</g, '&lt;') : '<span class="err">checkip request failed</span>'}</div>
+  ${ok ? `<div>IP that Yokcash sees from our API server:</div><div class="ip">${egress.ip}</div>` : ''}
+  <div class="meta">Generated live by pixiekat-api-prod (AWS ap-south-1) at ${at}.<br>
+  This is the source IP for all our calls to api.yokcash.com / a-api.yokcash.com — please whitelist this exact IP in Cloudflare (Security → WAF → Tools → IP Access Rules → Allow).</div>
+</div></body></html>`);
 });
 
 // GET /api/yokcash/services — full service catalog (prices in IDR)
@@ -2905,6 +2945,243 @@ app.post('/api/webhooks/aluu', async (req, res) => {
   } catch (err) {
     console.error('[webhooks/aluu]', err.message);
     return res.status(500).json({ ok: false, error: 'Webhook processing failed' });
+  }
+});
+
+// ── Service orders: wallet top-up & standalone membership ────────────────────
+// POST /api/wallet/topup          { amount, payment_method }   Add coins (1 coin = ₹1, max 10,000 per top-up)
+// POST /api/membership/purchase   { plan_id, payment_method }  Buy a plan: 'wallet' | 'razorpay' | 'aluu'
+//
+// These create orders with no product — nothing for fulfill-order to deliver.
+// Razorpay/Aluu confirmation reuses the existing verify/check/webhook routes
+// (they flip the order to 'processing'), then the
+// trg_orders_zzz_service_fulfillment trigger credits the wallet or finalizes
+// the membership grant and closes the order.
+const WALLET_TOPUP_MAX = 10_000; // 1 coin = ₹1
+
+const servicePurchaseLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many payment attempts. Please wait a minute.' },
+});
+
+function serviceOrderContact(raw) {
+  if (!isPlainObject(raw)) return {};
+  const contact = {
+    email: String(raw.email ?? '').trim().slice(0, 254),
+    whatsapp: String(raw.whatsapp ?? '').trim().slice(0, 32),
+  };
+  return Object.fromEntries(Object.entries(contact).filter(([, v]) => v));
+}
+
+// Creates a pending service order and opens the provider-side payment.
+// Mirrors the place-order Razorpay/Aluu branches without product validation —
+// the caller passes the authoritative amount itself.
+async function createServiceGatewayPayment({ req, userId, productName, amount, currency, paymentMethod, metadata }) {
+  const { data: order, error: insertError } = await supabaseAdmin
+    .from('orders')
+    .insert({
+      user_id: userId,
+      product_id: null,
+      product_name: productName,
+      total_amount: amount,
+      currency,
+      status: 'pending',
+      payment_method: paymentMethod,
+      metadata,
+    })
+    .select('id')
+    .single();
+  if (insertError) throw insertError;
+  const orderId = order.id;
+
+  const failOrder = () => supabaseAdmin
+    .from('orders')
+    .update({
+      status: 'failed',
+      metadata: { ...metadata, payment_error: `${paymentMethod} order creation failed`, payment_error_at: new Date().toISOString() },
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', orderId)
+    .eq('status', 'pending');
+
+  try {
+    if (paymentMethod === 'razorpay') {
+      if (!razorpay.isConfigured()) throw new Error('Razorpay is not configured on the payment server');
+      if (!supportedRazorpayCurrency(currency)) throw new Error(`Razorpay is not enabled for ${currency} payments`);
+
+      const amountInSubunits = razorpay.toSubunits(amount, currency);
+      const providerOrder = await razorpay.createOrder({
+        amount,
+        currency,
+        receipt: orderId,
+        notes: { pixiekat_order_id: orderId },
+      });
+      if (!providerOrder?.id || Number(providerOrder.amount) !== amountInSubunits || String(providerOrder.currency).toUpperCase() !== currency) {
+        throw new Error('Razorpay returned an invalid order');
+      }
+
+      const { error: updateError } = await supabaseAdmin
+        .from('orders')
+        .update({
+          razorpay_order_id: providerOrder.id,
+          metadata: { ...metadata, razorpay_order_id: providerOrder.id },
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', orderId)
+        .eq('status', 'pending');
+      if (updateError) throw updateError;
+
+      return {
+        orderId,
+        razorpay: { keyId: razorpay.getKeyId(), orderId: providerOrder.id, amount: amountInSubunits, currency },
+      };
+    }
+
+    // aluu — INR-only UPI gateway
+    if (!aluu.isConfigured()) throw new Error('Aluu Pay is not configured on the payment server');
+    if (currency !== 'INR') throw new Error('UPI payments are only available for INR amounts');
+
+    const customerMobile = String(
+      metadata?.contact?.whatsapp || req.profile?.phone || '0000000000'
+    ).replace(/\D/g, '').slice(-10) || '0000000000';
+    const redirectUrl = config.frontendUrl
+      ? `${config.frontendUrl}/account/orders/${orderId}`
+      : String(req.headers.origin || req.headers.referer || 'http://localhost:5173').replace(/\/+$/, '') + `/account/orders/${orderId}`;
+
+    const providerOrder = await aluu.createOrder({
+      amount,
+      orderId,
+      customerMobile,
+      redirectUrl,
+      remark1: `PixieKat ${productName}`,
+      remark2: productName,
+    });
+
+    const { error: updateError } = await supabaseAdmin
+      .from('orders')
+      .update({
+        aluu_order_id: providerOrder.orderId,
+        metadata: { ...metadata, aluu_order_id: providerOrder.orderId, aluu_payment_url: providerOrder.paymentUrl },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', orderId)
+      .eq('status', 'pending');
+    if (updateError) throw updateError;
+
+    return { orderId, aluu: { paymentUrl: providerOrder.paymentUrl, providerOrderId: providerOrder.orderId } };
+  } catch (err) {
+    await failOrder();
+    throw err;
+  }
+}
+
+app.post('/api/wallet/topup', servicePurchaseLimiter, requireUser, async (req, res) => {
+  try {
+    const coins = Math.floor(Number(req.body?.amount));
+    if (!Number.isFinite(coins) || coins < 1 || coins > WALLET_TOPUP_MAX) {
+      return res.status(400).json({ ok: false, error: `Enter between 1 and ${WALLET_TOPUP_MAX.toLocaleString('en-IN')} coins` });
+    }
+    const paymentMethod = String(req.body?.payment_method || '').trim().toLowerCase();
+    if (!['razorpay', 'aluu'].includes(paymentMethod)) {
+      return res.status(400).json({ ok: false, error: 'payment_method must be razorpay or aluu' });
+    }
+
+    const result = await createServiceGatewayPayment({
+      req,
+      userId: req.user.id,
+      productName: `Wallet top-up — ${coins.toLocaleString('en-IN')} coins`,
+      amount: coins,
+      currency: 'INR',
+      paymentMethod,
+      metadata: {
+        wallet_topup: true,
+        coins,
+        contact: serviceOrderContact(req.body?.contact),
+      },
+    });
+    return res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('[wallet/topup]', err.message);
+    return res.status(400).json({ ok: false, error: err.message || 'Could not start the top-up. Please try again.' });
+  }
+});
+
+app.post('/api/membership/purchase', servicePurchaseLimiter, requireUser, async (req, res) => {
+  try {
+    const planId = String(req.body?.plan_id || '').trim();
+    if (!UUID_PATTERN.test(planId)) {
+      return res.status(400).json({ ok: false, error: 'A valid plan_id is required' });
+    }
+    const paymentMethod = String(req.body?.payment_method || '').trim().toLowerCase();
+    if (!['wallet', 'razorpay', 'aluu'].includes(paymentMethod)) {
+      return res.status(400).json({ ok: false, error: 'payment_method must be wallet, razorpay or aluu' });
+    }
+
+    const { data: plan, error: planError } = await supabaseAdmin
+      .from('membership_plans')
+      .select('id, name, price, currency, duration_days')
+      .eq('id', planId)
+      .eq('is_active', true)
+      .maybeSingle();
+    if (planError) throw planError;
+    if (!plan) {
+      return res.status(404).json({ ok: false, error: 'Membership plan is not available' });
+    }
+
+    const { data: activeMembership } = await supabaseAdmin
+      .from('user_memberships')
+      .select('id')
+      .eq('user_id', req.user.id)
+      .eq('status', 'active')
+      .gt('expires_at', new Date().toISOString())
+      .limit(1)
+      .maybeSingle();
+    if (activeMembership) {
+      return res.status(409).json({ ok: false, error: 'You already have an active membership' });
+    }
+
+    if (paymentMethod === 'wallet') {
+      const { data: orderId, error: rpcError } = await supabaseAdmin.rpc('purchase_membership_with_wallet', {
+        p_user_id: req.user.id,
+        p_plan_id: plan.id,
+      });
+      if (rpcError) {
+        if (rpcError.message?.includes('Insufficient wallet balance')) {
+          return res.status(422).json({ ok: false, error: 'Insufficient wallet balance' });
+        }
+        if (rpcError.message?.includes('active membership already exists')) {
+          return res.status(409).json({ ok: false, error: 'You already have an active membership' });
+        }
+        throw rpcError;
+      }
+      return res.json({ ok: true, orderId, method: 'wallet' });
+    }
+
+    const result = await createServiceGatewayPayment({
+      req,
+      userId: req.user.id,
+      productName: `${plan.name} Membership`,
+      amount: Number(plan.price),
+      currency: String(plan.currency || 'INR').trim().toUpperCase(),
+      paymentMethod,
+      metadata: {
+        pricing: {
+          selected_membership_plan_id: plan.id,
+          selected_membership_plan_name: plan.name,
+          membership_add_on: Number(plan.price),
+          total_amount: Number(plan.price),
+          standalone_membership: true,
+        },
+        contact: serviceOrderContact(req.body?.contact),
+      },
+    });
+    return res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('[membership/purchase]', err.message);
+    return res.status(400).json({ ok: false, error: err.message || 'Could not start the purchase. Please try again.' });
   }
 });
 
