@@ -87,7 +87,7 @@ export async function verifyUserRequest(authHeader) {
 
   const { data: profile, error: profileError } = await supabaseAdmin
     .from('profiles')
-    .select('id, role, status, name, email')
+    .select('id, role, status, name, email, phone')
     .eq('id', user.id)
     .single();
 
