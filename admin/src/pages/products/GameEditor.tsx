@@ -1375,6 +1375,7 @@ const GameEditor: React.FC = () => {
                 <select className="input" value={form.provider} onChange={(e) => change('provider', e.target.value as GameProvider)}>
                   <option value="manual">Manual</option>
                   <option value="smile_one">Smile.one</option>
+                  <option value="yokcash">Yokcash</option>
                   <option value="other">Other API</option>
                 </select>
               </div>

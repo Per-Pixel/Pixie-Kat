@@ -419,6 +419,7 @@ const GamePage = () => {
   const [cartNotice, setCartNotice] = useState(null);
 
   const [showCartReview, setShowCartReview] = useState(false);
+  const [confirmStep, setConfirmStep] = useState(1);
   const [orderComplete, setOrderComplete] = useState(null);
   const orderCompleteShownRef = useRef(false);
 
@@ -706,6 +707,10 @@ const GamePage = () => {
   }
 
   const steps = game.how_to_steps && game.how_to_steps.length > 0 ? game.how_to_steps : defaultSteps;
+  const isYokcash = game.provider === "yokcash";
+  const targetUserField = fields.find((f) => ["user_id", "userid", "player_id", "account_id"].includes(f.field_key))?.field_key;
+  const targetZoneField = fields.find((f) => ["zone_id", "server_id", "zoneid"].includes(f.field_key))?.field_key;
+  const reviewTarget = `${String(fieldValues[targetUserField] ?? "").trim()}${targetZoneField ? ` | Zone ${String(fieldValues[targetZoneField] ?? "").trim()}` : ""}`;
   const bannerImage = game.banner_url || game.image_url || defaultBanner;
   const gameDescription = game.description ? sanitizeRichText(game.description) : null;
   const selectedPackage = packages.find((item) => item.id === selectedPackageId) ?? packages[0] ?? null;
@@ -756,6 +761,7 @@ const GamePage = () => {
     if (regionBlocked) { failCheckout(`This ${gameRegionBlocked ? "product" : "package"} is not available for players in ${accountCountry}.`, "region-warning"); return; }
     if (!contact.email.trim() || !contact.whatsapp.trim()) { failCheckout("Please enter your email address and WhatsApp number.", contact.email.trim() ? "contact-whatsapp" : "contact-email"); return; }
     if (!isAuthenticated || !user?.id) { failCheckout("Please log in before placing this order.", "checkout-error"); return; }
+    setConfirmStep(1);
     setShowCartReview(true);
   };
 
@@ -1263,15 +1269,37 @@ const GamePage = () => {
                 <span className="text-2xl font-black text-[#6d4cff]">{paymentTotalLabel}</span>
               </div>
             </div>
+            {isYokcash && confirmStep === 2 && (
+              <div className="mb-4 rounded-xl border-2 border-red-300 bg-red-50 p-4">
+                <p className="mb-1 text-xs font-black text-red-600">FINAL CHECK — WRONG IDS CANNOT BE REFUNDED</p>
+                <p className="text-sm font-bold text-[#10141f]">
+                  Diamonds go to <span className="font-black">{reviewTarget || "—"}</span>
+                  {playerName ? ` — ${playerName}` : ""}{playerRegion?.country ? ` (${playerRegion.country})` : ""}
+                </p>
+                {!playerName && !playerRegion?.nickname && (
+                  <p className="mt-1 text-xs font-bold text-amber-600">This account could not be verified — check the ID twice.</p>
+                )}
+                <p className="mt-1 text-xs text-red-600">The provider delivers to exactly the ID above and never validates it. Make sure it is yours.</p>
+              </div>
+            )}
             {checkoutError ? (
               <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{checkoutError}</p>
             ) : null}
             <div className="flex gap-3">
-              <button type="button" onClick={() => setShowCartReview(false)} className="h-12 flex-1 rounded-xl border border-[#dfe4ec] text-sm font-bold text-[#4b5563]">
+              <button type="button" onClick={() => (isYokcash && confirmStep === 2 ? setConfirmStep(1) : setShowCartReview(false))} className="h-12 flex-1 rounded-xl border border-[#dfe4ec] text-sm font-bold text-[#4b5563]">
                 Go Back
               </button>
-              <button type="button" onClick={handlePay} disabled={isSubmitting} className="h-12 flex-1 rounded-xl bg-[#6d4cff] text-sm font-bold text-white disabled:opacity-70">
-                {isSubmitting ? "Processing..." : `Confirm & Pay ${paymentTotalLabel}`}
+              <button
+                type="button"
+                onClick={() => (isYokcash && confirmStep === 1 ? setConfirmStep(2) : handlePay())}
+                disabled={isSubmitting}
+                className={`h-12 flex-1 rounded-xl text-sm font-bold text-white disabled:opacity-70 ${isYokcash && confirmStep === 2 ? "bg-red-600" : "bg-[#6d4cff]"}`}
+              >
+                {isSubmitting
+                  ? "Processing..."
+                  : isYokcash
+                    ? confirmStep === 1 ? "Review Account →" : "Yes — Send Diamonds"
+                    : `Confirm & Pay ${paymentTotalLabel}`}
               </button>
             </div>
           </div>

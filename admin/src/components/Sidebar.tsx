@@ -154,6 +154,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { label: 'Smile One', path: '/providers/smile-one' },
         { label: 'Smile Coin', path: '/providers/smile-coin' },
         { label: 'Yokcash', path: '/providers/yokcash' },
+        { label: 'Yokcash Store', path: '/providers/yokcash/store' },
         { label: 'API Console', path: '/providers/smile-coin/api-console' },
       ],
     },

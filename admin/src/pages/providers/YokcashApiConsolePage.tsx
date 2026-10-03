@@ -152,6 +152,12 @@ const YokcashApiConsolePage: React.FC = () => {
               Exercise every Yokcash endpoint. The API key is injected server-side — calls only succeed from a whitelisted IP.
             </p>
           </div>
+          <button
+            onClick={() => navigate('/providers/yokcash/store')}
+            className="px-3 py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 transition-colors"
+          >
+            Open MLBB store test →
+          </button>
           {/* Live status chip */}
           {health && (
             <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${

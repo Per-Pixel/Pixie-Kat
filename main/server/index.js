@@ -1146,6 +1146,13 @@ app.get('/api/yokcash/status', requireAdmin, async (req, res) => {
 
 // POST /api/yokcash/order — real order, spends IDR balance.
 // Body: { service_id, target ("userId|zoneId" or "userId"), kontak, idtrx?, callback? }
+//
+// Yokcash never validates the target — a typo pays a stranger. Test orders
+// are therefore pinned to an allowlist (YOKCASH_TEST_TARGETS, comma-separated
+// "userId|zoneId" entries; defaults to the owner's MLBB account).
+const YOKCASH_TEST_TARGETS = String(process.env.YOKCASH_TEST_TARGETS || '124242796|2623')
+  .split(',').map((s) => s.trim()).filter(Boolean);
+
 app.post('/api/yokcash/order', requireSuperAdmin, async (req, res) => {
   if (!yokcash.ALLOW_TEST_ORDER) {
     return res.status(403).json({
@@ -1157,6 +1164,12 @@ app.post('/api/yokcash/order', requireSuperAdmin, async (req, res) => {
   const { service_id, target, kontak, idtrx, callback } = req.body || {};
   if (!service_id || !target || !kontak) {
     return res.status(400).json({ ok: false, error: 'Missing service_id, target, or kontak' });
+  }
+  if (!YOKCASH_TEST_TARGETS.includes(String(target).trim())) {
+    return res.status(403).json({
+      ok:     false,
+      error:  `Test orders are locked to ${YOKCASH_TEST_TARGETS.join(', ')} — Yokcash accepts any target without validation, so test buys are pinned to the owner's account.`,
+    });
   }
   try {
     const body = await yokcash.placeOrder({
@@ -3411,6 +3424,43 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
       const statusOk = Number(body.status) === 200 || body.ok === true;
       if (!statusOk) {
         throw new Error(body.message || body.msg || `SmileCoin order failed (status ${body.status})`);
+      }
+    } else if (game.provider === 'yokcash' && yokcash.isConfigured()) {
+      // Yokcash: product.provider_product_id holds the service code (e.g. "ML5PH").
+      // idtrx is the Pixie-Kat order id — Yokcash dedupes on it, so retries of
+      // the same order can never double-deliver, and the status webhook looks
+      // orders up by it.
+      const serviceId = resolveOrderProductId(product);
+      if (!serviceId) {
+        throw new Error(
+          'No valid Yokcash service_id for this product (set provider_product_id in admin GameEditor). ' +
+          'Order refunded — fix the product config, then have the customer re-order.'
+        );
+      }
+      const ycParams = {
+        service_id: serviceId,
+        target:     zoneId ? `${userId}|${zoneId}` : String(userId),
+        kontak:     order.metadata?.contact?.whatsapp || order.metadata?.contact?.email || '628888',
+        idtrx:      String(orderId),
+      };
+      console.log('[fulfill-order] yokcash order params:', JSON.stringify(ycParams));
+
+      let body;
+      try {
+        body = await yokcash.placeOrder(ycParams);
+      } catch (ycErr) {
+        // Same posture as SmileCoin: a transport/parse throw may still have
+        // been processed provider-side. Mark uncertain — never blind-refund.
+        console.error(`[fulfill-order] Yokcash placeOrder threw but order may have been processed: ${ycErr.message}`);
+        fulfillResult = { uncertain: true, error: ycErr.message };
+        throw ycErr;
+      }
+      fulfillResult = body;
+
+      // Yokcash returns {status:true, msg, data:{id, status:"pending"|...}}.
+      // status:false = clean rejection (bad target, insufficient saldo) → refund path.
+      if (body?.status !== true) {
+        throw new Error(body?.msg || `Yokcash order failed (status ${body?.status})`);
       }
     } else if (game.provider === 'smile_one' && smileOne.isConfigured() && game.provider_game_code) {
       const sku = product?.sku;
