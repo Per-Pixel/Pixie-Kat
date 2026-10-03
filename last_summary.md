@@ -111,6 +111,22 @@ for delivery.
 - `mobile-legends-philippines` — Yokcash, PH-region accounts only
 - `mobile-legends-global` — Yokcash, all regions, small/mini packs
 
+### Part 5 — Commits pushed + migration 044 applied
+- `f378671` feat(yokcash): fulfillment branch, test-target lock, double
+  confirm, admin store page — pushed to origin/main.
+- `5b8c939` feat(wallet): committed the other agent's complete WIP —
+  AddMoneyPage rewrite (1–10,000 coin top-up via Razorpay/UPI + standalone
+  membership purchase), pricing-page "Choose" → add-money#membership,
+  supabase-admin phone field, migration 044 file + CHANGELOG entry.
+  Reviewed before committing: coherent complete feature, eslint clean.
+- **Migration 044 applied to prod** — verified deps first
+  (user_memberships.source_order_id, wallet_transactions, user_activity_log,
+  trg_orders_sync_membership all exist). Functions
+  fulfill_paid_service_order + purchase_membership_with_wallet (service_role
+  only) and trigger trg_orders_zzz_service_fulfillment confirmed live.
+- Working tree clean, main in sync with origin.
+- Amplify auto-builds on push — double-confirm + wallet page go live with it.
+
 ### Still open / latent
 - Synthetic test order `cc3de9d1-…` (metadata.synthetic_dispatch_test) stays
   `completed` — delete it in admin if it pollutes order lists.
