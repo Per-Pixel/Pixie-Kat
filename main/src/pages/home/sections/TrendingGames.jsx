@@ -154,7 +154,7 @@ const TrendingGames = () => {
               <img
                 src={game.image}
                 alt={game.title}
-                className="h-40 w-full object-cover object-top"
+                className="h-[216px] w-full object-cover object-top"
                 draggable={false}
                 loading="lazy"
                 decoding="async"
@@ -163,24 +163,7 @@ const TrendingGames = () => {
               />
             </div>
 
-            <div className="mb-1 truncate text-base font-semibold text-black">{game.title}</div>
-
-            <div className="mb-2 flex items-center gap-2 text-xs text-black">
-              <span className="flex items-center gap-1">
-                <span role="img" aria-label="star">
-                  ⭐
-                </span>
-                <span className="font-bold text-yellow-400">{game.rating}</span>/100
-              </span>
-            </div>
-
-            <div className="mb-2 flex items-center gap-2">
-              <span className="text-sm text-gray-500 line-through">₹{game.oldPrice}</span>
-              <span className="text-lg font-bold text-black">₹{game.price}</span>
-              <span className="ml-1 rounded bg-orange-500 px-1.5 py-0.5 text-xs text-white">
-                {game.discount}%
-              </span>
-            </div>
+            <div className="mb-2 truncate text-base font-semibold text-black">{game.title}</div>
 
             <button
               onClick={() => navigate(game.link ?? "/games")}
