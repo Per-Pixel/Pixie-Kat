@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,19 +7,14 @@ import { useJjkCheaperPlacement } from '../../../hooks/useJjkCheaperPlacement';
 
 const GameGrid = () => {
   const navigate = useNavigate();
-  const [showAllGames, setShowAllGames] = useState(false);
   const { games: availableGames, loading, error } = useActiveGames();
   const jjkPromo = useJjkCheaperPlacement('games_page');
 
   // Only show games from Supabase — never the old hardcoded demo catalog.
-  const games = showAllGames ? availableGames : availableGames.slice(0, 7);
+  const games = availableGames;
 
   const handleGameClick = (game) => {
     navigate(`/games/${game.id}`);
-  };
-
-  const handleSeeAllClick = () => {
-    setShowAllGames(!showAllGames);
   };
 
   const containerVariants = {
@@ -147,48 +141,7 @@ const GameGrid = () => {
             </motion.div>
           ))}
 
-          {!showAllGames && availableGames.length > 7 && (
-            <motion.div
-              variants={itemVariants}
-              whileHover={{
-                scale: 1.03,
-                y: -3,
-                transition: { duration: 0.2 },
-              }}
-              whileTap={{ scale: 0.97 }}
-              onClick={handleSeeAllClick}
-              className="group flex cursor-pointer flex-col items-center justify-center rounded-xl border border-black bg-gradient-to-br from-purple-500 to-blue-600 p-3 text-white shadow-md transition-all duration-300 hover:shadow-lg md:rounded-2xl md:p-4"
-            >
-              <div className="mb-3 flex aspect-square w-full items-center justify-center rounded-lg md:mb-4 md:rounded-xl">
-                <div className="text-2xl md:text-3xl">{'>'}</div>
-              </div>
-              <div className="text-center">
-                <h3 className="text-xs font-medium leading-tight md:text-sm">See All</h3>
-              </div>
-            </motion.div>
-          )}
 
-          {showAllGames && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileHover={{
-                scale: 1.03,
-                y: -3,
-                transition: { duration: 0.2 },
-              }}
-              whileTap={{ scale: 0.97 }}
-              onClick={handleSeeAllClick}
-              className="group flex cursor-pointer flex-col items-center justify-center rounded-xl border border-black bg-gradient-to-br from-gray-500 to-gray-700 p-3 text-white shadow-md transition-all duration-300 hover:shadow-lg md:rounded-2xl md:p-4"
-            >
-              <div className="mb-3 flex aspect-square w-full items-center justify-center rounded-lg md:mb-4 md:rounded-xl">
-                <div className="text-2xl md:text-3xl">{'<'}</div>
-              </div>
-              <div className="text-center">
-                <h3 className="text-xs font-medium leading-tight md:text-sm">Show Less</h3>
-              </div>
-            </motion.div>
-          )}
         </motion.div>
         )}
       </div>
