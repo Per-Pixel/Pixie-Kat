@@ -28,10 +28,13 @@
 - Committed + pushed as `fix(payments): disable online gateways over
   test-mode key abuse`, preceded by `feat(admin): image editor for storage
   assets` (previous session's verified work).
+- Deployed to prod: `eb deploy pixiekat-api-prod` → version
+  `app-261008_201754922436`, Ready/Green, `deploy:check` reports no drift,
+  `/api/health` 200. The deploy also shipped three earlier undeployed server
+  commits (yokcash fulfillment, wallet topup/membership, game pages) — user
+  approved.
 - `supabase/.temp/` remains an unrelated untracked artifact.
-- IMPORTANT: the API runs on Elastic Beanstalk (`npm run deploy` in
-  `main/server`) — push alone does NOT redeploy; the kill switch is live only
-  after `eb deploy pixiekat-api-prod`. Frontend also needs its usual deploy.
-- Follow-up: switch Razorpay/Aluu to live keys, then flip
-  `ONLINE_PAYMENTS_ENABLED` back to true; audit recent `processing`/`completed`
-  orders with test `pay_*` ids for fraudulent deliveries.
+- Follow-up: switch Razorpay/Aluu to live keys (prod env on EB — the repo
+  `.env` holds `rzp_test_` keys), then flip `ONLINE_PAYMENTS_ENABLED` back to
+  true; audit recent `processing`/`completed` orders with test `pay_*` ids for
+  fraudulent deliveries.
