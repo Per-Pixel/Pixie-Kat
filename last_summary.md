@@ -1,40 +1,37 @@
 # Last Session Summary
 
-## Admin image editor in `/storage` (2026-10-07)
+## Online payments kill switch (2026-10-08)
 
-- Added `admin/src/pages/storage/ImageEditor.tsx` and `admin/src/services/imageEditing.ts`.
-  Browser canvas pipeline supports free crop plus 16:9, 4:3, and 1:1 presets,
-  focal-point placement, rotate/flip, brightness/contrast/saturation,
-  grayscale/sepia/blur, output preview, and WebP/PNG/JPEG export.
-- `/storage` asset details now opens the editor in a wider drawer. Default save
-  creates a new media record in the source folder and preserves the source
-  bucket (`public-media` or private `media`). Replacing the original remains an
-  explicit guarded action and only runs when the exported extension matches the
-  original, then reuses the existing usage confirmation path.
-- `uploadMedia` now accepts a validated destination bucket so edited copies of
-  private assets stay private; the returned private record is decorated with a
-  signed URL.
-- Docs updated: `CHANGELOG.md` gained an Unreleased Admin bullet, and
-  `admin/CMS_IMPLEMENTATION.md` now marks the implemented image-editor items.
-  The dedicated "Generate responsive versions" button remains unchecked.
+- Root cause of "fake payments get real orders": `main/server/.env` (and likely
+  the deployed EB env) uses a `rzp_test_` Razorpay key, so test-mode payments
+  pass signature verification, flip orders to `processing`, and get delivered.
+- `main/server/index.js`: added `ONLINE_PAYMENTS_ENABLED = false` +
+  `ONLINE_PAYMENTS_MESSAGE`. Non-wallet methods now return 503 in
+  `/api/place-order` (also blocks the arbitrary-method pending-order branch),
+  `/api/cart-checkout`, and `/api/membership/purchase`; `/api/wallet/topup` is
+  closed entirely (gateways only). Verify/webhook/check endpoints unchanged so
+  genuinely-paid pending orders still settle. Flip the flag to re-enable.
+- Storefront: `GamePage.jsx` and `cart/index.jsx` payment selectors now list
+  Pixie Wallet only (+ short "temporarily unavailable" note);
+  `AddMoneyPage.jsx` shows a top-ups-disabled notice, disables the pay button,
+  and hides the gateway membership purchase (wallet purchase stays).
+- CHANGELOG gained an Unreleased Payments bullet.
 
 ## Verification
 
-- `npm test` in `admin`: 3 test files / 18 tests passed.
-- `npm run typecheck` in `admin`: passed.
-- `npm run build` in `admin`: passed; existing >800 kB chunk warning remains.
-- Targeted ESLint: 0 errors, 19 pre-existing `no-explicit-any` warnings in
-  `mediaService.ts`.
-- Impeccable detector on changed storage UI files: no findings (`[]`).
-- `git diff --check`: clean.
-- Manual browser exercise of the editor flow was not run.
+- `main/server`: `npm test` 63/63 passed; `node --check index.js` clean.
+- `main`: `npm test` 53/53 passed; `npm run build` passed; targeted ESLint on
+  changed files clean; `git diff --check` clean.
 
 ## Repo state
 
-- Changed: `CHANGELOG.md`, `admin/CMS_IMPLEMENTATION.md`,
-  `admin/src/pages/storage/StoragePage.tsx`, `admin/src/services/mediaService.ts`,
-  `admin/src/services/mediaService.test.ts`, `last_summary.md`.
-- Added: `admin/src/pages/storage/ImageEditor.tsx`,
-  `admin/src/services/imageEditing.ts`.
+- Committed + pushed as `fix(payments): disable online gateways over
+  test-mode key abuse`, preceded by `feat(admin): image editor for storage
+  assets` (previous session's verified work).
 - `supabase/.temp/` remains an unrelated untracked artifact.
-- Not committed or pushed.
+- IMPORTANT: the API runs on Elastic Beanstalk (`npm run deploy` in
+  `main/server`) — push alone does NOT redeploy; the kill switch is live only
+  after `eb deploy pixiekat-api-prod`. Frontend also needs its usual deploy.
+- Follow-up: switch Razorpay/Aluu to live keys, then flip
+  `ONLINE_PAYMENTS_ENABLED` back to true; audit recent `processing`/`completed`
+  orders with test `pay_*` ids for fraudulent deliveries.
