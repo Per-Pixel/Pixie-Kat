@@ -239,10 +239,14 @@ export async function listMedia(options?: {
 export async function uploadMedia(
   file: File,
   folder: string = '',
-  meta?: { alt_text?: string; tags?: string[] }
+  meta?: { alt_text?: string; tags?: string[] },
+  bucket: typeof PRIVATE_BUCKET | typeof PUBLIC_BUCKET = PUBLIC_BUCKET
 ): Promise<MediaRecord> {
+  if (![PRIVATE_BUCKET, PUBLIC_BUCKET].includes(bucket)) {
+    throw new Error('Unsupported media bucket');
+  }
   if (!PUBLIC_MEDIA_TYPES.has(file.type)) {
-    throw new Error('Only public images and videos can be uploaded here');
+    throw new Error('Only supported image and video formats can be uploaded');
   }
 
   const ext = file.name.split('.').pop() ?? '';
@@ -250,13 +254,13 @@ export async function uploadMedia(
   const timestamp = Date.now();
   const path = folder ? `${folder}/${base}_${timestamp}.${ext}` : `${base}_${timestamp}.${ext}`;
 
-  const { error: upErr } = await supabase.storage.from(PUBLIC_BUCKET).upload(path, file, {
+  const { error: upErr } = await supabase.storage.from(bucket).upload(path, file, {
     contentType: file.type,
     upsert: false,
   });
   if (upErr) throw upErr;
 
-  const publicUrl = getObjectUrl(PUBLIC_BUCKET, path);
+  const publicUrl = getObjectUrl(bucket, path);
 
   // Try to get image dimensions
   let width: number | null = null;
@@ -276,7 +280,7 @@ export async function uploadMedia(
     .insert({
       filename: file.name,
       storage_path: path,
-      bucket: PUBLIC_BUCKET,
+      bucket,
       mime_type: file.type,
       size_bytes: file.size,
       width,

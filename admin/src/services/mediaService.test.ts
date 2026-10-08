@@ -1,15 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { cropRectangle, outputDimensions } from './imageEditing';
 import { supabase } from '../lib/supabase';
 import {
   buildSiteGraphicPlacements,
   fetchAllMediaUsages,
   matchMediaUrl,
   saveGraphicPlacement,
+  uploadMedia,
   type AllRawUsages,
   type MediaRecord,
 } from './mediaService';
 
-vi.mock('../lib/supabase', () => ({ supabase: { from: vi.fn() } }));
+vi.mock('../lib/supabase', () => ({ supabase: { from: vi.fn(), storage: { from: vi.fn() } } }));
 
 const heroFile: MediaRecord = {
   id: 'file-1',
@@ -32,6 +34,49 @@ const raw: AllRawUsages = {
 };
 
 beforeEach(() => vi.clearAllMocks());
+
+describe('image editor geometry', () => {
+  it('uses focal point to choose a 16:9 crop within the source image', () => {
+    expect(cropRectangle(400, 400, 16 / 9, { x: 100, y: 100 })).toEqual({ x: 0, y: 175, width: 400, height: 225 });
+    expect(cropRectangle(400, 400, 16 / 9, { x: 50, y: 50 })).toEqual({ x: 0, y: 87.5, width: 400, height: 225 });
+    expect(cropRectangle(400, 200, 1, { x: 25, y: 50 })).toEqual({ x: 0, y: 0, width: 200, height: 200 });
+  });
+
+  it('supports a free-form crop anchored by the focal point', () => {
+    expect(cropRectangle(400, 200, null, { x: 50, y: 50 }, { width: 50, height: 50 }))
+      .toEqual({ x: 100, y: 50, width: 200, height: 100 });
+    expect(cropRectangle(400, 200, null, { x: 100, y: 0 }, { width: 50, height: 50 }))
+      .toEqual({ x: 200, y: 0, width: 200, height: 100 });
+  });
+
+  it('clamps out-of-range focal values and swaps dimensions for quarter turns', () => {
+    expect(cropRectangle(400, 200, 1, { x: 200, y: -10 })).toEqual({ x: 200, y: 0, width: 200, height: 200 });
+    expect(outputDimensions(400, 225, 90)).toEqual({ width: 225, height: 400 });
+    expect(outputDimensions(400, 225, 180)).toEqual({ width: 400, height: 225 });
+  });
+});
+
+describe('edited image uploads', () => {
+  it('keeps a private-bucket source private when saving an edited copy', async () => {
+    const storageBucket = {
+      upload: vi.fn().mockResolvedValue({ error: null }),
+      createSignedUrl: vi.fn().mockResolvedValue({ data: { signedUrl: 'https://assets.example/signed/edited.webp' } }),
+    };
+    const inserted = {
+      id: 'edited-1', filename: 'hero_edited.webp', storage_path: 'img/hero_edited.webp',
+      bucket: 'media', mime_type: 'image/webp', public_url: 'https://assets.example/storage/v1/object/public/media/img/hero_edited.webp',
+    };
+    const insert = vi.fn().mockReturnValue({ select: () => ({ single: async () => ({ data: inserted, error: null }) }) });
+    vi.mocked(supabase.storage.from).mockReturnValue(storageBucket as never);
+    vi.mocked(supabase.from).mockReturnValue({ insert } as never);
+
+    const saved = await uploadMedia(new File(['image'], 'hero.webp', { type: 'image/webp' }), 'img', undefined, 'media');
+
+    expect(supabase.storage.from).toHaveBeenCalledWith('media');
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ bucket: 'media' }));
+    expect(saved.public_url).toBe('https://assets.example/signed/edited.webp');
+  });
+});
 
 describe('website graphic placements', () => {
   it('maps effective graphics to a precise section and slot even without a media row', () => {
