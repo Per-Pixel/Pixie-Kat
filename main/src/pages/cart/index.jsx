@@ -5,13 +5,11 @@ import { motion } from "framer-motion";
 import {
   AlertTriangle,
   CheckCircle2,
-  CreditCard,
   Gem,
   Loader2,
   Minus,
   Plus,
   ShoppingCart,
-  Smartphone,
   Trash2,
   UserCheck,
   Wallet,
@@ -43,9 +41,10 @@ const formatPrice = (value, currency = "PKS") => {
   return `${symbol}${Number(value).toFixed(2)}`;
 };
 
+// Online payment gateways are temporarily disabled (fake-payment abuse) —
+// wallet balance is the only live checkout method. Restore the aluu/razorpay
+// entries once the providers are back on production keys.
 const paymentMethods = [
-  { id: "aluu", name: "UPI Gateway", description: "Pay instantly with any UPI app", icon: Smartphone },
-  { id: "razorpay", name: "Razorpay", description: "UPI, cards, net banking & more", icon: CreditCard },
   { id: "wallet", name: "Pixie Wallet", description: "Use your PixieKat wallet balance", icon: Wallet },
 ];
 
@@ -231,7 +230,7 @@ const CartPage = () => {
   const { user, profile, isAuthenticated, isLoading: authLoading, refreshProfile } = useAuth();
   const { items, updateQuantity, removeItem, clearCart } = useCart();
 
-  const [paymentMethod, setPaymentMethod] = useState("aluu");
+  const [paymentMethod, setPaymentMethod] = useState("wallet");
   const [contact, setContact] = useState({ email: "", whatsapp: "" });
   const [membershipDiscount, setMembershipDiscount] = useState(0);
   const [checkoutError, setCheckoutError] = useState("");
@@ -839,6 +838,9 @@ const CartPage = () => {
                       );
                     })}
                   </div>
+                  <p className="mt-2 font-circular-web text-[11px] text-white/50">
+                    Online payments are temporarily unavailable — wallet balance only.
+                  </p>
 
                   {/* contact */}
                   <div className="mt-6 space-y-3">

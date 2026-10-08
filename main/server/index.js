@@ -1855,6 +1855,15 @@ function assertCapturedRazorpayPayment(order, payment) {
   if (payment.status !== 'captured') throw new Error('Payment has not been captured yet');
 }
 
+// ── Online payments kill switch ──────────────────────────────────────────────
+// Razorpay/Aluu checkout is temporarily disabled: the configured Razorpay key
+// is a test key, so fake "payments" pass signature verification and trigger
+// real fulfillment. Wallet orders (backed by ledger balance) stay enabled, and
+// the verify/webhook/check endpoints still run so genuinely-paid pending
+// orders can settle. Flip to true to re-enable gateway checkout.
+const ONLINE_PAYMENTS_ENABLED = false;
+const ONLINE_PAYMENTS_MESSAGE = 'Online payments are temporarily unavailable. Please use your Pixie Wallet balance or try again later.';
+
 // ── Order placement (proxied RPC) ────────────────────────────────────────────
 // POST /api/place-order
 // Body: { product_id, product_name, total_amount, currency, metadata, payment_method? }
@@ -1882,6 +1891,9 @@ app.post('/api/place-order', placeOrderLimiter, async (req, res) => {
   const paymentMethod = payment_method ? String(payment_method).trim().toLowerCase() : null;
   if (!product_id || !product_name || total_amount == null || !currency) {
     return res.status(400).json({ ok: false, error: 'Missing required fields' });
+  }
+  if (!ONLINE_PAYMENTS_ENABLED && paymentMethod && paymentMethod !== 'wallet') {
+    return res.status(503).json({ ok: false, error: ONLINE_PAYMENTS_MESSAGE });
   }
 
   try {
@@ -2180,6 +2192,9 @@ app.post('/api/cart-checkout', cartCheckoutLimiter, async (req, res) => {
   }
   if (!['wallet', 'razorpay', 'aluu'].includes(paymentMethod)) {
     return res.status(400).json({ ok: false, error: 'Unsupported payment method' });
+  }
+  if (!ONLINE_PAYMENTS_ENABLED && paymentMethod !== 'wallet') {
+    return res.status(503).json({ ok: false, error: ONLINE_PAYMENTS_MESSAGE });
   }
 
   try {
@@ -3101,6 +3116,9 @@ app.post('/api/wallet/topup', servicePurchaseLimiter, requireUser, async (req, r
     if (!['razorpay', 'aluu'].includes(paymentMethod)) {
       return res.status(400).json({ ok: false, error: 'payment_method must be razorpay or aluu' });
     }
+    if (!ONLINE_PAYMENTS_ENABLED) {
+      return res.status(503).json({ ok: false, error: 'Wallet top-ups are temporarily unavailable.' });
+    }
 
     const result = await createServiceGatewayPayment({
       req,
@@ -3131,6 +3149,9 @@ app.post('/api/membership/purchase', servicePurchaseLimiter, requireUser, async 
     const paymentMethod = String(req.body?.payment_method || '').trim().toLowerCase();
     if (!['wallet', 'razorpay', 'aluu'].includes(paymentMethod)) {
       return res.status(400).json({ ok: false, error: 'payment_method must be wallet, razorpay or aluu' });
+    }
+    if (!ONLINE_PAYMENTS_ENABLED && paymentMethod !== 'wallet') {
+      return res.status(503).json({ ok: false, error: ONLINE_PAYMENTS_MESSAGE });
     }
 
     const { data: plan, error: planError } = await supabaseAdmin

@@ -8,12 +8,10 @@ import {
   CheckCircle2,
   ChevronDown,
   CirclePlay,
-  CreditCard,
   Gem,
   Info,
   Lightbulb,
   ShoppingCart,
-  Smartphone,
   Wallet,
 } from "lucide-react";
 
@@ -56,9 +54,10 @@ First purchase of the 250 Diamond level: 250 Base Diamonds + 250 Bonus Diamonds 
 First purchase of the 500 Diamond level: 500 Base Diamonds + 500 Bonus Diamonds = 1000 Diamonds in total
 3. For each tier, the double Diamond bonus only applies to your first purchase, regardless of the payment channel or platform.`;
 
+// Online payment gateways are temporarily disabled (fake-payment abuse) —
+// wallet balance is the only live checkout method. Restore the aluu/razorpay
+// entries once the providers are back on production keys.
 const paymentMethods = [
-  { id: "aluu", logo: "UPI", name: "UPI Gateway", description: "Pay instantly with any UPI app", icon: Smartphone },
-  { id: "razorpay", logo: "Razorpay", name: "Razorpay", description: "Pay with UPI, cards, net banking, or supported apps", icon: CreditCard },
   { id: "wallet", logo: "Wallet", name: "Pixie Wallet", description: "Use your PixieKat wallet balance for this order", icon: Wallet },
 ];
 
@@ -1671,6 +1670,10 @@ const GamePage = () => {
                 );
               })}
             </div>
+
+            <p className="mt-3 text-xs font-semibold text-[#6d7480]">
+              Online payments are temporarily unavailable — orders run on Pixie Wallet balance only.
+            </p>
 
             <div className="mt-4 rounded-lg border border-[#c8baff] bg-[#f3efff] px-5 py-4 text-sm font-bold text-[#3f4654]">
               <Lightbulb className="mr-2 inline size-4 text-[#f0b429]" />

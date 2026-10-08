@@ -5,10 +5,8 @@ import {
   BadgePercent,
   Check,
   CheckCircle2,
-  CreditCard,
   Crown,
   Loader2,
-  Smartphone,
   Wallet,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -24,10 +22,10 @@ const MAX_COINS = 10_000; // 1 coin = ₹1
 
 const quickAddAmounts = [100, 500, 1000, 5000, 10000];
 
-const gatewayMethods = [
-  { id: "aluu", name: "UPI", description: "Pay instantly with any UPI app", icon: Smartphone },
-  { id: "razorpay", name: "Razorpay", description: "UPI, cards, net banking & more", icon: CreditCard },
-];
+// Online payment gateways are temporarily disabled (fake-payment abuse) —
+// re-add the aluu/razorpay entries once providers run on production keys.
+const gatewayMethods = [];
+const paymentsDisabled = gatewayMethods.length === 0;
 
 const PENDING_KEY = "pixiekat_pending_service_payment";
 
@@ -477,6 +475,11 @@ const AddMoneyPage = () => {
 
             <section>
               <h3 className="text-[28px] font-bold tracking-tight text-slate-800">Pay with</h3>
+              {paymentsDisabled ? (
+                <p className="mt-4 rounded-[18px] border border-slate-200 bg-white/60 p-4 text-sm font-semibold text-slate-500">
+                  Online top-ups are temporarily unavailable. Existing wallet balance can still be spent on orders and memberships.
+                </p>
+              ) : null}
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 {gatewayMethods.map((gateway) => {
                   const isSelected = method === gateway.id;
@@ -514,11 +517,15 @@ const AddMoneyPage = () => {
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
               onClick={handleTopup}
-              disabled={busy || authLoading}
+              disabled={busy || authLoading || paymentsDisabled}
               className="flex w-full items-center justify-center gap-2 rounded-[20px] bg-gradient-to-r from-[#6542ff] to-[#9a73ff] px-6 py-5 text-center text-xl font-extrabold leading-tight text-white shadow-[0_16px_30px_rgba(101,66,255,0.35)] disabled:opacity-60 sm:text-2xl"
             >
               {busy ? <Loader2 className="size-6 animate-spin" /> : null}
-              {isAuthenticated ? `Pay ${formatInr(coins)} with ${methodName}` : "Log in to add coins"}
+              {paymentsDisabled
+                ? "Top-ups temporarily unavailable"
+                : isAuthenticated
+                  ? `Pay ${formatInr(coins)} with ${methodName}`
+                  : "Log in to add coins"}
             </motion.button>
 
             <section id="membership">
@@ -527,7 +534,7 @@ const AddMoneyPage = () => {
                 <h3 className="text-[28px] font-bold tracking-tight text-slate-800">Membership</h3>
               </div>
               <p className="mt-1 text-sm text-slate-500">
-                Members get instant discounts on every top-up. Pay from your wallet balance or with {methodName}.
+                Members get instant discounts on every top-up. {paymentsDisabled ? "Pay from your wallet balance." : `Pay from your wallet balance or with ${methodName}.`}
               </p>
 
               {activePlan ? (
@@ -579,14 +586,16 @@ const AddMoneyPage = () => {
                           </ul>
                         ) : null}
                         <div className="mt-4 flex flex-col gap-2">
-                          <button
-                            type="button"
-                            onClick={() => buyMembership(plan, method)}
-                            disabled={busy || authLoading}
-                            className="h-11 rounded-full bg-slate-950 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
-                          >
-                            Buy with {methodName}
-                          </button>
+                          {!paymentsDisabled ? (
+                            <button
+                              type="button"
+                              onClick={() => buyMembership(plan, method)}
+                              disabled={busy || authLoading}
+                              className="h-11 rounded-full bg-slate-950 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                            >
+                              Buy with {methodName}
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => buyMembership(plan, "wallet")}

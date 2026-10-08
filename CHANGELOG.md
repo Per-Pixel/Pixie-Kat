@@ -56,6 +56,7 @@
 - Add multi-item cart checkout (`POST /api/cart-checkout`) where one wallet debit, Razorpay order, or Aluu payment covers the whole cart via `metadata.payment_group_id`.
 - Add `/api/razorpay/verify-cart-payment`, `/api/aluu/check-cart-payment`, and Razorpay/Aluu webhook fallbacks that resolve and confirm whole payment groups.
 - Add `place_cart_orders` and `place_wallet_cart` RPCs (migration `036_cart_checkout.sql`) for atomic multi-order placement and a single wallet debit.
+- Temporarily disable online payment gateways behind `ONLINE_PAYMENTS_ENABLED` in `main/server/index.js` — the configured Razorpay key is a test key, so fake payments passed signature verification and triggered real fulfillment. `/api/place-order`, `/api/cart-checkout`, and `/api/membership/purchase` accept wallet only and `/api/wallet/topup` is closed; storefront checkout, cart, and Add Money offer Pixie Wallet only. Verify/webhook endpoints stay live so genuinely-paid pending orders still settle.
 
 ### Tests
 - Add server unit tests for Aluu order creation, status checks, and webhook signature verification.
