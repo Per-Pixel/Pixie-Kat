@@ -148,3 +148,13 @@ If the active conversation becomes large or contains many unrelated topics:
 * Preserve only the information necessary for continuation.
 
 The goal is to keep reasoning quality consistently high by maintaining a clean, focused working context while relying on documentation for long-term knowledge.
+
+---
+
+# Pixie-Kat Project Facts (durable)
+
+- **Deploys**: push to `main`/`admin` auto-builds Amplify app `d2qve07e257e1q` (ap-south-1). Storefront: `main.d2qve07e257e1q.amplifyapp.com`, admin: `admin...`. API ships only via `eb deploy` from `main/server` (env `pixiekat-api-prod`). No manual frontend deploy needed — verify with `aws amplify list-jobs --app-id d2qve07e257e1q --branch-name main --region ap-south-1`.
+- **Media serving**: `publicMediaUrl()` maps every `/img|audio|videos/...` path to the Supabase `public-media` bucket when `VITE_SUPABASE_URL` is set — repo `main/public/` files are NOT served in dev or prod. New media must be uploaded to the bucket: anon key is denied by storage RLS; use `SUPABASE_SERVICE_ROLE_KEY` from `main/server/.env` (POST to `/storage/v1/object/public-media/<path>`), or the admin `/storage` page.
+- **CMS overrides**: `store_settings` row owns `hero_settings`, `appearance_settings.site_graphics.*`, etc. A stored value beats code fallbacks — check/change the row, not just the default, when a visual "isn't updating".
+- **Video toolchain** (installed 2026-10-09): FFmpeg via `winget install Gyan.FFmpeg` (new shells only get the PATH). HyperFrames via `npx hyperframes@0.8.143`; Chrome Headless Shell via `hyperframes browser ensure`. Promo project at `videos/pixiekat-promo/` — `npm run check` then `npx hyperframes render . -o renders/…`; loop.mp3 beat grid is 187.5 BPM in `beats/assets/loop.mp3.json`.
+- **Art licensing**: LoL/MLBB artwork in the promo is copyrighted (Riot fan-content = non-commercial only, Moonton stricter). Flag before paid-ad or wide distribution.
