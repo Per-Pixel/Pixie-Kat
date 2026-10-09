@@ -24,6 +24,7 @@ const defaultHeroSettings = {
   button_text: "Topup Now",
   button_link: "/games",
   background_video: publicMediaUrl("/videos/hero-1.mp4"),
+  show_images: true,
   images: {
     jinx: {
       url: publicMediaUrl("/img/hero/Jinx.webp"),
@@ -370,9 +371,9 @@ const Hero = () => {
           </div>
         )}
 
-        {/* Parallax container for all character images */}
         {/* Parallax container for all character images (lightweight wrapper) */}
-        <div 
+        {heroSettings.show_images !== false && (
+        <div
           ref={parallaxContainerRef}
           className="pointer-events-none absolute inset-0 z-20"
           style={{ willChange: 'transform' }}
@@ -395,6 +396,7 @@ const Hero = () => {
             <img ref={lunoxRef} src={img.url} alt="Lunox" className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-130"}`} loading="lazy" decoding="async" fetchPriority="low" sizes="(max-width: 768px) 360px, 520px" />
           </div>) : null; })()}
         </div>
+        )}
 
         {/* Mobile contact square button next to Pixiekat title */}
         {(

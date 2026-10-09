@@ -1,40 +1,32 @@
 # Last Session Summary
 
-## Online payments kill switch (2026-10-08)
+## PixieKat promo motion graphic + site integration (2026-10-09)
 
-- Root cause of "fake payments get real orders": `main/server/.env` (and likely
-  the deployed EB env) uses a `rzp_test_` Razorpay key, so test-mode payments
-  pass signature verification, flip orders to `processing`, and get delivered.
-- `main/server/index.js`: added `ONLINE_PAYMENTS_ENABLED = false` +
-  `ONLINE_PAYMENTS_MESSAGE`. Non-wallet methods now return 503 in
-  `/api/place-order` (also blocks the arbitrary-method pending-order branch),
-  `/api/cart-checkout`, and `/api/membership/purchase`; `/api/wallet/topup` is
-  closed entirely (gateways only). Verify/webhook/check endpoints unchanged so
-  genuinely-paid pending orders still settle. Flip the flag to re-enable.
-- Storefront: `GamePage.jsx` and `cart/index.jsx` payment selectors now list
-  Pixie Wallet only (+ short "temporarily unavailable" note);
-  `AddMoneyPage.jsx` shows a top-ups-disabled notice, disables the pay button,
-  and hides the gateway membership purchase (wallet purchase stays).
-- CHANGELOG gained an Unreleased Payments bullet.
-
-## Verification
-
-- `main/server`: `npm test` 63/63 passed; `node --check index.js` clean.
-- `main`: `npm test` 53/53 passed; `npm run build` passed; targeted ESLint on
-  changed files clean; `git diff --check` clean.
-
-## Repo state
-
-- Committed + pushed as `fix(payments): disable online gateways over
-  test-mode key abuse`, preceded by `feat(admin): image editor for storage
-  assets` (previous session's verified work).
-- Deployed to prod: `eb deploy pixiekat-api-prod` → version
-  `app-261008_201754922436`, Ready/Green, `deploy:check` reports no drift,
-  `/api/health` 200. The deploy also shipped three earlier undeployed server
-  commits (yokcash fulfillment, wallet topup/membership, game pages) — user
-  approved.
-- `supabase/.temp/` remains an unrelated untracked artifact.
-- Follow-up: switch Razorpay/Aluu to live keys (prod env on EB — the repo
-  `.env` holds `rzp_test_` keys), then flip `ONLINE_PAYMENTS_ENABLED` back to
-  true; audit recent `processing`/`completed` orders with test `pay_*` ids for
-  fraudulent deliveries.
+- Built `videos/pixiekat-promo/` — a HyperFrames project rendering a 15s,
+  1920x1080 @30fps promo: `renders/pixiekat-promo.mp4` (h264+AAC, ~19.3 MB).
+  Five beat-synced scenes (187.5 BPM, `beats/assets/loop.mp3.json`): video-in-
+  text "GAME ON" hook → League (splash strobes + real Riot ability clips in a
+  3D card + RP marquee) → Mobile Legends (slat reveal, 6 cut splashes, diamond
+  bag + 0→9,288 count-up) → 3-step how-it-works with mock checkout card →
+  lavender end card with logo + TOP UP NOW CTA.
+- Assets: LoL splashes/clips from Riot public CDN (ddragon + d28xe8vt774jo5),
+  7 MLBB 4K wallpapers from static.zerochan.net, brand fonts/logo from the
+  repo, `loop.mp3` soundtrack with `data-automation` volume fade.
+- Tooling: installed FFmpeg (winget Gyan.FFmpeg) + Chrome Headless Shell
+  (`hyperframes browser ensure`). ffmpeg on PATH only in new shells.
+- **Media serving gotcha**: storefront `publicMediaUrl()` maps every
+  `/img|videos|audio/...` path to the Supabase `public-media` bucket — repo
+  `public/` files are NOT served when `VITE_SUPABASE_URL` is set. New media
+  must be uploaded to the bucket (anon key denied by RLS; used
+  `SUPABASE_SERVICE_ROLE_KEY` from `main/server/.env`). Uploaded:
+  `videos/pixiekat-promo.mp4`, `img/hero/promo-poster.jpg`.
+- Site wiring: `Features.jsx` main bento video → promo + new `ctaText`/
+  `ctaLink` overlay button (TOP UP NOW → /games). `Hero.jsx` got a
+  `show_images` flag gating the character parallax (CMS-controlled);
+  `hero_settings.background_video` briefly pointed at promo then reverted to
+  hero-1.mp4 per user. admin `mediaService.ts` feature_main_video fallback
+  updated to match.
+- Note: game art is copyrighted — user-approved, but flag before public/ads
+  use (Riot fan-content = non-commercial; Moonton stricter).
+- Verified: `hyperframes check` clean, `npm test` 53/53, eslint 0 errors.
+- Untracked leftover: `supabase/.temp/` (pre-existing, unrelated).

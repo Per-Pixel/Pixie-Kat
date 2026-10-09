@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { TiLocationArrow } from "react-icons/ti";
 
 import { useAppearance } from "../../../contexts/AppearanceContext";
@@ -41,7 +42,8 @@ export const BentoTilt = ({ children, className = "" }) => {
   );
 };
 
-export const BentoCard = ({ src, title, description, isComingSoon }) => {
+export const BentoCard = ({ src, title, description, isComingSoon, ctaText, ctaLink }) => {
+  const navigate = useNavigate();
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
   const [hoverOpacity, setHoverOpacity] = useState(0);
   const hoverButtonRef = useRef(null);
@@ -103,6 +105,16 @@ export const BentoCard = ({ src, title, description, isComingSoon }) => {
           </div>
         )}
       </div>
+
+      {ctaText && (
+        <button
+          onClick={() => navigate(ctaLink || "/games")}
+          className="absolute bottom-5 right-5 z-20 flex items-center gap-2 rounded-full bg-yellow-300 px-6 py-3 font-general text-xs font-bold uppercase tracking-wider text-black transition-transform hover:scale-105"
+        >
+          {ctaText}
+          <TiLocationArrow />
+        </button>
+      )}
     </div>
   );
 };
@@ -125,7 +137,7 @@ const Features = () => {
 
       <BentoTilt className="border-hsla relative mb-7 h-96 w-full overflow-hidden rounded-md md:h-[65vh]">
         <BentoCard
-          src={siteGraphicUrl(appearance, 'feature_main_video', "/videos/feature-1.mp4")}
+          src={siteGraphicUrl(appearance, 'feature_main_video', "/videos/pixiekat-promo.mp4")}
           title={
             <>
               Pixie<b>K</b>at
@@ -133,6 +145,8 @@ const Features = () => {
           }
           description="Your one-stop top-up shop. Recharge diamonds, coins & credits for 100+ games — fast, safe, and always at the best rates."
           isComingSoon
+          ctaText="Top Up Now"
+          ctaLink="/games"
         />
       </BentoTilt>
 

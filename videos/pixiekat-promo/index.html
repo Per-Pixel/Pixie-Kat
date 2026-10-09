@@ -1,0 +1,1234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "zentry";
+        src: url("fonts/zentry-regular.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "general";
+        src: url("fonts/general.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "robert-medium";
+        src: url("fonts/robert-medium.woff2") format("woff2");
+      }
+      :root {
+        --ink: #07060f;
+        --night: #0e041d;
+        --lav: #dfdff0;
+        --snow: #f0f2fa;
+        --violet: #5724ff;
+        --violet-soft: #8b6dff;
+        --cyan: #4fb7dd;
+        --acid: #edff66;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--ink);
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--ink);
+        font-family: "general", sans-serif;
+        color: var(--snow);
+      }
+      .clip {
+        position: absolute;
+        inset: 0;
+      }
+      .z {
+        font-family: "zentry", sans-serif;
+        font-weight: 900;
+        text-transform: uppercase;
+        line-height: 0.82;
+      }
+      .z b {
+        font-weight: inherit;
+        font-feature-settings: "ss01" on;
+      }
+      .label {
+        font-family: "general", sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.32em;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      .cover {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .ch {
+        display: inline-block;
+      }
+      .ln {
+        display: block;
+        overflow: hidden;
+        padding: 0.04em 0;
+      }
+      .ln > span {
+        display: block;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 22px;
+        border: 1.5px solid rgba(240, 242, 250, 0.35);
+        border-radius: 999px;
+        background: rgba(7, 6, 15, 0.45);
+        width: fit-content;
+      }
+      .chip .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--acid);
+        box-shadow: 0 0 14px var(--acid);
+      }
+
+      /* ---------- S1 hook ---------- */
+      #s1 {
+        isolation: isolate;
+        overflow: hidden;
+        z-index: 1;
+      }
+      #s1-strip {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 5400px;
+        display: flex;
+        filter: saturate(1.45) contrast(1.1);
+      }
+      #s1-strip img {
+        width: 900px;
+        height: 100%;
+        object-fit: cover;
+        flex: none;
+      }
+      #s1-mask {
+        position: absolute;
+        inset: 0;
+        background: #000;
+        mix-blend-mode: multiply;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #s1-word {
+        color: #fff;
+        font-size: 360px;
+        white-space: nowrap;
+        letter-spacing: 0.01em;
+      }
+      #s1-word .sp {
+        display: inline-block;
+        width: 0.22em;
+      }
+      #s1-top,
+      #s1-bot {
+        position: absolute;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+      }
+      #s1-top {
+        top: 190px;
+      }
+      #s1-bot {
+        bottom: 190px;
+        gap: 26px;
+        align-items: center;
+        color: var(--acid);
+      }
+      #s1-rule {
+        width: 160px;
+        height: 3px;
+        background: var(--acid);
+        transform-origin: 0 50%;
+      }
+      #s1-rule2 {
+        width: 160px;
+        height: 3px;
+        background: var(--acid);
+        transform-origin: 100% 50%;
+      }
+
+      /* ---------- S2 league ---------- */
+      #s2 {
+        z-index: 2;
+        overflow: hidden;
+      }
+      .s2-shot {
+        opacity: 0;
+      }
+      .s2-shot.on {
+        opacity: 1;
+      }
+      #s2-shade {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(90deg, rgba(7, 6, 15, 0.94) 0%, rgba(7, 6, 15, 0.72) 38%, rgba(7, 6, 15, 0.15) 70%, rgba(7, 6, 15, 0.35) 100%),
+          linear-gradient(0deg, rgba(7, 6, 15, 0.85) 0%, rgba(7, 6, 15, 0) 35%);
+      }
+      #s2-flash,
+      #s3-flash {
+        position: absolute;
+        inset: 0;
+        background: #fff;
+        opacity: 0;
+      }
+      #s2-content {
+        position: absolute;
+        left: 120px;
+        top: 0;
+        bottom: 120px;
+        width: 900px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 30px;
+      }
+      #s2-title {
+        font-size: 230px;
+        color: var(--snow);
+      }
+      #s2-title .ln:last-child span {
+        color: var(--acid);
+      }
+      #s2-sub {
+        font-family: "robert-medium", sans-serif;
+        font-size: 36px;
+        line-height: 1.25;
+        max-width: 640px;
+        color: rgba(240, 242, 250, 0.86);
+      }
+      #s2-band-rot {
+        position: absolute;
+        left: -60px;
+        right: -60px;
+        bottom: 64px;
+        height: 104px;
+        transform: rotate(-2.2deg);
+      }
+      #s2-band {
+        position: absolute;
+        inset: 0;
+        background: var(--acid);
+        overflow: hidden;
+        transform-origin: 0 50%;
+        display: flex;
+        align-items: center;
+      }
+      #s2-track {
+        display: flex;
+        align-items: center;
+        gap: 44px;
+        white-space: nowrap;
+        color: var(--ink);
+        font-size: 66px;
+        padding-left: 40px;
+      }
+      .sep {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        background: var(--ink);
+        transform: rotate(45deg);
+        flex: none;
+      }
+      #s2-card-wrap {
+        position: absolute;
+        right: 120px;
+        top: 150px;
+        width: 860px;
+        height: 520px;
+        z-index: 3;
+        opacity: 0;
+      }
+      #s2-card {
+        position: absolute;
+        inset: 0;
+        border-radius: 22px;
+        overflow: hidden;
+        border: 3px solid var(--cyan);
+        box-shadow:
+          0 0 0 1px rgba(79, 183, 221, 0.4),
+          0 0 60px rgba(79, 183, 221, 0.45),
+          0 40px 90px rgba(0, 0, 0, 0.6);
+        background: #000;
+      }
+      #s2-card video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      #s2-card-flash {
+        position: absolute;
+        inset: 0;
+        background: var(--cyan);
+        mix-blend-mode: screen;
+        opacity: 0;
+      }
+      .card-hud {
+        position: absolute;
+        left: 22px;
+        top: 20px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        padding: 9px 16px;
+        border-radius: 999px;
+        background: rgba(7, 6, 15, 0.7);
+        font-size: 16px;
+      }
+      .rec {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #ff3b5c;
+        box-shadow: 0 0 12px #ff3b5c;
+      }
+      .card-tag {
+        position: absolute;
+        right: 22px;
+        bottom: 20px;
+        padding: 9px 16px;
+        border-radius: 10px;
+        background: var(--violet);
+        font-size: 16px;
+      }
+
+      /* ---------- S3 mobile legends ---------- */
+      #s3 {
+        z-index: 4;
+        overflow: hidden;
+      }
+      .s3-shot {
+        opacity: 0;
+      }
+      .s3-shot.on {
+        opacity: 1;
+      }
+      #s3-dim {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse at center, rgba(7, 6, 15, 0.35) 0%, rgba(7, 6, 15, 0.9) 100%);
+      }
+      #s3-slats {
+        position: absolute;
+        inset: 0;
+        display: flex;
+      }
+      .slat {
+        flex: 1;
+        height: 100%;
+        background: var(--violet);
+        transform-origin: 50% 0%;
+      }
+      .slat:nth-child(even) {
+        transform-origin: 50% 100%;
+      }
+      #s3-a {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+      }
+      #s3-mobile {
+        font-size: 270px;
+        color: rgba(240, 242, 250, 0.14);
+        -webkit-text-stroke: 4px var(--snow);
+        white-space: nowrap;
+      }
+      #s3-legends {
+        font-size: 270px;
+        color: var(--acid);
+        white-space: nowrap;
+      }
+      #s3-a .chip {
+        margin-bottom: 18px;
+      }
+      #s3-b {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 40px;
+        padding: 0 140px;
+      }
+      #s3-bag-box {
+        position: relative;
+        width: 700px;
+        height: 560px;
+        flex: none;
+      }
+      #s3-glow {
+        position: absolute;
+        left: 50px;
+        top: 20px;
+        width: 600px;
+        height: 600px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(79, 183, 221, 0.75) 0%, rgba(87, 36, 255, 0.35) 45%, rgba(87, 36, 255, 0) 70%);
+        opacity: 0;
+      }
+      #s3-bag {
+        position: absolute;
+        left: -30px;
+        top: -130px;
+        width: 760px;
+        opacity: 0;
+      }
+      .spark {
+        position: absolute;
+        width: 56px;
+        height: 56px;
+      }
+      #s3-stat {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        width: 860px;
+        flex: none;
+      }
+      #s3-count {
+        font-size: 300px;
+        color: var(--acid);
+        text-shadow: 0 0 60px rgba(237, 255, 102, 0.35);
+        transform-origin: 0% 60%;
+      }
+      #s3-unit {
+        font-size: 110px;
+        color: var(--snow);
+      }
+      #s3-sub {
+        font-family: "robert-medium", sans-serif;
+        font-size: 34px;
+        color: rgba(240, 242, 250, 0.86);
+      }
+      #s3-iris {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 2400px;
+        height: 2400px;
+        margin: -1200px 0 0 -1200px;
+        border-radius: 50%;
+        background: var(--lav);
+        transform-origin: 42% 56%;
+      }
+
+      /* ---------- S4 how ---------- */
+      #s4 {
+        z-index: 5;
+        background: var(--lav);
+        color: var(--ink);
+        overflow: hidden;
+      }
+      #s4-grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(87, 36, 255, 0.08) 1.5px, transparent 1.5px),
+          linear-gradient(90deg, rgba(87, 36, 255, 0.08) 1.5px, transparent 1.5px);
+        background-size: 96px 96px;
+      }
+      #s4-left {
+        position: absolute;
+        left: 120px;
+        top: 0;
+        bottom: 0;
+        width: 1000px;
+        display: grid;
+        align-items: center;
+      }
+      .s4-step {
+        grid-area: 1 / 1;
+        display: flex;
+        flex-direction: column;
+        gap: 26px;
+        visibility: hidden;
+        opacity: 0;
+      }
+      .s4-pill {
+        width: fit-content;
+        padding: 10px 26px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: var(--acid);
+        font-size: 26px;
+        letter-spacing: 0.2em;
+        font-weight: 700;
+      }
+      .s4-step h3 {
+        font-size: 140px;
+      }
+      #s4-st3 h3 .ln:last-child span {
+        color: var(--violet);
+      }
+      #s4-card {
+        position: absolute;
+        right: 140px;
+        top: 250px;
+        width: 620px;
+        padding: 36px;
+        border-radius: 30px;
+        background: #fff;
+        box-shadow:
+          0 30px 80px rgba(14, 4, 29, 0.18),
+          0 0 0 1px rgba(14, 4, 29, 0.06);
+        display: flex;
+        flex-direction: column;
+        gap: 26px;
+        opacity: 0;
+      }
+      .s4-game {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      .s4-game img {
+        width: 78px;
+        height: 78px;
+        border-radius: 20px;
+        object-fit: cover;
+      }
+      .s4-game-name {
+        font-size: 28px;
+        font-weight: 700;
+      }
+      .s4-game-sub {
+        font-size: 18px;
+        color: #6b6880;
+        margin-top: 4px;
+      }
+      .s4-packs {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+      }
+      .s4-pack {
+        position: relative;
+        height: 84px;
+        border-radius: 16px;
+        border: 2px solid #e4e2f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        font-size: 26px;
+        font-weight: 700;
+        overflow: hidden;
+      }
+      .gem {
+        width: 16px;
+        height: 16px;
+        background: linear-gradient(135deg, #7fe3ff, #3a7bff);
+        transform: rotate(45deg);
+        border-radius: 3px;
+      }
+      #pack-sel {
+        position: absolute;
+        inset: -2px;
+        border-radius: 16px;
+        background: var(--violet);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        opacity: 0;
+      }
+      .s4-field {
+        height: 84px;
+        border-radius: 16px;
+        border: 2px solid #e4e2f0;
+        display: flex;
+        align-items: center;
+        padding: 0 24px;
+        gap: 18px;
+        font-size: 28px;
+      }
+      .s4-field-k {
+        font-size: 18px;
+        color: #6b6880;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 700;
+      }
+      #s4-typed .c {
+        opacity: 0;
+      }
+      #s4-caret {
+        width: 3px;
+        height: 34px;
+        background: var(--violet);
+      }
+      #s4-btn {
+        position: relative;
+        height: 92px;
+        border-radius: 999px;
+        background: var(--violet);
+        color: #fff;
+        overflow: hidden;
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      #s4-btn-pay,
+      #s4-btn-done {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+      }
+      #s4-btn-done {
+        opacity: 0;
+      }
+      #s4-toast {
+        position: absolute;
+        right: 40px;
+        bottom: -70px;
+        padding: 12px 22px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: var(--acid);
+        font-size: 24px;
+        font-weight: 700;
+        opacity: 0;
+      }
+
+      /* ---------- S5 end ---------- */
+      #s5 {
+        z-index: 6;
+        background: var(--lav);
+        color: var(--ink);
+        overflow: hidden;
+      }
+      #s5-rays {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 2600px;
+        height: 2600px;
+        margin: -1300px 0 0 -1300px;
+        background: repeating-conic-gradient(from 0deg, rgba(87, 36, 255, 0.1) 0deg 7deg, rgba(87, 36, 255, 0) 7deg 18deg);
+        opacity: 0;
+      }
+      .s5-card {
+        position: absolute;
+        width: 440px;
+        height: 620px;
+        border-radius: 28px;
+        overflow: hidden;
+        border: 6px solid #fff;
+        box-shadow: 0 30px 80px rgba(14, 4, 29, 0.3);
+      }
+      .s5-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      #s5-card-l {
+        left: -40px;
+        top: 230px;
+      }
+      #s5-card-r {
+        right: -40px;
+        top: 230px;
+      }
+      #s5-center {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 26px;
+      }
+      #s5-logo {
+        width: 230px;
+        filter: drop-shadow(0 18px 30px rgba(14, 4, 29, 0.35));
+      }
+      #s5-word {
+        font-size: 220px;
+        white-space: nowrap;
+      }
+      #s5-tag {
+        font-family: "robert-medium", sans-serif;
+        font-size: 40px;
+        color: #2a2640;
+      }
+      #s5-cta {
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 26px 56px;
+        border-radius: 999px;
+        background: var(--acid);
+        color: var(--ink);
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        box-shadow:
+          0 0 0 3px var(--ink),
+          0 16px 0 0 var(--ink);
+        margin-top: 12px;
+      }
+      #s5-shine {
+        position: absolute;
+        top: -20px;
+        bottom: -20px;
+        left: 0;
+        width: 120px;
+        background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0));
+      }
+      #s5-games {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 64px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 22px;
+        color: #4a4560;
+      }
+      #s5-games .sep {
+        width: 10px;
+        height: 10px;
+        background: var(--violet);
+      }
+
+      /* ---------- FX / HUD ---------- */
+      #fx {
+        z-index: 50;
+        pointer-events: none;
+        overflow: hidden;
+      }
+      .wipe {
+        position: absolute;
+        top: -15%;
+        left: 0;
+        width: 2600px;
+        height: 130%;
+      }
+      #w1a,
+      #w2b {
+        background: var(--violet);
+      }
+      #w1b {
+        background: var(--acid);
+      }
+      #w2a {
+        background: var(--cyan);
+      }
+      #hud {
+        z-index: 60;
+        pointer-events: none;
+        color: var(--snow);
+      }
+      #hud-inner {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+      }
+      .corner {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        border-color: currentColor;
+        border-style: solid;
+        border-width: 0;
+        opacity: 0.8;
+      }
+      .c-tl {
+        left: 48px;
+        top: 48px;
+        border-left-width: 3px;
+        border-top-width: 3px;
+      }
+      .c-tr {
+        right: 48px;
+        top: 48px;
+        border-right-width: 3px;
+        border-top-width: 3px;
+      }
+      .c-bl {
+        left: 48px;
+        bottom: 48px;
+        border-left-width: 3px;
+        border-bottom-width: 3px;
+      }
+      .c-br {
+        right: 48px;
+        bottom: 48px;
+        border-right-width: 3px;
+        border-bottom-width: 3px;
+      }
+      #hud-brand {
+        position: absolute;
+        left: 116px;
+        top: 58px;
+        font-size: 34px;
+      }
+      #hud-idx {
+        position: absolute;
+        right: 116px;
+        top: 62px;
+        display: grid;
+        justify-items: end;
+        font-size: 18px;
+      }
+      #hud-idx span {
+        grid-area: 1 / 1;
+        opacity: 0;
+      }
+      #grain {
+        z-index: 70;
+        pointer-events: none;
+        opacity: 0.09;
+        mix-blend-mode: overlay;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='7' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="15"
+      data-fps="30"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- S1 · HOOK -->
+      <section id="s1" class="clip" data-start="0" data-duration="2.016" data-track-index="1">
+        <div id="s1-strip">
+          <img src="assets/lol_Ahri_0.jpg" alt="" />
+          <img src="assets/mlbb_lancelot.jpg" alt="" />
+          <img src="assets/lol_Jinx_0.jpg" alt="" />
+          <img src="assets/mlbb_karina.jpg" alt="" />
+          <img src="assets/lol_Lux_0.jpg" alt="" />
+          <img src="assets/mlbb_gusion.jpg" alt="" />
+        </div>
+        <div id="s1-mask">
+          <div id="s1-word" class="z">
+            <span class="ch">G</span><span class="ch">a</span><span class="ch">m</span><span class="ch">e</span><span class="sp"></span><span class="ch"><b>o</b></span><span class="ch">n</span>
+          </div>
+        </div>
+        <div id="s1-top"><div id="s1-top-in" class="label">PixieKat &nbsp;/&nbsp; Instant game credits</div></div>
+        <div id="s1-bot">
+          <div id="s1-rule2"></div>
+          <div id="s1-bot-in" class="label">League of Legends &nbsp;+&nbsp; Mobile Legends</div>
+          <div id="s1-rule"></div>
+        </div>
+      </section>
+
+      <!-- S2 · LEAGUE OF LEGENDS -->
+      <section id="s2" class="clip" data-start="2.016" data-duration="3.744" data-track-index="1">
+        <div id="s2-bg">
+          <img id="s2-shot-ahri" class="cover s2-shot on" src="assets/lol_Ahri_0.jpg" alt="" />
+          <img id="s2-shot-jinx" class="cover s2-shot" src="assets/lol_Jinx_0.jpg" alt="" />
+          <img id="s2-shot-ezreal" class="cover s2-shot" src="assets/lol_Ezreal_0.jpg" alt="" />
+          <img id="s2-shot-lux" class="cover s2-shot" src="assets/lol_Lux_0.jpg" alt="" />
+          <img id="s2-shot-kaisa" class="cover s2-shot" src="assets/lol_Kaisa_0.jpg" alt="" />
+        </div>
+        <div id="s2-shade"></div>
+        <div id="s2-flash"></div>
+        <div id="s2-content">
+          <div id="s2-chip" class="chip label"><span class="dot"></span>01 &nbsp;/&nbsp; League of Legends</div>
+          <h2 id="s2-title" class="z">
+            <span class="ln"><span>R<b>i</b>ot</span></span>
+            <span class="ln"><span>P<b>o</b>ints</span></span>
+          </h2>
+          <p id="s2-sub">RP in seconds. Skins, passes and bundles without the wait.</p>
+        </div>
+        <div id="s2-band-rot" data-layout-allow-overflow="true">
+          <div id="s2-band">
+            <div id="s2-track" class="z">
+              <span>575 RP</span><i class="sep"></i><span>1380 RP</span><i class="sep"></i><span>2800 RP</span><i class="sep"></i><span>5000 RP</span><i class="sep"></i><span>Instant delivery</span><i class="sep"></i>
+              <span>575 RP</span><i class="sep"></i><span>1380 RP</span><i class="sep"></i><span>2800 RP</span><i class="sep"></i><span>5000 RP</span><i class="sep"></i><span>Instant delivery</span><i class="sep"></i>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div id="s2-card-wrap">
+        <div id="s2-card">
+          <video id="v-lol-a" class="clip" src="assets/lol_ab_0103_R1.mp4" muted playsinline data-start="2.016" data-duration="1.899" data-track-index="2"></video>
+          <video id="v-lol-b" class="clip" src="assets/lol_ab_0222_R1.mp4" muted playsinline data-start="3.915" data-duration="1.845" data-track-index="3"></video>
+          <div id="s2-card-flash"></div>
+          <div class="card-hud label"><span class="rec"></span>Live gameplay</div>
+          <div class="card-tag label">Summoner's Rift</div>
+        </div>
+      </div>
+
+      <!-- S3 · MOBILE LEGENDS -->
+      <section id="s3" class="clip" data-start="5.76" data-duration="3.787" data-track-index="1">
+        <div id="s3-bg">
+          <img id="s3-shot-lancelot" class="cover s3-shot on" src="assets/mlbb_lancelot.jpg" alt="" />
+          <img id="s3-shot-gusion" class="cover s3-shot" src="assets/mlbb_gusion.jpg" alt="" />
+          <img id="s3-shot-karina" class="cover s3-shot" src="assets/mlbb_karina.jpg" alt="" />
+          <img id="s3-shot-ling" class="cover s3-shot" src="assets/mlbb_ling.jpg" alt="" />
+          <img id="s3-shot-fanny" class="cover s3-shot" src="assets/mlbb_fanny.jpg" alt="" />
+          <img id="s3-shot-layla" class="cover s3-shot" src="assets/mlbb_layla.jpg" alt="" />
+          <img id="s3-shot-change" class="cover s3-shot" src="assets/mlbb_change.jpg" alt="" />
+        </div>
+        <div id="s3-dim"></div>
+        <div id="s3-flash"></div>
+        <div id="s3-a">
+          <div id="s3-chip" class="chip label"><span class="dot"></span>02 &nbsp;/&nbsp; Mobile Legends: Bang Bang</div>
+          <div id="s3-mobile" class="z">
+            <span class="ch">M</span><span class="ch"><b>o</b></span><span class="ch">b</span><span class="ch">i</span><span class="ch">l</span><span class="ch">e</span>
+          </div>
+          <div id="s3-legends" class="z ln"><span>Leg<b>e</b>nds</span></div>
+        </div>
+        <div id="s3-b">
+          <div id="s3-bag-box">
+            <div id="s3-glow"></div>
+            <img id="s3-bag" src="assets/mlbb_diamonds.png" alt="" />
+            <svg class="spark" style="left: 40px; top: 40px" viewBox="0 0 40 40"><path d="M20 0 L24 16 L40 20 L24 24 L20 40 L16 24 L0 20 L16 16 Z" fill="#edff66" /></svg>
+            <svg class="spark" style="left: 600px; top: 10px" viewBox="0 0 40 40"><path d="M20 0 L24 16 L40 20 L24 24 L20 40 L16 24 L0 20 L16 16 Z" fill="#ffffff" /></svg>
+            <svg class="spark" style="left: 640px; top: 380px" viewBox="0 0 40 40"><path d="M20 0 L24 16 L40 20 L24 24 L20 40 L16 24 L0 20 L16 16 Z" fill="#4fb7dd" /></svg>
+            <svg class="spark" style="left: 10px; top: 420px" viewBox="0 0 40 40"><path d="M20 0 L24 16 L40 20 L24 24 L20 40 L16 24 L0 20 L16 16 Z" fill="#ffffff" /></svg>
+            <svg class="spark" style="left: 330px; top: -60px" viewBox="0 0 40 40"><path d="M20 0 L24 16 L40 20 L24 24 L20 40 L16 24 L0 20 L16 16 Z" fill="#edff66" /></svg>
+          </div>
+          <div id="s3-stat">
+            <div id="s3-k" class="label">Diamonds, delivered</div>
+            <div id="s3-count" class="z">0</div>
+            <div id="s3-unit" class="z">D<b>i</b>am<b>o</b>nds</div>
+            <div id="s3-sub">Straight to your MLBB ID. No waiting around.</div>
+          </div>
+        </div>
+        <div id="s3-slats">
+          <div class="slat"></div><div class="slat"></div><div class="slat"></div><div class="slat"></div><div class="slat"></div>
+          <div class="slat"></div><div class="slat"></div><div class="slat"></div><div class="slat"></div><div class="slat"></div>
+        </div>
+        <div id="s3-iris"></div>
+      </section>
+
+      <!-- S4 · HOW IT WORKS -->
+      <section id="s4" class="clip" data-start="9.547" data-duration="1.866" data-track-index="1">
+        <div id="s4-grid"></div>
+        <div id="s4-left" data-layout-allow-overlap="true" data-layout-allow-overflow="true">
+          <div id="s4-st1" class="s4-step">
+            <div class="s4-pill">STEP 01</div>
+            <h3 class="z"><span class="ln"><span>Pick y<b>o</b>ur</span></span><span class="ln"><span>game</span></span></h3>
+          </div>
+          <div id="s4-st2" class="s4-step">
+            <div class="s4-pill">STEP 02</div>
+            <h3 class="z"><span class="ln"><span>Dr<b>o</b>p y<b>o</b>ur</span></span><span class="ln"><span>player ID</span></span></h3>
+          </div>
+          <div id="s4-st3" class="s4-step">
+            <div class="s4-pill">STEP 03</div>
+            <h3 class="z"><span class="ln"><span>Credits</span></span><span class="ln"><span>instantly</span></span></h3>
+          </div>
+        </div>
+        <div id="s4-card">
+          <div class="s4-game">
+            <img src="assets/mlbb_lancelot.jpg" alt="" />
+            <div>
+              <div class="s4-game-name">Mobile Legends</div>
+              <div class="s4-game-sub">Diamonds top-up</div>
+            </div>
+          </div>
+          <div class="s4-packs">
+            <div class="s4-pack"><i class="gem"></i>86</div>
+            <div class="s4-pack"><i class="gem"></i>172</div>
+            <div class="s4-pack"><i class="gem"></i>257</div>
+            <div class="s4-pack"><i class="gem"></i>706<div id="pack-sel"><i class="gem"></i>706</div></div>
+          </div>
+          <div id="s4-field" class="s4-field">
+            <span class="s4-field-k">Player ID</span>
+            <span id="s4-typed"><span class="c">4</span><span class="c">8</span><span class="c">2</span><span class="c">7</span><span class="c">1</span><span class="c">9</span><span class="c">3</span><span class="c">0</span><span class="c">&nbsp;</span><span class="c">(</span><span class="c">2</span><span class="c">1</span><span class="c">0</span><span class="c">4</span><span class="c">)</span></span>
+            <span id="s4-caret"></span>
+          </div>
+          <div id="s4-btn">
+            <div id="s4-btn-pay">Pay with Pixie Wallet</div>
+            <div id="s4-btn-done">
+              <svg width="30" height="30" viewBox="0 0 24 24"><path d="M4 12.5 L9.5 18 L20 6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              Delivered
+            </div>
+          </div>
+          <div id="s4-toast">+706 diamonds</div>
+        </div>
+      </section>
+
+      <!-- S5 · END CARD -->
+      <section id="s5" class="clip" data-start="11.413" data-duration="3.587" data-track-index="1">
+        <div id="s5-rays" data-layout-allow-overflow="true"></div>
+        <div id="s5-card-l" class="s5-card" data-layout-allow-overflow="true"><img src="assets/lol_Jinx_0.jpg" alt="" /></div>
+        <div id="s5-card-r" class="s5-card" data-layout-allow-overflow="true"><img src="assets/mlbb_gusion.jpg" alt="" /></div>
+        <div id="s5-center">
+          <img id="s5-logo" src="assets/pk_logo.png" alt="PixieKat" />
+          <div id="s5-word" class="z">
+            <span class="ch">P</span><span class="ch">i</span><span class="ch">x</span><span class="ch">i</span><span class="ch">e</span><span class="ch"><b>K</b></span><span class="ch">a</span><span class="ch">t</span>
+          </div>
+          <div id="s5-tag">Top up your favorite games. Instantly.</div>
+          <div id="s5-cta">
+            <span>Top up now</span>
+            <svg id="s5-arrow" width="34" height="34" viewBox="0 0 24 24"><path d="M4 12 H19 M13 6 L19 12 L13 18" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            <div id="s5-shine"></div>
+          </div>
+        </div>
+        <div id="s5-games" class="label">
+          <span>League of Legends</span><i class="sep"></i><span>Mobile Legends</span><i class="sep"></i><span>More games soon</span>
+        </div>
+      </section>
+
+      <!-- FX: transition wipes -->
+      <div id="fx" class="clip" data-start="0" data-duration="15" data-track-index="5">
+        <div id="w1a" class="wipe" data-layout-allow-overflow="true"></div>
+        <div id="w1b" class="wipe" data-layout-allow-overflow="true"></div>
+        <div id="w2a" class="wipe" data-layout-allow-overflow="true"></div>
+        <div id="w2b" class="wipe" data-layout-allow-overflow="true"></div>
+      </div>
+
+      <!-- HUD -->
+      <div id="hud" class="clip" data-start="0" data-duration="15" data-track-index="6">
+        <div id="hud-inner">
+          <div class="corner c-tl"></div>
+          <div class="corner c-tr"></div>
+          <div class="corner c-bl"></div>
+          <div class="corner c-br"></div>
+          <div id="hud-brand" class="z">Pixie<b>K</b>at</div>
+          <div id="hud-idx" class="label">
+            <span id="idx0">Instant top-ups</span>
+            <span id="idx1">01 / 03 &nbsp; League</span>
+            <span id="idx2">02 / 03 &nbsp; MLBB</span>
+            <span id="idx3">03 / 03 &nbsp; How it works</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="grain" class="clip" data-start="0" data-duration="15" data-track-index="7"></div>
+
+      <audio
+        id="music"
+        src="assets/loop.mp3"
+        data-start="0"
+        data-duration="15"
+        data-track-index="9"
+        data-volume="0.9"
+        data-automation='{"version":1,"lanes":[{"target":"volume","points":[{"t":0,"v":0.9},{"t":13.8,"v":0.9},{"t":15,"v":0}]}]}'
+      ></audio>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true, defaults: { ease: "power3.out" } });
+      const T = { s2: 2.016, s2b: 3.915, s3: 5.76, s3b: 7.659, s4: 9.547, s4b: 10.197, s4c: 10.85, s5: 11.413, cta: 13.269 };
+
+      // ---------- wipes (parked off-screen until used) ----------
+      const wipeIn = (sel, start, dir) =>
+        tl.fromTo(
+          sel,
+          { x: dir > 0 ? -2900 : 2300, skewX: -18 },
+          { x: dir > 0 ? 2300 : -2900, skewX: -18, duration: 0.72, ease: "power2.inOut" },
+          start,
+        );
+      wipeIn("#w1a", 1.62, 1);
+      wipeIn("#w1b", 1.68, 1);
+      wipeIn("#w2a", 5.36, -1);
+      wipeIn("#w2b", 5.42, -1);
+
+      // ---------- HUD ----------
+      tl.fromTo("#hud-inner", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 0.25);
+      tl.fromTo(".corner", { scale: 0.4 }, { scale: 1, duration: 0.5, stagger: 0.05, ease: "back.out(2)" }, 0.25);
+      tl.set("#idx0", { opacity: 1 }, 0.25);
+      tl.set("#idx0", { opacity: 0 }, T.s2);
+      tl.set("#idx1", { opacity: 1 }, T.s2);
+      tl.set("#idx1", { opacity: 0 }, T.s3);
+      tl.set("#idx2", { opacity: 1 }, T.s3);
+      tl.set("#idx2", { opacity: 0 }, T.s4);
+      tl.set("#idx3", { opacity: 1 }, T.s4);
+      tl.set("#hud", { color: "#07060f" }, T.s4);
+      tl.to("#hud-inner", { opacity: 0, duration: 0.25, ease: "power2.in" }, T.s5 - 0.2);
+
+      // ---------- S1 hook ----------
+      tl.fromTo("#s1-strip", { x: 0 }, { x: -3480, duration: 2.1, ease: "none" }, 0);
+      tl.fromTo(
+        "#s1-word .ch",
+        { yPercent: 70, rotationX: -95, opacity: 0, transformOrigin: "50% 100%", transformPerspective: 900 },
+        { yPercent: 0, rotationX: 0, opacity: 1, duration: 0.6, stagger: 0.06, ease: "back.out(1.6)" },
+        0.1,
+      );
+      tl.fromTo("#s1-word", { scale: 1 }, { scale: 1.07, duration: 0.24, ease: "power4.out" }, 0.971);
+      tl.to("#s1-word", { scale: 1.16, duration: 0.8, ease: "power1.in" }, 1.22);
+      tl.fromTo("#s1-top-in", { y: -26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, 0.4);
+      tl.fromTo("#s1-bot-in", { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, 0.55);
+      tl.fromTo(["#s1-rule", "#s1-rule2"], { scaleX: 0 }, { scaleX: 1, duration: 0.55, ease: "expo.out" }, 0.65);
+
+      // ---------- S2 league ----------
+      tl.fromTo("#s2-shot-ahri", { scale: 1.2 }, { scale: 1.03, duration: 1.95, ease: "power2.out" }, T.s2);
+      tl.fromTo("#s2-chip", { x: -60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45 }, T.s2 + 0.12);
+      tl.fromTo("#s2-title .ln > span", { yPercent: 110 }, { yPercent: 0, duration: 0.6, stagger: 0.09, ease: "power4.out" }, T.s2 + 0.05);
+      tl.fromTo("#s2-sub", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, T.s2 + 0.45);
+      tl.set("#s2-card-wrap", { opacity: 1 }, T.s2);
+      tl.set("#s2-card-wrap", { opacity: 0 }, T.s3);
+      tl.fromTo(
+        "#s2-card",
+        { x: 760, rotationY: -55, rotation: 6, transformPerspective: 1400 },
+        { x: 0, rotationY: -16, rotation: -3, duration: 0.85, ease: "expo.out" },
+        T.s2 + 0.08,
+      );
+      tl.to("#s2-card", { y: -16, rotationY: -11, duration: 2.6, ease: "sine.inOut" }, T.s2 + 0.95);
+      tl.fromTo("#s2-card-flash", { opacity: 0.85 }, { opacity: 0, duration: 0.35, ease: "power2.out", immediateRender: false }, T.s2b);
+      tl.fromTo("#s2-band", { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "expo.out" }, T.s2 + 0.3);
+      tl.fromTo("#s2-track", { x: 0 }, { x: -1500, duration: 3.6, ease: "none" }, T.s2 + 0.15);
+      [
+        [3.915, "jinx"],
+        [4.405, "ezreal"],
+        [4.885, "lux"],
+        [5.344, "kaisa"],
+      ].forEach(([t, n]) => {
+        tl.set(`#s2-shot-${n}`, { opacity: 1 }, t);
+        tl.fromTo(`#s2-shot-${n}`, { scale: 1.16 }, { scale: 1.02, duration: 0.6, immediateRender: false }, t);
+        tl.fromTo("#s2-flash", { opacity: 0.55 }, { opacity: 0, duration: 0.28, ease: "power2.out", immediateRender: false }, t);
+        tl.fromTo("#s2-title", { x: -14 }, { x: 0, duration: 0.25, immediateRender: false }, t);
+      });
+
+      // ---------- S3 mobile legends ----------
+      tl.fromTo(".slat", { scaleY: 1 }, { scaleY: 0, duration: 0.42, ease: "power3.inOut", stagger: { each: 0.028, from: "center" } }, T.s3 + 0.02);
+      tl.fromTo("#s3-shot-lancelot", { scale: 1.22 }, { scale: 1.04, duration: 0.95, ease: "power2.out" }, T.s3);
+      tl.fromTo("#s3-chip", { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45 }, T.s3 + 0.2);
+      tl.fromTo(
+        "#s3-mobile .ch",
+        { scale: 2.4, opacity: 0, filter: "blur(18px)" },
+        { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.5, stagger: 0.045, ease: "expo.out" },
+        T.s3 + 0.14,
+      );
+      tl.fromTo("#s3-legends > span", { yPercent: 110 }, { yPercent: 0, duration: 0.55, ease: "power4.out" }, T.s3 + 0.42);
+      [
+        [6.432, "gusion"],
+        [7.061, "karina"],
+        [7.659, "ling"],
+        [8.139, "fanny"],
+        [8.619, "layla"],
+        [9.248, "change"],
+      ].forEach(([t, n]) => {
+        tl.set(`#s3-shot-${n}`, { opacity: 1 }, t);
+        tl.fromTo(`#s3-shot-${n}`, { scale: 1.16 }, { scale: 1.03, duration: 0.55, immediateRender: false }, t);
+        tl.fromTo("#s3-flash", { opacity: 0.5 }, { opacity: 0, duration: 0.26, ease: "power2.out", immediateRender: false }, t);
+      });
+      tl.fromTo("#s3-a", { scale: 1.06 }, { scale: 1, duration: 0.3, immediateRender: false }, 6.432);
+      tl.fromTo("#s3-a", { scale: 1.06 }, { scale: 1, duration: 0.3, immediateRender: false }, 7.061);
+      tl.to("#s3-a", { scale: 1.7, opacity: 0, filter: "blur(14px)", duration: 0.29, ease: "power2.in" }, 7.37);
+      tl.fromTo("#s3-dim", { opacity: 0.55 }, { opacity: 1, duration: 0.35 }, 7.45);
+
+      tl.fromTo("#s3-glow", { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.6 }, T.s3b);
+      tl.fromTo("#s3-bag", { scale: 0, rotation: -22, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.75, ease: "back.out(1.7)" }, T.s3b);
+      tl.to("#s3-bag", { y: -20, duration: 0.55, ease: "sine.inOut", yoyo: true, repeat: 1 }, 8.45);
+      tl.fromTo(".spark", { scale: 0, rotation: -120 }, { scale: 1, rotation: 0, duration: 0.45, stagger: 0.07, ease: "back.out(3)" }, T.s3b + 0.25);
+      tl.to(".spark", { scale: 0, rotation: 90, duration: 0.3, stagger: 0.05, ease: "power2.in" }, 9.0);
+      tl.fromTo("#s3-k", { x: 40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45 }, T.s3b + 0.05);
+      tl.fromTo("#s3-count", { x: 80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "expo.out" }, T.s3b + 0.08);
+      tl.fromTo("#s3-unit", { x: 80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "expo.out" }, T.s3b + 0.18);
+      tl.fromTo("#s3-sub", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45 }, T.s3b + 0.32);
+      const countEl = document.getElementById("s3-count");
+      const counter = { v: 0 };
+      tl.fromTo(
+        counter,
+        { v: 0 },
+        {
+          v: 9288,
+          duration: 0.96,
+          ease: "power2.out",
+          onUpdate: () => {
+            countEl.textContent = Math.round(counter.v).toLocaleString("en-US");
+          },
+        },
+        T.s3b + 0.1,
+      );
+      tl.fromTo("#s3-count", { scale: 1.14 }, { scale: 1, duration: 0.4, ease: "back.out(2.5)", immediateRender: false }, 8.619);
+      tl.fromTo("#s3-iris", { scale: 0 }, { scale: 1, duration: 0.33, ease: "power3.in" }, 9.22);
+
+      // ---------- S4 how it works ----------
+      const steps = [T.s4, T.s4b, T.s4c];
+      steps.forEach((t, i) => {
+        const id = `#s4-st${i + 1}`;
+        tl.fromTo(`${id} .s4-pill`, { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(2.2)" }, t);
+        tl.fromTo(`${id} .ln > span`, { yPercent: 112 }, { yPercent: 0, duration: 0.38, stagger: 0.06, ease: "power4.out" }, t + 0.02);
+        const out = i < 2 ? steps[i + 1] - 0.18 : T.s5 - 0.22;
+        tl.to(`${id} .ln > span`, { yPercent: -112, duration: 0.18, stagger: 0.03, ease: "power3.in" }, out);
+        tl.to(`${id} .s4-pill`, { scale: 0, opacity: 0, duration: 0.16, ease: "power3.in" }, out);
+        tl.set(id, { autoAlpha: 1 }, t);
+        tl.set(id, { autoAlpha: 0 }, out + 0.2);
+      });
+      tl.fromTo(
+        "#s4-card",
+        { x: 280, rotationY: 30, opacity: 0, transformPerspective: 1600 },
+        { x: 0, rotationY: -8, opacity: 1, duration: 0.6, ease: "expo.out" },
+        T.s4 + 0.04,
+      );
+      tl.fromTo("#pack-sel", { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.25, ease: "back.out(2)" }, 9.86);
+      tl.to("#s4-field", { borderColor: "#5724ff", duration: 0.15 }, T.s4b + 0.02);
+      tl.to("#s4-typed .c", { opacity: 1, duration: 0.01, stagger: 0.026 }, T.s4b + 0.06);
+      tl.fromTo("#s4-caret", { opacity: 1 }, { opacity: 0, duration: 0.12, repeat: 5, yoyo: true, ease: "none" }, T.s4b);
+      tl.to("#s4-btn-pay", { yPercent: -100, opacity: 0, duration: 0.2, ease: "power3.in" }, T.s4c + 0.04);
+      tl.fromTo("#s4-btn-done", { yPercent: 100, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.26, ease: "back.out(2)" }, T.s4c + 0.1);
+      tl.to("#s4-btn", { backgroundColor: "#edff66", color: "#07060f", duration: 0.2 }, T.s4c + 0.06);
+      tl.fromTo("#s4-btn", { scale: 1.08 }, { scale: 1, duration: 0.35, ease: "back.out(3)", immediateRender: false }, T.s4c + 0.1);
+      tl.fromTo("#s4-toast", { y: 20, opacity: 0 }, { y: -10, opacity: 1, duration: 0.3, ease: "back.out(2)" }, T.s4c + 0.22);
+      tl.to("#s4-card", { x: 220, opacity: 0, rotationY: 20, duration: 0.24, ease: "power3.in" }, T.s5 - 0.24);
+
+      // ---------- S5 end card ----------
+      tl.fromTo("#s5-rays", { opacity: 0, rotation: 0 }, { opacity: 1, rotation: 35, duration: 3.6, ease: "none" }, T.s5);
+      tl.fromTo("#s5-card-l", { x: -520, rotation: -24 }, { x: 0, rotation: -8, duration: 0.9, ease: "expo.out" }, T.s5 + 0.05);
+      tl.fromTo("#s5-card-r", { x: 520, rotation: 24 }, { x: 0, rotation: 8, duration: 0.9, ease: "expo.out" }, T.s5 + 0.1);
+      tl.to("#s5-card-l", { y: -26, duration: 2.5, ease: "sine.inOut" }, T.s5 + 0.95);
+      tl.to("#s5-card-r", { y: 26, duration: 2.5, ease: "sine.inOut" }, T.s5 + 0.95);
+      tl.fromTo("#s5-logo", { scale: 0, rotation: -25 }, { scale: 1, rotation: 0, duration: 0.8, ease: "back.out(1.8)" }, T.s5);
+      tl.fromTo(
+        "#s5-word .ch",
+        { yPercent: 80, rotationX: -80, opacity: 0, transformOrigin: "50% 100%", transformPerspective: 900 },
+        { yPercent: 0, rotationX: 0, opacity: 1, duration: 0.6, stagger: 0.045, ease: "back.out(1.4)" },
+        T.s5 + 0.14,
+      );
+      tl.fromTo("#s5-tag", { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, T.s5 + 0.7);
+      tl.fromTo("#s5-games", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, T.s5 + 1.0);
+      tl.fromTo("#s5-cta", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.55, ease: "back.out(2.2)" }, T.cta);
+      tl.fromTo("#s5-logo", { scale: 1.1 }, { scale: 1, duration: 0.4, ease: "back.out(3)", immediateRender: false }, T.cta);
+      tl.fromTo("#s5-shine", { x: -160 }, { x: 560, duration: 0.7, ease: "power2.inOut" }, T.cta + 0.5);
+      tl.fromTo("#s5-arrow", { x: 0 }, { x: 8, duration: 0.22, repeat: 3, yoyo: true, ease: "sine.inOut" }, 14.0);
+      tl.fromTo("#s5-center", { scale: 1 }, { scale: 1.035, duration: 1.4, ease: "sine.inOut" }, 13.6);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
