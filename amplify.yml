@@ -32,6 +32,8 @@ frontend:
     - source: /api/<*>
       target: https://c4pmcbw502.execute-api.ap-south-1.amazonaws.com/prod/api/<*>
       status: 200
-    - source: '</^[^.]+$|[.](?!(avif|css|gif|ico|jpg|js|json|map|mp3|mp4|ogg|png|svg|txt|ttf|wav|webm|webp|woff|woff2)$)([^.]+$)/>'
-      target: /index.html
+    # MAINTENANCE MODE: every URL serves the maintenance page (200 keeps the URL).
+    # To restore the SPA, revert this to the /index.html fallback rule.
+    - source: /<*>
+      target: /maintenance.html
       status: 200

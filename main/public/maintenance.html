@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>PixieKat — Back soon</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: #0e041d;
+      color: #efeaff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+    body::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(60% 50% at 50% 0%, rgba(87, 36, 255, 0.28), transparent 70%),
+        radial-gradient(40% 40% at 85% 85%, rgba(79, 183, 221, 0.12), transparent 70%);
+      pointer-events: none;
+    }
+    .card {
+      position: relative;
+      text-align: center;
+      padding: 2rem;
+      max-width: 34rem;
+    }
+    .logo {
+      font-size: clamp(2.6rem, 8vw, 4.2rem);
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    .logo span { color: #a78bfa; }
+    .badge {
+      display: inline-block;
+      margin-top: 1.4rem;
+      padding: 0.4rem 1rem;
+      border: 1px solid rgba(167, 139, 250, 0.4);
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #c4b5fd;
+    }
+    h1 {
+      margin-top: 1.2rem;
+      font-size: clamp(1.4rem, 4.5vw, 2rem);
+      font-weight: 700;
+    }
+    p {
+      margin-top: 0.9rem;
+      color: rgba(239, 234, 255, 0.65);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    .dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      margin-right: 6px;
+      border-radius: 50%;
+      background: #edff66;
+      animation: pulse 1.6s ease-in-out infinite;
+      vertical-align: middle;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.8); }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="logo">Pixie<span>Kat</span></div>
+    <div class="badge"><span class="dot"></span>Maintenance</div>
+    <h1>We&rsquo;ll be back shortly</h1>
+    <p>
+      We&rsquo;re making a few upgrades behind the scenes. The shop is
+      temporarily offline &mdash; check back in a little while.
+    </p>
+  </main>
+</body>
+</html>
