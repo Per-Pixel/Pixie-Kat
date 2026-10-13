@@ -1,16 +1,27 @@
 # Last Session Summary
 
-## Games grid: removed card subtitle line (2026-10-13)
+## Exclusive Offers reorder — APPLIED TO DB (2026-10-13)
 
-- `main/src/pages/games/components/GameGrid.jsx`: dropped the small subtitle
-  `<p>` under each game name on `/games` (was rendering the DB `games.subtitle`,
-  e.g. "Malaysia server" under "Mobile Legends: Bang Bang"). Cards now show only
-  the game name. `useActiveGames` still selects/maps `subtitle` — data layer
-  untouched, easy to bring back.
-- Uncommitted, on top of the previous session's uncommitted media work.
+- Live `promotional_items.sort_order` rewritten via
+  `supabase/migrations/048_exclusive_offers_order.sql` (`supabase db query
+  --linked`): Starlight Pass → Mobile Legends Diamonds → Mobile Legends →
+  Honor of Kings → Magic Chess → Genshin → PUBG → Hero Special.
+- Mirrored the same order in `main/src/pages/home/sections/ExclusiveOffers.jsx`
+  `fallbackExclusiveOffers` and `admin/src/services/mediaService.ts`
+  `fallbackExclusive` (position→`exclusive_fallback_N` keys must stay in
+  lockstep; list only matters when zero active promo rows exist).
+- MLBB group = Diamonds, plain "Mobile Legends", plus Leomord/Melissa in the
+  fallback (MLBB heroes). Magic Chess kept separate per request.
+- Changelog entry added. Committed locally — pushed only if asked.
+
+## Earlier same session: /games grid subtitle removal — SHIPPED
+
+- `8c39dff` + docs `4474deb` pushed to `main`; small subtitle line under each
+  game name removed. Amplify auto-deploys on push.
 
 ### Carried forward / pending
+- Previous session's media work still uncommitted (game art webp's,
+  re-encoded videos, gamesData/TrendingGames/DropdownMenu edits).
 - Browser check of Features tile / menu cards not done.
-- Free Fire Play icon is currently a Naruto collab — may rotate.
 - `videos/pixiekat-portal-hop/` 9:16 render still not built.
 - Game art remains publisher IP — flag before paid-ad distribution.
