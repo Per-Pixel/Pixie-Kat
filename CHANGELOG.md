@@ -52,6 +52,7 @@
 - Drop the small subtitle line (e.g. "Malaysia server") under each name on the `/games` grid — cards show the game name only.
 - Reorder Exclusive Offers: Starlight first, then the MLBB cards, Honor of Kings, Magic Chess, and the rest (`048_exclusive_offers_order.sql` re-sorts `promotional_items.sort_order`; code + admin fallback lists mirror it).
 - Rename the Starlight game to "Hayabusa Starlight" — the "– Kitsune's Shadow" suffix is dropped from the display name (`049_rename_starlight_title.sql`); the description still names the actual October skin.
+- Add five more game pages cloned from the kazutora.in catalog (`050_kazutora_games.sql` + `main/server/scripts/seed-kazutora-games.mjs`): Magic Chess: Go Go (`/games/magic-chess-go-go`, 15 Yokcash `MCGG_*_BR` diamond packs in TOP UP DIAMONDS / DOUBLE DIAS sections), BGMI (Not Instant) (`/games/bgmi-not-instant`, 21 packs, `provider=manual` since the prices undercut Yokcash cost and bonus packs have no matching SKU), PUBG Mobile Global (`/games/pubg-global`, 5 Yokcash `YCPUBGGLB*` UC packs), Honkai: Star Rail (`/games/honkai-star-rail`, 6 Yokcash `HNKIYC*` Oneiric Shard packs + Express Supply Pass), and Revelation Mobile (`/games/revelation-mobile`, Yokcash `RVLNMBPC-S81` Battle Pass Classic). Sell prices match kazutora retail exactly; card/banner art is mirrored into `public-media`.
 
 ### Repository
 - Remove scratch artifacts (`Test/` harness, temp backup/seed scripts, stale AWS log, stray screenshot) and stop tracking `admin/.env`.
