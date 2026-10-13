@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Portal Hop — storyboard v1</title>
+<style>
+  @font-face { font-family: "zentry"; src: url("fonts/zentry-regular.woff2") format("woff2"); }
+  @font-face { font-family: "general"; src: url("fonts/general.woff2") format("woff2"); }
+  @font-face { font-family: "robert"; src: url("fonts/robert-medium.woff2") format("woff2"); }
+
+  :root {
+    --paper: #dfdff0; --ink: #0E041D; --cream: #F0F2FA;
+    --violet: #5724ff; --cyan: #4FB7DD; --acid: #edff66;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--ink); color: var(--cream); font-family: "general", system-ui, sans-serif; padding: 56px 64px 96px; }
+
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; margin-bottom: 40px; border-bottom: 2px solid rgba(240,242,250,.14); padding-bottom: 28px; }
+  header h1 { font-family: "zentry"; font-weight: 900; text-transform: uppercase; font-size: 76px; line-height: .85; letter-spacing: .01em; }
+  header h1 b { font-weight: inherit; font-feature-settings: "ss01" on; color: var(--violet); }
+  header p { font-family: "robert"; font-size: 17px; opacity: .72; margin-top: 12px; max-width: 760px; line-height: 1.45; }
+  .tag { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; border: 1.5px solid rgba(240,242,250,.35); border-radius: 999px; padding: 9px 16px; white-space: nowrap; }
+
+  .act { font-size: 12px; letter-spacing: .2em; text-transform: uppercase; opacity: .55; margin: 34px 0 14px; display: flex; align-items: center; gap: 14px; }
+  .act::after { content: ""; flex: 1; height: 1px; background: rgba(240,242,250,.18); }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px 28px; }
+  .grid.v { grid-template-columns: repeat(4, 1fr); }
+
+  .cell { aspect-ratio: 16 / 9; container-type: inline-size; position: relative; overflow: hidden; border-radius: 10px; background: var(--paper); color: var(--ink); }
+  .cell.vert { aspect-ratio: 9 / 16; }
+  .meta { display: flex; justify-content: space-between; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; margin-top: 12px; opacity: .85; }
+  .meta span:last-child { opacity: .55; }
+  .note { font-family: "robert"; font-size: 14px; line-height: 1.5; opacity: .78; margin-top: 8px; }
+  .note b { color: var(--cream); opacity: 1; font-weight: 400; font-family: "general"; letter-spacing: .02em; }
+  .chipseam { display: inline-block; margin-top: 10px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; border-radius: 999px; padding: 6px 12px; background: rgba(87,36,255,.22); color: #cbbcff; border: 1px solid rgba(87,36,255,.55); }
+  .chipseam.shader { background: rgba(237,255,102,.12); color: var(--acid); border-color: rgba(237,255,102,.5); }
+
+  /* ---------- shared in-frame pieces (all sizes in cqw: 1cqw = 19.2px at 1920) ---------- */
+  .z { font-family: "zentry"; font-weight: 900; text-transform: uppercase; line-height: .84; }
+  .z b { font-weight: inherit; font-feature-settings: "ss01" on; }
+  .label { position: absolute; font-family: "general"; font-size: 1.15cqw; letter-spacing: .14em; text-transform: uppercase; }
+  .grain { position: absolute; inset: 0; pointer-events: none; opacity: .18; mix-blend-mode: multiply;
+    background-image: radial-gradient(rgba(14,4,29,.55) .5px, transparent .6px); background-size: .42cqw .42cqw; }
+  .grid-lines { position: absolute; inset: 0; opacity: .5;
+    background-image: linear-gradient(rgba(87,36,255,.13) 1px, transparent 1px), linear-gradient(90deg, rgba(87,36,255,.13) 1px, transparent 1px);
+    background-size: 6.25cqw 6.25cqw; }
+  .pips { position: absolute; right: 5cqw; bottom: 4.6cqw; display: flex; gap: .9cqw; }
+  .pips i { width: 1.05cqw; height: 1.05cqw; border-radius: 50%; border: .16cqw solid var(--violet); display: block; }
+  .pips i.on { background: var(--violet); box-shadow: 0 0 1.2cqw rgba(87,36,255,.85); }
+  .imgtext { background-size: cover; background-position: center; -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  /* world plate */
+  .world { background: #07020f; color: var(--cream); }
+  .world .bg { position: absolute; inset: -3%; background-size: cover; background-position: center; filter: blur(.35cqw) saturate(1.05) brightness(.62); }
+  .world .shade { position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 40%, transparent 30%, rgba(14,4,29,.78) 100%); }
+  .world .title { position: absolute; font-size: 7.8cqw; color: var(--cream); text-shadow: 0 .4cqw 2cqw rgba(0,0,0,.45); }
+  .chip { position: absolute; display: flex; align-items: center; gap: .9cqw; background: rgba(14,4,29,.62); border: .16cqw solid rgba(240,242,250,.45); border-radius: 999px; padding: .55cqw 1.4cqw .55cqw .6cqw; font-family: "general"; font-size: 1.2cqw; letter-spacing: .14em; text-transform: uppercase; color: var(--cream); }
+  .chip img { width: 2.6cqw; height: 2.6cqw; object-fit: contain; }
+  .chip .glyph { width: 2.6cqw; height: 2.6cqw; border-radius: 50%; display: grid; place-items: center; background: var(--cream); color: var(--ink); font-family: "zentry"; font-weight: 900; font-size: 1.15cqw; }
+  .card3d { position: absolute; border: .16cqw solid var(--cream); border-radius: .7cqw; background-size: cover; background-position: center; box-shadow: 0 0 6cqw rgba(87,36,255,.55), 0 2cqw 4cqw rgba(0,0,0,.5); }
+  .stage { position: absolute; inset: 0; perspective: 90cqw; }
+  .ghost-shape { position: absolute; }
+  .placeholder-tag { position: absolute; font-family: "general"; font-size: .9cqw; letter-spacing: .14em; text-transform: uppercase; background: rgba(14,4,29,.7); color: var(--cream); padding: .3cqw .6cqw; border-radius: .3cqw; }
+
+  /* seam map + tokens */
+  .wide { grid-column: span 3; aspect-ratio: auto; background: #170a2b; color: var(--cream); padding: 30px 34px; border-radius: 10px; }
+  .seams { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; margin-top: 18px; position: relative; }
+  .seams .s { border-left: 2px solid rgba(240,242,250,.18); padding: 0 14px 0 14px; }
+  .seams .s:first-child { border-left: 0; padding-left: 0; }
+  .seams .n { font-family: "zentry"; font-weight: 900; font-size: 30px; line-height: 1; }
+  .seams .t { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; opacity: .6; margin-top: 6px; }
+  .seams .h { font-family: "robert"; font-size: 13px; margin-top: 10px; line-height: 1.4; }
+  .seams .bar { position: absolute; left: 0; right: 0; top: -12px; height: 4px; display: grid; grid-template-columns: 1.85fr 1.85fr 1.85fr 1.85fr 1.85fr 1.85fr 3.9fr; gap: 3px; }
+  .seams .bar i { background: var(--violet); border-radius: 2px; display: block; }
+  .seams .bar i:last-child { background: var(--acid); }
+  .tokens { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 40px; margin-top: 18px; }
+  .sw { display: flex; align-items: center; gap: 12px; margin: 8px 0; font-size: 13px; letter-spacing: .06em; }
+  .sw i { width: 34px; height: 34px; border-radius: 8px; display: block; border: 1px solid rgba(240,242,250,.25); }
+  .tokens h4 { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; opacity: .55; font-weight: 400; margin-bottom: 10px; }
+  .tokens li { font-family: "robert"; font-size: 13px; line-height: 1.55; list-style: none; opacity: .85; }
+  .tokens li::before { content: "— "; opacity: .5; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>P<b>o</b>rtal H<b>o</b>p <span style="opacity:.4">v1</span></h1>
+    <p>One unbroken camera through four game worlds. Every doorway is shaped like the currency you buy there. It ends inside the letters of PIXIEKAT. Static sketches only: these lock layout, hierarchy and copy, and the build adds motion and the real clips on top.</p>
+  </div>
+  <div class="tag">1920×1080 + 1080×1920 · 15.0s · 7 frames · Night Terrors 129.7 BPM</div>
+</header>
+
+<div class="act">Act 1 · The portal</div>
+<div class="grid">
+
+  <!-- 01 -->
+  <div>
+    <div class="cell" id="frame-01">
+      <div class="grid-lines"></div>
+      <div class="label" style="left:7.3cqw;top:5.2cqw;">PixieKat — Instant Gaming Credits</div>
+      <div class="z" style="position:absolute;left:7.3cqw;top:13cqw;font-size:15.2cqw;">
+        The st<b class="imgtext" style="background-image:url('assets/mlbb_ling.jpg');-webkit-text-stroke:.36cqw var(--violet);">o</b>re for<br>every gamer
+      </div>
+      <div class="pips"><i></i><i></i><i></i><i></i></div>
+      <div class="grain"></div>
+    </div>
+    <div class="meta"><span>01 · The Store</span><span>01-store · 0.00–1.85</span></div>
+    <p class="note"><b>Words whip up from below in the silent hole.</b> At 0.95 the camera accelerates into the violet-ringed O, which already has MLBB playing inside. The O fills the frame exactly on the drop at 1.85.</p>
+    <span class="chipseam">seam → zoom-through the O</span>
+  </div>
+
+  <!-- 02 -->
+  <div>
+    <div class="cell world" id="frame-02">
+      <div class="bg" style="background-image:url('assets/mlbb_lancelot.jpg')"></div>
+      <div class="shade"></div>
+      <div class="stage">
+        <div class="card3d" style="left:47cqw;top:12cqw;width:44cqw;height:24.75cqw;background-image:url('assets/mlbb_ling.jpg');transform:rotateY(-14deg) rotateX(4deg);"></div>
+      </div>
+      <div class="placeholder-tag" style="left:49cqw;top:38.5cqw;">clip · mlbb.mp4</div>
+      <div class="z title" style="left:5.6cqw;top:16cqw;">Mobile<br>Legends</div>
+      <div class="chip" style="left:5.6cqw;top:35cqw;"><img src="assets/mlbb_diamonds.png" alt="">Diamonds</div>
+      <svg class="ghost-shape" viewBox="0 0 100 100" style="left:63cqw;top:40cqw;width:9cqw;height:9cqw;opacity:.85"><path d="M20 30 L35 14 H65 L80 30 L50 88 Z M20 30 H80 M35 14 L42 30 L50 88 M65 14 L58 30 L50 88" fill="none" stroke="#5724ff" stroke-width="3.2" stroke-linejoin="round"/></svg>
+      <div class="pips"><i class="on"></i><i></i><i></i><i></i></div>
+      <div class="grain"></div>
+    </div>
+    <div class="meta"><span>02 · Mobile Legends</span><span>02-mlbb · 1.85–3.70</span></div>
+    <p class="note"><b>The camera lands from the dive, and the title slams in on beat 2 (2.31).</b> The chip's diamond becomes the vector Diamond doorway, with Genshin inside. The camera rolls 90° through it, crossing on 3.70.</p>
+    <span class="chipseam">seam → rolling dive (Diamond)</span>
+  </div>
+
+  <!-- 03 -->
+  <div>
+    <div class="cell world" id="frame-03">
+      <div class="bg" style="background-image:url('assets/keyart/genshin_v26_wallpaper1.png');filter:blur(.3cqw) brightness(.72);"></div>
+      <div class="shade"></div>
+      <div class="stage">
+        <div class="card3d" style="left:30cqw;top:9cqw;width:30cqw;height:16.9cqw;background-image:url('assets/keyart/genshin_hutao_wish.png');background-color:#2b1a3d;transform:rotateY(22deg) translateZ(-8cqw);filter:blur(.15cqw);"></div>
+        <div class="card3d" style="left:26cqw;top:22cqw;width:36cqw;height:20.25cqw;background-image:url('assets/keyart/genshin_raiden_wish.png');background-color:#2a1b4a;transform:rotateY(18deg);"></div>
+      </div>
+      <div class="placeholder-tag" style="left:28cqw;top:43.5cqw;">clip · genshin.mp4 (focus card)</div>
+      <img src="assets/cutouts/genshin_raiden_portrait.png" alt="" style="position:absolute;left:-7cqw;top:9cqw;height:52cqw;filter:drop-shadow(0 1cqw 2cqw rgba(0,0,0,.5));">
+      <div class="z title" style="right:5.6cqw;top:12cqw;text-align:right;">Genshin<br>Impact</div>
+      <div class="chip" style="right:5.6cqw;top:31cqw;"><img src="assets/icons/genshin_genesis_crystal.png" alt="">Genesis Crystals</div>
+      <div class="pips"><i class="on"></i><i class="on"></i><i></i><i></i></div>
+      <div class="grain"></div>
+    </div>
+    <div class="meta"><span>03 · Genshin Impact</span><span>03-genshin · 3.70–5.55</span></div>
+    <p class="note"><b>The roll levels out as the camera flies right to left past cards standing in depth.</b> It decelerates into focus on the clip card, and the chip pops on 4.63. From 5.32 the whole world whips off to the left.</p>
+    <span class="chipseam shader">seam → whip-pan shader</span>
+  </div>
+
+</div>
+
+<div class="act">Act 2 · The hop</div>
+<div class="grid">
+
+  <!-- 04 -->
+  <div>
+    <div class="cell world" id="frame-04">
+      <div class="bg" style="background-image:url('assets/keyart/hok_caiyan_splash.jpg');filter:blur(.3cqw) brightness(.6) sepia(.35) saturate(1.3);"></div>
+      <div class="shade"></div>
+      <div style="position:absolute;left:55cqw;top:9cqw;width:34cqw;height:34cqw;border-radius:50%;background:url('assets/keyart/hok_luara_classic.jpg') center/cover;border:.5cqw solid var(--violet);box-shadow:0 0 6cqw rgba(87,36,255,.6), inset 0 0 3cqw rgba(0,0,0,.4);"></div>
+      <div class="placeholder-tag" style="left:63cqw;top:44.5cqw;">clip · hok.mp4 (round window)</div>
+      <div class="z title" style="left:5.6cqw;top:16cqw;">Honor of<br>Kings</div>
+      <div class="chip" style="left:5.6cqw;top:35cqw;"><img src="assets/icons/hok_token_128.png" alt="">Tokens</div>
+      <div class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+      <div class="grain"></div>
+    </div>
+    <div class="meta"><span>04 · Honor of Kings</span><span>04-hok · 5.55–7.40</span></div>
+    <p class="note"><b>The whip lands and the camera cranes down, gold light everywhere.</b> The Token springs open into a round clip window on 6.01. On 6.94 it coin-flips toward the lens, and its back face is BGMI, filling the frame by 7.40.</p>
+    <span class="chipseam shader">seam → coin flip + chromatic split shader</span>
+  </div>
+
+  <!-- 05 -->
+  <div>
+    <div class="cell world" id="frame-05">
+      <div class="bg" style="background-image:url('assets/store/game-pubg-card.webp');filter:blur(.3cqw) grayscale(.6) brightness(.55) contrast(1.1);"></div>
+      <div class="shade"></div>
+      <div style="position:absolute;right:0;top:0;width:42cqw;height:100%;background:url('assets/keyart/bgmi_kiaraa_46s5.png') 60% center/cover;border-left:.3cqw solid var(--cream);"></div>
+      <div class="placeholder-tag" style="right:2cqw;top:3cqw;">clip · bgmi.mp4 · stutter cuts on 1/8</div>
+      <div class="z" style="position:absolute;left:5.2cqw;top:14cqw;font-size:15cqw;color:var(--cyan);opacity:.55;transform:translate(-.5cqw,0);">BGMI</div>
+      <div class="z" style="position:absolute;left:5.2cqw;top:14cqw;font-size:15cqw;color:var(--violet);opacity:.7;transform:translate(.5cqw,0);">BGMI</div>
+      <div class="z" style="position:absolute;left:5.2cqw;top:14cqw;font-size:15cqw;color:var(--cream);">BGMI</div>
+      <div class="chip" style="left:5.6cqw;top:33cqw;"><span class="glyph">UC</span>UC</div>
+      <div class="pips" style="right:46cqw;"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+      <div class="grain"></div>
+    </div>
+    <div class="meta"><span>05 · BGMI</span><span>05-bgmi · 7.40–9.25</span></div>
+    <p class="note"><b>Chromatic smash in, then the title glitch-slams and snaps clean.</b> The clip stutter-cuts on eighth notes. In the 8.75 dropout the whole world sucks down into one bright violet point.</p>
+    <span class="chipseam">seam → collapse to a point</span>
+  </div>
+
+  <!-- 06 -->
+  <div>
+    <div class="cell" id="frame-06">
+      <div class="grid-lines"></div>
+      <div class="z" style="position:absolute;left:6cqw;right:4cqw;top:12cqw;font-size:30cqw;white-space:nowrap;letter-spacing:-.01em;">
+        <span class="imgtext" style="background-image:url('assets/mlbb_lancelot.jpg')">P</span><b class="imgtext" style="background-image:url('assets/mlbb_ling.jpg')">I</b><span class="imgtext" style="background-image:url('assets/keyart/genshin_v26_wallpaper1.png')">X</span><b class="imgtext" style="background-image:url('assets/keyart/genshin_raiden_wish.png');background-color:#5b3d8f;">I</b><span class="imgtext" style="background-image:url('assets/keyart/hok_caiyan_splash.jpg')">E</span><span class="imgtext" style="background-image:url('assets/keyart/hok_luara_classic.jpg')">K</span><b class="imgtext" style="background-image:url('assets/keyart/bgmi_kiaraa_42s.png')">A</b><span class="imgtext" style="background-image:url('assets/store/game-pubg-card.webp')">T</span>
+      </div>
+      <div class="label" style="left:5.6cqw;bottom:5cqw;">One store. Every world.</div>
+      <div class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+      <div class="grain"></div>
+    </div>
+    <div class="meta"><span>06 · Every World</span><span>06-every-world · 9.25–11.10</span></div>
+    <p class="note"><b>The re-hit at 9.25 launches the pull-back at full speed: that point was the counter of the A.</b> It decelerates to rest by about 10.2. Each letter holds a world for one beat, then everything ripples to ink from left to right starting at 10.64.</p>
+    <span class="chipseam">seam → in-place (ink ripple)</span>
+  </div>
+
+</div>
+
+<div class="act">Act 3 · The ask</div>
+<div class="grid">
+
+  <!-- 07 -->
+  <div>
+    <div class="cell" id="frame-07">
+      <div class="grid-lines" style="opacity:.3"></div>
+      <div style="position:absolute;left:50%;top:44%;width:70cqw;height:40cqw;transform:translate(-50%,-50%);background:radial-gradient(closest-side, rgba(87,36,255,.32), transparent);"></div>
+      <div style="position:absolute;left:0;right:0;top:12.5cqw;display:flex;justify-content:center;align-items:center;gap:2.4cqw;">
+        <img src="assets/pk_logo.png" alt="" style="height:10.5cqw;">
+        <div class="z" style="font-size:7cqw;">P<b>i</b>xieK<b>a</b>t</div>
+      </div>
+      <div style="position:absolute;left:0;right:0;top:27cqw;text-align:center;font-family:'robert';font-size:2.1cqw;color:rgba(14,4,29,.8);">Instant Gaming Credits — Fast, Secure, Affordable</div>
+      <div style="position:absolute;left:50%;top:34cqw;transform:translateX(-50%);background:var(--acid);color:var(--ink);border-radius:999px;padding:1.5cqw 3.6cqw;font-family:'general';font-size:1.7cqw;letter-spacing:.16em;text-transform:uppercase;box-shadow:0 .6cqw 0 rgba(14,4,29,.9);">Top up now</div>
+      <div class="grain"></div>
+    </div>
+    <div class="meta"><span>07 · Top Up Now</span><span>07-cta · 11.10–15.00</span></div>
+    <p class="note"><b>The ink wordmark shrinks and rises, the logo blooms beside it, and the subline and pill spring in.</b> The pill presses on the 12.95 bar with a violet ring pulse. From 13.9 to 15.0 the frame holds, with only the grain and glow breathing.</p>
+    <span class="chipseam">end · held frame</span>
+  </div>
+
+  <div class="wide" style="grid-column: span 2;">
+    <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.55;">Seam map · one camera, no cuts · bars at 1.85s</div>
+    <div class="seams" style="margin-top:34px;">
+      <div class="bar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="s"><div class="n">01</div><div class="t">0.00</div><div class="h">Dive through the O on the drop</div></div>
+      <div class="s"><div class="n">02</div><div class="t">1.85</div><div class="h">Rolling dive through the Diamond</div></div>
+      <div class="s"><div class="n">03</div><div class="t">3.70</div><div class="h">Whip-pan shader, right to left</div></div>
+      <div class="s"><div class="n">04</div><div class="t">5.55</div><div class="h">Coin flip + chromatic split</div></div>
+      <div class="s"><div class="n">05</div><div class="t">7.40</div><div class="h">Collapse to a point in the dropout</div></div>
+      <div class="s"><div class="n">06</div><div class="t">9.25</div><div class="h">Pull-back on the re-hit, then ink ripple</div></div>
+      <div class="s"><div class="n">07</div><div class="t">11.10</div><div class="h">Lockup, press on 12.95, hold</div></div>
+    </div>
+  </div>
+
+  <div class="wide">
+    <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.55;">Tokens & bans · from main/tailwind.config.js, index.css, Hero.jsx, Story.jsx</div>
+    <div class="tokens">
+      <div>
+        <h4>Palette by role</h4>
+        <div class="sw"><i style="background:#dfdff0"></i>Paper #dfdff0 · brand frames</div>
+        <div class="sw"><i style="background:#0E041D"></i>Ink #0E041D · type on paper</div>
+        <div class="sw"><i style="background:#F0F2FA"></i>Cream #F0F2FA · type in worlds</div>
+        <div class="sw"><i style="background:#5724ff"></i>Violet #5724ff · the one accent, portals, pips</div>
+        <div class="sw"><i style="background:#4FB7DD"></i>Cyan #4FB7DD · RGB-split only</div>
+        <div class="sw"><i style="background:#edff66"></i>Acid #edff66 · CTA only</div>
+      </div>
+      <div>
+        <h4>Type roles</h4>
+        <ul>
+          <li><span class="z" style="font-size:22px">Zentry 900</span> display, uppercase, ss01 on &lt;b&gt;</li>
+          <li><span style="font-family:general;letter-spacing:.14em;text-transform:uppercase;font-size:13px">General Sans</span> labels, chips, CTA</li>
+          <li><span style="font-family:robert">Robert Medium</span> subline</li>
+        </ul>
+        <h4 style="margin-top:20px">Motion law</h4>
+        <ul>
+          <li>Dives and landings: power4.out</li>
+          <li>Accelerating exits: power3.in, blur peaks at the seam</li>
+          <li>Pops: back.out(1.6–2)</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Bans</h4>
+        <ul>
+          <li>No card-by-card slideshow cuts</li>
+          <li>No motion that lands on nothing</li>
+          <li>No gradient text, no fake store UI</li>
+          <li>No League of Legends art</li>
+          <li>No raster icon scaled past native size</li>
+          <li>No pngaaa UC icon</li>
+          <li>No static end card</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="act">Vertical cut · 1080×1920 · same timeline, re-laid-out</div>
+<div class="grid v">
+
+  <div>
+    <div class="cell vert" id="vframe-01">
+      <div class="grid-lines" style="background-size:11cqw 11cqw"></div>
+      <div class="label" style="left:8cqw;top:9cqw;font-size:2.6cqw;">PixieKat — Instant Gaming Credits</div>
+      <div class="z" style="position:absolute;left:8cqw;top:46cqw;font-size:17cqw;">The<br>st<b class="imgtext" style="background-image:url('assets/mlbb_ling.jpg');-webkit-text-stroke:.5cqw var(--violet);">o</b>re<br>for every<br>gamer</div>
+      <div class="pips" style="right:8cqw;bottom:9cqw;gap:2cqw"><i style="width:2.2cqw;height:2.2cqw"></i><i style="width:2.2cqw;height:2.2cqw"></i><i style="width:2.2cqw;height:2.2cqw"></i><i style="width:2.2cqw;height:2.2cqw"></i></div>
+      <div class="grain" style="background-size:.8cqw .8cqw"></div>
+    </div>
+    <div class="meta"><span>V01 · The Store</span><span>0.00–1.85</span></div>
+    <p class="note"><b>The line stacks into four rows</b> so the O sits near the optical centre for the dive.</p>
+  </div>
+
+  <div>
+    <div class="cell vert world" id="vframe-02">
+      <div class="bg" style="background-image:url('assets/mlbb_lancelot.jpg')"></div>
+      <div class="shade"></div>
+      <div class="stage" style="perspective:160cqw">
+        <div class="card3d" style="left:10cqw;top:62cqw;width:80cqw;height:45cqw;background-image:url('assets/mlbb_ling.jpg');transform:rotateY(-12deg) rotateX(5deg);border-width:.4cqw;border-radius:1.4cqw;"></div>
+      </div>
+      <div class="z title" style="left:8cqw;top:22cqw;font-size:15cqw;">Mobile<br>Legends</div>
+      <div class="chip" style="left:8cqw;top:122cqw;font-size:2.8cqw;gap:2cqw;padding:1.2cqw 3cqw 1.2cqw 1.3cqw;border-width:.35cqw;"><img src="assets/mlbb_diamonds.png" alt="" style="width:6cqw;height:6cqw">Diamonds</div>
+      <div class="pips" style="right:8cqw;bottom:9cqw;gap:2cqw"><i class="on" style="width:2.2cqw;height:2.2cqw"></i><i style="width:2.2cqw;height:2.2cqw"></i><i style="width:2.2cqw;height:2.2cqw"></i><i style="width:2.2cqw;height:2.2cqw"></i></div>
+      <div class="grain" style="background-size:.8cqw .8cqw"></div>
+    </div>
+    <div class="meta"><span>V02–05 · World plate</span><span>1.85–9.25</span></div>
+    <p class="note"><b>Title on top, clip card in the middle, chip below.</b> Frames 3–5 use the same stack, with the camera moves unchanged.</p>
+  </div>
+
+  <div>
+    <div class="cell vert" id="vframe-06">
+      <div class="grid-lines" style="background-size:11cqw 11cqw"></div>
+      <div class="z" style="position:absolute;left:7cqw;top:44cqw;font-size:50cqw;line-height:.82;">
+        <span class="imgtext" style="background-image:url('assets/mlbb_lancelot.jpg')">P</span><b class="imgtext" style="background-image:url('assets/mlbb_ling.jpg')">I</b><span class="imgtext" style="background-image:url('assets/keyart/genshin_v26_wallpaper1.png')">X</span><b class="imgtext" style="background-image:url('assets/keyart/genshin_raiden_wish.png');background-color:#5b3d8f;">I</b><span class="imgtext" style="background-image:url('assets/keyart/hok_caiyan_splash.jpg')">E</span><br><span class="imgtext" style="background-image:url('assets/keyart/hok_luara_classic.jpg')">K</span><b class="imgtext" style="background-image:url('assets/keyart/bgmi_kiaraa_42s.png')">A</b><span class="imgtext" style="background-image:url('assets/store/game-pubg-card.webp')">T</span>
+      </div>
+      <div class="label" style="left:8cqw;bottom:12cqw;font-size:2.6cqw;">One store. Every world.</div>
+      <div class="grain" style="background-size:.8cqw .8cqw"></div>
+    </div>
+    <div class="meta"><span>V06 · Every World</span><span>9.25–11.10</span></div>
+    <p class="note"><b>PIXIE stacks over KAT.</b> The pull-back still starts inside the A.</p>
+  </div>
+
+  <div>
+    <div class="cell vert" id="vframe-07">
+      <div class="grid-lines" style="opacity:.3;background-size:11cqw 11cqw"></div>
+      <div style="position:absolute;left:50%;top:44%;width:120cqw;height:90cqw;transform:translate(-50%,-50%);background:radial-gradient(closest-side, rgba(87,36,255,.3), transparent);"></div>
+      <img src="assets/pk_logo.png" alt="" style="position:absolute;left:50%;top:44cqw;height:34cqw;transform:translateX(-50%);">
+      <div class="z" style="position:absolute;left:0;right:0;top:84cqw;text-align:center;font-size:16cqw;">P<b>i</b>xieK<b>a</b>t</div>
+      <div style="position:absolute;left:10cqw;right:10cqw;top:104cqw;text-align:center;font-family:'robert';font-size:4.4cqw;line-height:1.3;color:rgba(14,4,29,.8);">Instant Gaming Credits<br>Fast, Secure, Affordable</div>
+      <div style="position:absolute;left:50%;top:124cqw;transform:translateX(-50%);background:var(--acid);color:var(--ink);border-radius:999px;padding:3.4cqw 8cqw;font-family:'general';font-size:3.8cqw;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;box-shadow:0 1.2cqw 0 rgba(14,4,29,.9);">Top up now</div>
+      <div class="grain" style="background-size:.8cqw .8cqw"></div>
+    </div>
+    <div class="meta"><span>V07 · Top Up Now</span><span>11.10–15.00</span></div>
+    <p class="note"><b>The lockup stacks vertically:</b> logo, wordmark, two-line subline, then the pill. It stays inside the middle 70% so platform UI won't cover it.</p>
+  </div>
+
+</div>
+
+</body>
+</html>

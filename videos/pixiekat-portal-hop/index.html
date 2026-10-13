@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "zentry";
+        src: url("fonts/zentry-regular.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "general";
+        src: url("fonts/general.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "robert-medium";
+        src: url("fonts/robert-medium.woff2") format("woff2");
+      }
+      :root {
+        --paper: #dfdff0;
+        --ink: #0e041d;
+        --cream: #f0f2fa;
+        --violet: #5724ff;
+        --violet-soft: #8b6dff;
+        --acid: #edff66;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--ink);
+      }
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--ink);
+      }
+      .layer {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+      }
+      .fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .title {
+        position: absolute;
+        font-family: "zentry";
+        color: var(--cream);
+        text-transform: uppercase;
+        line-height: 0.86;
+        white-space: nowrap;
+        text-shadow: 0 6px 40px rgba(14, 4, 29, 0.55);
+      }
+      .chip {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 28px 12px 14px;
+        border-radius: 999px;
+        background: rgba(14, 4, 29, 0.66);
+        border: 1.5px solid rgba(240, 242, 250, 0.3);
+        font-family: "general";
+        font-size: 24px;
+        letter-spacing: 0.12em;
+        color: var(--cream);
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .chip img {
+        width: 52px;
+        height: 52px;
+        object-fit: contain;
+      }
+      .label {
+        position: absolute;
+        font-family: "general";
+        font-size: 22px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(14, 4, 29, 0.78);
+        white-space: nowrap;
+      }
+      .card {
+        position: absolute;
+        border: 3px solid var(--cream);
+        border-radius: 18px;
+        overflow: hidden;
+        background: var(--ink);
+        box-shadow: 0 30px 140px rgba(87, 36, 255, 0.6);
+      }
+      .shade-l {
+        background: linear-gradient(90deg, rgba(14, 4, 29, 0.9) 0%, rgba(14, 4, 29, 0.5) 45%, rgba(14, 4, 29, 0.18) 100%);
+      }
+      .shade-r {
+        background: linear-gradient(270deg, rgba(14, 4, 29, 0.9) 0%, rgba(14, 4, 29, 0.5) 45%, rgba(14, 4, 29, 0.18) 100%);
+      }
+
+      /* ---------- 01 store ---------- */
+      #s1 {
+        z-index: 1;
+        background: var(--paper);
+      }
+      #s1cam {
+        position: absolute;
+        left: 830px;
+        top: 420px;
+        width: 0;
+        height: 0;
+      }
+      #s1grid {
+        position: absolute;
+        left: -830px;
+        top: -420px;
+        width: 1920px;
+        height: 1080px;
+        background-image:
+          linear-gradient(rgba(87, 36, 255, 0.09) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(87, 36, 255, 0.09) 1px, transparent 1px);
+        background-size: 120px 120px;
+      }
+      #s1label {
+        left: -690px;
+        top: -328px;
+      }
+      .hl {
+        position: absolute;
+        font-family: "zentry";
+        font-size: 260px;
+        line-height: 1;
+        color: var(--ink);
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      #w-the {
+        right: 114px;
+        top: -127px;
+      }
+      #w-re {
+        left: 114px;
+        top: -127px;
+      }
+      #w-every {
+        left: -690px;
+        top: 120px;
+      }
+      #s1o {
+        position: absolute;
+        left: -94px;
+        top: -94px;
+        width: 188px;
+        height: 188px;
+        border-radius: 50%;
+        border: 39px solid var(--ink);
+      }
+      #s1o i {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        box-shadow: inset 0 0 0 7px var(--violet);
+      }
+
+      /* ---------- 02 mlbb ---------- */
+      #s2door {
+        z-index: 2;
+      }
+      #s2bg {
+        position: absolute;
+        left: -15%;
+        top: -15%;
+        width: 130%;
+        height: 130%;
+        object-fit: cover;
+        filter: blur(4px);
+      }
+      #s2bloom {
+        position: absolute;
+        left: 760px;
+        top: 160px;
+        width: 1120px;
+        height: 780px;
+        background: radial-gradient(closest-side, rgba(87, 36, 255, 0.55), transparent);
+      }
+      #s2title {
+        left: 120px;
+        top: 300px;
+        font-size: 150px;
+        transform-origin: 0% 50%;
+      }
+      #s2chip {
+        left: 124px;
+        top: 640px;
+      }
+      #s2card {
+        left: 820px;
+        top: 270px;
+        width: 1000px;
+        height: 562px;
+      }
+
+      /* ---------- 03 genshin ---------- */
+      #s3rot {
+        z-index: 3;
+      }
+      #s3door {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+      }
+      #s3world {
+        position: absolute;
+        left: -190px;
+        top: -610px;
+        width: 2300px;
+        height: 2300px;
+        overflow: hidden;
+      }
+      #s3frame {
+        position: absolute;
+        left: 190px;
+        top: 610px;
+        width: 1920px;
+        height: 1080px;
+      }
+      #s3hutao {
+        position: absolute;
+        left: 40px;
+        top: 90px;
+        width: 860px;
+        opacity: 0.85;
+        filter: blur(3px);
+      }
+      #s3card {
+        left: 470px;
+        top: 300px;
+        width: 800px;
+        height: 450px;
+        transform: perspective(1600px) rotateY(12deg);
+      }
+      #s3raiden {
+        position: absolute;
+        left: -140px;
+        top: 150px;
+        height: 1000px;
+      }
+      #s3title {
+        right: 96px;
+        top: 330px;
+        font-size: 124px;
+        text-align: right;
+      }
+      #s3chip {
+        right: 100px;
+        top: 600px;
+      }
+      #s3stroke {
+        position: absolute;
+        left: 840px;
+        top: 420px;
+        width: 240px;
+        height: 240px;
+        overflow: visible;
+      }
+
+      /* ---------- 04 hok ---------- */
+      #s4whip {
+        z-index: 4;
+      }
+      #s4bg {
+        position: absolute;
+        left: 0;
+        top: -14%;
+        width: 100%;
+        height: 128%;
+        object-fit: cover;
+      }
+      #s4grade {
+        background: linear-gradient(180deg, rgba(255, 176, 64, 0.16), rgba(87, 36, 255, 0.12));
+        mix-blend-mode: soft-light;
+      }
+      #s4title {
+        left: 120px;
+        top: 330px;
+        font-size: 140px;
+      }
+      #s4chip {
+        left: 124px;
+        top: 650px;
+      }
+      #s4coin {
+        position: absolute;
+        left: 910px;
+        top: 210px;
+        width: 660px;
+        height: 660px;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 4px solid var(--cream);
+        box-shadow: 0 0 140px rgba(87, 36, 255, 0.65);
+      }
+      .coinface {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        transform: scale(1.14);
+      }
+
+      /* ---------- 05 bgmi ---------- */
+      #s5door {
+        z-index: 5;
+      }
+      #s5bg {
+        filter: grayscale(0.55) brightness(0.8);
+      }
+      #s5vids {
+        transform-origin: 100% 100%;
+      }
+      #s5edge {
+        position: absolute;
+        left: 1056px;
+        top: 0;
+        width: 4px;
+        height: 1080px;
+        background: var(--violet);
+        box-shadow: 0 0 30px var(--violet);
+      }
+      #s5title {
+        left: 110px;
+        top: 330px;
+        font-size: 330px;
+        transform-origin: 0% 50%;
+      }
+      #s5chip {
+        left: 120px;
+        top: 700px;
+      }
+      .uc {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: var(--violet);
+        font-family: "zentry";
+        font-size: 22px;
+        letter-spacing: 0;
+      }
+
+      /* ---------- 06 every world + 07 cta ---------- */
+      #s6 {
+        z-index: 6;
+        background: var(--paper);
+      }
+      #s6dark {
+        background: var(--ink);
+      }
+      #s6glow {
+        position: absolute;
+        left: 360px;
+        top: 80px;
+        width: 1200px;
+        height: 840px;
+        background: radial-gradient(closest-side, rgba(87, 36, 255, 0.6), transparent);
+      }
+      #s6mosaic {
+        clip-path: url(#pkclip);
+      }
+      .pan {
+        position: absolute;
+        top: 300px;
+        width: 413px;
+        height: 450px;
+        overflow: hidden;
+      }
+      #s6label {
+        left: 140px;
+        top: 960px;
+      }
+      #s7logo {
+        position: absolute;
+        left: 534px;
+        top: 315px;
+        height: 130px;
+        filter: drop-shadow(0 0 28px rgba(139, 109, 255, 0.55));
+      }
+      #s7sub {
+        position: absolute;
+        left: 0;
+        top: 488px;
+        width: 1920px;
+        text-align: center;
+        font-family: "robert-medium";
+        font-size: 36px;
+        color: rgba(240, 242, 250, 0.82);
+      }
+      .s7w {
+        display: inline-block;
+        margin: 0 5px;
+      }
+      #s7cta {
+        position: absolute;
+        left: 960px;
+        top: 630px;
+        width: 0;
+        height: 0;
+      }
+      #s7pill,
+      .s7ring {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 440px;
+        height: 88px;
+        border-radius: 999px;
+      }
+      #s7pill {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: var(--acid);
+        color: var(--ink);
+        font-family: "general";
+        font-size: 30px;
+        letter-spacing: 0.14em;
+        box-shadow: 0 0 60px rgba(237, 255, 102, 0.25);
+      }
+      #s7arrow {
+        width: 34px;
+        height: 34px;
+      }
+      .s7ring {
+        border: 3px solid var(--violet-soft);
+        box-shadow: 0 0 26px rgba(87, 36, 255, 0.85), inset 0 0 18px rgba(87, 36, 255, 0.6);
+      }
+
+      /* ---------- overlays ---------- */
+      #tunnel {
+        z-index: 8;
+        mix-blend-mode: screen;
+      }
+      #tunnel-tint {
+        background: var(--violet);
+        mix-blend-mode: multiply;
+      }
+      #pips {
+        position: absolute;
+        z-index: 9;
+        right: 80px;
+        bottom: 64px;
+        display: flex;
+        gap: 14px;
+      }
+      #pips i {
+        display: block;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid var(--violet-soft);
+      }
+      #grain {
+        z-index: 10;
+        overflow: hidden;
+        pointer-events: none;
+      }
+      @keyframes hf-grain-noise {
+        0%,
+        100% {
+          transform: translate(0, 0);
+        }
+        10% {
+          transform: translate(-5%, -5%);
+        }
+        20% {
+          transform: translate(-10%, 5%);
+        }
+        30% {
+          transform: translate(5%, -10%);
+        }
+        40% {
+          transform: translate(-5%, 15%);
+        }
+        50% {
+          transform: translate(-10%, 5%);
+        }
+        60% {
+          transform: translate(15%, 0);
+        }
+        70% {
+          transform: translate(0, 10%);
+        }
+        80% {
+          transform: translate(-15%, 0);
+        }
+        90% {
+          transform: translate(10%, 5%);
+        }
+      }
+      #grain .grain-texture {
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        opacity: 0.1;
+        animation: hf-grain-noise 0.5s steps(1) infinite;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-kbh8" id="root" data-composition-id="main" data-start="0" data-duration="15" data-width="1920" data-height="1080">
+      <!-- 01 THE STORE -->
+      <div data-hf-id="hf-mw3t" id="s1" class="layer">
+        <div data-hf-id="hf-pqn6" id="s1cam">
+          <div data-hf-id="hf-osbl" id="s1grid"></div>
+          <div data-hf-id="hf-x1ft" id="s1label" class="label">PixieKat — Instant Gaming Credits</div>
+          <div data-hf-id="hf-6zq5" id="w-the" class="hl">The St</div>
+          <div data-hf-id="hf-eqd4" id="s1o"><i data-hf-id="hf-wt6k"></i></div>
+          <div data-hf-id="hf-k0vr" id="w-re" class="hl">re for</div>
+          <div data-hf-id="hf-kcp2" id="w-every" class="hl">Every Gamer</div>
+        </div>
+      </div>
+
+      <!-- 02 MOBILE LEGENDS (inside the O) -->
+      <div data-hf-id="hf-s1dy" id="s2door" class="layer">
+        <div data-hf-id="hf-izz7" id="s2roll" class="layer">
+          <div data-hf-id="hf-55on" id="s2cam" class="layer">
+            <img data-hf-id="hf-b87z" id="s2bg" src="assets/mlbb_lancelot.jpg" alt="">
+            <div data-hf-id="hf-c3jr" class="layer shade-l"></div>
+            <div data-hf-id="hf-5tif" id="s2bloom"></div>
+            <div data-hf-id="hf-vbk1" id="s2title" class="title">Mobile<br data-hf-id="hf-x5px">Legends</div>
+            <div data-hf-id="hf-5jxx" id="s2chip" class="chip"><img data-hf-id="hf-lnp1" src="assets/icons/mlbb_diamond_single.png" alt=""><span data-hf-id="hf-37b4">Diamonds</span></div>
+            <div data-hf-id="hf-r37t" id="s2card" class="card">
+              <video data-hf-id="hf-qhyh" id="v-mlbb" class="clip fill" src="assets/clips/mlbb.mp4" muted playsinline data-start="0" data-duration="3.7" data-media-start="4.5"></video>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 03 GENSHIN (inside the Diamond) -->
+      <div data-hf-id="hf-iw29" id="s3rot" class="layer" data-layout-allow-overflow="">
+        <div data-hf-id="hf-q67v" id="s3door">
+          <div data-hf-id="hf-2l5l" id="s3world">
+            <img data-hf-id="hf-vfsj" class="fill" src="assets/keyart/genshin_v26_wallpaper1.png" alt="">
+            <div data-hf-id="hf-x8fh" class="fill shade-r"></div>
+            <div data-hf-id="hf-nmw2" id="s3frame">
+              <div data-hf-id="hf-n7co" id="s3cards" class="layer">
+                <img data-hf-id="hf-r7nx" id="s3hutao" src="assets/keyart/genshin_hutao_wish.png" alt="">
+                <div data-hf-id="hf-rpm4" id="s3card" class="card">
+                  <video data-hf-id="hf-tdq6" id="v-genshin" class="clip fill" src="assets/clips/genshin.mp4" muted playsinline data-start="2.78" data-duration="3.02" data-media-start="1.3"></video>
+                </div>
+              </div>
+              <img data-hf-id="hf-w7vs" id="s3raiden" src="assets/cutouts/genshin_raiden_portrait.png" alt="">
+              <div data-hf-id="hf-kumo" id="s3title" class="title">Genshin<br data-hf-id="hf-rsrt">Impact</div>
+              <div data-hf-id="hf-p37c" id="s3chip" class="chip"><img data-hf-id="hf-c0u2" src="assets/icons/genshin_genesis_crystal.png" alt=""><span data-hf-id="hf-omls">Genesis Crystals</span></div>
+            </div>
+          </div>
+        </div>
+        <svg data-hf-id="hf-qgbh" id="s3stroke" viewBox="0 0 240 240">
+          <polygon data-hf-id="hf-25v4" points="120,0 240,120 120,240 0,120" fill="none" stroke="#5724ff" stroke-width="6" vector-effect="non-scaling-stroke" />
+        </svg>
+      </div>
+
+      <!-- 04 HONOR OF KINGS (whip) -->
+      <div data-hf-id="hf-awsm" id="s4whip" class="layer">
+        <div data-hf-id="hf-2yyg" id="s4world" class="layer">
+          <img data-hf-id="hf-dgi4" id="s4bg" src="assets/keyart/hok_caiyan_splash.jpg" alt="">
+          <div data-hf-id="hf-b335" id="s4grade" class="layer"></div>
+          <div data-hf-id="hf-8nhz" class="layer shade-l"></div>
+          <div data-hf-id="hf-j2o4" id="s4title" class="title">Honor of<br data-hf-id="hf-szow">Kings</div>
+          <div data-hf-id="hf-413n" id="s4chip" class="chip"><img data-hf-id="hf-3aga" src="assets/icons/hok_token_128.png" alt=""><span data-hf-id="hf-19mn">Tokens</span></div>
+          <div data-hf-id="hf-4bnj" id="s4coin">
+            <div data-hf-id="hf-6chg" class="coinface">
+              <video data-hf-id="hf-twjz" id="v-hok" class="clip fill" src="assets/clips/hok.mp4" muted playsinline data-start="5.9" data-duration="1.3" data-media-start="2.5"></video>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 05 BGMI (coin back face) -->
+      <div data-hf-id="hf-k3il" id="s5door" class="layer">
+        <div data-hf-id="hf-dxxr" id="s5world" class="layer">
+          <img data-hf-id="hf-io91" id="s5bg" class="fill" src="assets/store/game-pubg-card.webp" alt="">
+          <div data-hf-id="hf-896y" class="layer shade-l"></div>
+          <div data-hf-id="hf-b1zp" id="s5panel" class="layer">
+            <div data-hf-id="hf-mxkd" id="s5vids" class="layer">
+              <video data-hf-id="hf-gfuo" id="v-bgmi-a" class="clip fill" src="assets/clips/bgmi.mp4" muted playsinline data-start="7.1" data-duration="0.53" data-media-start="4.2"></video>
+              <video data-hf-id="hf-fpbg" id="v-bgmi-b" class="clip fill" src="assets/clips/bgmi.mp4" muted playsinline data-start="7.63" data-duration="0.23" data-media-start="1.5"></video>
+              <video data-hf-id="hf-6h8v" id="v-bgmi-c" class="clip fill" src="assets/clips/bgmi.mp4" muted playsinline data-start="7.86" data-duration="0.24" data-media-start="6.2"></video>
+              <video data-hf-id="hf-swql" id="v-bgmi-d" class="clip fill" src="assets/clips/bgmi.mp4" muted playsinline data-start="8.1" data-duration="0.7" data-media-start="8.8"></video>
+            </div>
+          </div>
+          <div data-hf-id="hf-l176" id="s5edge"></div>
+          <div data-hf-id="hf-xn7b" id="s5title" class="title">BGMI</div>
+          <div data-hf-id="hf-1o9i" id="s5chip" class="chip"><b data-hf-id="hf-1xk5" class="uc">UC</b><span data-hf-id="hf-mhcc">Unknown Cash</span></div>
+        </div>
+      </div>
+
+      <!-- 06 EVERY WORLD + 07 TOP UP NOW -->
+      <div data-hf-id="hf-g2la" id="s6" class="layer">
+        <div id="s6dark" class="layer"></div>
+        <div data-hf-id="hf-rg7d" id="s6glow"></div>
+        <div data-hf-id="hf-rfi8" id="s6cam" class="layer" data-layout-allow-overflow="">
+          <div data-hf-id="hf-fjif" id="s6lock" class="layer">
+            <div data-hf-id="hf-z4iy" id="s6mosaic" class="layer">
+              <div data-hf-id="hf-l2p7" class="pan" style="left: 135px">
+                <video data-hf-id="hf-50e7" id="v-pk-mlbb" class="clip fill" src="assets/clips/mlbb.mp4" muted playsinline data-start="8.7" data-duration="6.3" data-media-start="5.5"></video>
+              </div>
+              <div data-hf-id="hf-ee0z" class="pan" style="left: 548px">
+                <video data-hf-id="hf-m4b5" id="v-pk-genshin" class="clip fill" src="assets/clips/genshin.mp4" muted playsinline data-start="8.7" data-duration="6.3" data-media-start="5.5"></video>
+              </div>
+              <div data-hf-id="hf-zbt9" class="pan" style="left: 960px">
+                <video data-hf-id="hf-kn7r" id="v-pk-hok" class="clip fill" src="assets/clips/hok.mp4" muted playsinline data-start="8.7" data-duration="6.3" data-media-start="4"></video>
+              </div>
+              <div data-hf-id="hf-et6p" class="pan" style="left: 1372px">
+                <video data-hf-id="hf-5qmg" id="v-pk-bgmi" class="clip fill" src="assets/clips/bgmi.mp4" muted playsinline data-start="8.7" data-duration="2.4" data-media-start="9.4"></video>
+                <video id="v-pk-bgmi-2" class="clip fill" src="assets/clips/bgmi.mp4" muted playsinline data-start="11.1" data-duration="3.9" data-media-start="4.2"></video>
+              </div>
+            </div>
+            <svg data-hf-id="hf-mwi1" id="s6ink" class="layer" viewBox="0 0 1920 1080" aria-hidden="true">
+              <text data-hf-id="hf-ly02" x="960" y="650" text-anchor="middle" font-family="zentry" font-size="360" textLength="1650" lengthAdjust="spacingAndGlyphs" fill="none" stroke="#f0f2fa" stroke-opacity="0.9" stroke-width="5">PIXIEKAT</text>
+            </svg>
+          </div>
+        </div>
+        <div data-hf-id="hf-cspt" id="s6label" class="label">One store. Every world.</div>
+        <img data-hf-id="hf-ou6j" id="s7logo" src="assets/pk_logo.png" alt="">
+        <div data-hf-id="hf-fc17" id="s7sub">
+          <span data-hf-id="hf-g5vb" class="s7w">Instant</span><span data-hf-id="hf-5627" class="s7w">Gaming</span><span data-hf-id="hf-qg7c" class="s7w">Credits</span><span data-hf-id="hf-sn6u" class="s7w">—</span><span data-hf-id="hf-mjr4" class="s7w">Fast,</span><span data-hf-id="hf-9chh" class="s7w">Secure,</span><span data-hf-id="hf-uxo0" class="s7w">Affordable</span>
+        </div>
+        <div data-hf-id="hf-gyfj" id="s7cta">
+          <div class="s7ring"></div>
+          <div class="s7ring"></div>
+          <div class="s7ring"></div>
+          <div data-hf-id="hf-j63a" id="s7pill">
+            <span>TOP UP NOW</span>
+            <svg id="s7arrow" viewBox="0 0 24 24"><path d="M4 12 H19 M13 6 L19 12 L13 18" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </div>
+        </div>
+        <svg data-hf-id="hf-6o47" width="0" height="0" style="position: absolute">
+          <defs data-hf-id="hf-mh0t">
+            <clippath data-hf-id="hf-2mds" id="pkclip" clipPathUnits="userSpaceOnUse">
+              <text data-hf-id="hf-wo0n" x="960" y="650" text-anchor="middle" font-family="zentry" font-size="360" textLength="1650" lengthAdjust="spacingAndGlyphs">PIXIEKAT</text>
+            </clippath>
+          </defs>
+        </svg>
+      </div>
+
+      <!-- overlays -->
+      <div data-hf-id="hf-ha0n" id="tunnel" class="layer">
+        <video data-hf-id="hf-4ydx" id="v-tunnel" class="clip fill" src="assets/broll/neon_tunnel_mono.mp4" muted playsinline data-start="1.55" data-duration="2.45" data-media-start="0"></video>
+        <div data-hf-id="hf-ucqf" id="tunnel-tint" class="layer"></div>
+      </div>
+      <div data-hf-id="hf-63z3" id="pips"><i data-hf-id="hf-zeb8"></i><i data-hf-id="hf-y7e5"></i><i data-hf-id="hf-ylp6"></i><i data-hf-id="hf-0l8b"></i></div>
+      <div data-hf-id="hf-48ym" id="grain" class="layer"><div data-hf-id="hf-0qtj" class="grain-texture"></div></div>
+
+      <!-- audio -->
+      <audio data-hf-id="hf-z6aw" id="music" src="assets/music/mixkit-night-terrors.mp3" data-start="0" data-duration="15" data-media-start="57.605" data-volume="0.8" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0.8},{&quot;t&quot;:14.3,&quot;v&quot;:0.8},{&quot;t&quot;:15,&quot;v&quot;:0}]}]}"></audio>
+      <audio data-hf-id="hf-xzkw" id="sfx-dive" src="assets/sfx/whoosh_in_1490.wav" data-start="1.09" data-volume="0.55"></audio>
+      <audio data-hf-id="hf-g8v2" id="sfx-roll" src="assets/sfx/roll_whoosh_168.wav" data-start="3.42" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-0fs4" id="sfx-whip" src="assets/sfx/whip_1491.wav" data-start="5.37" data-volume="0.6"></audio>
+      <audio data-hf-id="hf-hi64" id="sfx-coin" src="assets/sfx/coin_flip_2038.wav" data-start="6.88" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-wkk3" id="sfx-glitch" src="assets/sfx/glitch_hit_2299.wav" data-start="7.325" data-volume="0.6"></audio>
+      <audio data-hf-id="hf-1ti9" id="sfx-out" src="assets/sfx/whoosh_out_1472.wav" data-start="9.16" data-volume="0.6"></audio>
+      <audio data-hf-id="hf-0au8" id="sfx-pop" src="assets/sfx/ui_pop_2356.wav" data-start="12.84" data-volume="0.6"></audio>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // Portal centres: P = the O counter, C = frame centre (Diamond), Q = Token window, Z = inside the A.
+      const P = [830, 420];
+      const C = [960, 540];
+      const Q = [1240, 540];
+      const Z = [1460, 415];
+      const W = [960, 524];
+      const HOLE = 48;
+      const DIVE = 28;
+      const px = (p) => `${p[0]}px ${p[1]}px`;
+      const circ = (r, c) => `circle(${r}px at ${px(c)})`;
+      const dia = (h) => `polygon(${C[0]}px ${C[1] - h}px, ${C[0] + h}px ${C[1]}px, ${C[0]}px ${C[1] + h}px, ${C[0] - h}px ${C[1]}px)`;
+      const ft = (t, from, to, at) => tl.fromTo(t, from, { ...to, immediateRender: false }, at);
+
+      // ---------- initial states ----------
+      gsap.set(["#s3rot", "#s4whip", "#s5door", "#s6"], { autoAlpha: 0 });
+      gsap.set(["#s1label", ".hl", "#s1o", "#s2title", "#s2chip", "#s3title", "#s3chip", "#s4title", "#s4chip", "#s5title", "#s5chip", "#s6label", "#s6glow", "#s7logo", ".s7w", "#s7pill", ".s7ring", "#s6ink"], { autoAlpha: 0 });
+      gsap.set("#s1cam", { transformOrigin: "0px 0px" });
+      gsap.set(".hl", { y: 150 });
+      gsap.set("#s1o", { scale: 0 });
+      gsap.set("#s2door", { clipPath: circ(0, P) });
+      gsap.set("#s2cam", { transformOrigin: px(P) });
+      gsap.set(["#s2roll", "#s3rot"], { transformOrigin: px(C) });
+      gsap.set("#s2card", { x: -360, y: -11, scale: 2.02, rotationY: 0, rotationX: 0, transformPerspective: 1600 });
+      gsap.set("#s2title", { scale: 1.4 });
+      gsap.set("#s2chip", { y: 30 });
+      gsap.set("#s3door", { clipPath: dia(0) });
+      gsap.set("#s3stroke", { scale: 0 });
+      gsap.set("#s3world", { scale: 1.3 });
+      gsap.set("#s3cards", { x: 260 });
+      gsap.set("#s3raiden", { x: 700 });
+      gsap.set("#s3title", { x: 120 });
+      gsap.set("#s3chip", { scale: 0 });
+      gsap.set(["#s3rot", "#s4whip"], { filter: "blur(0px)" });
+      gsap.set("#s4whip", { x: 1920 });
+      gsap.set("#s4world", { y: 140 });
+      gsap.set("#s4title", { x: -80 });
+      gsap.set("#s4chip", { scale: 0.6 });
+      gsap.set("#s4coin", { scale: 0, rotationY: 0, transformPerspective: 1400 });
+      gsap.set("#s5door", { clipPath: circ(330, Q), rotationY: -90, transformOrigin: px(Q), transformPerspective: 1400 });
+      gsap.set("#s5world", { x: 36 });
+      gsap.set("#s5vids", { scale: 1.2 });
+      gsap.set("#s5panel", { clipPath: "inset(0px 0px 0px 1060px)" });
+      gsap.set("#s5title", { scale: 1.5, textShadow: "-18px 0px 0px rgba(255,45,85,0.9), 18px 0px 0px rgba(45,225,255,0.9)" });
+      gsap.set("#s5chip", { scale: 0.6 });
+      gsap.set("#s6cam", { transformOrigin: px(Z), scale: 32 });
+      gsap.set("#s6lock", { transformOrigin: "960px 524px" });
+      gsap.set("#s6dark", { clipPath: circ(0, W) });
+      gsap.set("#s7logo", { scale: 0 });
+      gsap.set(".s7w", { y: 24 });
+      gsap.set(["#s7pill", ".s7ring"], { xPercent: -50, yPercent: -50 });
+      gsap.set("#s7pill", { scale: 0.6 });
+      gsap.set("#tunnel", { opacity: 0 });
+      gsap.set("#pips i", { backgroundColor: "rgba(139,109,255,0)" });
+
+      // ---------- 01 store: words land in the silent hole, dive through the O on the riser ----------
+      tl.to("#s1label", { autoAlpha: 1, duration: 0.4, ease: "power2.out" }, 0.15);
+      tl.to(".hl", { y: 0, autoAlpha: 1, duration: 0.45, ease: "power4.out", stagger: 0.08 }, 0.1);
+      tl.to("#s1o", { scale: 1, autoAlpha: 1, duration: 0.4, ease: "back.out(1.8)" }, 0.25);
+      ft("#s2door", { clipPath: circ(0, P) }, { clipPath: circ(HOLE, P), duration: 0.4, ease: "back.out(1.8)" }, 0.25);
+      tl.to("#s1cam", { scale: DIVE, duration: 0.9, ease: "power3.in" }, 0.95);
+      ft("#s2door", { clipPath: circ(HOLE, P) }, { clipPath: circ(HOLE * DIVE, P), duration: 0.9, ease: "power3.in" }, 0.95);
+      tl.to("#s2cam", { scale: 1.25, duration: 0.9, ease: "power3.in" }, 0.95);
+      tl.set("#s1", { autoAlpha: 0 }, 1.85);
+      tl.set("#s2door", { clipPath: "none" }, 1.85);
+
+      // ---------- 02 mlbb: land, pull back to the tilted card on the 2.31 slam ----------
+      tl.to("#s2cam", { scale: 1.32, duration: 0.46, ease: "power2.out" }, 1.85);
+      tl.to("#s2cam", { scale: 1, duration: 0.6, ease: "power4.out" }, 2.31);
+      tl.to("#s2card", { x: 0, y: 0, scale: 1, rotationY: -14, rotationX: 4, duration: 0.6, ease: "power4.out" }, 2.31);
+      tl.to("#s2title", { scale: 1, autoAlpha: 1, duration: 0.18, ease: "power4.out" }, 2.31);
+      tl.to("#s2chip", { y: 0, autoAlpha: 1, duration: 0.4, ease: "back.out(2)" }, 2.5);
+
+      // ---------- 02 -> 03: Diamond doorway springs open, rolling dive crosses on 3.70 ----------
+      tl.set("#s3rot", { autoAlpha: 1 }, 2.78);
+      ft("#s3door", { clipPath: dia(0) }, { clipPath: dia(120), duration: 0.34, ease: "back.out(1.7)" }, 2.78);
+      tl.to("#s3stroke", { scale: 1, duration: 0.34, ease: "back.out(1.7)" }, 2.78);
+      tl.to("#s2roll", { scale: 6, rotation: 60, duration: 0.46, ease: "power3.in" }, 3.24);
+      tl.to("#s3rot", { rotation: 60, duration: 0.46, ease: "power3.in" }, 3.24);
+      ft("#s3door", { clipPath: dia(120) }, { clipPath: dia(1650), duration: 0.46, ease: "power3.in" }, 3.24);
+      tl.to("#s3stroke", { scale: 13.75, duration: 0.46, ease: "power3.in" }, 3.24);
+      tl.set("#s2door", { autoAlpha: 0 }, 3.7);
+      tl.set("#s3door", { clipPath: "none" }, 3.7);
+      tl.set("#s3stroke", { autoAlpha: 0 }, 3.7);
+
+      // ---------- 03 genshin: roll resolves level, flight decelerates into focus ----------
+      tl.to("#s3rot", { rotation: 0, duration: 0.75, ease: "power4.out" }, 3.7);
+      tl.to("#s3world", { scale: 1, duration: 0.85, ease: "power4.out" }, 3.7);
+      tl.to("#s3cards", { x: 0, duration: 1.0, ease: "power4.out" }, 3.7);
+      tl.to("#s3raiden", { x: 0, duration: 1.1, ease: "power4.out" }, 3.7);
+      tl.to("#s3title", { x: 0, autoAlpha: 1, duration: 0.6, ease: "power4.out" }, 3.85);
+      tl.to("#s3chip", { scale: 1, autoAlpha: 1, duration: 0.45, ease: "back.out(2)" }, 4.63);
+
+      // ---------- 03 -> 04: whip on one strip, blur peaks at the crossing ----------
+      tl.set("#s4whip", { autoAlpha: 1 }, 5.32);
+      tl.to("#s3rot", { x: -1920, duration: 0.48, ease: "power3.inOut" }, 5.32);
+      tl.to("#s4whip", { x: 0, duration: 0.48, ease: "power3.inOut" }, 5.32);
+      tl.to(["#s3rot", "#s4whip"], { keyframes: [{ filter: "blur(18px)", duration: 0.24, ease: "power2.in" }, { filter: "blur(0px)", duration: 0.24, ease: "power2.out" }] }, 5.32);
+      tl.set("#s3rot", { autoAlpha: 0 }, 5.81);
+
+      // ---------- 04 hok: crane landing, Token window opens, coin flip ----------
+      tl.to("#s4world", { y: 0, duration: 0.8, ease: "power3.out" }, 5.45);
+      tl.to("#s4title", { x: 0, autoAlpha: 1, duration: 0.5, ease: "power4.out" }, 5.75);
+      tl.to("#s4coin", { scale: 1, duration: 0.5, ease: "back.out(1.6)" }, 6.01);
+      tl.to("#s4chip", { scale: 1, autoAlpha: 1, duration: 0.4, ease: "back.out(2)" }, 6.2);
+      tl.to("#s4coin", { rotationY: 90, duration: 0.16, ease: "power2.in" }, 6.94);
+
+      // ---------- 04 -> 05: back face swings in and floods the frame by 7.40 ----------
+      tl.set("#s5door", { autoAlpha: 1 }, 7.1);
+      tl.to("#s5door", { rotationY: 0, duration: 0.15, ease: "power2.out" }, 7.1);
+      ft("#s5door", { clipPath: circ(330, Q) }, { clipPath: circ(1460, Q), duration: 0.3, ease: "power2.in" }, 7.1);
+      tl.set("#s5door", { clipPath: "none" }, 7.4);
+      tl.set("#s4whip", { autoAlpha: 0 }, 7.42);
+
+      // ---------- 05 bgmi: chromatic slam, eighth-note stutters, clip floods the frame ----------
+      tl.to("#s5world", { x: 0, duration: 0.3, ease: "power4.out" }, 7.4);
+      tl.to("#s5title", { scale: 1, autoAlpha: 1, duration: 0.2, ease: "power4.out" }, 7.4);
+      tl.to("#s5title", { textShadow: "0px 0px 0px rgba(255,45,85,0), 0px 0px 0px rgba(45,225,255,0)", duration: 0.3, ease: "power2.out" }, 7.42);
+      tl.to("#s5chip", { scale: 1, autoAlpha: 1, duration: 0.35, ease: "back.out(2)" }, 7.63);
+      [7.63, 7.86, 8.1].forEach((t) => ft("#s5vids", { scale: 1.3 }, { scale: 1.2, duration: 0.2, ease: "power3.out" }, t));
+      ft("#s5panel", { clipPath: "inset(0px 0px 0px 1060px)" }, { clipPath: "inset(0px 0px 0px 0px)", duration: 0.45, ease: "power3.inOut" }, 8.3);
+      tl.to("#s5edge", { x: -1060, autoAlpha: 0, duration: 0.45, ease: "power3.inOut" }, 8.3);
+      tl.to(["#s5title", "#s5chip"], { y: -70, autoAlpha: 0, duration: 0.2, ease: "power2.in" }, 8.55);
+      tl.set("#s6", { autoAlpha: 1 }, 8.75);
+      tl.set("#s5door", { autoAlpha: 0 }, 8.8);
+
+      // ---------- 06 every world: creep out of the A in the dropout, snap back on the 9.25 re-hit ----------
+      tl.to("#s6cam", { scale: 24, duration: 0.5, ease: "power2.in" }, 8.75);
+      tl.to("#s6cam", { scale: 1, duration: 0.95, ease: "power4.out" }, 9.25);
+      tl.to("#s6label", { autoAlpha: 1, duration: 0.4, ease: "power2.out" }, 9.9);
+      ft("#s6dark", { clipPath: circ(0, W) }, { clipPath: circ(1150, W), duration: 0.46, ease: "power2.inOut" }, 10.64);
+      tl.to("#s6ink", { autoAlpha: 1, duration: 0.3, ease: "power2.out" }, 10.8);
+      tl.to("#pips", { autoAlpha: 0, duration: 0.3 }, 10.64);
+      tl.to("#s6label", { autoAlpha: 0, duration: 0.2, ease: "power2.in" }, 10.44);
+
+      // ---------- 07 cta: wordmark rises into the lockup, pill presses on 12.95 ----------
+      tl.to("#s6lock", { x: 70, y: -144, scale: 0.42, duration: 0.55, ease: "power3.inOut" }, 11.1);
+      tl.to("#s6glow", { autoAlpha: 0.7, duration: 0.8, ease: "power2.out" }, 11.3);
+      tl.to("#s7logo", { scale: 1, autoAlpha: 1, duration: 0.5, ease: "back.out(2)" }, 11.3);
+      tl.to(".s7w", { y: 0, autoAlpha: 1, duration: 0.4, ease: "power3.out", stagger: 0.05 }, 11.5);
+      tl.to("#s7pill", { scale: 1, autoAlpha: 1, duration: 0.5, ease: "back.out(2)" }, 11.75);
+      tl.to("#s7pill", { scale: 0.92, duration: 0.08, ease: "power2.in" }, 12.87);
+      tl.to("#s7pill", { scale: 1, duration: 0.5, ease: "back.out(3)" }, 12.95);
+      tl.to("#s7arrow", { x: 12, duration: 0.08, ease: "power2.in" }, 12.87);
+      tl.to("#s7arrow", { x: 0, duration: 0.5, ease: "back.out(3)" }, 12.95);
+      ft(".s7ring", { scale: 1, autoAlpha: 0.95 }, { scale: 1.9, autoAlpha: 0, duration: 0.75, ease: "power2.out", stagger: 0.12 }, 12.95);
+      tl.to("#s6glow", { opacity: 1, duration: 1.0, ease: "sine.inOut", yoyo: true, repeat: 1 }, 13.0);
+
+      // ---------- overlays: tunnel flashes on the crossings, world-counter pips ----------
+      [1.85, 3.7].forEach((t) => {
+        tl.to("#tunnel", { opacity: 0.35, duration: 0.15, ease: "power2.in" }, t - 0.15);
+        tl.to("#tunnel", { opacity: 0, duration: 0.2, ease: "power2.out" }, t);
+      });
+      const pips = gsap.utils.toArray("#pips i");
+      [1.85, 3.7, 5.55, 7.4].forEach((t, i) => {
+        tl.to(pips[i], { backgroundColor: "rgba(139,109,255,1)", scale: 1.35, duration: 0.12, ease: "power2.out" }, t);
+        tl.to(pips[i], { scale: 1, duration: 0.25, ease: "power2.out" }, t + 0.12);
+      });
+      tl.to(pips, { scale: 1.5, duration: 0.1, ease: "power2.out" }, 8.1);
+      tl.to(pips, { scale: 1, duration: 0.3, ease: "power2.out" }, 8.2);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
