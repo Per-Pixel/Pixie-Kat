@@ -32,6 +32,7 @@ import {
   SiteGraphicPlacement,
 } from '../../services/mediaService';
 import PinterestImportPanel from './PinterestImportPanel';
+import ImageEditor from './ImageEditor';
 
 const formatBytes = (bytes?: number | null): string => {
   if (bytes == null) return '—';
@@ -110,6 +111,7 @@ const StoragePage: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [selected, setSelected] = useState<MediaRecord | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [editingImage, setEditingImage] = useState(false);
   const [previewVideo, setPreviewVideo] = useState<MediaRecord | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -476,13 +478,43 @@ const StoragePage: React.FC = () => {
     }
   };
 
+  const replaceRecordFile = async (record: MediaRecord, file: File): Promise<boolean> => {
+    const sameKind = record.mime_type?.startsWith('image/') ? file.type.startsWith('image/')
+      : record.mime_type?.startsWith('video/') ? file.type.startsWith('video/') : file.type === record.mime_type;
+    const extension = record.storage_path.split('.').pop()?.toLowerCase();
+    if (!sameKind || extension !== file.name.split('.').pop()?.toLowerCase()) {
+      toast.error('Choose the same file type and extension, or save a copy and select it in a placement.');
+      return false;
+    }
+    if (!usageReady) {
+      toast.error('Check where this file is used before replacing it.');
+      return false;
+    }
+    const locations = (usageMap[record.id] || []).map(usageLocation);
+    if (locations.length && !window.confirm(
+      `Replace this file everywhere it is used?\n\n${locations.slice(0, 5).join('\n')}${locations.length > 5 ? `\n+${locations.length - 5} more` : ''}\n\nCached images may take time to update.`
+    )) return false;
+    try {
+      const updated = await replaceMedia(record, file);
+      setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      if (selected?.id === record.id) setSelected(updated);
+      toast.success('File replaced in every location');
+      return true;
+    } catch (err) {
+      toast.error((err as Error).message || 'Could not replace the file');
+      return false;
+    }
+  };
+
   const openDetail = (record: MediaRecord) => {
     setSelected(record);
+    setEditingImage(false);
     setDetailOpen(true);
   };
 
   const closeDetail = () => {
     setDetailOpen(false);
+    setEditingImage(false);
     setTimeout(() => setSelected(null), 300);
   };
 
@@ -1043,9 +1075,16 @@ const StoragePage: React.FC = () => {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-              className="fixed top-0 right-0 h-full w-full max-w-lg bg-white shadow-2xl z-50 overflow-y-auto"
+              className={`fixed top-0 right-0 h-full w-full bg-white shadow-2xl z-50 overflow-y-auto ${editingImage ? 'max-w-6xl' : 'max-w-lg'}`}
             >
-              <DetailPanel
+              {editingImage ? <ImageEditor record={selected} onClose={() => setEditingImage(false)} onReplace={(file) => replaceRecordFile(selected, file)} onSave={async (file) => {
+                const folder = selected.storage_path.includes('/') ? selected.storage_path.slice(0, selected.storage_path.lastIndexOf('/')) : '';
+                const bucket = selected.bucket === 'media' || selected.bucket === 'public-media' ? selected.bucket : 'public-media';
+                const created = await uploadMedia(file, folder, { alt_text: selected.alt_text || undefined, tags: selected.tags }, bucket);
+                setRecords((prev) => [created, ...prev]);
+                setEditingImage(false);
+                toast.success('Edited copy saved. Select it in a website placement to publish it.');
+              }} /> : <DetailPanel
                 record={selected}
                 usages={usageMap[selected.id] || []}
                 usageKnown={usageReady}
@@ -1053,6 +1092,7 @@ const StoragePage: React.FC = () => {
                 onDelete={handleDelete}
                 onDownload={handleDownload}
                 onCompress={handleCompress}
+                onEditImage={() => setEditingImage(true)}
                 onConvertImage={handleConvertImage}
                 onNavigate={(path) => {
                   closeDetail();
@@ -1067,29 +1107,8 @@ const StoragePage: React.FC = () => {
                   setSelected(updated);
                   toast.success('Renamed');
                 }}
-                onReplace={async (file) => {
-                  const sameKind = selected.mime_type?.startsWith('image/') ? file.type.startsWith('image/')
-                    : selected.mime_type?.startsWith('video/') ? file.type.startsWith('video/') : file.type === selected.mime_type;
-                  const extension = selected.storage_path.split('.').pop()?.toLowerCase();
-                  if (!sameKind || extension !== file.name.split('.').pop()?.toLowerCase()) {
-                    toast.error('Choose the same file type and extension, or use Website placements to change one image.');
-                    return;
-                  }
-                  if (!usageReady) { toast.error('Check where this file is used before replacing it.'); return; }
-                  const locations = (usageMap[selected.id] || []).map(usageLocation);
-                  if (locations.length && !window.confirm(
-                    `Replace this file everywhere it is used?\n\n${locations.slice(0, 5).join('\n')}${locations.length > 5 ? `\n+${locations.length - 5} more` : ''}\n\nFor one location instead, use Website placements. Cached images may take time to update.`
-                  )) return;
-                  try {
-                    const updated = await replaceMedia(selected, file);
-                    setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-                    setSelected(updated);
-                    toast.success('File replaced in every location');
-                  } catch (err) {
-                    toast.error((err as Error).message || 'Could not replace the file');
-                  }
-                }}
-              />
+                onReplace={(file) => replaceRecordFile(selected, file)}
+              />}
             </motion.div>
           </>
         )}
@@ -1469,12 +1488,13 @@ const DetailPanel: React.FC<{
   onDelete: (r: MediaRecord) => void;
   onDownload: (r: MediaRecord) => void;
   onCompress: (r: MediaRecord) => void;
+  onEditImage: () => void;
   onConvertImage: (r: MediaRecord, outputFormat: ImageOutputFormat, maxWidth: number, quality: number) => Promise<void>;
   onRename: (name: string, renameStorage: boolean) => Promise<void>;
-  onReplace: (file: File) => Promise<void>;
+  onReplace: (file: File) => Promise<boolean>;
   onNavigate: (path: string) => void;
 }> = ({
-  record, usages, usageKnown, onClose, onDelete, onDownload, onCompress, onConvertImage, onRename, onReplace, onNavigate,
+  record, usages, usageKnown, onClose, onDelete, onDownload, onCompress, onEditImage, onConvertImage, onRename, onReplace, onNavigate,
 }) => {
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState(record.filename);
@@ -1690,6 +1710,9 @@ const DetailPanel: React.FC<{
         <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-gray-700">File operations</h3>
         <p className="mb-3 text-xs leading-5 text-gray-700">Replacing a file changes every location using its path. To change just one placement, use Website placements instead.</p>
         <div className="grid grid-cols-2 gap-2">
+          {isImage && <button type="button" onClick={onEditImage} className="btn btn-primary btn-sm gap-1.5 text-xs">
+            <Edit3 className="h-3.5 w-3.5" /> Edit image copy
+          </button>}
           <button onClick={() => replaceInputRef.current?.click()} disabled={!usageKnown || replacing}
             className="btn btn-outline btn-sm gap-1.5 text-xs"
           >

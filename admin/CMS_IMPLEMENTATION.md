@@ -227,16 +227,16 @@ Create `admin/src/components/cms/ResponsiveSettingsPanel.tsx`:
 
 ### 4. Image Editor
 
-Create `admin/src/components/cms/ImageEditor.tsx`:
+Implemented as `admin/src/pages/storage/ImageEditor.tsx` and opened from the `/storage` asset detail drawer:
 
 **Features:**
-- [ ] Crop with aspect ratio presets (16:9, 4:3, 1:1, free)
-- [ ] Rotate and flip
-- [ ] Brightness, contrast, saturation sliders
-- [ ] Filters (grayscale, sepia, blur)
-- [ ] Focal point selector for responsive cropping
-- [ ] Before/after preview
-- [ ] Save as new or overwrite original
+- [x] Crop with aspect ratio presets (16:9, 4:3, 1:1, free)
+- [x] Rotate and flip
+- [x] Brightness, contrast, saturation sliders
+- [x] Filters (grayscale, sepia, blur)
+- [x] Focal point selector for responsive cropping
+- [x] Before/after preview
+- [x] Save as new or overwrite original
 - [ ] Generate responsive versions button
 
 ### 5. Backend API Implementation
@@ -397,12 +397,12 @@ admin/src/
 │       ├── StatusBadge.tsx       ✅ Status indicator component
 │       ├── ResponsiveSettingsPanel.tsx  ⏳ TODO
 │       ├── SectionEditor.tsx     ⏳ TODO
-│       ├── ImageEditor.tsx       ⏳ TODO
 │       └── SectionLibrary.tsx    ⏳ TODO
 ├── pages/
 │   ├── Pages.tsx                 ✅ Enhanced page list
 │   ├── Trash.tsx                 ✅ Trash management
 │   ├── MediaLibrary.tsx          ✅ Media management
+│   ├── storage/ImageEditor.tsx   ✅ Integrated in /storage
 │   ├── PageBuilder.tsx           ⏳ TODO - Main page builder
 │   └── cms/
 │       ├── HeroEditor.tsx        ⏳ TODO

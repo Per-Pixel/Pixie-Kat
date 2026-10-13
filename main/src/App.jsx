@@ -57,6 +57,10 @@ const LeaderboardPage = lazy(() => import("./pages/leaderboard"));
 
 const JjkCheaperPage = lazy(() => import("./pages/events/jjk-cheaper"));
 
+const PromotionsPage = lazy(() => import("./pages/promotions"));
+
+const PromoDetailPage = lazy(() => import("./pages/promotions/PromoDetailPage"));
+
 const LegalPage = lazy(() => import("./pages/legal/LegalPage"));
 
 
@@ -280,6 +284,10 @@ function App() {
                   <Route path="/leaderboard" element={<LeaderboardPage />} />
 
                   <Route path="/event/jjk-cheaper" element={<JjkCheaperPage />} />
+
+                  <Route path="/promotions" element={<PromotionsPage />} />
+
+                  <Route path="/promotions/:slug" element={<PromoDetailPage />} />
 
                   <Route path="/terms" element={<LegalPage docKey="terms" />} />
 

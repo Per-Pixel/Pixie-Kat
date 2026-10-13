@@ -54,6 +54,7 @@ import SmileOneDetailPage from './pages/providers/SmileOneDetailPage';
 import SmileCoinDetailPage from './pages/providers/SmileCoinDetailPage';
 import SmileCoinApiConsolePage from './pages/providers/SmileCoinApiConsolePage';
 import YokcashApiConsolePage from './pages/providers/YokcashApiConsolePage';
+import YokcashStorePage from './pages/providers/YokcashStorePage';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -110,6 +111,7 @@ const AppRoutes: React.FC = () => {
         <Route path="providers/smile-coin" element={<SmileCoinDetailPage />} />
         <Route path="providers/smile-coin/api-console" element={<SmileCoinApiConsolePage />} />
         <Route path="providers/yokcash" element={<YokcashApiConsolePage />} />
+        <Route path="providers/yokcash/store" element={<YokcashStorePage />} />
         <Route path="wallets" element={<Wallets />} />
         <Route path="memberships" element={<Memberships />} />
         <Route path="leaderboard" element={<LeaderboardPage />} />
@@ -146,6 +148,9 @@ const AppRoutes: React.FC = () => {
         <Route path="pages/homepage/exclusive-offers" element={<PromoList section="exclusive_offers" title="Exclusive Offers" description="Manage promotional offer cards on the homepage" basePath="/pages/homepage/exclusive-offers" />} />
         <Route path="pages/homepage/exclusive-offers/new" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
         <Route path="pages/homepage/exclusive-offers/:id" element={<PromoEditor section="exclusive_offers" backPath="/pages/homepage/exclusive-offers" sectionLabel="Exclusive Offers" />} />
+        <Route path="pages/promotions" element={<PromoList section="promotions" title="Promotions" description="Manage promo cards on the homepage and their /promotions detail pages" basePath="/pages/promotions" />} />
+        <Route path="pages/promotions/new" element={<PromoEditor section="promotions" backPath="/pages/promotions" sectionLabel="Promotions" />} />
+        <Route path="pages/promotions/:id" element={<PromoEditor section="promotions" backPath="/pages/promotions" sectionLabel="Promotions" />} />
         <Route path="pages/products" element={<ProductsPageEditor />} />
         <Route path="pages/events/jjk-cheaper" element={<JjkCheaperEditor />} />
         <Route path="pages/how-it-works" element={<HowItWorksEditor />} />

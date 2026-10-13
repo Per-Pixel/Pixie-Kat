@@ -352,7 +352,7 @@ const Pricing = () => {
                   index={index}
                   featured={plan.slug === popularSlug}
                   reduced={reduced}
-                  onChoose={() => navigate('/games')}
+                  onChoose={() => navigate('/games/mobile-legends/add-money#membership')}
                 />
               ))}
             </div>

@@ -1,0 +1,7 @@
+snapshots/
+.review/
+.thumbnails/
+.hyperframes/
+.media/
+node_modules/
+assets/

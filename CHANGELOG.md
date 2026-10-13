@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Admin
+- Promotions become a first-class CMS section (`/pages/promotions`, `047_promotions.sql`): rich promo cards get slug, description, rich-text details, discount badge and `starts_at`/`ends_at` scheduling — items self-publish and self-hide, the list shows Active/Scheduled/Ended/Hidden badges, and a one-click Duplicate copies any item as a hidden draft.
+- Mobile admin gains an app-style bottom tab bar (Home/Orders/Add/Messages/More) with a spring quick-add sheet for one-tap New Promotion, product, game or message, safe-area padding, and fade page transitions.
+
+### Storefront
+- Homepage Promotions section is now data-driven from `promotional_items` (the three existing cards are seeded so they stay editable), every card links to a new `/promotions` index and `/promotions/:slug` detail page with the full offer text, end-date badge and Top Up CTA — nav dropdown and More-menu "Promo" entries now open it instead of "coming soon". Requires migration `047_promotions.sql`.
+
 ### Fixes
 - Checkout UX: the order confirmation now scrolls into view instead of leaving you pinned at the bottom of the collapsed page — on both the cart and the single-game checkout (`orderComplete`), which previously had no scroll correction at all. Route changes jump to the top instantly (the global `scroll-behavior: smooth` turned `scrollTo(0,0)` into an interruptible animated scroll), ScrollTrigger positions refresh after the collapse so the footer reveal still fires, the reveal itself plays once rather than hiding again when page height shifts, and the mobile bottom nav no longer covers the footer links. "Order history" now lands on the Orders section instead of Profile.
 - Show the account avatar in the top navbar when logged in, falling back to the profile icon.
@@ -25,8 +32,10 @@
 - Per-placement saves merge the latest `store_settings` row behind an `updated_at` guard, hydrate default products-carousel slides before editing one, and row-level updates (games/products/promos) only apply while the current image still matches, so a stale editor cannot silently overwrite newer work.
 - Keep the raw library as a secondary "Media files" view with a simple gallery (linked/unlinked filters, exact usage per file); folder tree, bulk actions, and conversion tools move behind "Advanced tools". Deleting is blocked while usage cannot be verified.
 - Add Pinterest import: paste pin/board links, preview extracted images and videos, save selected files to the library or a ZIP, or apply one pin straight to the placement being edited. Fetching is server-side (`/api/admin/pinterest/*`), admin-only, rate-limited, and restricted to Pinterest page/media hosts with per-redirect validation and size/content-type checks.
+- Add an image editor to `/storage` asset details with free and preset-ratio cropping, focal-point placement, rotate/flip, tone and blur controls, output preview, same-bucket save-as-copy, and guarded replace-everywhere.
 
 ### Storefront
+- Add Pixie Wallet top-up on `/games/:game/add-money`: pick 1–10,000 coins (1 coin = ₹1) and pay via Razorpay or UPI — payment confirmation reuses the existing verify/webhook routes, then `trg_orders_zzz_service_fulfillment` (044) credits the balance and closes the order. Membership plans are now purchasable standalone from the same page or the pricing page's "Choose" button — paid from wallet balance via `purchase_membership_with_wallet` or through the gateways, with the 038 grant trigger activating the plan on payment.
 - Add a monthly order-count leaderboard at `/leaderboard` — live standings with a top-3 podium, finalized-month archive via `get_leaderboard` RPC (username or masked name + avatar only; spend shown only when admin enables it), a homepage Top-5 teaser, and a rewards explainer — with nav and More-menu entries.
 - Account → Rewards becomes "Rewards & Rank": current live rank, active perks (avatar frame, GIF avatar), and a per-month rank history table with movement deltas and Final/Provisional badges; the mobile dashboard shows a rank strip and the same view at `/account?section=rewards`.
 - Rank perks are cosmetic + gated: `profiles.avatar_frame` renders a gradient ring on account/leaderboard avatars via `AvatarFrame`, and GIF profile pictures unlock only for tier holders — gated in Edit Profile and enforced by `avatars` storage policies through `user_has_perk()`. Settings gains a "show me on the leaderboard" opt-out toggle (`profiles.leaderboard_opt_out`).
@@ -36,7 +45,10 @@
 - Region-aware checkout blocking: `games.metadata.blocked_regions` rejects all packages for the account's region (MLBB is seeded with `ID` + `BR` via `042_mlbb_blocked_regions.sql`), and `products.metadata.excluded_regions` blocks only that denomination while other packages stay selectable. The detected country is shown as a red (game-level) or amber (denomination) warning under the verify badge, checkout buttons fail with a visible message, and `/api/place-order` + `/api/cart-checkout` enforce the same rules server-side against a sanitized `verified_region`. Unknown regions fail open.
 - Rework the Mobile Legends phone layout with a rounded reduced-height game banner, Buy/Guide switch, readable two-column CMS package groups and notes, and a separate how-to view; keep checkout and other games intact while clearing the scroll control from the Pay button.
 - Hardcoded homepage graphics are now admin-editable through `appearance_settings.site_graphics`: promotion background and the three promo cards, contact artworks, feature videos, hero card videos, and the built-in Trending/Exclusive fallback cards (used only until live promo items exist).
+- Add a 15s beat-synced promo motion graphic (`/videos/pixiekat-promo.mp4`, built with HyperFrames in `videos/pixiekat-promo/`) as the "Power Up Your Game" feature card video, with a real acid "Top Up Now" pill button over the card linking to `/games`; hero gains a `hero_settings.show_images` toggle for the character parallax layer.
+- Add five new game pages (`046_new_games_seed.sql`): Hayabusa Starlight – Kitsune's Shadow (`/games/starlight`, manual gifting flow with 168-hour-friendship how-to), Honor of Kings (`/games/honor-of-kings`, 10 token packs auto-fulfilled via Yokcash `HOKYC*` at cost+15%), Genshin Impact split into India (`/games/genshin-impact`, Yokcash `GIYC*`) and USA (`/games/genshin-impact-usa`, Chronal Nexus packs, manual fulfilment), and BGMI (`/games/bgmi`, Yokcash `PUBGYC*` UC ladder at cost+15%). Homepage Trending/Exclusive promo cards now link to the real pages instead of `/games`.
 - Show the MLBB first-purchase double-Diamond explainer between the 50/150/250/500-tier packs and the regular base+bonus packages — the compact grid splits at the first `Diamond=N+M` amount; admin `package_sections` still overrides when configured.
+- `/games` grid now lists every active game directly — the See All/Show Less toggle card is gone — and Mobile Legends Global is retired (game `status='inactive'`, promo card off).
 
 ### Repository
 - Remove scratch artifacts (`Test/` harness, temp backup/seed scripts, stale AWS log, stray screenshot) and stop tracking `admin/.env`.
@@ -52,6 +64,7 @@
 - Add multi-item cart checkout (`POST /api/cart-checkout`) where one wallet debit, Razorpay order, or Aluu payment covers the whole cart via `metadata.payment_group_id`.
 - Add `/api/razorpay/verify-cart-payment`, `/api/aluu/check-cart-payment`, and Razorpay/Aluu webhook fallbacks that resolve and confirm whole payment groups.
 - Add `place_cart_orders` and `place_wallet_cart` RPCs (migration `036_cart_checkout.sql`) for atomic multi-order placement and a single wallet debit.
+- Temporarily disable online payment gateways behind `ONLINE_PAYMENTS_ENABLED` in `main/server/index.js` — the configured Razorpay key is a test key, so fake payments passed signature verification and triggered real fulfillment. `/api/place-order`, `/api/cart-checkout`, and `/api/membership/purchase` accept wallet only and `/api/wallet/topup` is closed; storefront checkout, cart, and Add Money offer Pixie Wallet only. Verify/webhook endpoints stay live so genuinely-paid pending orders still settle.
 
 ### Tests
 - Add server unit tests for Aluu order creation, status checks, and webhook signature verification.

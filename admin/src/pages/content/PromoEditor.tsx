@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Image, Tag, Star } from 'lucide-react';
+import { ArrowLeft, Save, Image, Tag, Star, CalendarClock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
   createPromoItem,
@@ -13,6 +13,7 @@ import {
   PromoSection,
 } from '../../services/catalogService';
 import ImageSourceField from '../../components/common/ImageSourceField';
+import RichTextEditor from '../../components/common/RichTextEditor';
 
 interface PromoEditorProps {
   section: PromoSection;
@@ -31,14 +32,39 @@ interface FormState {
   compare_price: string;
   discount_pct: string;
   currency: string;
+  slug: string;
+  description: string;
+  details: string;
+  discount_label: string;
+  starts_at: string;
+  ends_at: string;
   is_active: boolean;
 }
 
 const empty: FormState = {
   title: '', image_url: '', flag: '', link_url: '', game_id: '',
   rating: '', price: '', compare_price: '', discount_pct: '',
-  currency: 'INR', is_active: true,
+  currency: 'INR', slug: '', description: '', details: '',
+  discount_label: '', starts_at: '', ends_at: '', is_active: true,
 };
+
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const isoToLocalInput = (iso?: string | null) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+const localInputToIso = (value: string) =>
+  value ? new Date(value).toISOString() : null;
 
 const PromoEditor: React.FC<PromoEditorProps> = ({ section, backPath, sectionLabel }) => {
   const navigate = useNavigate();
@@ -79,6 +105,12 @@ const PromoEditor: React.FC<PromoEditorProps> = ({ section, backPath, sectionLab
         compare_price: item.compare_price != null ? String(item.compare_price) : '',
         discount_pct: item.discount_pct != null ? String(item.discount_pct) : '',
         currency: item.currency ?? 'INR',
+        slug: item.slug ?? '',
+        description: item.description ?? '',
+        details: item.details ?? '',
+        discount_label: item.discount_label ?? '',
+        starts_at: isoToLocalInput(item.starts_at),
+        ends_at: isoToLocalInput(item.ends_at),
         is_active: item.is_active,
       });
     } finally {
@@ -102,6 +134,12 @@ const PromoEditor: React.FC<PromoEditorProps> = ({ section, backPath, sectionLab
     compare_price: form.compare_price !== '' ? Number(form.compare_price) : null,
     discount_pct: form.discount_pct !== '' ? Number(form.discount_pct) : null,
     currency: form.currency || 'INR',
+    slug: isPromotions ? (form.slug.trim() ? slugify(form.slug) : slugify(form.title)) || null : null,
+    description: isPromotions ? form.description.trim() || null : null,
+    details: isPromotions ? form.details.trim() || null : null,
+    discount_label: isPromotions ? form.discount_label.trim() || null : null,
+    starts_at: localInputToIso(form.starts_at),
+    ends_at: localInputToIso(form.ends_at),
     is_active: form.is_active,
   });
 
@@ -133,6 +171,7 @@ const PromoEditor: React.FC<PromoEditorProps> = ({ section, backPath, sectionLab
   }
 
   const isTrending = section === 'trending';
+  const isPromotions = section === 'promotions';
 
   return (
     <div className="space-y-6">
@@ -152,7 +191,9 @@ const PromoEditor: React.FC<PromoEditorProps> = ({ section, backPath, sectionLab
             <p className="text-gray-600 mt-1">
               {isTrending
                 ? 'Configure the trending game card shown in the homepage carousel'
-                : 'Configure a promotional offer card shown in the homepage grid'}
+                : isPromotions
+                  ? 'Configure a promo card shown in the Promotions section and its /promotions detail page'
+                  : 'Configure a promotional offer card shown in the homepage grid'}
             </p>
           </div>
         </div>
@@ -211,7 +252,7 @@ const PromoEditor: React.FC<PromoEditorProps> = ({ section, backPath, sectionLab
                 />
                 <p className="text-xs text-gray-400 mt-1">Overrides the linked game URL if both are set.</p>
               </div>
-              {!isTrending && (
+              {!isTrending && !isPromotions && (
                 <div>
                   <label className="label mb-1.5 block">Flag / Emoji</label>
                   <input
@@ -223,6 +264,42 @@ const PromoEditor: React.FC<PromoEditorProps> = ({ section, backPath, sectionLab
                   />
                   <p className="text-xs text-gray-400 mt-1">Optional country flag or emoji shown on the card.</p>
                 </div>
+              )}
+              {isPromotions && (
+                <>
+                  <div>
+                    <label className="label mb-1.5 block">Slug</label>
+                    <input
+                      className="input"
+                      placeholder="auto-generated from title"
+                      value={form.slug}
+                      onChange={(e) => change('slug', e.target.value)}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Detail page URL: /promotions/{slugify(form.slug || form.title) || 'your-slug'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="label mb-1.5 block">Description</label>
+                    <textarea
+                      className="input min-h-20"
+                      placeholder="Short card copy shown on the homepage promo card"
+                      value={form.description}
+                      onChange={(e) => change('description', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="label mb-1.5 block">Discount Badge</label>
+                    <input
+                      className="input"
+                      placeholder="e.g., 5% or 2x Bonus"
+                      maxLength={12}
+                      value={form.discount_label}
+                      onChange={(e) => change('discount_label', e.target.value)}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Small badge in the top-right corner of the card.</p>
+                  </div>
+                </>
               )}
             </div>
           </section>
@@ -243,6 +320,21 @@ const PromoEditor: React.FC<PromoEditorProps> = ({ section, backPath, sectionLab
               />
             </div>
           </section>
+
+          {/* Promotions-specific: long-form detail page body */}
+          {isPromotions && (
+            <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center gap-2 mb-5">
+                <Tag className="w-5 h-5 text-primary-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Detail Page Content</h2>
+              </div>
+              <RichTextEditor
+                value={form.details}
+                onChange={(html) => change('details', html)}
+                placeholder="Full promo copy — terms, how it works, dates. Shown on /promotions/slug."
+              />
+            </section>
+          )}
 
           {/* Trending-specific: pricing */}
           {isTrending && (
@@ -317,6 +409,35 @@ const PromoEditor: React.FC<PromoEditorProps> = ({ section, backPath, sectionLab
             </div>
           </section>
 
+          <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <CalendarClock className="w-5 h-5 text-primary-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Schedule</h2>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="label mb-1.5 block">Starts At</label>
+                <input
+                  type="datetime-local"
+                  className="input"
+                  value={form.starts_at}
+                  onChange={(e) => change('starts_at', e.target.value)}
+                />
+                <p className="text-xs text-gray-400 mt-1">Empty = visible immediately when active.</p>
+              </div>
+              <div>
+                <label className="label mb-1.5 block">Ends At</label>
+                <input
+                  type="datetime-local"
+                  className="input"
+                  value={form.ends_at}
+                  onChange={(e) => change('ends_at', e.target.value)}
+                />
+                <p className="text-xs text-gray-400 mt-1">Empty = never auto-hides.</p>
+              </div>
+            </div>
+          </section>
+
           {/* Preview */}
           {isTrending ? (
             <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -339,6 +460,28 @@ const PromoEditor: React.FC<PromoEditorProps> = ({ section, backPath, sectionLab
                   {form.compare_price && <span className="text-xs text-gray-400 line-through">₹{form.compare_price}</span>}
                   <span className="text-sm font-bold text-black">{form.price ? `₹${form.price}` : '—'}</span>
                   {form.discount_pct && <span className="rounded bg-orange-500 px-1 py-0.5 text-[10px] text-white">{form.discount_pct}%</span>}
+                </div>
+              </div>
+            </section>
+          ) : isPromotions ? (
+            <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Card Preview</h2>
+              <div className="overflow-hidden rounded-2xl border-[3px] border-black bg-white max-w-[240px]">
+                <div className="relative h-28 bg-gray-200">
+                  {form.image_url && (
+                    <img src={form.image_url} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+                  )}
+                  {form.discount_label && (
+                    <span className="absolute right-0 top-0 rounded-bl-xl bg-lime-300 px-2 py-0.5 text-xs font-semibold text-black">
+                      {form.discount_label}
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-1.5 p-3 text-black">
+                  <p className="text-sm font-semibold leading-snug">{form.title || 'Promo title'}</p>
+                  <p className="text-xs leading-relaxed text-black/70 line-clamp-3">
+                    {form.description || 'Promo description…'}
+                  </p>
                 </div>
               </div>
             </section>
