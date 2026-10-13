@@ -8,8 +8,32 @@ import { useJjkCheaperPlacement } from "../../../hooks/useJjkCheaperPlacement";
 
 const fallbackExclusiveOffers = [
   {
+    title: "Starlight Pass Top Up",
+    image: publicMediaUrl("/img/promotion/starlight.webp"),
+  },
+  {
     title: "Mobile Legend Bang Bang",
     image: publicMediaUrl("/img/hero/game-mlbb-card.webp"),
+  },
+  {
+    title: "Mobile Legends Diamonds",
+    image: publicMediaUrl("/img/games/mobile-legends.webp"),
+  },
+  {
+    title: "MLBB Leomord Special Pack",
+    image: publicMediaUrl("/img/promotion/leomord.webp"),
+  },
+  {
+    title: "Melissa Character Pack",
+    image: publicMediaUrl("/img/hero/melissa.webp"),
+  },
+  {
+    title: "Honor of Kings Tokens",
+    image: publicMediaUrl("/img/games/honor-of-kings.jpg"),
+  },
+  {
+    title: "Magic Chess: Go Go Bundle",
+    image: publicMediaUrl("/img/promotion/eternal.webp"),
   },
   {
     title: "PUBG Mobile Top Up",
@@ -21,36 +45,12 @@ const fallbackExclusiveOffers = [
     flag: "🇮🇳",
   },
   {
-    title: "Honor of Kings Tokens",
-    image: publicMediaUrl("/img/games/honor-of-kings.jpg"),
-  },
-  {
-    title: "Mobile Legends Diamonds",
-    image: publicMediaUrl("/img/games/mobile-legends.webp"),
-  },
-  {
-    title: "MLBB Leomord Special Pack",
-    image: publicMediaUrl("/img/promotion/leomord.webp"),
-  },
-  {
-    title: "Magic Chess: Go Go Bundle",
-    image: publicMediaUrl("/img/promotion/eternal.webp"),
-  },
-  {
-    title: "Starlight Pass Top Up",
-    image: publicMediaUrl("/img/promotion/starlight.webp"),
-  },
-  {
     title: "Jinx Champion Bundle",
     image: publicMediaUrl("/img/hero/Jinx.webp"),
   },
   {
     title: "Faze Clan Promo Pack",
     image: publicMediaUrl("/img/hero/Faze.webp"),
-  },
-  {
-    title: "Melissa Character Pack",
-    image: publicMediaUrl("/img/hero/melissa.webp"),
   },
   {
     title: "Hero Special Top Up",

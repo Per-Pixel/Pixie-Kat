@@ -50,6 +50,7 @@
 - Show the MLBB first-purchase double-Diamond explainer between the 50/150/250/500-tier packs and the regular base+bonus packages — the compact grid splits at the first `Diamond=N+M` amount; admin `package_sections` still overrides when configured.
 - `/games` grid now lists every active game directly — the See All/Show Less toggle card is gone — and Mobile Legends Global is retired (game `status='inactive'`, promo card off).
 - Drop the small subtitle line (e.g. "Malaysia server") under each name on the `/games` grid — cards show the game name only.
+- Reorder Exclusive Offers: Starlight first, then the MLBB cards, Honor of Kings, Magic Chess, and the rest (`048_exclusive_offers_order.sql` re-sorts `promotional_items.sort_order`; code + admin fallback lists mirror it).
 
 ### Repository
 - Remove scratch artifacts (`Test/` harness, temp backup/seed scripts, stale AWS log, stray screenshot) and stop tracking `admin/.env`.
