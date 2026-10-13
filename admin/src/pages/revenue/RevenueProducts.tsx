@@ -33,7 +33,7 @@ const RevenueProducts: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="text-2xl font-bold">Product Revenue</h1><p className="text-sm text-gray-500 mt-1">Live completed-order performance by catalog product</p></div>
         <button onClick={() => navigate('/products')} className="btn btn-primary btn-sm"><Package className="w-4 h-4 mr-2" />Manage Products</button>
       </div>
