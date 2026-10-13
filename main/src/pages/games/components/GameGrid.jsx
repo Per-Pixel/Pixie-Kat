@@ -136,7 +136,6 @@ const GameGrid = () => {
                 <h3 className="text-[20px] font-bold leading-tight tracking-tight text-black md:text-[26px]">
                   {game.name}
                 </h3>
-                <p className="mt-1 text-sm text-black/45 md:text-base">{game.subtitle}</p>
               </div>
             </motion.div>
           ))}

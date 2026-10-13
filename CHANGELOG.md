@@ -49,6 +49,7 @@
 - Add five new game pages (`046_new_games_seed.sql`): Hayabusa Starlight – Kitsune's Shadow (`/games/starlight`, manual gifting flow with 168-hour-friendship how-to), Honor of Kings (`/games/honor-of-kings`, 10 token packs auto-fulfilled via Yokcash `HOKYC*` at cost+15%), Genshin Impact split into India (`/games/genshin-impact`, Yokcash `GIYC*`) and USA (`/games/genshin-impact-usa`, Chronal Nexus packs, manual fulfilment), and BGMI (`/games/bgmi`, Yokcash `PUBGYC*` UC ladder at cost+15%). Homepage Trending/Exclusive promo cards now link to the real pages instead of `/games`.
 - Show the MLBB first-purchase double-Diamond explainer between the 50/150/250/500-tier packs and the regular base+bonus packages — the compact grid splits at the first `Diamond=N+M` amount; admin `package_sections` still overrides when configured.
 - `/games` grid now lists every active game directly — the See All/Show Less toggle card is gone — and Mobile Legends Global is retired (game `status='inactive'`, promo card off).
+- Drop the small subtitle line (e.g. "Malaysia server") under each name on the `/games` grid — cards show the game name only.
 
 ### Repository
 - Remove scratch artifacts (`Test/` harness, temp backup/seed scripts, stale AWS log, stray screenshot) and stop tracking `admin/.env`.
