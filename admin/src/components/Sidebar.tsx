@@ -98,6 +98,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             { label: 'Exclusive Offers', path: '/pages/homepage/exclusive-offers' },
           ],
         },
+        { label: 'Promotions', path: '/pages/promotions' },
         { label: 'Products Page', path: '/pages/products' },
         { label: 'JJK Cheaper Guide', path: '/pages/events/jjk-cheaper' },
         { label: 'How It Works', path: '/pages/how-it-works' },

@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, GripVertical, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit, Trash2, GripVertical, Eye, EyeOff, Copy } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
   listPromoItems,
   deletePromoItem,
   updatePromoItem,
+  createPromoItem,
   reorderPromoItems,
   PromoItem,
   PromoSection,
@@ -53,6 +54,46 @@ const PromoList: React.FC<PromoListProps> = ({ section, title, description, base
     } catch (err) {
       toast.error((err as Error).message || 'Delete failed');
     }
+  };
+
+  const handleDuplicate = async (item: PromoItem) => {
+    try {
+      const copy = await createPromoItem({
+        section: item.section,
+        title: `${item.title} (copy)`,
+        image_url: item.image_url,
+        flag: item.flag,
+        link_url: item.link_url,
+        game_id: item.game_id,
+        rating: item.rating,
+        price: item.price,
+        compare_price: item.compare_price,
+        discount_pct: item.discount_pct,
+        currency: item.currency,
+        description: item.description,
+        details: item.details,
+        discount_label: item.discount_label,
+        starts_at: item.starts_at,
+        ends_at: item.ends_at,
+        slug: null,
+        is_active: false,
+        sort_order: items.length + 1,
+      });
+      setItems((prev) => [...prev, copy]);
+      toast.success('Duplicated — hidden until you activate it');
+    } catch (err) {
+      toast.error((err as Error).message || 'Duplicate failed');
+    }
+  };
+
+  const statusOf = (item: PromoItem) => {
+    if (!item.is_active) return { label: 'Hidden', cls: 'bg-gray-100 text-gray-500' };
+    const now = Date.now();
+    if (item.starts_at && new Date(item.starts_at).getTime() > now)
+      return { label: 'Scheduled', cls: 'bg-blue-100 text-blue-700' };
+    if (item.ends_at && new Date(item.ends_at).getTime() <= now)
+      return { label: 'Ended', cls: 'bg-amber-100 text-amber-700' };
+    return { label: 'Active', cls: 'bg-green-100 text-green-800' };
   };
 
   const handleToggleActive = async (item: PromoItem) => {
@@ -188,11 +229,9 @@ const PromoList: React.FC<PromoListProps> = ({ section, title, description, base
                     )}
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          item.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'
-                        }`}
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusOf(item).cls}`}
                       >
-                        {item.is_active ? 'Active' : 'Hidden'}
+                        {statusOf(item).label}
                       </span>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
@@ -203,6 +242,13 @@ const PromoList: React.FC<PromoListProps> = ({ section, title, description, base
                           title={item.is_active ? 'Hide' : 'Show'}
                         >
                           {item.is_active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => handleDuplicate(item)}
+                          className="text-gray-500 hover:text-gray-900"
+                          title="Duplicate as hidden draft"
+                        >
+                          <Copy className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => navigate(editPath(item.id))}

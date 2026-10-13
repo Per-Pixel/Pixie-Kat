@@ -95,8 +95,9 @@ const menuLayers = [
     label: 'Promo',
     title: 'Promotions',
     description: 'Deals, bonuses & limited-time offers',
+    path: '/promotions',
     image: publicMediaUrl('/img/promotion/leomord.webp'),
-    comingSoon: true,
+    buttonText: 'View Promos',
   },
   {
     id: 'blog',

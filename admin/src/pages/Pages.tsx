@@ -14,6 +14,7 @@ const Pages: React.FC = () => {
   const navigate = useNavigate();
   const [trending, setTrending] = useState<SectionStats>({ items: [], loading: true });
   const [exclusive, setExclusive] = useState<SectionStats>({ items: [], loading: true });
+  const [promos, setPromos] = useState<SectionStats>({ items: [], loading: true });
 
   useEffect(() => {
     listPromoItems('trending')
@@ -23,6 +24,10 @@ const Pages: React.FC = () => {
     listPromoItems('exclusive_offers')
       .then(items => setExclusive({ items, loading: false }))
       .catch(() => { toast.error('Failed to load exclusive offers'); setExclusive(p => ({ ...p, loading: false })); });
+
+    listPromoItems('promotions')
+      .then(items => setPromos({ items, loading: false }))
+      .catch(() => { toast.error('Failed to load promotions'); setPromos(p => ({ ...p, loading: false })); });
   }, []);
 
   const dynamicSections = [
@@ -49,6 +54,18 @@ const Pages: React.FC = () => {
       stats: exclusive,
       listPath: '/pages/homepage/exclusive-offers',
       newPath: '/pages/homepage/exclusive-offers/new',
+    },
+    {
+      id: 'promotions',
+      title: 'Promotions',
+      description: 'Rich promo cards with detail pages at /promotions — schedule, hide & reorder.',
+      icon: BadgePercent,
+      iconBg: 'bg-lime-50',
+      iconColor: 'text-lime-600',
+      accentColor: 'border-lime-500',
+      stats: promos,
+      listPath: '/pages/promotions',
+      newPath: '/pages/promotions/new',
     },
   ];
 

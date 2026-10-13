@@ -308,7 +308,7 @@ export async function deleteProduct(id: string): Promise<void> {
 // ============================================================
 // Promotional Items (Trending Games + Exclusive Offers)
 // ============================================================
-export type PromoSection = 'trending' | 'exclusive_offers';
+export type PromoSection = 'trending' | 'exclusive_offers' | 'promotions';
 
 export interface PromoItem {
   id: string;
@@ -323,6 +323,14 @@ export interface PromoItem {
   compare_price?: number | null;
   discount_pct?: number | null;
   currency: string;
+  // promotions-only fields
+  slug?: string | null;
+  description?: string | null;
+  details?: string | null;
+  discount_label?: string | null;
+  // scheduling (all sections)
+  starts_at?: string | null;
+  ends_at?: string | null;
   is_active: boolean;
   sort_order: number;
   created_at?: string;

@@ -28,7 +28,15 @@ export function usePromoSection(section) {
       if (supaErr) {
         setError(supaErr.message);
       } else {
-        setItems(resolveMediaUrls(data ?? []));
+        // Schedule filter (RLS enforces this too; kept here so items also
+        // self-hide/self-publish if the schedule columns predate the row).
+        const now = Date.now();
+        const visible = (data ?? []).filter((item) => {
+          if (item.starts_at && new Date(item.starts_at).getTime() > now) return false;
+          if (item.ends_at && new Date(item.ends_at).getTime() <= now) return false;
+          return true;
+        });
+        setItems(resolveMediaUrls(visible));
       }
 
       setLoading(false);

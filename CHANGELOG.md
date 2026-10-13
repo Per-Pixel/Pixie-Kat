@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Admin
+- Promotions become a first-class CMS section (`/pages/promotions`, `047_promotions.sql`): rich promo cards get slug, description, rich-text details, discount badge and `starts_at`/`ends_at` scheduling — items self-publish and self-hide, the list shows Active/Scheduled/Ended/Hidden badges, and a one-click Duplicate copies any item as a hidden draft.
+- Mobile admin gains an app-style bottom tab bar (Home/Orders/Add/Messages/More) with a spring quick-add sheet for one-tap New Promotion, product, game or message, safe-area padding, and fade page transitions.
+
+### Storefront
+- Homepage Promotions section is now data-driven from `promotional_items` (the three existing cards are seeded so they stay editable), every card links to a new `/promotions` index and `/promotions/:slug` detail page with the full offer text, end-date badge and Top Up CTA — nav dropdown and More-menu "Promo" entries now open it instead of "coming soon". Requires migration `047_promotions.sql`.
+
 ### Fixes
 - Checkout UX: the order confirmation now scrolls into view instead of leaving you pinned at the bottom of the collapsed page — on both the cart and the single-game checkout (`orderComplete`), which previously had no scroll correction at all. Route changes jump to the top instantly (the global `scroll-behavior: smooth` turned `scrollTo(0,0)` into an interruptible animated scroll), ScrollTrigger positions refresh after the collapse so the footer reveal still fires, the reveal itself plays once rather than hiding again when page height shifts, and the mobile bottom nav no longer covers the footer links. "Order history" now lands on the Orders section instead of Profile.
 - Show the account avatar in the top navbar when logged in, falling back to the profile icon.

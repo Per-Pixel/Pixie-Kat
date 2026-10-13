@@ -20,7 +20,7 @@ const menuItems = [
   { id: "cart", label: "Cart", icon: ShoppingCart, path: "/cart" },
   { id: "membership", label: "Membership", icon: Crown, path: "/pricing" },
   { id: "leaderboard", label: "Leaderboard", icon: Trophy, path: "/leaderboard" },
-  { id: "promo", label: "Promo", icon: Percent, comingSoon: true },
+  { id: "promo", label: "Promo", icon: Percent, path: "/promotions" },
   { id: "blog", label: "Blog", icon: Newspaper, comingSoon: true },
   { id: "support", label: "Support", icon: ShieldQuestion, path: "/support" },
 ];

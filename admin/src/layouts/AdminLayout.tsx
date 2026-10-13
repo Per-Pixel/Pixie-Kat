@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Menu, LogOut, Bell, Search, User, ClipboardList, Gamepad2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Sidebar from '../components/Sidebar';
+import MobileTabBar from '../components/MobileTabBar';
 
 const AdminLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(() =>
@@ -11,6 +12,7 @@ const AdminLayout: React.FC = () => {
   );
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -93,10 +95,19 @@ const AdminLayout: React.FC = () => {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
+        <main className="flex-1 overflow-y-auto p-4 pb-24 md:p-6 lg:pb-6">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+          >
+            <Outlet />
+          </motion.div>
         </main>
       </div>
+
+      <MobileTabBar onOpenSidebar={() => setSidebarOpen(true)} />
     </div>
   );
 };

@@ -1,13 +1,15 @@
 import gsap from "gsap";
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { publicMediaUrl } from "../../../lib/supabase";
 import { siteGraphicUrl } from "../../../lib/storeContent";
 import { useAppearance } from "../../../contexts/AppearanceContext";
+import { usePromoSection } from "../../../hooks/usePromoSection";
 import AnimatedTitle from "../../../components/common/AnimatedTitle";
 import { BentoTilt } from "./Features";
 
-const promotions = [
+const fallbackPromotions = [
   {
     title: "MLBB Festive Top-Up Rewards: Earn 5% Back",
     description:
@@ -16,6 +18,7 @@ const promotions = [
       "How it works: buy any pack of 70 diamonds or more and the bonus lands with your order. No codes, no extra steps.",
     image: publicMediaUrl("/img/promotion/leomord.webp"),
     discount: "5%",
+    link: "/promotions/mlbb-festive-topup-rewards",
   },
   {
     title: "2x Recharge Bonus Is Back + 10% Member Rewards",
@@ -25,6 +28,7 @@ const promotions = [
       "Even if you claimed it before, you can claim it again — double diamonds on eligible first-recharge bundles, plus extra member rewards on top.",
     image: publicMediaUrl("/img/promotion/eternal.webp"),
     discount: "10%",
+    link: "/promotions/2x-recharge-bonus",
   },
   {
     title: "Limited Faze Offer: Bonus Rewards on Every Top Up",
@@ -34,67 +38,111 @@ const promotions = [
       "Top up during the active period to receive bonus credits and seasonal perks. Limited-time offer, terms and conditions apply.",
     image: publicMediaUrl("/img/promotion/starlight.webp"),
     discount: "15%",
+    link: "/promotions/faze-limited-offer",
   },
 ];
 
-const PromotionCard = ({
+export const PromotionCard = ({
   title,
   description,
   details,
   image,
   discount,
+  link,
   compact = false,
   noStroke = false,
-}) => (
-  <article
-    className={`h-full overflow-hidden rounded-2xl bg-white ${
-      noStroke ? "" : "border-[3px] border-black"
-    }`}
-  >
-    <div className="relative">
-      <img
-        src={image}
-        alt={title}
-        className="h-44 w-full object-cover object-center sm:h-48 md:h-52"
-        loading="lazy"
-        decoding="async"
-      />
-      <span className="absolute right-0 top-0 rounded-bl-xl bg-lime-300 px-3 py-1 font-general text-sm font-semibold text-black">
-        {discount}
-      </span>
-    </div>
+}) => {
+  const navigate = useNavigate();
 
-    <div className="space-y-3 p-4 text-black sm:p-5">
-      <h3 className="font-general text-lg font-semibold leading-snug sm:text-xl">
-        {title}
-      </h3>
-      <p className="font-circular-web text-sm leading-relaxed sm:text-base">
-        {description}
-      </p>
-      <p
-        className={`font-circular-web text-sm leading-relaxed text-black/80 sm:text-base ${
-          compact ? "hidden md:block" : ""
-        }`}
-      >
-        {details}
-      </p>
-    </div>
-  </article>
-);
+  return (
+    <article
+      onClick={link ? () => navigate(link) : undefined}
+      role={link ? "link" : undefined}
+      tabIndex={link ? 0 : undefined}
+      onKeyDown={
+        link
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                navigate(link);
+              }
+            }
+          : undefined
+      }
+      className={`h-full overflow-hidden rounded-2xl bg-white ${
+        noStroke ? "" : "border-[3px] border-black"
+      } ${link ? "cursor-pointer transition-transform duration-200 hover:-translate-y-1 hover:shadow-lg" : ""}`}
+    >
+      <div className="relative">
+        <img
+          src={image}
+          alt={title}
+          className="h-44 w-full object-cover object-center sm:h-48 md:h-52"
+          loading="lazy"
+          decoding="async"
+        />
+        {discount && (
+          <span className="absolute right-0 top-0 rounded-bl-xl bg-lime-300 px-3 py-1 font-general text-sm font-semibold text-black">
+            {discount}
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-3 p-4 text-black sm:p-5">
+        <h3 className="font-general text-lg font-semibold leading-snug sm:text-xl">
+          {title}
+        </h3>
+        <p className="font-circular-web text-sm leading-relaxed sm:text-base">
+          {description}
+        </p>
+        <p
+          className={`font-circular-web text-sm leading-relaxed text-black/80 sm:text-base ${
+            compact ? "hidden md:block" : ""
+          }`}
+        >
+          {details}
+        </p>
+        {link && (
+          <p className="font-general text-xs font-bold uppercase tracking-wide text-violet-600">
+            Read more →
+          </p>
+        )}
+      </div>
+    </article>
+  );
+};
 
 const promotionGraphicKeys = ["promotion_card_1", "promotion_card_2", "promotion_card_3"];
 const promotionFallbacks = ["/img/promotion/leomord.webp", "/img/promotion/eternal.webp", "/img/promotion/starlight.webp"];
+
+const stripHtml = (html) =>
+  (html ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
 const Promotion = () => {
   const promoFrameRef = useRef(null);
   const smallCarouselRef = useRef(null);
   const [activeSmallIndex, setActiveSmallIndex] = useState(0);
   const appearance = useAppearance();
+  const navigate = useNavigate();
+  const { items: promoRows } = usePromoSection("promotions");
 
-  const cards = promotions.map((promotion, index) => ({
-    ...promotion,
-    image: siteGraphicUrl(appearance, promotionGraphicKeys[index], promotionFallbacks[index]),
-  }));
+  const cards =
+    promoRows.length > 0
+      ? promoRows.map((item) => ({
+          title: item.title,
+          description: item.description ?? "",
+          details: stripHtml(item.details),
+          image: item.image_url || publicMediaUrl("/img/promotion/leomord.webp"),
+          discount: item.discount_label ?? "",
+          link: item.slug
+            ? `/promotions/${item.slug}`
+            : item.link_url ||
+              (item.game_id ? `/games/${item.game_id}` : "/promotions"),
+        }))
+      : fallbackPromotions.map((promotion, index) => ({
+          ...promotion,
+          image: siteGraphicUrl(appearance, promotionGraphicKeys[index], promotionFallbacks[index]),
+        }));
   const smallPromotions = cards;
 
   const handlePromoMouseMove = (event) => {
@@ -161,9 +209,18 @@ const Promotion = () => {
             textColor="#000000"
             containerClass="!mt-0 !items-start !gap-0 !px-0 !text-left !text-4xl !leading-[0.9] md:!text-6xl"
           />
-          <p className="max-w-sm text-right font-circular-web text-sm text-black/70 md:text-base">
-            Limited-time offers and bonus rewards for your next top up.
-          </p>
+          <div className="flex max-w-sm flex-col items-end gap-2 text-right">
+            <p className="font-circular-web text-sm text-black/70 md:text-base">
+              Limited-time offers and bonus rewards for your next top up.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/promotions")}
+              className="font-semibold text-orange-400 hover:underline"
+            >
+              View All →
+            </button>
+          </div>
         </div>
 
         <div
