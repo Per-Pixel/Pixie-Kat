@@ -88,9 +88,9 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
 
   if (!order) return null;
 
-  const cfg = statusConfig[order.status];
+  const cfg = statusConfig[order.status] ?? { label: order.status, icon: AlertCircle, color: 'text-gray-700', bg: 'bg-gray-50', badge: 'bg-gray-100 text-gray-700' };
   const StatusIcon = cfg.icon;
-  const allowedTransitions = statusTransitions[order.status];
+  const allowedTransitions = statusTransitions[order.status] ?? [];
 
   const handleCreditRefund = async () => {
     const mm = order.metadata?.provider_mismatch;
@@ -346,7 +346,7 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
                           <div className="flex items-start gap-2 mb-3">
                             <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                             <p className="text-sm text-amber-800">
-                              Change status to <strong>{statusConfig[confirmStatus].label}</strong>? This action will be logged.
+                              Change status to <strong>{statusConfig[confirmStatus]?.label ?? confirmStatus}</strong>? This action will be logged.
                             </p>
                           </div>
                           <div className="flex gap-2">

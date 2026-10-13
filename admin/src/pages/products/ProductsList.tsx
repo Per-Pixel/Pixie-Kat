@@ -31,6 +31,8 @@ const statusConfig: Record<ProductStatus, { label: string; badge: string }> = {
 
 const providerConfig: Record<string, { label: string; badge: string }> = {
   smile_one: { label: 'Smile One API', badge: 'bg-blue-50 text-blue-700 border border-blue-200' },
+  smilecoin: { label: 'Smile Coin API', badge: 'bg-cyan-50 text-cyan-700 border border-cyan-200' },
+  yokcash:   { label: 'Yokcash API',   badge: 'bg-indigo-50 text-indigo-700 border border-indigo-200' },
   manual:    { label: 'Manual',        badge: 'bg-gray-50 text-gray-600 border border-gray-200' },
   other:     { label: 'Other API',     badge: 'bg-purple-50 text-purple-700 border border-purple-200' },
 };
@@ -309,9 +311,9 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filtered.map((product) => {
-                    const sCfg = statusConfig[product.status];
+                    const sCfg = statusConfig[product.status] ?? { label: product.status, badge: 'bg-gray-100 text-gray-700' };
                     const provKey = product.game?.provider ?? (product.provider_product_id ? 'other' : 'manual');
-                    const pCfg = providerConfig[provKey];
+                    const pCfg = providerConfig[provKey] ?? providerConfig.other;
                     const isToggling = togglingId === product.id;
                     const isDeleting = deletingId === product.id;
 
@@ -372,7 +374,7 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
                         <td className="px-4 py-3.5">
                           <div className="space-y-1">
                             <span className={clsx('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium', pCfg.badge)}>
-                              {provKey === 'smile_one' ? <Zap className="w-3 h-3" /> : <Package className="w-3 h-3" />}
+                              {provKey === 'manual' ? <Package className="w-3 h-3" /> : <Zap className="w-3 h-3" />}
                               {pCfg.label}
                             </span>
                             {product.provider_product_id && (
