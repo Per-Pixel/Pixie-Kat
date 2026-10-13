@@ -63,7 +63,7 @@ async function uploadImages() {
 const GAMES = [
   {
     slug: 'starlight',
-    name: "Hayabusa Starlight – Kitsune's Shadow",
+    name: "Hayabusa Starlight",
     subtitle: 'Mobile Legends Starlight Gifting',
     description:
       "Hayabusa's October Kitsune's Shadow Starlight skin delivered through Mobile Legends in-game gifting. " +
