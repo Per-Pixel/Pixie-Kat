@@ -1,0 +1,12 @@
+[
+  {
+    "source": "/api/<*>",
+    "target": "https://c4pmcbw502.execute-api.ap-south-1.amazonaws.com/prod/api/<*>",
+    "status": "200"
+  },
+  {
+    "source": "/<*>",
+    "target": "/maintenance.html",
+    "status": "200"
+  }
+]
