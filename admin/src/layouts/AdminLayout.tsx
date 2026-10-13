@@ -60,7 +60,7 @@ const AdminLayout: React.FC = () => {
                 onClick={() => navigate('/notifications')}
                 className="relative p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
               >
-                <Bell className="w-4.5 h-4.5 w-5 h-5" />
+                <Bell className="w-5 h-5" />
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-violet-500 rounded-full border border-white" />
               </button>
 
@@ -95,7 +95,7 @@ const AdminLayout: React.FC = () => {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 pb-24 md:p-6 lg:pb-6">
+        <main className="flex-1 overflow-y-auto p-4 pb-24 md:p-6 md:pb-24 lg:pb-6">
           <motion.div
             key={location.pathname}
             initial={{ opacity: 0, y: 8 }}

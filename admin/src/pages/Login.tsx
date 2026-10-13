@@ -54,15 +54,15 @@ const Login: React.FC = () => {
         transition={{ duration: 0.5 }}
         className="relative z-10 w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden"
       >
-        <div className="flex min-h-[600px]">
+        <div className="flex md:min-h-[600px]">
           {/* Left Panel - Login Form */}
-          <div className="flex-1 p-12 flex flex-col justify-center">
+          <div className="flex-1 p-6 sm:p-10 lg:p-12 flex flex-col justify-center">
             {/* Header */}
             <div className="mb-8">
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
                 Dashboard
               </h1>
-              <h2 className="text-4xl font-bold text-gray-900">
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
                 PixieKat
               </h2>
             </div>
@@ -171,7 +171,7 @@ const Login: React.FC = () => {
           </div>
 
           {/* Right Panel - Image */}
-          <div className="flex-1 bg-teal-500 flex items-center justify-center relative">
+          <div className="hidden md:flex flex-1 bg-teal-500 items-center justify-center relative">
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
