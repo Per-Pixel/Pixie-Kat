@@ -678,7 +678,7 @@ export const RewardsPanel = ({ profile }) => {
     <div className="space-y-7">
       <div>
         <p className="font-general text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-300">Account / Season</p>
-        <h1 className="mt-2 font-zentry text-4xl font-black uppercase leading-none text-blue-200 sm:text-5xl">Rewards &amp; Rank</h1>
+        <h1 className="mt-2 font-display text-4xl font-black uppercase leading-none text-blue-200 sm:text-5xl">Rewards &amp; Rank</h1>
         <p className="mt-3 font-circular-web text-sm text-blue-200/70">Your current place, active perks, and month-by-month results.</p>
       </div>
 
@@ -694,10 +694,10 @@ export const RewardsPanel = ({ profile }) => {
           </Link>
         </div>
         <div className="relative mt-7 flex flex-wrap items-center gap-5">
-          <LeaderboardAvatar avatarUrl={profile?.avatarUrl} frame={profile?.avatarFrame} sizeClass="size-20 sm:size-24" fallback={<span className="font-zentry text-3xl font-black">{profile?.initials}</span>} />
+          <LeaderboardAvatar avatarUrl={profile?.avatarUrl} frame={profile?.avatarFrame} sizeClass="size-20 sm:size-24" fallback={<span className="font-display text-3xl font-black">{profile?.initials}</span>} />
           <div className="min-w-0 flex-1">
             <p className="font-general text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-100/60">Current standing</p>
-            <p aria-live="polite" className="mt-1 break-words font-zentry text-4xl font-black uppercase leading-none text-blue-50 sm:text-6xl">
+            <p aria-live="polite" className="mt-1 break-words font-display text-4xl font-black uppercase leading-none text-blue-50 sm:text-6xl">
               {historyError ? "Unavailable" : history === null ? "Loading…" : current ? `#${current.rank}` : "Unranked this month"}
             </p>
             {current ? <p className="mt-2 font-circular-web text-sm text-blue-100/75">{current.order_count} completed order{Number(current.order_count) === 1 ? "" : "s"} this month</p> : null}
@@ -719,7 +719,7 @@ export const RewardsPanel = ({ profile }) => {
 
       {/* Perks */}
       <SectionCard>
-        <h2 className="font-zentry text-3xl font-black uppercase text-blue-200">Active perks</h2>
+        <h2 className="font-display text-3xl font-black uppercase text-blue-200">Active perks</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className={`relative border-l-2 p-4 pl-6 ${frame ? "border-violet-300 bg-violet-300/5" : "border-blue-200/15 bg-blue-100"}`}>
             <span aria-hidden="true" className={`absolute -left-1 top-6 size-2 ${frame ? "bg-violet-300" : "bg-blue-200/20"}`} />
@@ -738,7 +738,7 @@ export const RewardsPanel = ({ profile }) => {
 
       {/* Rank history */}
       <SectionCard>
-        <h2 className="font-zentry text-3xl font-black uppercase text-blue-200">Monthly rank history</h2>
+        <h2 className="font-display text-3xl font-black uppercase text-blue-200">Monthly rank history</h2>
         <p className="mt-2 font-circular-web text-sm text-blue-200/65">Your orders, places, and awarded tiers by month.</p>
         {historyError ? (
           <p role="alert" className="mt-5 font-circular-web text-sm text-red-600">{historyError}</p>
@@ -770,7 +770,7 @@ export const RewardsPanel = ({ profile }) => {
                   {history.map((row, index) => (
                     <tr key={row.period} className="transition-colors hover:bg-violet-300/5">
                       <td className="whitespace-nowrap p-4 font-general text-sm font-semibold text-blue-200">{periodLabel(row.period)}</td>
-                      <td className="p-4 font-zentry text-2xl font-black text-violet-300">{row.rank ? `#${row.rank}` : "—"}</td>
+                      <td className="p-4 font-display text-2xl font-black text-violet-300">{row.rank ? `#${row.rank}` : "—"}</td>
                       <td className="p-4 font-circular-web text-blue-200/75">{row.order_count ?? "—"}</td>
                       <td className="p-4"><RankTrend rank={row.rank} previousRank={history[index + 1]?.rank} /></td>
                       <td className="p-4 font-circular-web text-blue-200/75">{row.tier || "—"}</td>
@@ -789,7 +789,7 @@ export const RewardsPanel = ({ profile }) => {
                       <p className="font-general text-sm font-semibold text-blue-200">{periodLabel(row.period)}</p>
                       <div className="mt-2"><RankStatus finalized={row.finalized} /></div>
                     </div>
-                    <p className="font-zentry text-4xl font-black leading-none text-violet-300">{row.rank ? `#${row.rank}` : "—"}</p>
+                    <p className="font-display text-4xl font-black leading-none text-violet-300">{row.rank ? `#${row.rank}` : "—"}</p>
                   </div>
                   <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-blue-200/10 pt-3">
                     <div>

@@ -53,7 +53,7 @@ const Leaderboard = () => {
               <Trophy aria-hidden="true" className="size-5" />
               Monthly rank / {periodLabel(currentPeriod())}
             </div>
-            <h2 className="special-font mt-7 font-zentry text-5xl font-black uppercase leading-[0.88] sm:text-6xl lg:text-7xl">
+            <h2 className="special-font mt-7 font-display text-5xl font-black uppercase leading-[0.88] sm:text-6xl lg:text-7xl">
               The climb<br /><span className="text-yellow-300">is on.</span>
             </h2>
             <p className="mt-5 max-w-sm font-circular-web text-sm leading-relaxed text-blue-100/75">
@@ -75,14 +75,14 @@ const Leaderboard = () => {
                   <p className="mt-1 break-words font-general text-base font-semibold text-blue-50 sm:text-lg">{leader.display_name || "Player"}</p>
                   <p className="mt-1 font-circular-web text-xs text-blue-100/70">{leader.order_count} completed orders</p>
                 </div>
-                <span className="shrink-0 font-zentry text-5xl font-black leading-none text-yellow-300 sm:text-6xl">#1</span>
+                <span className="shrink-0 font-display text-5xl font-black leading-none text-yellow-300 sm:text-6xl">#1</span>
               </div>
               {rows.length > 1 ? (
                 <ol start={2} className="divide-y divide-white/10">
                   {rows.slice(1).map((row) => (
                     <li key={row.rank} value={row.rank} className="relative flex items-center gap-3 px-4 py-3 sm:px-5">
                       <span aria-hidden="true" className="absolute -left-1 top-1/2 size-2 -translate-y-1/2 bg-violet-300" />
-                      <span className="w-8 shrink-0 font-zentry text-2xl font-black text-blue-100/75">#{row.rank}</span>
+                      <span className="w-8 shrink-0 font-display text-2xl font-black text-blue-100/75">#{row.rank}</span>
                       <LeaderboardAvatar avatarUrl={row.avatar_url} frame={row.avatar_frame} sizeClass="size-8" />
                       <span className="min-w-0 flex-1 break-words font-general text-sm font-medium text-blue-50">{row.display_name || "Player"}</span>
                       <span className="shrink-0 text-right font-circular-web text-sm font-semibold text-blue-50">

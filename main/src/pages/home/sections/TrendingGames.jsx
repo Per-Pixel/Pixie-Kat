@@ -121,7 +121,7 @@ const TrendingGames = () => {
       <div className="relative z-0 mb-6 flex items-center justify-between">
         <h2
           className="text-2xl font-bold"
-          style={{ color: "#111", fontFamily: "zentry, sans-serif" }}
+          style={{ color: "#111", fontFamily: "display, sans-serif" }}
         >
           Trending Games
         </h2>

@@ -32,7 +32,7 @@ variants: 1080x1920 vertical cut (vertical.html, re-laid-out from the same frame
   - Paper `#dfdff0` (blue-50) · ink `#0E041D` (nav dark) · cream-on-dark `#F0F2FA`
     (blue-100) · violet `#5724ff` (violet-300, THE accent) · cyan `#4FB7DD` (blue-300, rare
     secondary) · acid `#edff66` (yellow-300, CTA only).
-  - Display: Zentry 900 uppercase; `<b>` letters use `font-feature-settings: "ss01"` (the
+  - Display: Display 900 uppercase; `<b>` letters use `font-feature-settings: "ss01"` (the
     site's `.special-font` alternates). Labels: General Sans uppercase, tracked +0.12em,
     ≥20px. Subline: Robert Medium.
   - CTA: rounded-full pill, yellow fill, ink label (site `Button.jsx`).
@@ -41,7 +41,7 @@ variants: 1080x1920 vertical cut (vertical.html, re-laid-out from the same frame
   (Hero.jsx) · currency names from the live `games` table · "TOP UP NOW".
 - **World plate (shared by Frames 2–5):** dark world, full-bleed key art BG with slow
   push, the official clip on a tilted 3D card with a 3px cream border and a violet bloom
-  behind, the title in Zentry cream at one edge, a General Sans currency chip (real icon +
+  behind, the title in Display cream at one edge, a General Sans currency chip (real icon +
   name), a 4-pip world counter bottom-right, and grain over everything. Title edge
   alternates L/R/L/R so the eye travels.
 - **Grade:** each world keeps its own colour; a shared violet-tinted shadow lift + grain ties
@@ -140,7 +140,7 @@ one move.
 - audio: words land in the silent hole; the riser 1.5–1.85s drives the push; DROP = full-frame at 1.85
 
 On screen: lavender paper with grain and a violet hairline grid drifting slowly. Two-line
-Zentry headline in ink, left-anchored at x=140, ~78% of the frame width: "THE ST<b>O</b>RE
+Display headline in ink, left-anchored at x=140, ~78% of the frame width: "THE ST<b>O</b>RE
 FOR" / "EVERY GAMER". The ss01 "O" counter is a mask with the MLBB clip already playing
 inside it, ringed by a 6px violet stroke. Top-left label: "PIXIEKAT — INSTANT GAMING
 CREDITS". Bottom-right: four hollow violet pips.
@@ -164,7 +164,7 @@ Why: hooks with the store's own promise and plants the portal device.
 - audio: drop sustains; the title slam lands on 2.31; the roll-dive crosses on the 3.70 downbeat
 
 On screen: BG Lancelot splash, DoF-soft, pushing 1.08→1.0. MG: the MLBB clip on a 3D card
-(rotateY −14°, rotateX 4°) right of centre. Left edge, Zentry cream ~150px: "MOBILE" /
+(rotateY −14°, rotateX 4°) right of centre. Left edge, Display cream ~150px: "MOBILE" /
 "LEGENDS". Chip: single diamond (cropped from `mlbb_diamonds.png`) + "DIAMONDS". Pip 1
 lights violet.
 
@@ -189,7 +189,7 @@ Why: first proof that the store covers your game, and it rides the drop.
 
 On screen: BG v2.6 wallpaper (crop out its logo), bright sky. MG: three cards standing in
 Z (the Genshin clip, the Hu Tao wish, the Raiden wish), with the near one blurred. FG: the
-Raiden cut-out moving fastest on parallax. Right edge, Zentry cream: "GENSHIN" /
+Raiden cut-out moving fastest on parallax. Right edge, Display cream: "GENSHIN" /
 "IMPACT". Chip: Genesis Crystal + "GENESIS CRYSTALS". Pip 2 lights.
 
 Motion: the roll resolves to level (90→0°, `power4.out`) while the flight decelerates into
@@ -212,7 +212,7 @@ Why: breadth. A completely different visual world, same store.
 
 On screen: BG Cai Yan splash with a warm gold grade. MG: the Token silhouette expands into
 a circular window with the HoK clip inside (the portal motif, round this time). Left edge,
-Zentry cream: "HONOR OF" / "KINGS". Chip: Token icon (128px, shown ≤110px) + "TOKENS".
+Display cream: "HONOR OF" / "KINGS". Chip: Token icon (128px, shown ≤110px) + "TOKENS".
 Pip 3 lights.
 
 Motion: the world rises into frame as the camera cranes down (`power2.inOut` → `power4.out`
@@ -236,7 +236,7 @@ Why: keeps the rhythm and keeps the portal readable on its third repetition.
 
 On screen: BG store BGMI card + the Kiaraa still, desaturated with a warm highlight. MG: the
 BGMI clip full-height on the right (top-left logo cropped out), with three stutter hard-cuts.
-Zentry cream "BGMI", huge (~40% width). Chip: typographic UC glyph + "UC". Pip 4 lights,
+Display cream "BGMI", huge (~40% width). Chip: typographic UC glyph + "UC". Pip 4 lights,
 then all four pips pulse together.
 
 Motion: the title slams with a 0.2s RGB-split burst that snaps clean. From 8.30 the clip
@@ -257,7 +257,7 @@ Why: the energy peak, then the breath before the reveal.
 - motion: zoom-out-workspace-reveal (adapted: ONE decelerating pull-back, `power4.out`) · coordinate-target-zoom (zoom-out variant) · theme-crossfade-morph (footage → ink ripple)
 - audio: the re-hit at 9.25 launches the pull-back; the ink ripple starts on 10.64 and completes by the 11.10 downbeat
 
-On screen: lavender paper returns. Giant Zentry "PIXIEKAT" (ss01 on the I's and A) spans
+On screen: lavender paper returns. Giant Display "PIXIEKAT" (ss01 on the I's and A) spans
 ~86% of the width. Each letter is a window: P/I = MLBB, X/I = Genshin, E/K = HoK,
 A/T = BGMI. Bottom-left label: "ONE STORE. EVERY WORLD." All four pips are filled.
 

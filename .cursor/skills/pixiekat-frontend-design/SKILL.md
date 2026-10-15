@@ -10,7 +10,7 @@ description: >-
 
 # Pixie-Kat Frontend Design
 
-Storefront design for **PixieKat** — instant gaming credits. Motion-heavy, esports/gaming energy: lavender paper surfaces, acid yellow CTAs, electric violet accents, oversized Zentry display type, clip-path storytelling.
+Storefront design for **PixieKat** — instant gaming credits. Motion-heavy, esports/gaming energy: lavender paper surfaces, acid yellow CTAs, electric violet accents, oversized Display headline type, clip-path storytelling.
 
 Admin (`admin/`) is a separate Inter utility UI — do not mix its patterns into the storefront.
 
@@ -27,7 +27,7 @@ Then **constrain every choice to this repo's visual language** below (and [visua
 
 | Surface | Look | Primary files |
 | --- | --- | --- |
-| Home / brand marketing | Light lavender (`blue-50`/`75`), Zentry headlines, yellow CTA, video + character layers | `main/src/pages/home/`, `main/index.css` utilities |
+| Home / brand marketing | Light lavender (`blue-50`/`75`), Display headlines, yellow CTA, video + character layers | `main/src/pages/home/`, `main/index.css` utilities |
 | Info pages | Dark shell (`PageWrapper` → `bg-dark-900`), neon gradient accents | `pricing`, `faq`, `support`, `how-it-works` |
 | Account / wallet | Soft glass cards, violet→lilac gradients (`#6c49ff` → `#8b6dff`) | `main/src/pages/account/`, `wallet/` |
 | Event microsites | Scoped CSS tokens (e.g. JJK paper/ink) — do not leak into global theme | `main/src/pages/events/*/` |
@@ -37,7 +37,7 @@ Then **constrain every choice to this repo's visual language** below (and [visua
 
 1. **Reuse tokens, don't invent parallel palettes.** Prefer `blue.*`, `violet.300`, `yellow.300` from `main/tailwind.config.js` and existing hex gradients already in components.
 2. **Typography roles stay fixed:**
-   - Display / hero: `font-zentry` + `.special-font` / `.hero-heading`
+   - Display / hero: `font-display` + `.special-font` / `.hero-heading`
    - UI labels / buttons: `font-general`, uppercase, small (`text-xs`)
    - Body / subcopy: `font-robert-regular` or `font-circular-web`
    - Default body stack: General Sans (CDN) on `body`
@@ -68,7 +68,7 @@ Then **constrain every choice to this repo's visual language** below (and [visua
 2. Read upstream `frontend-design` (+ `impeccable` if polishing/auditing).
 3. Skim [visual-language.md](visual-language.md) and the nearest existing section component.
 4. Implement with existing primitives (`Button`, `SlideTextButton`, `AnimatedTitle`, `PageWrapper`, clip-path utilities).
-5. Self-check: still looks like PixieKat (lavender/violet/yellow + Zentry), not cream-serif, purple-on-white SaaS, or generic dark dashboard.
+5. Self-check: still looks like PixieKat (lavender/violet/yellow + Display type), not cream-serif, purple-on-white SaaS, or generic dark dashboard.
 
 ## Key files to open first
 

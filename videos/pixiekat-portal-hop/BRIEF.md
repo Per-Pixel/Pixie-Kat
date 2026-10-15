@@ -19,7 +19,7 @@ what an incredible motion designer you are. Go all out. Use images and videos fr
 internet." The craft is the point; the storefront is the canvas.
 
 Chosen concept — **Portal Hop**: one unbroken camera move. Dive through the counter of a
-giant Zentry "O" into Mobile Legends, whip-pan through Genshin Impact, Honor of Kings and
+giant Display "O" into Mobile Legends, whip-pan through Genshin Impact, Honor of Kings and
 BGMI, with each world handing off by shape-match (MLBB diamond → Genesis Crystal → HoK
 Token → UC). Land on a lavender logo lockup with TOP UP NOW. Signature craft: match-cuts,
 3D depth/parallax, currency morphs, beat-locked hits.
@@ -27,7 +27,7 @@ Token → UC). Land on a lavender logo lockup with TOP UP NOW. Signature craft: 
 ## Assets
 
 - ../pixiekat-promo/assets/pk_logo.png — brand logo, end-card lockup.
-- ../pixiekat-promo/fonts/{zentry-regular,general,robert-medium}.woff2 — brand type.
+- ../pixiekat-promo/fonts/{display-regular,general,robert-medium}.woff2 — brand type.
 - ../pixiekat-promo/assets/mlbb_*.jpg, mlbb_diamonds.png — MLBB key art + diamond icon.
 - Supabase `public-media` store art for the live catalog (MLBB, Starlight, HoK, Genshin, BGMI).
 
@@ -50,4 +50,4 @@ Token → UC). Land on a lavender logo lockup with TOP UP NOW. Signature craft: 
 - Game art is copyrighted (Moonton, HoYoverse, Tencent/TiMi, Krafton). OK for site and
   organic social; flag before paid ads.
 - Brand tokens: lavender #dfdff0, ink #010101 / #0E041D, violet #5724ff, cyan #4FB7DD,
-  acid yellow CTA #edff66. Zentry display, General Sans UI, Robert body.
+  acid yellow CTA #edff66. Display display, General Sans UI, Robert body.

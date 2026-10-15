@@ -111,7 +111,7 @@ const ExclusiveOffers = () => {
       <div className="mb-6">
         <h2
           className="text-2xl font-bold uppercase text-black md:text-3xl"
-          style={{ fontFamily: "zentry, sans-serif" }}
+          style={{ fontFamily: "display, sans-serif" }}
         >
           Exclusive Offers
         </h2>

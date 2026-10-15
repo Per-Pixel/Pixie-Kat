@@ -45,7 +45,7 @@ const Contact = () => {
 
           <AnimatedTitle
             title="let&#39;s g<b>e</b>t you <br /> back <b>i</b>n <br /> the g<b>a</b>me."
-            className="special-font !md:text-[6.2rem] w-full font-zentry !text-5xl !font-black !leading-[.9]"
+            className="special-font !md:text-[6.2rem] w-full font-display !text-5xl !font-black !leading-[.9]"
           />
 
           <Button title="contact us" containerClass="mt-10 cursor-pointer" onClick={() => navigate("/support/contact-us")} />

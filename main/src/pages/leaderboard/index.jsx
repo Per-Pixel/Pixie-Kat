@@ -26,7 +26,7 @@ const formatSpent = (amount) => {
 
 const StageCompetitor = ({ row, prominent, finalized, showAmounts }) => (
   <article className={`relative flex min-w-0 flex-col justify-end border-t border-white/15 px-4 py-5 sm:px-7 md:min-h-[220px] md:border-l md:border-t-0 md:py-6 md:first:border-l-0 ${prominent ? "order-first bg-violet-300/25 md:order-none" : "bg-white/[0.02]"}`}>
-    <span aria-hidden="true" className="pointer-events-none absolute right-2 top-2 font-zentry text-[7rem] leading-none text-white/[0.05] sm:text-[9rem]">
+    <span aria-hidden="true" className="pointer-events-none absolute right-2 top-2 font-display text-[7rem] leading-none text-white/[0.05] sm:text-[9rem]">
       {String(row.rank).padStart(2, "0")}
     </span>
     <div className="relative z-10">
@@ -36,7 +36,7 @@ const StageCompetitor = ({ row, prominent, finalized, showAmounts }) => (
       </p>
       <div className="mt-2 flex items-end justify-between gap-2">
         <LeaderboardAvatar avatarUrl={row.avatar_url} frame={row.avatar_frame} sizeClass={prominent ? "size-16 sm:size-24" : "size-14 sm:size-16"} />
-        <span className={`font-zentry font-black leading-none ${prominent ? "text-7xl text-yellow-300 sm:text-8xl" : "text-6xl text-blue-50 sm:text-7xl"}`}>
+        <span className={`font-display font-black leading-none ${prominent ? "text-7xl text-yellow-300 sm:text-8xl" : "text-6xl text-blue-50 sm:text-7xl"}`}>
           #{row.rank}
         </span>
       </div>
@@ -87,7 +87,7 @@ const RankTicket = ({ userId, authLoading }) => {
           <p className="font-circular-web text-sm text-blue-200/70">Loading your rank…</p>
         ) : !userId ? (
           <>
-            <p className="font-zentry text-2xl font-black uppercase leading-none text-blue-200 sm:text-4xl">Your place awaits</p>
+            <p className="font-display text-2xl font-black uppercase leading-none text-blue-200 sm:text-4xl">Your place awaits</p>
             <Link to="/login" state={{ from: { pathname: "/leaderboard" } }} className="mt-2 inline-flex items-center gap-1 font-general text-xs font-semibold uppercase text-violet-300 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
               Sign in to see your rank <ArrowRight aria-hidden="true" className="size-4" />
             </Link>
@@ -96,7 +96,7 @@ const RankTicket = ({ userId, authLoading }) => {
           <p className="font-circular-web text-sm text-blue-200/70">Could not load your rank right now.</p>
         ) : rank ? (
           <>
-            <p className="font-zentry text-6xl font-black leading-none text-blue-200">#{rank.rank}</p>
+            <p className="font-display text-6xl font-black leading-none text-blue-200">#{rank.rank}</p>
             <p className="mt-1 font-circular-web text-sm text-blue-200/75">{orderLabel(rank.order_count)} this month</p>
             {rank.hidden ? (
               <p className="mt-2 font-circular-web text-xs font-medium text-violet-300">Private rank · hidden from public standings</p>
@@ -104,7 +104,7 @@ const RankTicket = ({ userId, authLoading }) => {
           </>
         ) : (
           <>
-            <p className="font-zentry text-4xl font-black uppercase leading-none text-blue-200">Not ranked yet</p>
+            <p className="font-display text-4xl font-black uppercase leading-none text-blue-200">Not ranked yet</p>
             <p className="mt-2 font-circular-web text-sm text-blue-200/70">A completed order gets you on the board.</p>
           </>
         )}
@@ -134,7 +134,7 @@ const StandingsRows = ({ rows, showAmounts, label }) => (
         <tbody className="divide-y divide-blue-200/10">
           {rows.map((row) => (
             <tr key={row.rank} className="transition-colors hover:bg-violet-300/5">
-              <td className="px-5 py-4 font-zentry text-3xl font-black text-violet-300">#{row.rank}</td>
+              <td className="px-5 py-4 font-display text-3xl font-black text-violet-300">#{row.rank}</td>
               <td className="px-5 py-4">
                 <div className="flex min-w-0 flex-wrap items-center gap-3">
                   <LeaderboardAvatar avatarUrl={row.avatar_url} frame={row.avatar_frame} sizeClass="size-9" />
@@ -154,7 +154,7 @@ const StandingsRows = ({ rows, showAmounts, label }) => (
         <li key={row.rank} value={row.rank} className="relative flex items-start gap-3 border-b border-blue-200/10 py-4 pl-4 last:border-b-0">
           <span aria-hidden="true" className="absolute -left-1 top-8 size-2 bg-violet-300" />
           <div className="flex shrink-0 flex-col items-center gap-1">
-            <span className="font-zentry text-2xl font-black leading-none text-violet-300">#{row.rank}</span>
+            <span className="font-display text-2xl font-black leading-none text-violet-300">#{row.rank}</span>
             <LeaderboardAvatar avatarUrl={row.avatar_url} frame={row.avatar_frame} sizeClass="size-8" />
           </div>
           <div className="min-w-0 flex-1">
@@ -175,7 +175,7 @@ const RewardBand = ({ tier }) => (
   <li className="relative border-b border-blue-200/10 py-5 pl-7 last:border-b-0 sm:pl-9">
     <span aria-hidden="true" className="absolute -left-1 top-8 size-2.5 bg-violet-300" />
     <div className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
-      <h3 className="font-zentry text-3xl font-black uppercase text-blue-200 sm:text-4xl">{tier.label}</h3>
+      <h3 className="font-display text-3xl font-black uppercase text-blue-200 sm:text-4xl">{tier.label}</h3>
       <p className="font-general text-xs font-semibold uppercase tracking-wide text-violet-300">
         Rank #{tier.min_rank}{tier.max_rank !== tier.min_rank ? `–#${tier.max_rank}` : ""}
       </p>
@@ -269,7 +269,7 @@ const LeaderboardPage = () => {
           </div>
           <div className="mt-6 grid items-end gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,0.5fr)] lg:gap-8">
             <div>
-              <h1 className="special-font font-zentry text-5xl font-black uppercase leading-[0.9] sm:text-7xl md:text-8xl lg:text-[6rem]">
+              <h1 className="special-font font-display text-5xl font-black uppercase leading-[0.9] sm:text-7xl md:text-8xl lg:text-[6rem]">
                 <span className="sm:hidden">The </span><span className="hidden sm:inline">The monthly </span><span className="text-violet-300 sm:block">climb.</span>
               </h1>
               <p className="mt-4 max-w-xl font-circular-web text-base leading-relaxed text-blue-200/75">
@@ -286,7 +286,7 @@ const LeaderboardPage = () => {
           <div className="relative z-10 flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="font-general text-[10px] font-semibold uppercase tracking-[0.22em] text-yellow-300">{selectedLabel} / {status}</p>
-              <h2 className="mt-2 font-zentry text-2xl font-black uppercase text-blue-50 sm:text-4xl">Top of the board</h2>
+              <h2 className="mt-2 font-display text-2xl font-black uppercase text-blue-50 sm:text-4xl">Top of the board</h2>
             </div>
             {ready && rows.length > 0 ? <p className="hidden font-circular-web text-sm text-blue-100/70 sm:block">Most completed orders this period</p> : null}
           </div>
@@ -304,13 +304,13 @@ const LeaderboardPage = () => {
           ) : board?.enabled === false ? (
             <div className="relative z-10 flex min-h-64 flex-col items-start justify-center gap-3">
               <Trophy aria-hidden="true" className="size-9 text-yellow-300" />
-              <p className="font-zentry text-3xl font-black uppercase text-blue-50">The leaderboard is paused</p>
+              <p className="font-display text-3xl font-black uppercase text-blue-50">The leaderboard is paused</p>
               <p className="font-circular-web text-sm text-blue-100/70">Standings are not available right now.</p>
             </div>
           ) : rows.length === 0 ? (
             <div className="relative z-10 flex min-h-64 flex-col items-start justify-center gap-4">
               <Trophy aria-hidden="true" className="size-9 text-yellow-300" />
-              <p className="font-zentry text-3xl font-black uppercase text-blue-50">{board.finalized ? "No final standings" : "The board is open"}</p>
+              <p className="font-display text-3xl font-black uppercase text-blue-50">{board.finalized ? "No final standings" : "The board is open"}</p>
               <p className="font-circular-web text-sm text-blue-100/70">{board.finalized ? `No completed orders were recorded in ${selectedLabel}.` : "No completed orders in this period yet."}</p>
               <Link to="/games" className="inline-flex min-h-11 items-center gap-2 font-general text-xs font-semibold uppercase text-yellow-300 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-300">
                 Browse games <ArrowRight aria-hidden="true" className="size-4" />
@@ -343,7 +343,7 @@ const LeaderboardPage = () => {
               <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <p className="font-general text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-300">The rank rail</p>
-                  <h2 id="standings-title" className="mt-2 font-zentry text-4xl font-black uppercase sm:text-5xl">The standings</h2>
+                  <h2 id="standings-title" className="mt-2 font-display text-4xl font-black uppercase sm:text-5xl">The standings</h2>
                 </div>
                 <p className="font-circular-web text-sm text-blue-200/65">Top {rows.length} players shown</p>
               </div>
@@ -357,7 +357,7 @@ const LeaderboardPage = () => {
               <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
                 <div>
                   <p className="font-general text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-300">Where the climb leads</p>
-                  <h2 id="rewards-title" className="mt-2 font-zentry text-4xl font-black uppercase sm:text-5xl">Monthly rewards</h2>
+                  <h2 id="rewards-title" className="mt-2 font-display text-4xl font-black uppercase sm:text-5xl">Monthly rewards</h2>
                 </div>
                 <p className="max-w-md font-circular-web text-sm leading-relaxed text-blue-200/70">
                   {ready && board.finalized

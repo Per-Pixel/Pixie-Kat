@@ -44,8 +44,8 @@ html {
   }
 
   @font-face {
-    font-family: "zentry";
-    src: url("/fonts/zentry-regular.woff2") format("woff2");
+    font-family: "display";
+    src: url("/fonts/display-regular.woff2") format("woff2");
     font-display: swap;
   }
 }
@@ -129,12 +129,12 @@ html {
   }
 
   .special-font b {
-    font-family: "Zentry";
+    font-family: "display";
     font-feature-settings: "ss01" on;
   }
 
   .hero-heading {
-    @apply uppercase font-zentry font-black text-5xl sm:right-10 sm:text-7xl md:text-9xl lg:text-[12rem];
+    @apply uppercase font-display font-black text-5xl sm:right-10 sm:text-7xl md:text-9xl lg:text-[12rem];
   }
 
   .about-subtext {
@@ -151,7 +151,7 @@ html {
   }
 
   .animated-word {
-    @apply special-font font-zentry font-black opacity-0;
+    @apply special-font font-display font-black opacity-0;
     transform: translate3d(10px, 51px, -60px) rotateY(60deg) rotateX(-40deg);
     transform-origin: 50% 50% -150px !important;
     will-change: opacity, transform;
@@ -166,7 +166,7 @@ html {
   }
 
   .bento-title {
-    @apply uppercase md:text-6xl text-4xl font-black font-zentry;
+    @apply uppercase md:text-6xl text-4xl font-black font-display;
   }
 
   .story-img-container {
@@ -1373,7 +1373,7 @@ html {
 }
 
 .layer-menu__brand {
-  font-family: zentry, sans-serif;
+  font-family: display, sans-serif;
   font-size: 20px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1524,7 +1524,7 @@ html {
 
 .layer-menu__label {
   display: block;
-  font-family: zentry, sans-serif;
+  font-family: display, sans-serif;
   font-size: clamp(72px, 8.5vw, 138px);
   line-height: 0.88;
   text-transform: uppercase;
@@ -1594,7 +1594,7 @@ html {
 
 .layer-menu__card-title {
   margin: 0 0 8px;
-  font-family: zentry, sans-serif;
+  font-family: display, sans-serif;
   font-size: clamp(22px, 2vw, 34px);
   line-height: 1;
   text-transform: uppercase;
