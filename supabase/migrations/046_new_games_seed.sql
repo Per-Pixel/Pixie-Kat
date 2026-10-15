@@ -7,7 +7,7 @@
 
 insert into games (id, slug, name, subtitle, description, image_url, banner_url, category, currency_label, provider, status, sort_order, how_to_steps, instructions, metadata)
 values
-  ('e02d8649-b7ba-4b33-aa57-d1d07abb0cbb','starlight','Hayabusa Starlight – Kitsune''s Shadow','Mobile Legends Starlight Gifting',
+  ('e02d8649-b7ba-4b33-aa57-d1d07abb0cbb','starlight','Hayabusa Starlight','Mobile Legends Starlight Gifting',
    'Hayabusa''s October Kitsune''s Shadow Starlight skin delivered through Mobile Legends in-game gifting. Choose Normal or Premium Starlight and enter the correct Mobile Legends User ID and Zone ID. This is a gifting order, not an instant top-up — our team assigns a gifting account after payment approval, and the 168-hour in-game friendship timer starts only after the follow is verified.',
    'img/games/starlight.jpg','img/games/starlight-banner.jpg','MOBA','Starlight','manual','active',10,
    '[{"title":"Enter Account Details","description":"Place the order with the correct Mobile Legends User ID and Zone ID."},{"title":"Receive Gifting Account","description":"After payment approval, our team will custom-assign and share the gifting account."},{"title":"Follow and Confirm","description":"Follow the assigned account inside Mobile Legends and confirm it on your order page."},{"title":"Wait for Eligibility","description":"The 168-hour friendship wait starts only after our team verifies your follow."},{"title":"Starlight Delivery","description":"Your selected Normal or Premium Starlight will be gifted after eligibility is complete."}]'::jsonb,

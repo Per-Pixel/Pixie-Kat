@@ -564,33 +564,23 @@ const homeGraphics: Array<{
 ];
 
 const fallbackTrending = [
-  ['Black Myth Wukong', '/img/hero/game-hero-card.gif'],
-  ['Alan Wake 2', '/img/games/mobile-legends.webp'],
-  ['Mortal Kombat 11', '/img/hero/game-pubg-card.webp'],
-  ['Spider-Man 2', '/img/hero/game-genshin-card.webp'],
-  ['The Witcher 3', '/img/games/honor-of-kings.jpg'],
+  ['Black Myth Wukong', '/img/trending/black-myth-wukong.webp'],
+  ['Alan Wake 2', '/img/trending/alan-wake-2.webp'],
+  ['Mortal Kombat 11', '/img/trending/mortal-kombat-11.webp'],
+  ['Spider-Man 2', '/img/trending/spider-man-2.webp'],
+  ['The Witcher 3', '/img/trending/witcher-3.webp'],
   ['Honor of Kings', '/img/games/honor-of-kings.jpg'],
 ];
 
 const fallbackExclusive = [
-  ['Mobile Legend Bang Bang', '/img/hero/game-mlbb-card.webp'],
-  ['PUBG Mobile Top Up', '/img/hero/game-pubg-card.webp'],
-  ['Genshin Impact Genesis Crystals', '/img/hero/game-genshin-card.webp'],
-  ['Honor of Kings Tokens', '/img/games/honor-of-kings.jpg'],
+  ['Hayabusa Starlight Pass', '/img/games/starlight.jpg'],
   ['Mobile Legends Diamonds', '/img/games/mobile-legends.webp'],
-  ['MLBB Leomord Special Pack', '/img/promotion/leomord.webp'],
-  ['Magic Chess: Go Go Bundle', '/img/promotion/eternal.webp'],
-  ['Starlight Pass Top Up', '/img/promotion/starlight.webp'],
-  ['Jinx Champion Bundle', '/img/hero/Jinx.webp'],
-  ['Faze Clan Promo Pack', '/img/hero/Faze.webp'],
-  ['Melissa Character Pack', '/img/hero/melissa.webp'],
-  ['Hero Special Top Up', '/img/hero/game-hero-card.gif'],
-  ['Battle Arena Premium Pack', '/img/loading/1.jpg'],
-  ['Dragon Quest Crystals', '/img/loading/2.jpg'],
-  ['Fantasy Realm Credits', '/img/loading/3.jpg'],
-  ['Shadow Warriors Bundle', '/img/loading/4.jpg'],
-  ['Cyber Strike Coin Pack', '/img/loading/6.jpg'],
-  ['Valor Points Top Up', '/img/loading/7.jpg'],
+  ['Honkai: Star Rail Top Up', '/img/games/honkai-star-rail.webp'],
+  ['Honor of Kings Tokens', '/img/games/honor-of-kings.jpg'],
+  ['Magic Chess: Go Go Bundle', '/img/games/magic-chess-go-go.jpg'],
+  ['Genshin Impact Genesis Crystals', '/img/hero/game-genshin-card.webp'],
+  ['PUBG Mobile Top Up', '/img/games/pubg-global.jpg'],
+  ['BGMI UC Top Up', '/img/games/bgmi-not-instant.webp'],
 ];
 
 type GraphicInput = Omit<SiteGraphicPlacement, 'url' | 'source'> & {

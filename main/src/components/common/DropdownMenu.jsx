@@ -46,7 +46,7 @@ const menuLayers = [
     title: 'Your Cart',
     description: 'Stack top-ups for any account, pay once',
     path: '/cart',
-    image: publicMediaUrl('/videos/feature-4.mp4'),
+    image: publicMediaUrl('/videos/feature-6.mp4'),
     poster: publicMediaUrl('/img/loading/5.jpg'),
     buttonText: 'Open Cart',
   },

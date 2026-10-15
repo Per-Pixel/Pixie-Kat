@@ -82,6 +82,7 @@ const txLabels: Record<string, string> = {
 const Wallets: React.FC = () => {
   const navigate = useNavigate();
   const [wallets, setWallets] = useState<WalletProfile[]>([]);
+  const [txProfiles, setTxProfiles] = useState<WalletProfile[]>([]);
   const [transactions, setTransactions] = useState<WalletTx[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -108,10 +109,23 @@ const Wallets: React.FC = () => {
     if (profilesRes.error) {
       setError(profilesRes.error.message || 'Failed to load wallets');
       setWallets([]);
+      setTxProfiles([]);
       setTransactions([]);
     } else {
+      const txRows = (txRes.data as WalletTx[]) ?? [];
+      // Names for the activity feed are resolved across every profile —
+      // the balances list intentionally excludes admin/support wallets,
+      // but their transactions still appear in the feed.
+      const txUserIds = [...new Set(txRows.map((tx) => tx.user_id))];
+      const { data: txProfileRows } = txUserIds.length
+        ? await supabase
+            .from('profiles')
+            .select('id, name, email, role, status, wallet_balance, updated_at')
+            .in('id', txUserIds)
+        : { data: [] };
       setWallets((profilesRes.data as WalletProfile[]) ?? []);
-      setTransactions((txRes.data as WalletTx[]) ?? []);
+      setTxProfiles((txProfileRows as WalletProfile[]) ?? []);
+      setTransactions(txRows);
     }
 
     setLoading(false);
@@ -149,8 +163,10 @@ const Wallets: React.FC = () => {
   }, []);
 
   const profileById = useMemo(() => {
-    return new Map(wallets.map((profile) => [profile.id, profile]));
-  }, [wallets]);
+    const map = new Map(wallets.map((profile) => [profile.id, profile]));
+    for (const profile of txProfiles) map.set(profile.id, profile);
+    return map;
+  }, [wallets, txProfiles]);
 
   const filteredWallets = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -351,7 +367,7 @@ const Wallets: React.FC = () => {
                   <button
                     key={tx.id}
                     type="button"
-                    onClick={() => profile && navigate(`/users/${profile.id}`)}
+                    onClick={() => navigate(`/users/${tx.user_id}`)}
                     className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition-colors hover:bg-gray-50"
                   >
                     <div className="flex min-w-0 items-center gap-3">
@@ -361,8 +377,8 @@ const Wallets: React.FC = () => {
                         {positive ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-gray-900">
-                          {profile?.name ?? 'Unknown account'}
+                        <p className="truncate text-sm font-medium text-gray-900" title={tx.user_id}>
+                          {profile?.name ?? `Unknown account · ${tx.user_id.slice(0, 8)}`}
                         </p>
                         <p className="truncate text-xs text-gray-500">
                           {txLabels[tx.type] ?? tx.type}

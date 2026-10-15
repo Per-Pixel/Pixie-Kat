@@ -96,13 +96,23 @@ const Orders: React.FC = () => {
   const fetchOrders = async () => {
     setLoading(true);
     setError(null);
-    const { data, error: ordersError } = await supabase
-      .from('orders')
-      .select(`id, user_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, razorpay_order_id, metadata, created_at, updated_at, profiles:user_id (id, name, email)`)
-      .order('created_at', { ascending: false })
-      .limit(500);
-    if (ordersError) { setError(ordersError.message); setOrders([]); }
-    else { setOrders((data as OrderRow[]) ?? []); }
+    // Page through the full table — a plain .limit() silently drops the
+    // oldest orders once the store passes the cap.
+    const PAGE = 1000;
+    const all: OrderRow[] = [];
+    let failed: string | null = null;
+    for (let from = 0; from < 20000; from += PAGE) {
+      const { data, error: ordersError } = await supabase
+        .from('orders')
+        .select(`id, user_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, razorpay_order_id, metadata, created_at, updated_at, profiles:user_id (id, name, email)`)
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE - 1);
+      if (ordersError) { failed = ordersError.message; break; }
+      all.push(...((data as OrderRow[]) ?? []));
+      if (!data || data.length < PAGE) break;
+    }
+    if (failed) { setError(failed); setOrders([]); }
+    else { setOrders(all); }
     setLoading(false);
   };
 

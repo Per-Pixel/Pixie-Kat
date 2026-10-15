@@ -8,77 +8,44 @@ import { useJjkCheaperPlacement } from "../../../hooks/useJjkCheaperPlacement";
 
 const fallbackExclusiveOffers = [
   {
-    title: "Mobile Legend Bang Bang",
-    image: publicMediaUrl("/img/hero/game-mlbb-card.webp"),
-  },
-  {
-    title: "PUBG Mobile Top Up",
-    image: publicMediaUrl("/img/hero/game-pubg-card.webp"),
-  },
-  {
-    title: "Genshin Impact Genesis Crystals",
-    image: publicMediaUrl("/img/hero/game-genshin-card.webp"),
-    flag: "🇮🇳",
-  },
-  {
-    title: "Honor of Kings Tokens",
-    image: publicMediaUrl("/img/games/honor-of-kings.jpg"),
+    title: "Hayabusa Starlight Pass",
+    image: publicMediaUrl("/img/games/starlight.jpg"),
+    link: "/games/starlight",
   },
   {
     title: "Mobile Legends Diamonds",
     image: publicMediaUrl("/img/games/mobile-legends.webp"),
+    link: "/games/mobile-legends",
   },
   {
-    title: "MLBB Leomord Special Pack",
-    image: publicMediaUrl("/img/promotion/leomord.webp"),
+    title: "Honkai: Star Rail Top Up",
+    image: publicMediaUrl("/img/games/honkai-star-rail.webp"),
+    link: "/games/honkai-star-rail",
+  },
+  {
+    title: "Honor of Kings Tokens",
+    image: publicMediaUrl("/img/games/honor-of-kings.jpg"),
+    link: "/games/honor-of-kings",
   },
   {
     title: "Magic Chess: Go Go Bundle",
-    image: publicMediaUrl("/img/promotion/eternal.webp"),
+    image: publicMediaUrl("/img/games/magic-chess-go-go.jpg"),
+    link: "/games/magic-chess-go-go",
   },
   {
-    title: "Starlight Pass Top Up",
-    image: publicMediaUrl("/img/promotion/starlight.webp"),
+    title: "Genshin Impact Genesis Crystals",
+    image: publicMediaUrl("/img/hero/game-genshin-card.webp"),
+    link: "/games/genshin-impact",
   },
   {
-    title: "Jinx Champion Bundle",
-    image: publicMediaUrl("/img/hero/Jinx.webp"),
+    title: "PUBG Mobile Top Up",
+    image: publicMediaUrl("/img/games/pubg-global.jpg"),
+    link: "/games/pubg-global",
   },
   {
-    title: "Faze Clan Promo Pack",
-    image: publicMediaUrl("/img/hero/Faze.webp"),
-  },
-  {
-    title: "Melissa Character Pack",
-    image: publicMediaUrl("/img/hero/melissa.webp"),
-  },
-  {
-    title: "Hero Special Top Up",
-    image: publicMediaUrl("/img/hero/game-hero-card.gif"),
-  },
-  {
-    title: "Battle Arena Premium Pack",
-    image: publicMediaUrl("/img/loading/1.jpg"),
-  },
-  {
-    title: "Dragon Quest Crystals",
-    image: publicMediaUrl("/img/loading/2.jpg"),
-  },
-  {
-    title: "Fantasy Realm Credits",
-    image: publicMediaUrl("/img/loading/3.jpg"),
-  },
-  {
-    title: "Shadow Warriors Bundle",
-    image: publicMediaUrl("/img/loading/4.jpg"),
-  },
-  {
-    title: "Cyber Strike Coin Pack",
-    image: publicMediaUrl("/img/loading/6.jpg"),
-  },
-  {
-    title: "Valor Points Top Up",
-    image: publicMediaUrl("/img/loading/7.jpg"),
+    title: "BGMI UC Top Up",
+    image: publicMediaUrl("/img/games/bgmi-not-instant.webp"),
+    link: "/games/bgmi",
   },
 ];
 
@@ -88,7 +55,7 @@ const ExclusiveOfferCard = ({ title, image, flag, link }) => {
   return (
     <div
       onClick={() => navigate(link ?? "/games")}
-      className="group relative cursor-pointer overflow-hidden rounded-xl"
+      className="group relative cursor-pointer overflow-hidden rounded-xl border-[3px] border-black"
       style={{ aspectRatio: "15 / 16" }}
     >
       <img
@@ -102,15 +69,17 @@ const ExclusiveOfferCard = ({ title, image, flag, link }) => {
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
 
-      <span className="absolute left-2 top-2 rounded-full bg-lime-400 px-2 py-0.5 font-general text-[10px] font-bold uppercase tracking-wide text-black">
+      <span className="absolute left-2 top-2 rounded-full bg-yellow-300 px-2 py-0.5 font-general text-[10px] font-bold uppercase tracking-wide text-black">
         Promo
       </span>
 
       {flag && (
-        <span className="absolute right-2 top-2 text-sm leading-none">{flag}</span>
+        <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 font-general text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur-sm">
+          {flag}
+        </span>
       )}
 
-      <p className="absolute inset-x-2 bottom-2 line-clamp-2 font-general text-[11px] font-semibold leading-snug text-white">
+      <p className="absolute inset-x-2.5 bottom-2.5 line-clamp-2 font-general text-xs font-semibold leading-snug text-white">
         {title}
       </p>
     </div>
@@ -128,7 +97,7 @@ const ExclusiveOffers = () => {
           title: item.title,
           image: item.image_url || publicMediaUrl("/img/games/mobile-legends.webp"),
           flag: item.flag ?? undefined,
-          link: item.link_url || (item.game_id ? `/games/${item.game_id}` : "/games"),
+          link: item.link_url || "/games",
         }))
       : fallbackExclusiveOffers.map((offer, index) => ({
           ...offer,
@@ -146,12 +115,12 @@ const ExclusiveOffers = () => {
         >
           Exclusive Offers
         </h2>
-        <p className="mt-1 font-general text-sm text-lime-600">
+        <p className="mt-1 font-general text-sm text-violet-300">
           Limited time deals on featured products — grab them before they&apos;re gone!
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4 md:gap-4 lg:grid-cols-6">
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 md:gap-4">
         {offers.map((offer) => (
           <ExclusiveOfferCard key={`${offer.title}-${offer.link || ""}`} {...offer} />
         ))}
