@@ -573,24 +573,14 @@ const fallbackTrending = [
 ];
 
 const fallbackExclusive = [
-  ['Starlight Pass Top Up', '/img/promotion/starlight.webp'],
-  ['Mobile Legend Bang Bang', '/img/hero/game-mlbb-card.webp'],
+  ['Hayabusa Starlight Pass', '/img/games/starlight.jpg'],
   ['Mobile Legends Diamonds', '/img/games/mobile-legends.webp'],
-  ['MLBB Leomord Special Pack', '/img/promotion/leomord.webp'],
-  ['Melissa Character Pack', '/img/hero/melissa.webp'],
+  ['Honkai: Star Rail Top Up', '/img/games/honkai-star-rail.webp'],
   ['Honor of Kings Tokens', '/img/games/honor-of-kings.jpg'],
-  ['Magic Chess: Go Go Bundle', '/img/promotion/eternal.webp'],
-  ['PUBG Mobile Top Up', '/img/hero/game-pubg-card.webp'],
+  ['Magic Chess: Go Go Bundle', '/img/games/magic-chess-go-go.jpg'],
   ['Genshin Impact Genesis Crystals', '/img/hero/game-genshin-card.webp'],
-  ['Jinx Champion Bundle', '/img/hero/Jinx.webp'],
-  ['Faze Clan Promo Pack', '/img/hero/Faze.webp'],
-  ['Hero Special Top Up', '/img/hero/game-hero-card.gif'],
-  ['Battle Arena Premium Pack', '/img/loading/1.jpg'],
-  ['Dragon Quest Crystals', '/img/loading/2.jpg'],
-  ['Fantasy Realm Credits', '/img/loading/3.jpg'],
-  ['Shadow Warriors Bundle', '/img/loading/4.jpg'],
-  ['Cyber Strike Coin Pack', '/img/loading/6.jpg'],
-  ['Valor Points Top Up', '/img/loading/7.jpg'],
+  ['PUBG Mobile Top Up', '/img/games/pubg-global.jpg'],
+  ['BGMI UC Top Up', '/img/games/bgmi-not-instant.webp'],
 ];
 
 type GraphicInput = Omit<SiteGraphicPlacement, 'url' | 'source'> & {
