@@ -120,7 +120,7 @@ const ExclusiveOffers = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 md:gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 md:gap-4 lg:grid-cols-6">
         {offers.map((offer) => (
           <ExclusiveOfferCard key={`${offer.title}-${offer.link || ""}`} {...offer} />
         ))}
