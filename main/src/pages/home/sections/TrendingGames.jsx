@@ -13,7 +13,7 @@ const fallbackTrendingGames = [
     oldPrice: 699,
     price: 594,
     discount: 15,
-    image: publicMediaUrl("/img/hero/game-hero-card.gif"),
+    image: publicMediaUrl("/img/trending/black-myth-wukong.webp"),
   },
   {
     title: "Alan Wake 2",
@@ -21,7 +21,7 @@ const fallbackTrendingGames = [
     oldPrice: 499,
     price: 399,
     discount: 20,
-    image: publicMediaUrl("/img/games/mobile-legends.webp"),
+    image: publicMediaUrl("/img/trending/alan-wake-2.webp"),
   },
   {
     title: "Mortal Kombat 11",
@@ -29,7 +29,7 @@ const fallbackTrendingGames = [
     oldPrice: 629,
     price: 503,
     discount: 20,
-    image: publicMediaUrl("/img/hero/game-pubg-card.webp"),
+    image: publicMediaUrl("/img/trending/mortal-kombat-11.webp"),
   },
   {
     title: "Spider-Man 2",
@@ -37,7 +37,7 @@ const fallbackTrendingGames = [
     oldPrice: 599,
     price: 419,
     discount: 30,
-    image: publicMediaUrl("/img/hero/game-genshin-card.webp"),
+    image: publicMediaUrl("/img/trending/spider-man-2.webp"),
   },
   {
     title: "The Witcher 3",
@@ -45,7 +45,7 @@ const fallbackTrendingGames = [
     oldPrice: 449,
     price: 359,
     discount: 20,
-    image: publicMediaUrl("/img/games/honor-of-kings.jpg"),
+    image: publicMediaUrl("/img/trending/witcher-3.webp"),
   },
   {
     title: "Honor of Kings",
@@ -73,7 +73,7 @@ const TrendingGames = () => {
           price: item.price ?? 0,
           discount: item.discount_pct ?? 0,
           image: item.image_url || publicMediaUrl("/img/games/mobile-legends.webp"),
-          link: item.link_url || (item.game_id ? `/games/${item.game_id}` : "/games"),
+          link: item.link_url || "/games",
         }))
       : fallbackTrendingGames.map((game, index) => ({
           ...game,
