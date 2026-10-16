@@ -187,7 +187,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen overflow-hidden" style={{ backgroundColor: '#0a0a0a' }}>
+    <div className="relative flex min-h-svh overflow-hidden" style={{ backgroundColor: '#0a0a0a' }}>
 
       {/* ─── Desktop left panel ─────────────────────────────────────────── */}
       <div className="hidden w-1/2 items-center justify-center p-12 lg:flex" style={{ background: 'linear-gradient(135deg, #DFDFF0 0%, #c8c8e8 100%)' }}>
