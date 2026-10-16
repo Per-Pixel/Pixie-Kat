@@ -59,6 +59,7 @@
 ### Fixes
 - Admin Wallets activity feed: transactions owned by admin/support wallets (or any profile outside the user/reseller list) rendered "Unknown account" and were unclickable — names now resolve across all profiles, unresolved rows show the short user id, and every row opens the owner's user page. Orders Management pages through the whole `orders` table instead of silently dropping everything past the first 500 rows.
 - Restore `010_security_remediation.sql` artifacts that were never applied to prod (`052_restore_010_security_bits.sql`): `is_service_role()` (called by live `refresh_user_perks`/`protect_profile_updates` bodies — leaderboard finalize would error), `orders.idempotency_key` + unique index (the `/api/place-order` idempotency path would 500), `protect_order_updates()`, and the wallet-balance/order-product NOT VALID constraints. The 010 `protect_*_on_update` triggers remain unarmed — prod has always run without them.
+- Fix the mobile auth screen: the storefront's fixed bottom nav (and top navbar + floating action buttons) rendered over `/login`, `/register`, and `/reset-password`, hiding the Sign up/Sign in link and the banner Back button — auth routes are now chrome-free, and the page uses `min-h-svh` so mobile browser toolbars can't push the layout off-screen.
 
 ### Repository
 - Remove scratch artifacts (`Test/` harness, temp backup/seed scripts, stale AWS log, stray screenshot) and stop tracking `admin/.env`.
@@ -75,6 +76,7 @@
 - Add `/api/razorpay/verify-cart-payment`, `/api/aluu/check-cart-payment`, and Razorpay/Aluu webhook fallbacks that resolve and confirm whole payment groups.
 - Add `place_cart_orders` and `place_wallet_cart` RPCs (migration `036_cart_checkout.sql`) for atomic multi-order placement and a single wallet debit.
 - Temporarily disable online payment gateways behind `ONLINE_PAYMENTS_ENABLED` in `main/server/index.js` — the configured Razorpay key is a test key, so fake payments passed signature verification and triggered real fulfillment. `/api/place-order`, `/api/cart-checkout`, and `/api/membership/purchase` accept wallet only and `/api/wallet/topup` is closed; storefront checkout, cart, and Add Money offer Pixie Wallet only. Verify/webhook endpoints stay live so genuinely-paid pending orders still settle.
+- Add Aluu `createCryptoOrder` client (`main/server/aluu.js`) for the non-custodial USDT endpoint (`POST /api/create-crypto-order`, TRC20/BEP20/ERC20/POLYGON): takes USD (`amountUsd`), optional `network` lock (omitted = customer picks), and returns per-network nudged `options[].amount` for reconciliation plus `requestedAmount`; `checkOrderStatus` now surfaces `network`/`cryptoTxid`. Not yet wired into checkout.
 
 ### Tests
 - Add server unit tests for Aluu order creation, status checks, and webhook signature verification.

@@ -1,48 +1,33 @@
 # Last Session Summary
 
-## "zentry" scrub → renamed to "display" (2026-10-15)
+## Auth screen mobile chrome fix (2026-10-16)
 
-- No literal `zentry.com` existed — every occurrence was the leftover
-  Zentry-template display font (the site descends from the zentry.com
-  awwwards clone). Renamed the family instead of deleting it so the
-  site's look is unchanged:
-  - `main/public/fonts/zentry-regular.woff2` → `display-regular.woff2`
-    (same for `videos/pixiekat-promo/fonts/` and `videos/pixiekat-portal-hop/fonts/`)
-  - `@font-face` family `"zentry"` → `"display"`; Tailwind `font-zentry`
-    class → `font-display`; `tailwind.config.js` key → `display`.
-  - fonttools rewrote the woff2 `name` tables: internal family/full/PS
-    names now "Display" (foundry/EULA records kept). Devtools no longer
-    shows "ZENTRY".
-  - JSX inline `fontFamily: "zentry, sans-serif"` → `"display, sans-serif"`
-    in ExclusiveOffers, TrendingGames, PromoDetailPage; `font-display`
-    class across cart, pricing, leaderboard, account views, Contact.
-  - Docs synced: `main/README.md`, `.cursor/skills/pixiekat-frontend-design/*`,
-    portal-hop `STORYBOARD.md`/`BRIEF.md`/`storyboard.html`.
-  - Verified: `grep -i zentry` repo-wide = 0 matches. Not committed.
-
-## Supabase audit — real gap found and fixed (2026-10-15)
-
-- Probed remote schema directly (`npx supabase db query --linked --file`)
-  since remote migration history is squashed and `migration list` misleads.
-- ALL of 011–051 verified live: tables, columns, functions, policies,
-  enum values, buckets, triggers, and every seed (046/050 games, 047
-  promotions, 048/051 exclusive offers, 049 starlight rename).
-- `010_security_remediation.sql` was never fully applied. Missing:
-  `is_service_role()` (called by live `refresh_user_perks` +
-  `protect_profile_updates` bodies → would error), `orders.idempotency_key`
-  + unique index (server checkout uses it → would 500),
-  `protect_order_updates()`, 2 NOT VALID constraints.
-- Wrote + applied `supabase/migrations/052_restore_010_security_bits.sql`
-  (idempotent). Verified all 6 artifacts present afterward.
-- Deliberately left OUT: the two `protect_*_on_update` triggers (prod has
-  always run unarmed — arming them now changes admin update behavior; ask
-  user before enabling) and 010-era policy names (intentionally superseded
-  by 016–029 set — remote policies confirmed coherent and correct).
+- User report: on some phones the "Sign up" link on `/login` was hidden.
+- Root cause: `AppShell` rendered the storefront's fixed chrome over the
+  dedicated auth screen — `BottomNav` (`fixed bottom-0 z-[150]`, mobile-only)
+  covered the form's bottom Sign up/Sign in link, `NavBar` (`fixed top-4
+  z-[100]`) covered the banner's Back button, and `FloatingActions` FABs
+  floated over the form. `Footer` was already excluded via `isAuthRoute`;
+  the other three were missed.
+- Fix (`main/src/App.jsx`): added `!isAuthRoute` to NavBar, BottomNav, and
+  FloatingActions conditions — `/login`, `/register`, `/reset-password` are
+  now chrome-free standalone screens.
+- Fix (`main/src/pages/auth/index.jsx`): `min-h-screen` → `min-h-svh` so the
+  layout minimum matches the actually-visible viewport on mobile (old
+  `100vh` includes the area behind browser toolbars; `svh`/`dvh` units are
+  already used elsewhere — `h-dvh` in Hero/About/Story).
+- Changelog: one-liner under Unreleased → Fixes.
+- Verified: `eslint` clean on both files; dev-server screenshots at 390x844
+  (`/login`) and 360x640 (`/register`, scrolled to bottom) show the
+  Sign up/Sign in link and Back button fully visible, no overlapping chrome.
 
 ## Carried forward / pending
-- All changes uncommitted: font rename set + new 052 migration file.
-- Protect triggers decision pending (see 052 header notes).
+
+- Uncommitted in tree: this auth fix (App.jsx, auth/index.jsx, CHANGELOG)
+  plus prior uncommitted work — `main/server/aluu.js` crypto-order client
+  + tests (see previous summary's "NOT wired yet" list for checkout
+  decisions: `payment_method` name, INR→USD FX source, ONLINE_PAYMENTS_ENABLED
+  gate).
+- `videos/pixiekat-portal-hop/` 9:16 render still not built.
 - JJK promo 9th Exclusive card → 4+4+1 grid; MCGG/BGMI art low-res.
-- `videos/pixiekat-portal-hop/` 9:16 render still not built; `npm run
-  check` not run after font rename (pure string swap, low risk).
 - Game art remains publisher IP — flag before paid-ad distribution.
