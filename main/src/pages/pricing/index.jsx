@@ -105,12 +105,12 @@ const PlanCard = ({ plan, index, featured, reduced, onChoose }) => {
               ) : null}
             </div>
 
-            <h3 className="special-font mt-6 font-zentry text-4xl font-black uppercase leading-none sm:text-5xl">
+            <h3 className="special-font mt-6 font-display text-4xl font-black uppercase leading-none sm:text-5xl">
               {plan.name}
             </h3>
 
             <div className="mt-4 flex items-baseline gap-2">
-              <span className="font-zentry text-5xl font-black leading-none sm:text-6xl">
+              <span className="font-display text-5xl font-black leading-none sm:text-6xl">
                 {formatPrice(plan.price, plan.currency)}
               </span>
               <span

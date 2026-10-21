@@ -172,7 +172,7 @@ const CartLine = ({ item, onQuantity, onRemove, disabled }) => {
           <p className="font-circular-web text-xs text-white/50">
             {formatPrice(item.product.price, item.product.currency)} each
           </p>
-          <p className="font-zentry text-2xl font-black leading-none text-blue-50">
+          <p className="font-display text-2xl font-black leading-none text-blue-50">
             {formatPrice(item.product.price * item.quantity, item.product.currency)}
           </p>
         </div>
@@ -691,7 +691,7 @@ const CartPage = () => {
                 <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-emerald-400/15">
                   <CheckCircle2 className="size-7 text-emerald-300" />
                 </span>
-                <h2 className="special-font mt-5 font-zentry text-3xl font-black uppercase text-blue-50">
+                <h2 className="special-font mt-5 font-display text-3xl font-black uppercase text-blue-50">
                   {done.paymentPending ? "Payment received" : "Order placed"}
                 </h2>
                 <p className="mt-2 font-circular-web text-sm text-white/70">
@@ -788,7 +788,7 @@ const CartPage = () => {
                   </div>
                   <div className="mt-4 flex items-baseline justify-between border-t border-white/20 pt-4">
                     <span className="font-general text-sm font-bold uppercase">Total</span>
-                    <span className="font-zentry text-4xl font-black leading-none">
+                    <span className="font-display text-4xl font-black leading-none">
                       {formatPrice(total, singleCurrency ?? "PKS")}
                     </span>
                   </div>

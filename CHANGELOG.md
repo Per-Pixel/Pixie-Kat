@@ -5,8 +5,10 @@
 ### Admin
 - Promotions become a first-class CMS section (`/pages/promotions`, `047_promotions.sql`): rich promo cards get slug, description, rich-text details, discount badge and `starts_at`/`ends_at` scheduling — items self-publish and self-hide, the list shows Active/Scheduled/Ended/Hidden badges, and a one-click Duplicate copies any item as a hidden draft.
 - Mobile admin gains an app-style bottom tab bar (Home/Orders/Add/Messages/More) with a spring quick-add sheet for one-tap New Promotion, product, game or message, safe-area padding, and fade page transitions.
+- Saving a game no longer fails on `orders_product_id_fkey` once it has orders: package saves upsert with stable product ids instead of wipe-and-reinsert, and removing an order-referenced package — or deleting an order-referenced package/game outright — retires it to Inactive rather than erroring, so order history keeps a valid FK target.
 
 ### Storefront
+- Swap in new animated graphics across homepage slots (hero background, bento tiles, flip/contact cards, contact collage), lazy-load below-fold videos on approach (`LazyVideo` + IntersectionObserver), and preconnect to the media host so graphics load faster.
 - Homepage Promotions section is now data-driven from `promotional_items` (the three existing cards are seeded so they stay editable), every card links to a new `/promotions` index and `/promotions/:slug` detail page with the full offer text, end-date badge and Top Up CTA — nav dropdown and More-menu "Promo" entries now open it instead of "coming soon". Requires migration `047_promotions.sql`.
 
 ### Fixes
@@ -54,9 +56,12 @@
 - Rename the Starlight game to "Hayabusa Starlight" — the "– Kitsune's Shadow" suffix is dropped from the display name (`049_rename_starlight_title.sql`); the description still names the actual October skin.
 - Add five more game pages cloned from the kazutora.in catalog (`050_kazutora_games.sql` + `main/server/scripts/seed-kazutora-games.mjs`): Magic Chess: Go Go (`/games/magic-chess-go-go`, 15 Yokcash `MCGG_*_BR` diamond packs in TOP UP DIAMONDS / DOUBLE DIAS sections), BGMI (Not Instant) (`/games/bgmi-not-instant`, 21 packs, `provider=manual` since the prices undercut Yokcash cost and bonus packs have no matching SKU), PUBG Mobile Global (`/games/pubg-global`, 5 Yokcash `YCPUBGGLB*` UC packs), Honkai: Star Rail (`/games/honkai-star-rail`, 6 Yokcash `HNKIYC*` Oneiric Shard packs + Express Supply Pass), and Revelation Mobile (`/games/revelation-mobile`, Yokcash `RVLNMBPC-S81` Battle Pass Classic). Sell prices match kazutora retail exactly; card/banner art is mirrored into `public-media`.
 - Fix the Exclusive Offers grid (`051_exclusive_offers_fix.sql`): replace the duplicated MLBB card and the mismatched Magic Chess/PUBG/"Hero Special" artwork with real game art (Honkai: Star Rail and BGMI cards fill the dead slots), every card deep-links to its game page, and the 🇮🇳 flag (which rendered as bare "IN" text on Windows) is cleared. Cards get the black game-card border + acid PROMO pill, and promos without `link_url` now fall back to `/games` instead of a dead `/games/<uuid>` route (same fix in Trending).
+- Rename the display font off the template's "zentry" naming: the family is now `display` (`font-display`, `/fonts/display-regular.woff2`, woff2 internal name metadata scrubbed) — identical glyphs, no visual change.
 
 ### Fixes
 - Admin Wallets activity feed: transactions owned by admin/support wallets (or any profile outside the user/reseller list) rendered "Unknown account" and were unclickable — names now resolve across all profiles, unresolved rows show the short user id, and every row opens the owner's user page. Orders Management pages through the whole `orders` table instead of silently dropping everything past the first 500 rows.
+- Restore `010_security_remediation.sql` artifacts that were never applied to prod (`052_restore_010_security_bits.sql`): `is_service_role()` (called by live `refresh_user_perks`/`protect_profile_updates` bodies — leaderboard finalize would error), `orders.idempotency_key` + unique index (the `/api/place-order` idempotency path would 500), `protect_order_updates()`, and the wallet-balance/order-product NOT VALID constraints. The 010 `protect_*_on_update` triggers remain unarmed — prod has always run without them.
+- Fix the mobile auth screen: the storefront's fixed bottom nav (and top navbar + floating action buttons) rendered over `/login`, `/register`, and `/reset-password`, hiding the Sign up/Sign in link and the banner Back button — auth routes are now chrome-free, and the page uses `min-h-svh` so mobile browser toolbars can't push the layout off-screen.
 
 ### Repository
 - Remove scratch artifacts (`Test/` harness, temp backup/seed scripts, stale AWS log, stray screenshot) and stop tracking `admin/.env`.
@@ -73,6 +78,7 @@
 - Add `/api/razorpay/verify-cart-payment`, `/api/aluu/check-cart-payment`, and Razorpay/Aluu webhook fallbacks that resolve and confirm whole payment groups.
 - Add `place_cart_orders` and `place_wallet_cart` RPCs (migration `036_cart_checkout.sql`) for atomic multi-order placement and a single wallet debit.
 - Temporarily disable online payment gateways behind `ONLINE_PAYMENTS_ENABLED` in `main/server/index.js` — the configured Razorpay key is a test key, so fake payments passed signature verification and triggered real fulfillment. `/api/place-order`, `/api/cart-checkout`, and `/api/membership/purchase` accept wallet only and `/api/wallet/topup` is closed; storefront checkout, cart, and Add Money offer Pixie Wallet only. Verify/webhook endpoints stay live so genuinely-paid pending orders still settle.
+- Add Aluu `createCryptoOrder` client (`main/server/aluu.js`) for the non-custodial USDT endpoint (`POST /api/create-crypto-order`, TRC20/BEP20/ERC20/POLYGON): takes USD (`amountUsd`), optional `network` lock (omitted = customer picks), and returns per-network nudged `options[].amount` for reconciliation plus `requestedAmount`; `checkOrderStatus` now surfaces `network`/`cryptoTxid`. Not yet wired into checkout.
 
 ### Tests
 - Add server unit tests for Aluu order creation, status checks, and webhook signature verification.

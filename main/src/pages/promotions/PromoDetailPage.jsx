@@ -101,7 +101,7 @@ const PromoDetailPage = () => {
               <div className="space-y-5 p-6 text-black sm:p-8">
                 <h1
                   className="text-3xl font-bold uppercase leading-[0.95] sm:text-4xl"
-                  style={{ fontFamily: "zentry, sans-serif" }}
+                  style={{ fontFamily: "display, sans-serif" }}
                 >
                   {promo.title}
                 </h1>

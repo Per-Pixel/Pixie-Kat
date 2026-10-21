@@ -1,47 +1,36 @@
 # Last Session Summary
 
-## Exclusive Offers homepage fix — APPLIED TO DB (2026-10-15)
+## FK-violation fix: order-referenced products (2026-10-21)
 
-- Grid had duplicated MLBB cards sharing art, Magic Chess on
-  `promotion/eternal.webp`, PUBG on an anime-street hero card, a fake
-  "Hero Special Top Up" card, half the cards with no `link_url`, and the
-  🇮🇳 flag rendering as bare "IN" text on Windows.
-- `supabase/migrations/051_exclusive_offers_fix.sql` (applied via
-  `npx supabase db query --linked --file`) rewrote all 8 rows with real
-  bucket art + `link_url`/`game_id`; dup slot → Honkai: Star Rail, slot 8
-  → BGMI UC Top Up. Component fallback + admin `fallbackExclusive` mirror
-  the same 8; PROMO pill → brand yellow-300, flag → dark pill, grid
-  `grid-cols-3 sm:grid-cols-4` (8 items → balanced 4+4).
-- Real bug fixed in both ExclusiveOffers and TrendingGames: promo with
-  `game_id` but no `link_url` built `/games/<uuid>` → 404 (route param is
-  a slug). Fallback is now plain `/games`.
+- Error: `update or delete on table "products" violates foreign key
+  constraint "orders_product_id_fkey"`. Cause: `orders.product_id →
+  products.id` is `ON DELETE RESTRICT` (migrations 010/052), while
+  `catalogService.replaceProducts()` wipe-and-reinserted all of a game's
+  products on every save — breaking Game Editor saves, provider resyncs
+  (`syncProviderProducts`), `deleteProduct`, and `deleteGame` (cascade)
+  once a game had orders.
+- `replaceProducts` is now id-stable: upserts drafts preserving existing
+  ids (new drafts get `crypto.randomUUID()`), hard-deletes removed rows,
+  and on FK error retires removed rows to `status='inactive'` instead of
+  failing. Returns `{ products, archived }` — `products` stays index-
+  aligned with input drafts, so GameEditor's metadata remap still works.
+- `deleteProduct`/`deleteGame` now return `'deleted' | 'archived'` and
+  fall back to `status='inactive'` on 23503. ProductsList, GamesList and
+  GameEditor show "has orders — kept as Inactive" toasts and update rows
+  in place. Soft-deleted packages reappear in the editor as inactive —
+  intended; they must exist as order FK targets.
+- Verified: `npm run typecheck` clean, eslint clean on touched files.
+- Seed scripts `seed-new-games.mjs` / `seed-kazutora-games.mjs` still do
+  raw `delete().eq('game_id')` — will fail if re-run on games with
+  orders; left as-is (one-shot emitters for already-applied migrations).
 
-## "Unknown account" wallet mystery — admin fixes (2026-10-15)
+## Still pending (from prior sessions)
 
-- Reported: Satyam's wallet activity showed "Unknown account", now shows
-  his name; old entries unviewable.
-- Verified: his data is fully intact — 1 profile (role=user), 8 orders,
-  12 wallet txs, all linked. His 4 credits are manual admin "Add"
-  adjustments; NO `wallet_topup` orders exist yet (044 flow unused so far).
-- Root cause in `admin/src/pages/Wallets.tsx`: Recent Wallet Activity
-  resolves names via a map built ONLY from `role IN ('user','reseller')`
-  profiles. The admin account owns 1287 wallet txs → excluded → every one
-  renders "Unknown account", and `onClick={() => profile && navigate(...)}`
-  made unresolved rows dead clicks. Fix: feed names resolve across all
-  profiles (fetched by tx user_ids), rows always navigate on tx.user_id,
-  unknown rows show `Unknown account · <id8>`.
-- `admin/src/pages/Orders.tsx` had `.limit(500)` — silently hides orders
-  past the cap (1264 exist; Satyam's oldest is rank ~310, visible now but
-  doomed). Replaced with `.range()` paging loop (20k safety bound) so
-  search/sort/CSV cover the full table.
-- If Satyam's rows specifically showed Unknown earlier: name resolution is
-  per-load — during the 018/019→026/029 RLS-helper breakage window admin
-  couldn't read other profiles. Everything of his resolves today.
-
-## Carried forward / pending
-- Working tree has prior uncommitted work (trending images, gamesData,
-  DropdownMenu) + this session's changes. Nothing committed/pushed.
-- JJK promo can prepend a 9th Exclusive card → grid reads 4+4+1.
-- MCGG/BGMI card art is low-res squares — acceptable, could re-upload.
-- `videos/pixiekat-portal-hop/` 9:16 render still not built.
-- Game art remains publisher IP — flag before paid-ad distribution.
+- Uncommitted tree work: auth-screen mobile chrome fix
+  (`main/src/App.jsx`, `pages/auth/index.jsx`), `main/server/aluu.js`
+  crypto-order client + tests, LazyVideo/index.html perf edits,
+  `scripts/gif-frames.mjs`, `scripts/set-site-graphic.js`.
+- `videos/pixiekat-portal-hop/` 9:16 render not built.
+- JJK promo 9th Exclusive card → 4+4+1 grid; MCGG/BGMI art low-res.
+- Open media slots: `contact_left_bottom`, `contact_right_back`,
+  `contact_right_front`, products slider images.

@@ -15,7 +15,7 @@ Extracted from `main/` storefront. Read when implementing UI beyond the SKILL.md
 - **Name:** PixieKat (CMS may override `header_brand_text`)
 - **Job:** Instant gaming credit top-ups — fast, secure, affordable
 - **Tone:** High-energy gaming / esports marketing, not corporate SaaS
-- **Signature:** Full-bleed video hero with layered character art, oversized Zentry wordmarks, clip-path scroll chapters, acid-yellow CTAs on lavender fields
+- **Signature:** Full-bleed video hero with layered character art, oversized Display wordmarks, clip-path scroll chapters, acid-yellow CTAs on lavender fields
 
 ## Color tokens (`main/tailwind.config.js`)
 
@@ -54,7 +54,7 @@ Scoped on `.jjk-page` in `jjk-cheaper.css` — keep event-local:
 | Role | Family | Tailwind / class |
 | --- | --- | --- |
 | Default body | General Sans (CDN) | `body` in `index.css` |
-| Display | zentry (`/fonts/zentry-regular.woff2`) | `font-zentry`, `.special-font b` |
+| Display | display (`/fonts/display-regular.woff2`) | `font-display`, `.special-font b` |
 | General UI | general | `font-general` |
 | Circular | circular-web | `font-circular-web` |
 | Robert | robert-medium / robert-regular | `font-robert-medium`, `font-robert-regular` |
@@ -63,7 +63,7 @@ Scoped on `.jjk-page` in `jjk-cheaper.css` — keep event-local:
 
 - `.hero-heading` — uppercase, black weight, scales to `lg:text-[12rem]`
 - `.animated-title` / `.animated-word` — 3D scroll reveal via GSAP
-- `.bento-title` — uppercase Zentry section titles
+- `.bento-title` — uppercase Display section titles
 - Button labels — `font-general text-xs uppercase` with skew-slide hover
 
 ## Layout & components

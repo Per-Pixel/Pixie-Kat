@@ -235,7 +235,7 @@ The experimental PixieKat System site is preserved under `dummy-site/` and is no
 Font sources in `index.css`:
 
 - Imported: `General Sans` (CDN)
-- Local `@font-face`: `circular-web`, `general`, `robert-medium`, `robert-regular`, `zentry`
+- Local `@font-face`: `circular-web`, `general`, `robert-medium`, `robert-regular`, `display`
 
 Tailwind font families in `tailwind.config.js` map to those local font names.
 

@@ -111,7 +111,7 @@ const ExclusiveOffers = () => {
       <div className="mb-6">
         <h2
           className="text-2xl font-bold uppercase text-black md:text-3xl"
-          style={{ fontFamily: "zentry, sans-serif" }}
+          style={{ fontFamily: "display, sans-serif" }}
         >
           Exclusive Offers
         </h2>
@@ -120,7 +120,7 @@ const ExclusiveOffers = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 md:gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 md:gap-4 lg:grid-cols-6">
         {offers.map((offer) => (
           <ExclusiveOfferCard key={`${offer.title}-${offer.link || ""}`} {...offer} />
         ))}

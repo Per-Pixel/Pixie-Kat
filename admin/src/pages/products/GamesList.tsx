@@ -44,9 +44,14 @@ const GamesList: React.FC<GamesListProps> = ({ statusFilter, title = 'All Games'
   const handleDelete = async (game: Game) => {
     if (!window.confirm(`Delete "${game.name}"? This removes its fields and packages.`)) return;
     try {
-      await deleteGame(game.id);
-      toast.success('Game deleted');
-      setGames((prev) => prev.filter((g) => g.id !== game.id));
+      const result = await deleteGame(game.id);
+      if (result === 'archived') {
+        setGames((prev) => prev.map((g) => (g.id === game.id ? { ...g, status: 'inactive' } : g)));
+        toast(`"${game.name}" has orders — kept as Inactive`);
+      } else {
+        toast.success('Game deleted');
+        setGames((prev) => prev.filter((g) => g.id !== game.id));
+      }
     } catch (err) {
       toast.error((err as Error).message || 'Failed to delete game');
     }

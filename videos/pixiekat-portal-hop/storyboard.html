@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Portal Hop — storyboard v1</title>
 <style>
-  @font-face { font-family: "zentry"; src: url("fonts/zentry-regular.woff2") format("woff2"); }
+  @font-face { font-family: "display"; src: url("fonts/display-regular.woff2") format("woff2"); }
   @font-face { font-family: "general"; src: url("fonts/general.woff2") format("woff2"); }
   @font-face { font-family: "robert"; src: url("fonts/robert-medium.woff2") format("woff2"); }
 
@@ -16,7 +16,7 @@
   body { background: var(--ink); color: var(--cream); font-family: "general", system-ui, sans-serif; padding: 56px 64px 96px; }
 
   header { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; margin-bottom: 40px; border-bottom: 2px solid rgba(240,242,250,.14); padding-bottom: 28px; }
-  header h1 { font-family: "zentry"; font-weight: 900; text-transform: uppercase; font-size: 76px; line-height: .85; letter-spacing: .01em; }
+  header h1 { font-family: "display"; font-weight: 900; text-transform: uppercase; font-size: 76px; line-height: .85; letter-spacing: .01em; }
   header h1 b { font-weight: inherit; font-feature-settings: "ss01" on; color: var(--violet); }
   header p { font-family: "robert"; font-size: 17px; opacity: .72; margin-top: 12px; max-width: 760px; line-height: 1.45; }
   .tag { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; border: 1.5px solid rgba(240,242,250,.35); border-radius: 999px; padding: 9px 16px; white-space: nowrap; }
@@ -37,7 +37,7 @@
   .chipseam.shader { background: rgba(237,255,102,.12); color: var(--acid); border-color: rgba(237,255,102,.5); }
 
   /* ---------- shared in-frame pieces (all sizes in cqw: 1cqw = 19.2px at 1920) ---------- */
-  .z { font-family: "zentry"; font-weight: 900; text-transform: uppercase; line-height: .84; }
+  .z { font-family: "display"; font-weight: 900; text-transform: uppercase; line-height: .84; }
   .z b { font-weight: inherit; font-feature-settings: "ss01" on; }
   .label { position: absolute; font-family: "general"; font-size: 1.15cqw; letter-spacing: .14em; text-transform: uppercase; }
   .grain { position: absolute; inset: 0; pointer-events: none; opacity: .18; mix-blend-mode: multiply;
@@ -57,7 +57,7 @@
   .world .title { position: absolute; font-size: 7.8cqw; color: var(--cream); text-shadow: 0 .4cqw 2cqw rgba(0,0,0,.45); }
   .chip { position: absolute; display: flex; align-items: center; gap: .9cqw; background: rgba(14,4,29,.62); border: .16cqw solid rgba(240,242,250,.45); border-radius: 999px; padding: .55cqw 1.4cqw .55cqw .6cqw; font-family: "general"; font-size: 1.2cqw; letter-spacing: .14em; text-transform: uppercase; color: var(--cream); }
   .chip img { width: 2.6cqw; height: 2.6cqw; object-fit: contain; }
-  .chip .glyph { width: 2.6cqw; height: 2.6cqw; border-radius: 50%; display: grid; place-items: center; background: var(--cream); color: var(--ink); font-family: "zentry"; font-weight: 900; font-size: 1.15cqw; }
+  .chip .glyph { width: 2.6cqw; height: 2.6cqw; border-radius: 50%; display: grid; place-items: center; background: var(--cream); color: var(--ink); font-family: "display"; font-weight: 900; font-size: 1.15cqw; }
   .card3d { position: absolute; border: .16cqw solid var(--cream); border-radius: .7cqw; background-size: cover; background-position: center; box-shadow: 0 0 6cqw rgba(87,36,255,.55), 0 2cqw 4cqw rgba(0,0,0,.5); }
   .stage { position: absolute; inset: 0; perspective: 90cqw; }
   .ghost-shape { position: absolute; }
@@ -68,7 +68,7 @@
   .seams { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; margin-top: 18px; position: relative; }
   .seams .s { border-left: 2px solid rgba(240,242,250,.18); padding: 0 14px 0 14px; }
   .seams .s:first-child { border-left: 0; padding-left: 0; }
-  .seams .n { font-family: "zentry"; font-weight: 900; font-size: 30px; line-height: 1; }
+  .seams .n { font-family: "display"; font-weight: 900; font-size: 30px; line-height: 1; }
   .seams .t { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; opacity: .6; margin-top: 6px; }
   .seams .h { font-family: "robert"; font-size: 13px; margin-top: 10px; line-height: 1.4; }
   .seams .bar { position: absolute; left: 0; right: 0; top: -12px; height: 4px; display: grid; grid-template-columns: 1.85fr 1.85fr 1.85fr 1.85fr 1.85fr 1.85fr 3.9fr; gap: 3px; }
@@ -261,7 +261,7 @@
       <div>
         <h4>Type roles</h4>
         <ul>
-          <li><span class="z" style="font-size:22px">Zentry 900</span> display, uppercase, ss01 on &lt;b&gt;</li>
+          <li><span class="z" style="font-size:22px">Display 900</span> headlines, uppercase, ss01 on &lt;b&gt;</li>
           <li><span style="font-family:general;letter-spacing:.14em;text-transform:uppercase;font-size:13px">General Sans</span> labels, chips, CTA</li>
           <li><span style="font-family:robert">Robert Medium</span> subline</li>
         </ul>

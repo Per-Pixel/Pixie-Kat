@@ -724,7 +724,7 @@ const RankStrip = () => {
         </span>
         <span className="min-w-0">
           <span className="block font-general text-[10px] font-semibold uppercase tracking-wider text-yellow-300">{periodLabel(currentPeriod())} / Your rank</span>
-          <strong className="mt-1 block break-words font-zentry text-3xl font-black uppercase leading-none">{rankText}</strong>
+          <strong className="mt-1 block break-words font-display text-3xl font-black uppercase leading-none">{rankText}</strong>
           {current.row ? (
             <span className="mt-1 block font-circular-web text-xs text-blue-100/70">
               {current.row.hidden ? "Private · " : ""}{current.row.order_count} completed order{Number(current.row.order_count) === 1 ? "" : "s"}

@@ -449,7 +449,7 @@ const GameEditor: React.FC = () => {
         options: f.options ?? [], validation_regex: f.validation_regex ?? null,
       })));
 
-      const savedProducts = await replaceProducts(game.id, products.map((p) => {
+      const { products: savedProducts, archived: archivedCount } = await replaceProducts(game.id, products.map((p) => {
         const inr = p.currency_prices.INR;
         const extraCurrencies: Record<string, { selling_price: number; cost_price?: number }> = {};
         for (const { code } of SUPPORTED_CURRENCIES) {
@@ -481,8 +481,9 @@ const GameEditor: React.FC = () => {
         };
       }));
 
-      // Update game metadata with default/featured product IDs using the NEW product IDs
-      // (replaceProducts deletes and re-creates products with new UUIDs)
+      // Update game metadata with default/featured product IDs. Existing products
+      // keep their ids across saves; only new drafts get fresh UUIDs, so map by
+      // draft index to whatever replaceProducts actually persisted.
       const defaultDraft = products.find((p) => p.is_default);
       let newDefaultProductId: string | undefined;
       if (defaultDraft) {
@@ -539,6 +540,9 @@ const GameEditor: React.FC = () => {
       }
 
       toast.success(isEdit ? 'Game updated' : 'Game created');
+      if (archivedCount > 0) {
+        toast(`${archivedCount} removed package${archivedCount === 1 ? '' : 's'} kept as Inactive — existing orders reference them`);
+      }
       if (!isEdit) navigate('/products/games');
     } catch (e) {
       toast.error((e as Error).message || 'Failed to save game');

@@ -101,15 +101,15 @@ const AppShell = ({ children }) => {
 
     <>
 
-      {!isWalletRoute && !isEventArchive ? <NavBar /> : null}
+      {!isWalletRoute && !isAuthRoute && !isEventArchive ? <NavBar /> : null}
 
       {children}
 
       {!isWalletRoute && !isHomePage && !isAuthRoute && !isEventArchive ? <Footer /> : null}
 
-      {!isWalletRoute && !isEventArchive ? <BottomNav /> : null}
+      {!isWalletRoute && !isAuthRoute && !isEventArchive ? <BottomNav /> : null}
 
-      {!isWalletRoute && !isEventArchive ? <FloatingActions /> : null}
+      {!isWalletRoute && !isAuthRoute && !isEventArchive ? <FloatingActions /> : null}
 
     </>
 
