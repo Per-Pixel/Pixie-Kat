@@ -5,8 +5,10 @@
 ### Admin
 - Promotions become a first-class CMS section (`/pages/promotions`, `047_promotions.sql`): rich promo cards get slug, description, rich-text details, discount badge and `starts_at`/`ends_at` scheduling — items self-publish and self-hide, the list shows Active/Scheduled/Ended/Hidden badges, and a one-click Duplicate copies any item as a hidden draft.
 - Mobile admin gains an app-style bottom tab bar (Home/Orders/Add/Messages/More) with a spring quick-add sheet for one-tap New Promotion, product, game or message, safe-area padding, and fade page transitions.
+- Saving a game no longer fails on `orders_product_id_fkey` once it has orders: package saves upsert with stable product ids instead of wipe-and-reinsert, and removing an order-referenced package — or deleting an order-referenced package/game outright — retires it to Inactive rather than erroring, so order history keeps a valid FK target.
 
 ### Storefront
+- Swap in new animated graphics across homepage slots (hero background, bento tiles, flip/contact cards, contact collage), lazy-load below-fold videos on approach (`LazyVideo` + IntersectionObserver), and preconnect to the media host so graphics load faster.
 - Homepage Promotions section is now data-driven from `promotional_items` (the three existing cards are seeded so they stay editable), every card links to a new `/promotions` index and `/promotions/:slug` detail page with the full offer text, end-date badge and Top Up CTA — nav dropdown and More-menu "Promo" entries now open it instead of "coming soon". Requires migration `047_promotions.sql`.
 
 ### Fixes

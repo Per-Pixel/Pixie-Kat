@@ -152,9 +152,14 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
     setDeletingId(deleteConfirm.id);
     setDeleteConfirm(null);
     try {
-      await deleteProduct(deleteConfirm.id);
-      setRows((prev) => prev.filter((r) => r.id !== deleteConfirm.id));
-      toast.success(`"${deleteConfirm.name}" deleted`);
+      const result = await deleteProduct(deleteConfirm.id);
+      if (result === 'archived') {
+        setRows((prev) => prev.map((r) => r.id === deleteConfirm.id ? { ...r, status: 'inactive' } : r));
+        toast(`"${deleteConfirm.name}" has orders — kept as Inactive`);
+      } else {
+        setRows((prev) => prev.filter((r) => r.id !== deleteConfirm.id));
+        toast.success(`"${deleteConfirm.name}" deleted`);
+      }
     } catch (err) {
       toast.error((err as Error).message || 'Failed to delete');
     } finally {

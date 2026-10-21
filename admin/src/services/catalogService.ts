@@ -145,9 +145,17 @@ export async function updateGame(id: string, input: Partial<NewGame>): Promise<G
   return data as Game;
 }
 
-export async function deleteGame(id: string): Promise<void> {
+export async function deleteGame(id: string): Promise<'deleted' | 'archived'> {
   const { error } = await supabase.from('games').delete().eq('id', id);
-  if (error) throw error;
+  if (!error) return 'deleted';
+  if (!isFkViolation(error)) throw error;
+  // The cascade hit order-referenced products — retire the game instead.
+  const { error: updErr } = await supabase
+    .from('games')
+    .update({ status: 'inactive' })
+    .eq('id', id);
+  if (updErr) throw updErr;
+  return 'archived';
 }
 
 // ============================================================
@@ -206,19 +214,29 @@ export async function listProducts(filters?: {
   return (data ?? []) as Array<Product & { game?: { name: string; slug: string; provider: GameProvider } }>;
 }
 
+const isFkViolation = (e: unknown): boolean =>
+  typeof e === 'object' && e !== null && (e as { code?: string }).code === '23503';
+
+export interface ReplaceProductsResult {
+  /** Saved rows in the same order as the input drafts. */
+  products: Product[];
+  /** Removed rows kept as 'inactive' because orders reference them. */
+  archived: number;
+}
+
 export async function replaceProducts(
   gameId: string,
   products: Array<Partial<NewProduct> & { id?: string }>
-): Promise<Product[]> {
-  const { error: delErr } = await supabase
-    .from('products')
-    .delete()
-    .eq('game_id', gameId);
-  if (delErr) throw delErr;
-
-  if (products.length === 0) return [];
+): Promise<ReplaceProductsResult> {
+  // orders.product_id is ON DELETE RESTRICT, so wipe-and-reinsert breaks once a
+  // game has orders. Keep ids stable instead: upsert incoming drafts (existing
+  // ids update in place), hard-delete removed rows, and retire order-referenced
+  // removals to 'inactive' so order history keeps a valid FK target.
+  const existing = await listProducts({ gameId });
+  const existingIds = new Set(existing.map((p) => p.id));
 
   const rows = products.map((p, idx) => ({
+    id: p.id && existingIds.has(p.id) ? p.id : crypto.randomUUID(),
     game_id: gameId,
     name: p.name,
     description: p.description ?? null,
@@ -237,9 +255,40 @@ export async function replaceProducts(
     metadata: p.metadata ?? {},
   }));
 
-  const { data, error } = await supabase.from('products').insert(rows).select('*');
+  const keepIds = new Set(rows.map((r) => r.id));
+  const removedIds = existing.map((p) => p.id).filter((id) => !keepIds.has(id));
+
+  let archived = 0;
+  if (removedIds.length) {
+    const { error: delErr } = await supabase.from('products').delete().in('id', removedIds);
+    if (delErr) {
+      if (!isFkViolation(delErr)) throw delErr;
+      const outcomes = await Promise.all(
+        removedIds.map(async (pid) => {
+          const { error } = await supabase.from('products').delete().eq('id', pid);
+          if (!error) return 'deleted';
+          if (!isFkViolation(error)) throw error;
+          const { error: updErr } = await supabase
+            .from('products')
+            .update({ status: 'inactive' })
+            .eq('id', pid);
+          if (updErr) throw updErr;
+          return 'archived';
+        })
+      );
+      archived = outcomes.filter((o) => o === 'archived').length;
+    }
+  }
+
+  if (rows.length === 0) return { products: [], archived };
+
+  const { data, error } = await supabase.from('products').upsert(rows).select('*');
   if (error) throw error;
-  return (data ?? []) as Product[];
+  const byId = new Map((data ?? []).map((r) => [r.id, r]));
+  const ordered = rows
+    .map((r) => byId.get(r.id))
+    .filter((p): p is Product => Boolean(p));
+  return { products: ordered, archived };
 }
 
 // Provider syncs replace a game's whole package list. Match incoming SKUs to
@@ -250,7 +299,7 @@ export async function replaceProducts(
 export async function syncProviderProducts(
   gameId: string,
   rows: Array<Partial<NewProduct> & { provider_product_id?: string | null }>
-): Promise<Product[]> {
+): Promise<ReplaceProductsResult> {
   const existing = await listProducts({ gameId });
   const byProviderId = new Map(
     existing
@@ -300,9 +349,17 @@ export async function updateProduct(id: string, input: Partial<NewProduct>): Pro
   return data as Product;
 }
 
-export async function deleteProduct(id: string): Promise<void> {
+export async function deleteProduct(id: string): Promise<'deleted' | 'archived'> {
   const { error } = await supabase.from('products').delete().eq('id', id);
-  if (error) throw error;
+  if (!error) return 'deleted';
+  if (!isFkViolation(error)) throw error;
+  // Orders reference this product — retire it instead of failing the delete.
+  const { error: updErr } = await supabase
+    .from('products')
+    .update({ status: 'inactive' })
+    .eq('id', id);
+  if (updErr) throw updErr;
+  return 'archived';
 }
 
 // ============================================================

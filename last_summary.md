@@ -1,33 +1,36 @@
 # Last Session Summary
 
-## Auth screen mobile chrome fix (2026-10-16)
+## FK-violation fix: order-referenced products (2026-10-21)
 
-- User report: on some phones the "Sign up" link on `/login` was hidden.
-- Root cause: `AppShell` rendered the storefront's fixed chrome over the
-  dedicated auth screen — `BottomNav` (`fixed bottom-0 z-[150]`, mobile-only)
-  covered the form's bottom Sign up/Sign in link, `NavBar` (`fixed top-4
-  z-[100]`) covered the banner's Back button, and `FloatingActions` FABs
-  floated over the form. `Footer` was already excluded via `isAuthRoute`;
-  the other three were missed.
-- Fix (`main/src/App.jsx`): added `!isAuthRoute` to NavBar, BottomNav, and
-  FloatingActions conditions — `/login`, `/register`, `/reset-password` are
-  now chrome-free standalone screens.
-- Fix (`main/src/pages/auth/index.jsx`): `min-h-screen` → `min-h-svh` so the
-  layout minimum matches the actually-visible viewport on mobile (old
-  `100vh` includes the area behind browser toolbars; `svh`/`dvh` units are
-  already used elsewhere — `h-dvh` in Hero/About/Story).
-- Changelog: one-liner under Unreleased → Fixes.
-- Verified: `eslint` clean on both files; dev-server screenshots at 390x844
-  (`/login`) and 360x640 (`/register`, scrolled to bottom) show the
-  Sign up/Sign in link and Back button fully visible, no overlapping chrome.
+- Error: `update or delete on table "products" violates foreign key
+  constraint "orders_product_id_fkey"`. Cause: `orders.product_id →
+  products.id` is `ON DELETE RESTRICT` (migrations 010/052), while
+  `catalogService.replaceProducts()` wipe-and-reinserted all of a game's
+  products on every save — breaking Game Editor saves, provider resyncs
+  (`syncProviderProducts`), `deleteProduct`, and `deleteGame` (cascade)
+  once a game had orders.
+- `replaceProducts` is now id-stable: upserts drafts preserving existing
+  ids (new drafts get `crypto.randomUUID()`), hard-deletes removed rows,
+  and on FK error retires removed rows to `status='inactive'` instead of
+  failing. Returns `{ products, archived }` — `products` stays index-
+  aligned with input drafts, so GameEditor's metadata remap still works.
+- `deleteProduct`/`deleteGame` now return `'deleted' | 'archived'` and
+  fall back to `status='inactive'` on 23503. ProductsList, GamesList and
+  GameEditor show "has orders — kept as Inactive" toasts and update rows
+  in place. Soft-deleted packages reappear in the editor as inactive —
+  intended; they must exist as order FK targets.
+- Verified: `npm run typecheck` clean, eslint clean on touched files.
+- Seed scripts `seed-new-games.mjs` / `seed-kazutora-games.mjs` still do
+  raw `delete().eq('game_id')` — will fail if re-run on games with
+  orders; left as-is (one-shot emitters for already-applied migrations).
 
-## Carried forward / pending
+## Still pending (from prior sessions)
 
-- Uncommitted in tree: this auth fix (App.jsx, auth/index.jsx, CHANGELOG)
-  plus prior uncommitted work — `main/server/aluu.js` crypto-order client
-  + tests (see previous summary's "NOT wired yet" list for checkout
-  decisions: `payment_method` name, INR→USD FX source, ONLINE_PAYMENTS_ENABLED
-  gate).
-- `videos/pixiekat-portal-hop/` 9:16 render still not built.
+- Uncommitted tree work: auth-screen mobile chrome fix
+  (`main/src/App.jsx`, `pages/auth/index.jsx`), `main/server/aluu.js`
+  crypto-order client + tests, LazyVideo/index.html perf edits,
+  `scripts/gif-frames.mjs`, `scripts/set-site-graphic.js`.
+- `videos/pixiekat-portal-hop/` 9:16 render not built.
 - JJK promo 9th Exclusive card → 4+4+1 grid; MCGG/BGMI art low-res.
-- Game art remains publisher IP — flag before paid-ad distribution.
+- Open media slots: `contact_left_bottom`, `contact_right_back`,
+  `contact_right_front`, products slider images.
