@@ -65,6 +65,7 @@
 
 ### Repository
 - Remove scratch artifacts (`Test/` harness, temp backup/seed scripts, stale AWS log, stray screenshot) and stop tracking `admin/.env`.
+- Add `scripts/gif-frames.mjs` (GIF/video → sampled stills + contact sheet) and `scripts/set-site-graphic.js` (upload a file to `public-media` and point a `site_graphics`/`hero_settings` key at it).
 - Make the super-admin server test independent of the local `.env`.
 - Clear all `npm audit` findings across `admin`, `main`, and `main/server`: remove the mistaken `tailwind` (event-sourcing) dependency from `main`, bump `vite` 5→6 and `vitest` 1→5 and `react-router-dom` 6→7 in `main`, and pin a safe `qs` via `overrides` in `main/server`.
 
@@ -76,6 +77,7 @@
 - Add `aluu_order_id` column to `orders` (migration `035_aluu_checkout.sql`) and surface it in order details and hooks.
 - Add multi-item cart checkout (`POST /api/cart-checkout`) where one wallet debit, Razorpay order, or Aluu payment covers the whole cart via `metadata.payment_group_id`.
 - Add `/api/razorpay/verify-cart-payment`, `/api/aluu/check-cart-payment`, and Razorpay/Aluu webhook fallbacks that resolve and confirm whole payment groups.
+- Extend the Aluu Pay client with `createCryptoOrder()` for USDT checkout (TRC20/BEP20/ERC20/POLYGON — Aluu nudges each option's amount to identify the order) and `network`/`cryptoTxid` on status checks; library only, not yet wired to checkout endpoints.
 - Add `place_cart_orders` and `place_wallet_cart` RPCs (migration `036_cart_checkout.sql`) for atomic multi-order placement and a single wallet debit.
 - Temporarily disable online payment gateways behind `ONLINE_PAYMENTS_ENABLED` in `main/server/index.js` — the configured Razorpay key is a test key, so fake payments passed signature verification and triggered real fulfillment. `/api/place-order`, `/api/cart-checkout`, and `/api/membership/purchase` accept wallet only and `/api/wallet/topup` is closed; storefront checkout, cart, and Add Money offer Pixie Wallet only. Verify/webhook endpoints stay live so genuinely-paid pending orders still settle.
 - Add Aluu `createCryptoOrder` client (`main/server/aluu.js`) for the non-custodial USDT endpoint (`POST /api/create-crypto-order`, TRC20/BEP20/ERC20/POLYGON): takes USD (`amountUsd`), optional `network` lock (omitted = customer picks), and returns per-network nudged `options[].amount` for reconciliation plus `requestedAmount`; `checkOrderStatus` now surfaces `network`/`cryptoTxid`. Not yet wired into checkout.
