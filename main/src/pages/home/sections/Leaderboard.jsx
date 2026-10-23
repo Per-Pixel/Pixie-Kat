@@ -57,7 +57,7 @@ const Leaderboard = () => {
               The climb<br /><span className="text-yellow-300">is on.</span>
             </h2>
             <p className="mt-5 max-w-sm font-circular-web text-sm leading-relaxed text-blue-100/75">
-              The most completed orders this month set the pace. See where the whole board stands.
+              The biggest spenders this month set the pace. See where the whole board stands.
             </p>
             <Link to="/leaderboard" className="mt-7 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-yellow-300 px-6 py-3 font-general text-xs font-semibold uppercase text-blue-200 transition-colors hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-300">
               View leaderboard <ArrowRight aria-hidden="true" className="size-4" />
@@ -73,7 +73,9 @@ const Leaderboard = () => {
                 <div className="min-w-0 flex-1">
                   <p className="font-general text-[10px] font-semibold uppercase tracking-wider text-yellow-300">First place</p>
                   <p className="mt-1 break-words font-general text-base font-semibold text-blue-50 sm:text-lg">{leader.display_name || "Player"}</p>
-                  <p className="mt-1 font-circular-web text-xs text-blue-100/70">{leader.order_count} completed orders</p>
+                  <p className="mt-1 font-circular-web text-xs text-blue-100/70">
+                    {leader.total_spent != null ? `₹${Number(leader.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })} spent` : `${leader.order_count} completed orders`}
+                  </p>
                 </div>
                 <span className="shrink-0 font-display text-5xl font-black leading-none text-yellow-300 sm:text-6xl">#1</span>
               </div>
@@ -86,7 +88,8 @@ const Leaderboard = () => {
                       <LeaderboardAvatar avatarUrl={row.avatar_url} frame={row.avatar_frame} sizeClass="size-8" />
                       <span className="min-w-0 flex-1 break-words font-general text-sm font-medium text-blue-50">{row.display_name || "Player"}</span>
                       <span className="shrink-0 text-right font-circular-web text-sm font-semibold text-blue-50">
-                        {row.order_count}<span className="block text-[10px] font-normal text-blue-100/60">orders</span>
+                        {row.total_spent != null ? `₹${Number(row.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : row.order_count}
+                        <span className="block text-[10px] font-normal text-blue-100/60">{row.total_spent != null ? "spent" : "orders"}</span>
                       </span>
                     </li>
                   ))}

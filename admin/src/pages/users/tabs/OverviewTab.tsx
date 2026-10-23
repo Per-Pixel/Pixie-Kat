@@ -78,7 +78,7 @@ function getAvatarErrorMessage(err: unknown) {
 
 function LeaderboardCard({ profile, refetch }: { profile: UserDetailData['profile']; refetch: () => void }) {
   const [perks, setPerks] = useState<UserPerk[]>([]);
-  const [history, setHistory] = useState<Array<{ period: string; rank: number | null; order_count: number; finalized: boolean; tier: string | null }>>([]);
+  const [history, setHistory] = useState<Array<{ period: string; rank: number | null; order_count: number; total_spent: number | null; finalized: boolean; tier: string | null }>>([]);
   const [busy, setBusy] = useState(false);
   const [frameChoice, setFrameChoice] = useState('gold');
 
@@ -137,6 +137,7 @@ function LeaderboardCard({ profile, refetch }: { profile: UserDetailData['profil
               <span className="font-semibold text-gray-900">
                 {row.rank ? `#${row.rank}` : '—'}
                 {row.tier ? <span className="ml-1.5 text-xs font-medium text-violet-600 capitalize">{row.tier}</span> : null}
+                {row.total_spent != null ? <span className="ml-1.5 text-xs text-gray-500">₹{Number(row.total_spent).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span> : null}
                 <span className="ml-1.5 text-xs text-gray-400">{row.finalized ? 'final' : 'live'}</span>
               </span>
             </div>

@@ -21,8 +21,14 @@ const orderLabel = (count) => `${count} completed order${Number(count) === 1 ? "
 
 const formatSpent = (amount) => {
   const value = Number(amount);
-  return amount == null || !Number.isFinite(value) ? "—" : value.toFixed(2);
+  return amount == null || !Number.isFinite(value)
+    ? "—"
+    : `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 };
+
+// Rank is set by spend; order count shows when amounts are hidden (admin toggle).
+const metricLabel = (row) =>
+  row.total_spent != null ? `${formatSpent(row.total_spent)} spent` : orderLabel(row.order_count);
 
 const StageCompetitor = ({ row, prominent, finalized, showAmounts }) => (
   <article className={`relative flex min-w-0 flex-col justify-end border-t border-white/15 px-4 py-5 sm:px-7 md:min-h-[220px] md:border-l md:border-t-0 md:py-6 md:first:border-l-0 ${prominent ? "order-first bg-violet-300/25 md:order-none" : "bg-white/[0.02]"}`}>
@@ -43,12 +49,12 @@ const StageCompetitor = ({ row, prominent, finalized, showAmounts }) => (
       <h3 className="mt-2 break-words font-general text-lg font-semibold leading-tight text-blue-50 sm:text-xl">
         {row.display_name || "Player"}
       </h3>
-      <p className="mt-1 font-circular-web text-sm text-blue-100/70">{orderLabel(row.order_count)}</p>
+      <p className="mt-1 font-circular-web text-sm text-blue-100/70">{metricLabel(row)}</p>
+      {showAmounts && row.total_spent != null ? (
+        <p className="mt-1 font-circular-web text-xs text-blue-100/50">{orderLabel(row.order_count)}</p>
+      ) : null}
       {finalized && row.tier ? (
         <p className="mt-3 font-general text-[10px] font-semibold uppercase tracking-wider text-yellow-300">{row.tier} tier</p>
-      ) : null}
-      {showAmounts ? (
-        <p className="mt-2 font-circular-web text-xs text-blue-100/60">Spent {formatSpent(row.total_spent)}</p>
       ) : null}
     </div>
   </article>
@@ -97,7 +103,7 @@ const RankTicket = ({ userId, authLoading }) => {
         ) : rank ? (
           <>
             <p className="font-display text-6xl font-black leading-none text-blue-200">#{rank.rank}</p>
-            <p className="mt-1 font-circular-web text-sm text-blue-200/75">{orderLabel(rank.order_count)} this month</p>
+            <p className="mt-1 font-circular-web text-sm text-blue-200/75">{metricLabel(rank)} this month</p>
             {rank.hidden ? (
               <p className="mt-2 font-circular-web text-xs font-medium text-violet-300">Private rank · hidden from public standings</p>
             ) : null}
@@ -105,7 +111,7 @@ const RankTicket = ({ userId, authLoading }) => {
         ) : (
           <>
             <p className="font-display text-4xl font-black uppercase leading-none text-blue-200">Not ranked yet</p>
-            <p className="mt-2 font-circular-web text-sm text-blue-200/70">A completed order gets you on the board.</p>
+            <p className="mt-2 font-circular-web text-sm text-blue-200/70">A completed order gets you on the board — spend the most to take it.</p>
           </>
         )}
       </div>
@@ -127,8 +133,8 @@ const StandingsRows = ({ rows, showAmounts, label }) => (
           <tr className="font-general text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-200/60">
             <th scope="col" className="w-24 px-5 py-4">Place</th>
             <th scope="col" className="px-5 py-4">Player</th>
-            <th scope="col" className="px-5 py-4 text-right">Completed orders</th>
             {showAmounts ? <th scope="col" className="px-5 py-4 text-right">Spent</th> : null}
+            <th scope="col" className="px-5 py-4 text-right">Orders</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-blue-200/10">
@@ -142,8 +148,8 @@ const StandingsRows = ({ rows, showAmounts, label }) => (
                   {row.tier ? <span className="shrink-0 bg-violet-300/10 px-2 py-1 font-general text-[10px] font-semibold uppercase text-violet-300">{row.tier}</span> : null}
                 </div>
               </td>
-              <td className="px-5 py-4 text-right font-circular-web text-sm font-semibold text-blue-200">{row.order_count}</td>
-              {showAmounts ? <td className="px-5 py-4 text-right font-circular-web text-sm text-blue-200/70">{formatSpent(row.total_spent)}</td> : null}
+              {showAmounts ? <td className="px-5 py-4 text-right font-circular-web text-sm font-semibold text-blue-200">{formatSpent(row.total_spent)}</td> : null}
+              <td className={`px-5 py-4 text-right font-circular-web text-sm ${showAmounts ? "text-blue-200/70" : "font-semibold text-blue-200"}`}>{row.order_count}</td>
             </tr>
           ))}
         </tbody>
@@ -160,10 +166,10 @@ const StandingsRows = ({ rows, showAmounts, label }) => (
           <div className="min-w-0 flex-1">
             <p className="break-words font-general text-sm font-semibold leading-snug text-blue-200">{row.display_name || "Player"}</p>
             {row.tier ? <p className="mt-1 font-general text-[10px] font-semibold uppercase text-violet-300">{row.tier} tier</p> : null}
-            {showAmounts ? <p className="mt-1 font-circular-web text-xs text-blue-200/65">Spent {formatSpent(row.total_spent)}</p> : null}
+            {showAmounts ? <p className="mt-1 font-circular-web text-xs text-blue-200/65">{orderLabel(row.order_count)}</p> : null}
           </div>
           <p className="shrink-0 text-right font-circular-web text-lg font-semibold leading-none text-blue-200">
-            {row.order_count}<span className="mt-1 block text-[10px] font-normal text-blue-200/60">orders</span>
+            {row.total_spent != null ? formatSpent(row.total_spent) : row.order_count}<span className="mt-1 block text-[10px] font-normal text-blue-200/60">{row.total_spent != null ? "spent" : "orders"}</span>
           </p>
         </li>
       ))}
@@ -273,7 +279,7 @@ const LeaderboardPage = () => {
                 <span className="sm:hidden">The </span><span className="hidden sm:inline">The monthly </span><span className="text-violet-300 sm:block">climb.</span>
               </h1>
               <p className="mt-4 max-w-xl font-circular-web text-base leading-relaxed text-blue-200/75">
-                Completed orders set each month’s rank. Final standings decide the listed rewards.
+                Total spend sets each month’s rank. Final standings decide the listed rewards.
               </p>
               <Button title="Browse games" rightIcon={<TiLocationArrow aria-hidden="true" />} containerClass="mt-4 flex-center gap-2 bg-yellow-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300" onClick={() => navigate("/games")} />
             </div>
@@ -288,7 +294,7 @@ const LeaderboardPage = () => {
               <p className="font-general text-[10px] font-semibold uppercase tracking-[0.22em] text-yellow-300">{selectedLabel} / {status}</p>
               <h2 className="mt-2 font-display text-2xl font-black uppercase text-blue-50 sm:text-4xl">Top of the board</h2>
             </div>
-            {ready && rows.length > 0 ? <p className="hidden font-circular-web text-sm text-blue-100/70 sm:block">Most completed orders this period</p> : null}
+            {ready && rows.length > 0 ? <p className="hidden font-circular-web text-sm text-blue-100/70 sm:block">Highest spend this period</p> : null}
           </div>
 
           {/* Podium */}

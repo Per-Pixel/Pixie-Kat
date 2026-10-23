@@ -22,8 +22,8 @@ export interface LeaderboardSettings {
 
 export const DEFAULT_LEADERBOARD_SETTINGS: LeaderboardSettings = {
   enabled: true,
-  metric: 'completed_orders',
-  show_amounts: false,
+  metric: 'total_spent',
+  show_amounts: true,
   teaser_count: 5,
   history_months: 12,
   tiers: [
