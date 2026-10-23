@@ -158,8 +158,8 @@ function StandingsTab({ periods, onChanged }: { periods: PeriodRow[]; onChanged:
                 <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-400">
                   <th className="py-2 pr-3 font-semibold">Rank</th>
                   <th className="py-2 pr-3 font-semibold">Player</th>
-                  <th className="py-2 pr-3 font-semibold text-right">Orders</th>
                   <th className="py-2 pr-3 font-semibold text-right">Spent</th>
+                  <th className="py-2 pr-3 font-semibold text-right">Orders</th>
                   <th className="py-2 pr-3 font-semibold">{data.finalized ? 'Tier awarded' : 'Tier preview'}</th>
                   <th className="py-2 font-semibold text-right">Actions</th>
                 </tr>
@@ -186,10 +186,10 @@ function StandingsTab({ periods, onChanged }: { periods: PeriodRow[]; onChanged:
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 pr-3 text-right font-semibold text-gray-900">{row.order_count}</td>
-                    <td className="py-3 pr-3 text-right text-gray-500">
-                      {row.total_spent != null ? Number(row.total_spent).toFixed(2) : '—'}
+                    <td className="py-3 pr-3 text-right font-semibold text-gray-900">
+                      {row.total_spent != null ? `₹${Number(row.total_spent).toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—'}
                     </td>
+                    <td className="py-3 pr-3 text-right text-gray-500">{row.order_count}</td>
                     <td className="py-3 pr-3">
                       {row.tier ? (
                         <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-600 capitalize">{row.tier}</span>
@@ -304,8 +304,8 @@ function HistoryTab({ periods, loading }: { periods: PeriodRow[]; loading: boole
                 <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-400">
                   <th className="py-2 pr-3 font-semibold">Rank</th>
                   <th className="py-2 pr-3 font-semibold">Player</th>
-                  <th className="py-2 pr-3 font-semibold text-right">Orders</th>
                   <th className="py-2 pr-3 font-semibold text-right">Spent</th>
+                  <th className="py-2 pr-3 font-semibold text-right">Orders</th>
                   <th className="py-2 font-semibold">Tier</th>
                 </tr>
               </thead>
@@ -322,10 +322,10 @@ function HistoryTab({ periods, loading }: { periods: PeriodRow[]; loading: boole
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 pr-3 text-right font-semibold text-gray-900">{row.order_count}</td>
-                    <td className="py-3 pr-3 text-right text-gray-500">
-                      {row.total_spent != null ? Number(row.total_spent).toFixed(2) : '—'}
+                    <td className="py-3 pr-3 text-right font-semibold text-gray-900">
+                      {row.total_spent != null ? `₹${Number(row.total_spent).toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—'}
                     </td>
+                    <td className="py-3 pr-3 text-right text-gray-500">{row.order_count}</td>
                     <td className="py-3">
                       {row.tier ? (
                         <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-600 capitalize">{row.tier}</span>
@@ -485,7 +485,7 @@ function SettingsTab() {
           </div>
         </div>
         <p className="mt-3 text-xs text-gray-400">
-          Ranking metric is completed order count per calendar month (UTC). Stored in <code className="text-xs bg-gray-100 px-1 rounded">store_settings.leaderboard_settings</code>.
+          Ranking metric is total spend on completed orders per calendar month (UTC). Stored in <code className="text-xs bg-gray-100 px-1 rounded">store_settings.leaderboard_settings</code>.
         </p>
       </Card>
 
@@ -593,7 +593,7 @@ export default function LeaderboardPage() {
         <div>
           <h1 className="text-xl font-bold text-gray-900">Leaderboard</h1>
           <p className="text-sm text-gray-500">
-            Monthly order-count rankings. Finalize a past month to freeze standings and grant perks.
+            Monthly spend rankings. Finalize a past month to freeze standings and grant perks.
           </p>
         </div>
       </motion.div>

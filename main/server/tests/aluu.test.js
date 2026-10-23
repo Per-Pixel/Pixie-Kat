@@ -7,6 +7,7 @@ import { Buffer } from 'node:buffer';
 import {
   isConfigured,
   createOrder,
+  createCryptoOrder,
   checkOrderStatus,
   verifyWebhookSignature,
 } from '../aluu.js';
@@ -110,6 +111,178 @@ test('createOrder surfaces API error when Aluu returns status:"false" (string)',
       () => createOrder({ amount: 1, orderId: 'o1', customerMobile: '9999999999', redirectUrl: 'https://example.com' }),
       /Merchant Not Linked/,
     );
+  } finally {
+    globalThis.fetch = origFetch;
+    if (origToken !== undefined) process.env.ALUU_USER_TOKEN = origToken;
+    else delete process.env.ALUU_USER_TOKEN;
+  }
+});
+
+test('createCryptoOrder rejects invalid parameters', async () => {
+  const orig = process.env.ALUU_USER_TOKEN;
+  process.env.ALUU_USER_TOKEN = 'test_token';
+  try {
+    await assert.rejects(() => createCryptoOrder({ amountUsd: 0, orderId: '1', customerMobile: '9999999999', redirectUrl: 'http://test' }), /greater than zero/);
+    await assert.rejects(() => createCryptoOrder({ amountUsd: 10, orderId: '', customerMobile: '9999999999', redirectUrl: 'http://test' }), /order ID is required/);
+    await assert.rejects(() => createCryptoOrder({ amountUsd: 10, orderId: '1', customerMobile: '', redirectUrl: 'http://test' }), /customer mobile/);
+    await assert.rejects(() => createCryptoOrder({ amountUsd: 10, orderId: '1', customerMobile: '9999999999', redirectUrl: '' }), /redirect URL/);
+    await assert.rejects(() => createCryptoOrder({ amountUsd: 10, orderId: '1', customerMobile: '9999999999', redirectUrl: 'http://test', network: 'SOLANA' }), /network must be one of/);
+  } finally {
+    if (orig !== undefined) process.env.ALUU_USER_TOKEN = orig;
+    else delete process.env.ALUU_USER_TOKEN;
+  }
+});
+
+test('createCryptoOrder locks to one network and parses options', async () => {
+  const origFetch = globalThis.fetch;
+  const origToken = process.env.ALUU_USER_TOKEN;
+  process.env.ALUU_USER_TOKEN = 'token_abc123';
+  let capturedRequest;
+
+  globalThis.fetch = async (url, options) => {
+    capturedRequest = { url, options };
+    return {
+      ok: true,
+      text: async () => JSON.stringify({
+        status: true,
+        message: 'Order Created Successfully',
+        result: {
+          orderId: '8787772321800',
+          requested_amount: '50.00',
+          options: [
+            { network: 'TRC20', address: 'TExampleAddr', amount: '50.0043' },
+          ],
+          payment_url: 'https://pay.aluu.in/payment3/crypto_pay?tx=PGX1',
+        },
+      }),
+    };
+  };
+
+  try {
+    const result = await createCryptoOrder({
+      amountUsd: 50,
+      orderId: 'my_crypto_order',
+      customerMobile: '9876543210',
+      redirectUrl: 'https://pixiekat.com/orders/my_crypto_order',
+      network: 'trc20',
+    });
+
+    assert.strictEqual(capturedRequest.url, 'https://pay.aluu.in/api/create-crypto-order');
+    const params = new URLSearchParams(capturedRequest.options.body);
+    assert.strictEqual(params.get('amount'), '50');
+    assert.strictEqual(params.get('order_id'), 'my_crypto_order');
+    assert.strictEqual(params.get('network'), 'TRC20');
+    assert.strictEqual(params.get('user_token'), 'token_abc123');
+
+    assert.deepStrictEqual(result, {
+      orderId: '8787772321800',
+      requestedAmount: '50.00',
+      options: [{ network: 'TRC20', address: 'TExampleAddr', amount: '50.0043' }],
+      paymentUrl: 'https://pay.aluu.in/payment3/crypto_pay?tx=PGX1',
+    });
+  } finally {
+    globalThis.fetch = origFetch;
+    if (origToken !== undefined) process.env.ALUU_USER_TOKEN = origToken;
+    else delete process.env.ALUU_USER_TOKEN;
+  }
+});
+
+test('createCryptoOrder omits network entirely when not provided', async () => {
+  const origFetch = globalThis.fetch;
+  const origToken = process.env.ALUU_USER_TOKEN;
+  process.env.ALUU_USER_TOKEN = 'token_abc123';
+  let capturedRequest;
+
+  globalThis.fetch = async (url, options) => {
+    capturedRequest = { url, options };
+    return {
+      ok: true,
+      text: async () => JSON.stringify({
+        status: true,
+        message: 'Order Created Successfully',
+        result: {
+          orderId: '8787772321800',
+          requested_amount: '50.00',
+          options: [
+            { network: 'TRC20', address: 'T...', amount: '50.0043' },
+            { network: 'BEP20', address: '0x...', amount: '50.0068' },
+            { network: 'ERC20', address: '0x...', amount: '50.0021' },
+          ],
+          payment_url: 'https://pay.aluu.in/payment3/crypto_pay?tx=PGX2',
+        },
+      }),
+    };
+  };
+
+  try {
+    const result = await createCryptoOrder({
+      amountUsd: 50,
+      orderId: 'my_crypto_order_2',
+      customerMobile: '9876543210',
+      redirectUrl: 'https://pixiekat.com/orders/my_crypto_order_2',
+    });
+
+    const params = new URLSearchParams(capturedRequest.options.body);
+    assert.strictEqual(params.get('network'), null);
+    assert.strictEqual(result.options.length, 3);
+    assert.strictEqual(result.options[1].amount, '50.0068');
+    assert.strictEqual(result.requestedAmount, '50.00');
+  } finally {
+    globalThis.fetch = origFetch;
+    if (origToken !== undefined) process.env.ALUU_USER_TOKEN = origToken;
+    else delete process.env.ALUU_USER_TOKEN;
+  }
+});
+
+test('createCryptoOrder surfaces API error when no crypto wallet is connected', async () => {
+  const origFetch = globalThis.fetch;
+  const origToken = process.env.ALUU_USER_TOKEN;
+  process.env.ALUU_USER_TOKEN = 'token_abc123';
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    text: async () => JSON.stringify({ status: 'false', message: 'Merchant has not connected any crypto wallet' }),
+  });
+
+  try {
+    await assert.rejects(
+      () => createCryptoOrder({ amountUsd: 50, orderId: 'o1', customerMobile: '9999999999', redirectUrl: 'https://example.com' }),
+      /not connected any crypto wallet/,
+    );
+  } finally {
+    globalThis.fetch = origFetch;
+    if (origToken !== undefined) process.env.ALUU_USER_TOKEN = origToken;
+    else delete process.env.ALUU_USER_TOKEN;
+  }
+});
+
+test('checkOrderStatus surfaces network and crypto_txid for crypto orders', async () => {
+  const origFetch = globalThis.fetch;
+  const origToken = process.env.ALUU_USER_TOKEN;
+  process.env.ALUU_USER_TOKEN = 'token_abc123';
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    text: async () => JSON.stringify({
+      status: 'COMPLETED',
+      result: {
+        txnStatus: 'COMPLETED',
+        orderId: 'my_crypto_order',
+        amount: '50.0043',
+        utr: '0xdeadbeef',
+        network: 'TRC20',
+        crypto_txid: '0xdeadbeef',
+        date: '2026-10-15 12:00:00',
+      },
+    }),
+  });
+
+  try {
+    const status = await checkOrderStatus('my_crypto_order');
+    assert.strictEqual(status.network, 'TRC20');
+    assert.strictEqual(status.cryptoTxid, '0xdeadbeef');
+    assert.strictEqual(status.utr, '0xdeadbeef');
+    assert.strictEqual(status.amount, '50.0043');
   } finally {
     globalThis.fetch = origFetch;
     if (origToken !== undefined) process.env.ALUU_USER_TOKEN = origToken;

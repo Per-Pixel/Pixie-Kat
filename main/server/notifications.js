@@ -137,10 +137,11 @@ export function renderNotification(row) {
         subject: `You placed #${p.rank} on the ${p.period} PixieKat leaderboard`,
         html: page(
           `Rank #${p.rank} — ${p.tier_label || p.tier || 'Winner'}`,
-          `You finished the ${p.period} leaderboard at rank #${p.rank} with ${p.order_count} completed orders.`,
+          `You finished the ${p.period} leaderboard at rank #${p.rank} with ₹${Number(p.total_spent || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })} spent.`,
           {
             Period: p.period,
             Rank: `#${p.rank}`,
+            'Total spent': `₹${Number(p.total_spent || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`,
             'Completed orders': p.order_count,
             Tier: p.tier_label || p.tier,
             'Perks unlocked': perkNames || undefined,

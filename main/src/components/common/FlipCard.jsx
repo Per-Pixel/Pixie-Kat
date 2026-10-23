@@ -2,6 +2,7 @@ import { useState } from 'react';
 import SlideTextButton from "../../animations/components/SlideTextButton";
 import { TiLocationArrow } from "react-icons/ti";
 import { publicMediaUrl } from "../../lib/supabase";
+import LazyVideo from "./LazyVideo";
 
 const FlipCard = ({
   frontVideo = publicMediaUrl("/videos/feature-2.mp4"),
@@ -39,17 +40,8 @@ const FlipCard = ({
           height: showBack ? '0%' : '100%',
         }}
       >
-        <video
+        <LazyVideo
           src={frontVideo}
-          autoPlay
-          loop
-          muted
-          playsInline
-          webkit-playsinline="true"
-          controls={false}
-          controlsList="nodownload noplaybackrate nofullscreen"
-          disablePictureInPicture
-          preload="metadata"
           className="pointer-events-none absolute inset-0 size-full object-cover object-center"
         />
         <div className="relative z-10">
@@ -67,17 +59,8 @@ const FlipCard = ({
           transform: showBack ? 'rotate(0deg)' : 'rotate(90deg) scale(-1)',
         }}
       >
-        <video
+        <LazyVideo
           src={backVideo}
-          autoPlay
-          loop
-          muted
-          playsInline
-          webkit-playsinline="true"
-          controls={false}
-          controlsList="nodownload noplaybackrate nofullscreen"
-          disablePictureInPicture
-          preload="metadata"
           className="pointer-events-none absolute inset-0 size-full object-cover object-center"
         />
         <div className="relative z-10 flex flex-col items-center">

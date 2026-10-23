@@ -8,6 +8,7 @@ import Button from "../../../components/common/Button";
 import { BentoTilt } from "./Features";
 import SlideTextButton from "../../../animations/components/SlideTextButton";
 import FlipCard from "../../../components/common/FlipCard";
+import LazyVideo from "../../../components/common/LazyVideo";
 import { useParallaxScroll } from "../../../animations/hooks/useParallaxScroll";
 import { useReducedMotion } from "../../../hooks/useReducedMotion";
 import MobileSquareButton from "../../../components/common/MobileSquareButton";
@@ -60,7 +61,6 @@ const Hero = () => {
   const fazeLogoRef = useRef(null);
   const lunoxRef = useRef(null);
   const parallaxContainerRef = useRef(null);
-  const featureVideoRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
   const [isPhone, setIsPhone] = useState(false);
   const [heroSettings, setHeroSettings] = useState(defaultHeroSettings);
@@ -260,18 +260,8 @@ const Hero = () => {
         {false && !isMobile && (
           <BentoTilt className="pointer-events-auto absolute bottom-10 left-6 z-50 h-44 w-72 overflow-hidden rounded-lg shadow-[0_0_15px_rgba(79,183,221,0.5)] md:bottom-12 md:left-10 md:h-56 md:w-96 lg:left-16">
             <div className="relative size-full overflow-hidden rounded-lg">
-              <video
-                ref={featureVideoRef}
-                src={siteGraphicUrl(appearance, 'hero_contact_video', "/videos/feature-4.mp4")} 
-                autoPlay
-                loop
-                muted
-                preload="metadata"
-                playsInline
-                webkit-playsinline="true"
-                controls={false}
-                controlsList="nodownload noplaybackrate nofullscreen"
-                disablePictureInPicture
+              <LazyVideo
+                src={siteGraphicUrl(appearance, 'hero_contact_video', "/videos/feature-4.mp4")}
                 poster={publicMediaUrl("/img/hero/Faze.webp")}
                 className="absolute left-0 top-0 size-full object-cover object-center"
               />
@@ -307,17 +297,8 @@ const Hero = () => {
           <div className="pointer-events-auto absolute left-1/2 top-1/2 z-[500] size-80 -translate-x-1/2 -translate-y-1/2">
             <BentoTilt className="size-full overflow-hidden rounded-lg shadow-[0_0_15px_rgba(79,183,221,0.5)]">
               <div className="relative size-full overflow-hidden rounded-lg">
-                <video
-                  src={siteGraphicUrl(appearance, 'hero_contact_video', "/videos/feature-4.mp4")} 
-                  autoPlay
-                  loop
-                  muted
-                  preload="metadata"
-                  playsInline
-                  webkit-playsinline="true"
-                  controls={false}
-                  controlsList="nodownload noplaybackrate nofullscreen"
-                  disablePictureInPicture
+                <LazyVideo
+                  src={siteGraphicUrl(appearance, 'hero_contact_video', "/videos/feature-4.mp4")}
                   className="pointer-events-none absolute left-0 top-0 size-full object-cover object-center"
                 />
                 <div className="relative z-20 flex size-full flex-col justify-between p-5">

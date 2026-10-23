@@ -73,6 +73,10 @@ import * as notifications from './notifications.js';
 const app = express();
 const PORT = config.port;
 
+// Behind a single trusted proxy (API Gateway / EB ALB). Required for req.ip to
+// reflect the real client so per-IP rate limits and login-history IPs are correct.
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(express.json({
   limit: '64kb',
@@ -159,7 +163,18 @@ const requireAdmin = async (req, res, next) => {
   next();
 };
 
-const requireSuperAdmin = requireAdmin;
+const requireSuperAdmin = async (req, res, next) => {
+  const { error, profile } = await verifyAdminRequest(req.headers.authorization);
+  if (error) {
+    const status = error.startsWith('Access denied') ? 403 : 401;
+    return res.status(status).json({ success: false, message: error });
+  }
+  if (profile.role !== 'admin' || !isSuperAdmin(profile)) {
+    return res.status(403).json({ success: false, message: 'Requires super admin role' });
+  }
+  req.adminProfile = profile;
+  next();
+};
 
 // Fire-and-forget audit log — failures must never abort a successful primary operation
 function fireLog(params) {
@@ -226,7 +241,8 @@ function isPlainObject(value) {
 }
 
 function getClientIp(req) {
-  return (req.socket.remoteAddress || '').replace(/^::ffff:/, '').slice(0, 45) || null;
+  // req.ip honours `trust proxy`; remoteAddress alone would log the proxy IP.
+  return (req.ip || req.socket.remoteAddress || '').replace(/^::ffff:/, '').slice(0, 45) || null;
 }
 
 function getDeviceType(userAgent) {
@@ -1203,7 +1219,8 @@ app.post('/api/yokcash/order/dry-run', requireAdmin, (req, res) => {
 // arrive via API Gateway, so the real source IP sits at the FRONT of
 // x-forwarded-for — remoteAddress only shows the gateway's IP.
 app.post('/api/webhooks/yokcash', async (req, res) => {
-  const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || getClientIp(req);
+  // req.ip is proxy-derived (real client); a client-supplied XFF header is spoofable.
+  const ip = getClientIp(req);
   if (ip !== yokcash.CALLBACK_IP) {
     console.warn(`[yokcash/webhook] rejected callback from ${ip} (expected ${yokcash.CALLBACK_IP})`);
     return res.status(403).json({ ok: false });
@@ -2412,6 +2429,7 @@ app.post('/api/cart-checkout', cartCheckoutLimiter, async (req, res) => {
     // aluu
     try {
       if (!aluu.isConfigured()) throw new Error('Aluu Pay is not configured on the payment server');
+      if (currency !== 'INR') throw new Error('UPI payments are only available for INR amounts');
       const contactMeta = isPlainObject(contact) ? contact : {};
       const customerMobile = String(contactMeta.whatsapp || contactMeta.mobile || '0000000000')
         .replace(/\D/g, '').slice(-10) || '0000000000';
@@ -2720,6 +2738,15 @@ app.post('/api/aluu/check-payment', aluuCheckPaymentLimiter, async (req, res) =>
     const statusResult = await aluu.checkOrderStatus(orderId);
 
     if (statusResult.txnStatus === 'COMPLETED' || statusResult.status === 'COMPLETED') {
+      // Never settle on status alone: the echoed order id and paid amount must
+      // match our record, same posture as assertCapturedRazorpayPayment.
+      const paidAmount = Number(statusResult.amount);
+      if (String(statusResult.orderId) !== String(orderId)
+          || !Number.isFinite(paidAmount) || paidAmount <= 0
+          || Math.abs(paidAmount - Number(order.total_amount)) > 0.01) {
+        console.error(`[aluu/check-payment] settle rejected for order ${orderId}: provider order=${statusResult.orderId} amount=${statusResult.amount} expected=${order.total_amount}`);
+        return res.status(400).json({ ok: false, orderId: order.id, status: order.status, error: 'Paid amount does not match the order. Please contact support.' });
+      }
       const paymentId = statusResult.utr || `aluu_${statusResult.orderId}`;
       const aluuMeta = {
         aluu_txn_status: statusResult.txnStatus,
@@ -2823,6 +2850,16 @@ app.post('/api/aluu/check-cart-payment', aluuCheckPaymentLimiter, async (req, re
     const statusResult = await aluu.checkOrderStatus(groupId);
 
     if (statusResult.txnStatus === 'COMPLETED' || statusResult.status === 'COMPLETED') {
+      // One provider payment covers the whole group — the paid amount must
+      // equal the grand total before any sibling order settles.
+      const expectedTotal = orders.reduce((s, o) => s + Number(o.total_amount), 0);
+      const paidAmount = Number(statusResult.amount);
+      if (String(statusResult.orderId) !== String(groupId)
+          || !Number.isFinite(paidAmount) || paidAmount <= 0
+          || Math.abs(paidAmount - expectedTotal) > 0.01) {
+        console.error(`[aluu/check-cart-payment] settle rejected for group ${groupId}: provider order=${statusResult.orderId} amount=${statusResult.amount} expected=${expectedTotal}`);
+        return res.status(400).json({ ok: false, error: 'Paid amount does not match the cart total. Please contact support.' });
+      }
       const paymentId = statusResult.utr || `aluu_${statusResult.orderId}`;
       const aluuMeta = {
         aluu_txn_status: statusResult.txnStatus,
@@ -2882,6 +2919,19 @@ app.post('/api/webhooks/aluu', async (req, res) => {
     return res.json({ ok: true, ignored: true });
   }
 
+  // Signature proves the ping came from Aluu, but we still confirm status and
+  // amount server-side before settling — never settle on payload fields alone.
+  let statusResult;
+  try {
+    statusResult = await aluu.checkOrderStatus(String(webhookOrderId));
+  } catch (err) {
+    console.error(`[webhooks/aluu] status check failed for ${webhookOrderId}:`, err.message);
+    return res.status(502).json({ ok: false, error: 'Provider status check failed' });
+  }
+  if (statusResult.txnStatus !== 'COMPLETED' && statusResult.status !== 'COMPLETED') {
+    return res.json({ ok: true, ignored: true });
+  }
+
   try {
     // Look up by our orderId (we used it as external order_id with Aluu)
     const { data: order, error: orderError } = await supabaseAdmin
@@ -2918,12 +2968,19 @@ app.post('/api/webhooks/aluu', async (req, res) => {
       const group = (groupOrders ?? []).filter((o) => o.payment_method === 'aluu');
       if (!group.length) return res.json({ ok: true, ignored: true });
 
-      const paymentId = body.utr ? String(body.utr) : `aluu_${webhookOrderId}`;
+      const expectedTotal = group.reduce((s, o) => s + Number(o.total_amount), 0);
+      const paidAmount = Number(statusResult.amount);
+      if (!Number.isFinite(paidAmount) || paidAmount <= 0
+          || Math.abs(paidAmount - expectedTotal) > 0.01) {
+        console.error(`[webhooks/aluu] settle rejected for group ${webhookOrderId}: amount=${statusResult.amount} expected=${expectedTotal}`);
+        return res.status(400).json({ ok: false, error: 'Paid amount does not match the order group' });
+      }
+      const paymentId = statusResult.utr ? String(statusResult.utr) : `aluu_${webhookOrderId}`;
       const aluuMeta = {
-        aluu_txn_status: txnStatus,
-        aluu_utr: body.utr || null,
-        aluu_amount: body.amount || null,
-        aluu_date: body.date || null,
+        aluu_txn_status: statusResult.txnStatus,
+        aluu_utr: statusResult.utr || null,
+        aluu_amount: statusResult.amount || null,
+        aluu_date: statusResult.date || null,
         verified_at: new Date().toISOString(),
         source: 'webhook',
       };
@@ -2947,12 +3004,18 @@ app.post('/api/webhooks/aluu', async (req, res) => {
       return res.json({ ok: true, orderId: resolvedOrder.id, status: resolvedOrder.status, already: true });
     }
 
-    const paymentId = body.utr ? String(body.utr) : `aluu_${webhookOrderId}`;
+    const paidAmount = Number(statusResult.amount);
+    if (!Number.isFinite(paidAmount) || paidAmount <= 0
+        || Math.abs(paidAmount - Number(resolvedOrder.total_amount)) > 0.01) {
+      console.error(`[webhooks/aluu] settle rejected for order ${resolvedOrder.id}: amount=${statusResult.amount} expected=${resolvedOrder.total_amount}`);
+      return res.status(400).json({ ok: false, error: 'Paid amount does not match the order' });
+    }
+    const paymentId = statusResult.utr ? String(statusResult.utr) : `aluu_${webhookOrderId}`;
     const aluuMeta = {
-      aluu_txn_status: txnStatus,
-      aluu_utr: body.utr || null,
-      aluu_amount: body.amount || null,
-      aluu_date: body.date || null,
+      aluu_txn_status: statusResult.txnStatus,
+      aluu_utr: statusResult.utr || null,
+      aluu_amount: statusResult.amount || null,
+      aluu_date: statusResult.date || null,
       verified_at: new Date().toISOString(),
       source: 'webhook',
     };

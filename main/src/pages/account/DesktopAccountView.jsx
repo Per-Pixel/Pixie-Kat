@@ -700,7 +700,7 @@ export const RewardsPanel = ({ profile }) => {
             <p aria-live="polite" className="mt-1 break-words font-display text-4xl font-black uppercase leading-none text-blue-50 sm:text-6xl">
               {historyError ? "Unavailable" : history === null ? "Loading…" : current ? `#${current.rank}` : "Unranked this month"}
             </p>
-            {current ? <p className="mt-2 font-circular-web text-sm text-blue-100/75">{current.order_count} completed order{Number(current.order_count) === 1 ? "" : "s"} this month</p> : null}
+            {current ? <p className="mt-2 font-circular-web text-sm text-blue-100/75">{current.total_spent != null ? `₹${Number(current.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })} spent` : `${current.order_count} completed order${Number(current.order_count) === 1 ? "" : "s"}`} this month</p> : null}
             {history !== null && !historyError && !current ? <p className="mt-2 font-circular-web text-sm text-blue-100/70">Complete an order to join this month’s board.</p> : null}
             {current?.hidden ? (
               <p className="mt-2 font-circular-web text-xs font-medium text-yellow-300">
@@ -760,7 +760,7 @@ export const RewardsPanel = ({ profile }) => {
                   <tr className="font-general text-[10px] font-semibold uppercase tracking-wide text-blue-200/60">
                     <th scope="col" className="px-4 py-3">Month</th>
                     <th scope="col" className="px-4 py-3">Rank</th>
-                    <th scope="col" className="px-4 py-3">Orders</th>
+                    <th scope="col" className="px-4 py-3">Spent</th>
                     <th scope="col" className="px-4 py-3">Trend</th>
                     <th scope="col" className="px-4 py-3">Tier</th>
                     <th scope="col" className="px-4 py-3">Status</th>
@@ -771,7 +771,7 @@ export const RewardsPanel = ({ profile }) => {
                     <tr key={row.period} className="transition-colors hover:bg-violet-300/5">
                       <td className="whitespace-nowrap p-4 font-general text-sm font-semibold text-blue-200">{periodLabel(row.period)}</td>
                       <td className="p-4 font-display text-2xl font-black text-violet-300">{row.rank ? `#${row.rank}` : "—"}</td>
-                      <td className="p-4 font-circular-web text-blue-200/75">{row.order_count ?? "—"}</td>
+                      <td className="p-4 font-circular-web text-blue-200/75">{row.total_spent != null ? `₹${Number(row.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : (row.order_count ?? "—")}</td>
                       <td className="p-4"><RankTrend rank={row.rank} previousRank={history[index + 1]?.rank} /></td>
                       <td className="p-4 font-circular-web text-blue-200/75">{row.tier || "—"}</td>
                       <td className="p-4"><RankStatus finalized={row.finalized} /></td>
@@ -793,8 +793,8 @@ export const RewardsPanel = ({ profile }) => {
                   </div>
                   <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-blue-200/10 pt-3">
                     <div>
-                      <dt className="font-general text-[10px] uppercase text-blue-200/55">Orders</dt>
-                      <dd className="mt-1 font-circular-web text-sm text-blue-200">{row.order_count ?? "—"}</dd>
+                      <dt className="font-general text-[10px] uppercase text-blue-200/55">Spent</dt>
+                      <dd className="mt-1 font-circular-web text-sm text-blue-200">{row.total_spent != null ? `₹${Number(row.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : (row.order_count ?? "—")}</dd>
                     </div>
                     <div>
                       <dt className="font-general text-[10px] uppercase text-blue-200/55">Trend</dt>

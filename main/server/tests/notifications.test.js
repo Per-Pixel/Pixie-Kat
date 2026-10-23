@@ -64,6 +64,7 @@ test('renderNotification renders leaderboard_winner with tier and perks', () => 
       period: '2026-09',
       rank: 1,
       order_count: 12,
+      total_spent: 4800,
       tier: 'champion',
       tier_label: 'Champion',
       frame: 'champion',
@@ -73,6 +74,7 @@ test('renderNotification renders leaderboard_winner with tier and perks', () => 
   });
   assert.ok(r && r.subject.includes('#1'));
   assert.ok(r.subject.includes('2026-09'));
+  assert.ok(r.html.includes('₹4,800'));
   assert.ok(r.html.includes('Champion'));
   assert.ok(r.html.includes('GIF profile picture'));
   assert.ok(r.html.includes('250 PKS'));

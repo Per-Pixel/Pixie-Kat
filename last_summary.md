@@ -1,36 +1,17 @@
-# Last Session Summary
+# Last session summary
 
-## FK-violation fix: order-referenced products (2026-10-21)
+## Leaderboard now ranks by spend, not order count
+- New migration `supabase/migrations/056_leaderboard_spend_metric.sql` (457 lines) — applied to prod via `npx supabase db query --linked --file ...` (never `db push`). All `ROW_NUMBER` windows now order by `total_spent DESC, last_order_at ASC, user_id`; `order_count` kept as secondary; settings flipped to `metric=total_spent`, `show_amounts=true`; winner outbox payload + `leaderboard_awards` + `get_my_rank_history` rows all carry `total_spent`.
+- Verified live RPC: `metric=total_spent`, `show_amounts=true`, #1 S***m ₹1,174 > #2 Curious_Cat ₹259.
+- Storefront: leaderboard page podium/table/rank-ticket, homepage teaser, and account rank history (desktop + mobile) now lead with ₹ spend, order count secondary; falls back to orders when admin hides amounts (`show_amounts` toggle still honored).
+- Admin: `Leaderboard.tsx` standings/history columns are spend-first with ₹ formatting, settings note + page subtitle updated, `leaderboardService.ts` defaults to `total_spent`/`show_amounts=true`; user OverviewTab rank history shows spend.
+- `main/server/notifications.js` winner email announces ₹ spend (order count kept as a detail row); test updated + passes.
+- Verified: `vitest` leaderboard 13/13, `node --test` notifications 12/12, `tsc -b` admin clean, `vite build` main clean, eslint clean on touched files.
 
-- Error: `update or delete on table "products" violates foreign key
-  constraint "orders_product_id_fkey"`. Cause: `orders.product_id →
-  products.id` is `ON DELETE RESTRICT` (migrations 010/052), while
-  `catalogService.replaceProducts()` wipe-and-reinserted all of a game's
-  products on every save — breaking Game Editor saves, provider resyncs
-  (`syncProviderProducts`), `deleteProduct`, and `deleteGame` (cascade)
-  once a game had orders.
-- `replaceProducts` is now id-stable: upserts drafts preserving existing
-  ids (new drafts get `crypto.randomUUID()`), hard-deletes removed rows,
-  and on FK error retires removed rows to `status='inactive'` instead of
-  failing. Returns `{ products, archived }` — `products` stays index-
-  aligned with input drafts, so GameEditor's metadata remap still works.
-- `deleteProduct`/`deleteGame` now return `'deleted' | 'archived'` and
-  fall back to `status='inactive'` on 23503. ProductsList, GamesList and
-  GameEditor show "has orders — kept as Inactive" toasts and update rows
-  in place. Soft-deleted packages reappear in the editor as inactive —
-  intended; they must exist as order FK targets.
-- Verified: `npm run typecheck` clean, eslint clean on touched files.
-- Seed scripts `seed-new-games.mjs` / `seed-kazutora-games.mjs` still do
-  raw `delete().eq('game_id')` — will fail if re-run on games with
-  orders; left as-is (one-shot emitters for already-applied migrations).
+## Prior context (unchanged)
+- MLBB Mini Packs auto-fulfill via Yokcash PH services (`MLONLYPH_5_S1`, `MLONLYPH_11_S1`, `MLONLYPH_22_S1`); ID SKUs refund on region. Deployed as `app-261023_153741797517`, commit `217599e` pushed.
+- Yokcash real orders need `YOKCASH_ALLOW_TEST_ORDER=true` on EB + whitelisted prod IP (35.154.145.21); local IP is blocked.
+- Bulk MLBB orders: `main/server/scripts/bulk-mlbb-orders.mjs` (`--verify` / `--fire`), SmileCoin SKUs WDP=16642, 55💎=22590, 275💎=22592.
 
-## Still pending (from prior sessions)
-
-- Uncommitted tree work: auth-screen mobile chrome fix
-  (`main/src/App.jsx`, `pages/auth/index.jsx`), `main/server/aluu.js`
-  crypto-order client + tests, LazyVideo/index.html perf edits,
-  `scripts/gif-frames.mjs`, `scripts/set-site-graphic.js`.
-- `videos/pixiekat-portal-hop/` 9:16 render not built.
-- JJK promo 9th Exclusive card → 4+4+1 grid; MCGG/BGMI art low-res.
-- Open media slots: `contact_left_bottom`, `contact_right_back`,
-  `contact_right_front`, products slider images.
+## Pending
+- Leaderboard changes committed locally; push to GitHub + `eb deploy` (notifications.js change) + Amplify builds await the user's go-ahead.

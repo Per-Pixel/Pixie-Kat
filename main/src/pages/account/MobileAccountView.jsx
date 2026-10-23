@@ -727,7 +727,7 @@ const RankStrip = () => {
           <strong className="mt-1 block break-words font-display text-3xl font-black uppercase leading-none">{rankText}</strong>
           {current.row ? (
             <span className="mt-1 block font-circular-web text-xs text-blue-100/70">
-              {current.row.hidden ? "Private · " : ""}{current.row.order_count} completed order{Number(current.row.order_count) === 1 ? "" : "s"}
+              {current.row.hidden ? "Private · " : ""}{current.row.total_spent != null ? `₹${Number(current.row.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })} spent` : `${current.row.order_count} completed order${Number(current.row.order_count) === 1 ? "" : "s"}`}
             </span>
           ) : null}
         </span>
