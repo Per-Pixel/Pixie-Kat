@@ -1,20 +1,19 @@
 /**
- * Seed the Wuthering Waves game cloned from tangyanstore.com
- * (https://tangyanstore.com/product/Wuthering%20Waves, scraped 2026-10-23):
- *   60 Lunites ₹97 · Lunite Subscription ₹454 · 330 ₹446 · 1090 ₹1351 ·
- *   2240 ₹2686 · 3880 ₹4479 · 8080 ₹8731 — supplier retail = our fulfilment
- *   cost, recorded in cost_price / metadata.tangyan_price_inr.
+ * Seed the Wuthering Waves game — catalog inspired by tangyanstore.com
+ * (https://tangyanstore.com/product/Wuthering%20Waves, scraped 2026-10-23),
+ * fulfilled via Yokcash WUTWVS* services (product idea from Tangyan, supply
+ * and pricing convention from our usual Yokcash source).
  *
- * Sell price = tangyan × ~1.15 rounded to tidy ₹5/₹10 points.
+ * Sell price  = Yokcash harga IDR→INR @0.005385 × 1.15 (same as HOK/BGMI/HSR).
+ * Cost price  = Yokcash harga → INR. Every sell price also clears tangyanstore
+ * retail (₹97/446/1351/2686/4479/8731/454), so a manual Tangyan fallback
+ * still turns a margin.
  *
- * Region handling: global — the supplier product takes any UID + server, so
- * the game carries no blocked_regions and region='global'. The buyer's server
- * choice is captured via the zone_id select field and lands on the order for
- * staff fulfilment.
- *
- * Fulfilment: provider='manual' — no SmileCoin/SmileCode WuWa product exists
- * and Yokcash can't be probed locally (IP whitelist). Orders stay `processing`
- * for staff to top up from the supplier.
+ * Region handling: global — the Yokcash services take UID + server, so the
+ * game carries no blocked_regions and region='global'. The buyer's server
+ * choice is captured via the zone_id select and lands on the order, and
+ * fulfill-order forwards it to Yokcash as target "uid|server" — same shape
+ * as the Genshin GIYC* services.
  *
  * Art: Steam store capsule + page background (app 3513350), uploaded to
  * public-media as img/games/wuthering-waves{,-banner}.jpg.
@@ -24,6 +23,8 @@
 import { supabaseAdmin } from '../supabase-admin.js';
 
 const APPLY = process.argv.includes('--apply');
+const IDR_INR = 0.005385; // same rate as seed-new-games.mjs / seed-kazutora-games.mjs
+const cost = (idr) => Math.round(idr * IDR_INR * 100) / 100;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ── 1. Images ────────────────────────────────────────────────────────────────
@@ -49,15 +50,16 @@ async function uploadImages() {
 }
 
 // ── 2. Catalog rows ──────────────────────────────────────────────────────────
-const P = (name, amount, price, cost, extra = {}) => ({
+// pid = Yokcash service id, idr = its harga.
+const P = (name, amount, price, pid, idr, extra = {}) => ({
   name, amount, price, currency: 'INR',
-  provider_product_id: null,
-  cost_price: cost,
+  provider_product_id: pid,
+  cost_price: cost(idr),
   image_url: 'img/games/wuthering-waves.jpg',
   is_popular: !!extra.popular,
   status: 'active',
   sort_order: 0,
-  metadata: { fulfillment_mode: 'manual', tangyan_price_inr: cost },
+  metadata: { yokcash_service_id: pid, yokcash_cost_idr: idr },
 });
 
 const GAME = {
@@ -71,7 +73,7 @@ const GAME = {
   banner_url: 'img/games/wuthering-waves-banner.jpg',
   category: 'RPG',
   currency_label: 'Lunites',
-  provider: 'manual',
+  provider: 'yokcash',
   status: 'active',
   sort_order: 3,
   region: 'global',
@@ -79,15 +81,14 @@ const GAME = {
     { title: 'Enter UID & Server', description: 'Provide your Wuthering Waves UID and select your account server.' },
     { title: 'Choose the Package', description: 'Select the Lunite pack or Lunite Subscription you want.' },
     { title: 'Make Payment', description: 'Choose your preferred payment method.' },
-    { title: 'Confirmation', description: 'Lunites are credited to your account after payment.' },
+    { title: 'Confirmation', description: 'Lunites are credited instantly after payment.' },
   ],
   instructions:
     'Lunites are delivered to the UID + server you select — double-check both before paying.',
   metadata: {
     source: 'tangyanstore:Wuthering Waves',
     source_url: 'https://tangyanstore.com/product/Wuthering%20Waves',
-    pricing_source: 'tangyanstore.com',
-    fulfillment_mode: 'manual',
+    pricing_source: 'yokcash',
   },
   fields: [
     { field_key: 'user_id', label: 'UID', field_type: 'text', placeholder: 'Enter your Wuthering Waves UID', help_text: 'The UID shown on your in-game profile.', is_required: true, sort_order: 1 },
@@ -98,13 +99,13 @@ const GAME = {
     },
   ],
   products: [
-    P('60 Lunites', 'Lunites=60', 110, 97),
-    P('Lunite Subscription', 'Lunite Subscription', 520, 454, { popular: true }),
-    P('330 Lunites', 'Lunites=330', 515, 446),
-    P('1090 Lunites', 'Lunites=1090', 1555, 1351),
-    P('2240 Lunites', 'Lunites=2240', 3090, 2686),
-    P('3880 Lunites', 'Lunites=3880', 5150, 4479),
-    P('8080 Lunites', 'Lunites=8080', 10040, 8731),
+    P('60 Lunites', 'Lunites=60', 101, 'WUTWVS60YCGG', 16368),
+    P('Lunite Subscription', 'Lunite Subscription', 482, 'WUTWVSLS1YCGG', 77789, { popular: true }),
+    P('300 + 30 Lunites', 'Lunites=330', 480, 'WUTWVS300YCGG', 77558),
+    P('980 + 110 Lunites', 'Lunites=1090', 1449, 'WUTWVS980YCGG', 233945),
+    P('1980 + 260 Lunites', 'Lunites=2240', 2898, 'WUTWVS1980YCGG', 467890),
+    P('3280 + 600 Lunites', 'Lunites=3880', 4648, 'WUTWVS3280YCGG', 750605),
+    P('6480 + 1600 Lunites', 'Lunites=8080', 9060, 'WUTWVS6480YCGG', 1462800),
   ],
 };
 
@@ -116,7 +117,7 @@ console.log(`\n== ${row.slug} ==`);
 products.forEach((p, i) => {
   p.sort_order = i + 1;
   const margin = p.price - p.cost_price;
-  console.log(`   ${p.name.padEnd(22)} sell ₹${String(p.price).padEnd(6)} cost ₹${p.cost_price}  margin ₹${margin.toFixed(2)}`);
+  console.log(`   ${p.name.padEnd(22)} sell ₹${String(p.price).padEnd(6)} cost ₹${p.cost_price}  pid ${p.provider_product_id}  margin ₹${margin.toFixed(2)}`);
 });
 if (!APPLY) {
   console.log('\ndry-run — rerun with --apply to write to Supabase');

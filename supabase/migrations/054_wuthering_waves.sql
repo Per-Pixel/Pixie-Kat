@@ -1,19 +1,21 @@
--- 054: Seed Wuthering Waves game (tangyanstore.com catalog, scraped 2026-10-23).
+-- 054: Seed Wuthering Waves game, fulfilled via Yokcash WUTWVS* services.
+-- Product idea from tangyanstore.com (scraped 2026-10-23); supply + pricing
+-- follow the house Yokcash convention: sell = harga IDR→INR @0.005385 × 1.15,
+-- provider_product_id = Yokcash service code. Every sell price also clears
+-- tangyan retail, so a manual Tangyan fallback stays profitable.
 -- Applied to prod 2026-10-23 via main/server/scripts/seed-wuthering-waves.mjs
 -- (service role; that script also uploads card/banner art to public-media).
 -- This file captures the catalog rows for parity. Idempotent via ON CONFLICT.
--- Supplier retail = cost; sell = ~1.15 markup at tidy ₹5/₹10 points.
--- provider='manual' — no SmileCoin/SmileCode WuWa product exists, so orders
--- stay processing for staff fulfilment. region='global', no blocked_regions;
--- the buyer's server choice lands on the order via the zone_id field.
+-- region='global', no blocked_regions; the buyer's server choice lands on the
+-- order via zone_id and is forwarded to Yokcash as target "uid|server".
 insert into games (id, slug, name, subtitle, description, image_url, banner_url, category, currency_label, provider, status, sort_order, region, how_to_steps, instructions, metadata)
 values
   ('e59486d1-bd68-42e6-8c7e-73ba6569f58a','wuthering-waves','Wuthering Waves','Wuthering Waves Lunites',
    'Top up Lunites for Wuthering Waves. Enter your UID, select your server, pick a Lunite pack or the Lunite Subscription, and the currency is credited to your account after payment.',
-   'img/games/wuthering-waves.jpg','img/games/wuthering-waves-banner.jpg','RPG','Lunites','manual','active',3,'global',
-   '[{"title":"Enter UID & Server","description":"Provide your Wuthering Waves UID and select your account server."},{"title":"Choose the Package","description":"Select the Lunite pack or Lunite Subscription you want."},{"title":"Make Payment","description":"Choose your preferred payment method."},{"title":"Confirmation","description":"Lunites are credited to your account after payment."}]'::jsonb,
+   'img/games/wuthering-waves.jpg','img/games/wuthering-waves-banner.jpg','RPG','Lunites','yokcash','active',3,'global',
+   '[{"title":"Enter UID & Server","description":"Provide your Wuthering Waves UID and select your account server."},{"title":"Choose the Package","description":"Select the Lunite pack or Lunite Subscription you want."},{"title":"Make Payment","description":"Choose your preferred payment method."},{"title":"Confirmation","description":"Lunites are credited instantly after payment."}]'::jsonb,
    'Lunites are delivered to the UID + server you select — double-check both before paying.',
-   '{"source":"tangyanstore:Wuthering Waves","source_url":"https://tangyanstore.com/product/Wuthering%20Waves","pricing_source":"tangyanstore.com","fulfillment_mode":"manual"}'::jsonb)
+   '{"source":"tangyanstore:Wuthering Waves","source_url":"https://tangyanstore.com/product/Wuthering%20Waves","pricing_source":"yokcash"}'::jsonb)
 on conflict (id) do nothing;
 
 insert into game_fields (game_id, field_key, label, field_type, placeholder, help_text, is_required, options, sort_order) values
@@ -22,11 +24,11 @@ insert into game_fields (game_id, field_key, label, field_type, placeholder, hel
 on conflict do nothing;
 
 insert into products (id, game_id, name, amount, price, compare_price, currency, image_url, provider_product_id, cost_price, is_popular, status, sort_order, metadata) values
-  ('a1b6f336-7e5d-4587-acc5-074c91ce0e5b','e59486d1-bd68-42e6-8c7e-73ba6569f58a','60 Lunites','Lunites=60',110,null,'INR','img/games/wuthering-waves.jpg',null,97,false,'active',1,'{"fulfillment_mode":"manual","tangyan_price_inr":97}'),
-  ('752228a7-6a7f-4219-bf31-91a6f343852e','e59486d1-bd68-42e6-8c7e-73ba6569f58a','Lunite Subscription','Lunite Subscription',520,null,'INR','img/games/wuthering-waves.jpg',null,454,true,'active',2,'{"fulfillment_mode":"manual","tangyan_price_inr":454}'),
-  ('9b8f396f-8749-4bb8-be0b-fa96b8039e48','e59486d1-bd68-42e6-8c7e-73ba6569f58a','330 Lunites','Lunites=330',515,null,'INR','img/games/wuthering-waves.jpg',null,446,false,'active',3,'{"fulfillment_mode":"manual","tangyan_price_inr":446}'),
-  ('b101f101-5f77-4eb1-bcb1-6bbd3ad88375','e59486d1-bd68-42e6-8c7e-73ba6569f58a','1090 Lunites','Lunites=1090',1555,null,'INR','img/games/wuthering-waves.jpg',null,1351,false,'active',4,'{"fulfillment_mode":"manual","tangyan_price_inr":1351}'),
-  ('ce6cd98e-52d3-4f92-b084-af1abf54483d','e59486d1-bd68-42e6-8c7e-73ba6569f58a','2240 Lunites','Lunites=2240',3090,null,'INR','img/games/wuthering-waves.jpg',null,2686,false,'active',5,'{"fulfillment_mode":"manual","tangyan_price_inr":2686}'),
-  ('a693691d-526b-4601-be0e-497201cfa54c','e59486d1-bd68-42e6-8c7e-73ba6569f58a','3880 Lunites','Lunites=3880',5150,null,'INR','img/games/wuthering-waves.jpg',null,4479,false,'active',6,'{"fulfillment_mode":"manual","tangyan_price_inr":4479}'),
-  ('b54de7e6-da5f-497c-9664-13d406b4bcfa','e59486d1-bd68-42e6-8c7e-73ba6569f58a','8080 Lunites','Lunites=8080',10040,null,'INR','img/games/wuthering-waves.jpg',null,8731,false,'active',7,'{"fulfillment_mode":"manual","tangyan_price_inr":8731}')
+  ('c60a8c84-20a9-4b24-94c6-2bc83c3a027e','e59486d1-bd68-42e6-8c7e-73ba6569f58a','60 Lunites','Lunites=60',101,null,'INR','img/games/wuthering-waves.jpg','WUTWVS60YCGG',88.14,false,'active',1,'{"yokcash_service_id":"WUTWVS60YCGG","yokcash_cost_idr":16368}'),
+  ('24f7da4b-600f-463c-80ae-923dd1e835c2','e59486d1-bd68-42e6-8c7e-73ba6569f58a','Lunite Subscription','Lunite Subscription',482,null,'INR','img/games/wuthering-waves.jpg','WUTWVSLS1YCGG',418.89,true,'active',2,'{"yokcash_service_id":"WUTWVSLS1YCGG","yokcash_cost_idr":77789}'),
+  ('154848a3-1cba-4e30-9bf3-0389b0ec6f95','e59486d1-bd68-42e6-8c7e-73ba6569f58a','300 + 30 Lunites','Lunites=330',480,null,'INR','img/games/wuthering-waves.jpg','WUTWVS300YCGG',417.65,false,'active',3,'{"yokcash_service_id":"WUTWVS300YCGG","yokcash_cost_idr":77558}'),
+  ('ca6af2fc-4d5b-44c7-9730-cf1aa4c18a96','e59486d1-bd68-42e6-8c7e-73ba6569f58a','980 + 110 Lunites','Lunites=1090',1449,null,'INR','img/games/wuthering-waves.jpg','WUTWVS980YCGG',1259.79,false,'active',4,'{"yokcash_service_id":"WUTWVS980YCGG","yokcash_cost_idr":233945}'),
+  ('d7a2cf1d-6476-4478-a04e-9e582e7a14b0','e59486d1-bd68-42e6-8c7e-73ba6569f58a','1980 + 260 Lunites','Lunites=2240',2898,null,'INR','img/games/wuthering-waves.jpg','WUTWVS1980YCGG',2519.59,false,'active',5,'{"yokcash_service_id":"WUTWVS1980YCGG","yokcash_cost_idr":467890}'),
+  ('624b823f-cfec-47e0-a4d7-90368b795bb2','e59486d1-bd68-42e6-8c7e-73ba6569f58a','3280 + 600 Lunites','Lunites=3880',4648,null,'INR','img/games/wuthering-waves.jpg','WUTWVS3280YCGG',4042.01,false,'active',6,'{"yokcash_service_id":"WUTWVS3280YCGG","yokcash_cost_idr":750605}'),
+  ('45853d6c-d99d-4dca-b4c7-2c36e5650e31','e59486d1-bd68-42e6-8c7e-73ba6569f58a','6480 + 1600 Lunites','Lunites=8080',9060,null,'INR','img/games/wuthering-waves.jpg','WUTWVS6480YCGG',7877.18,false,'active',7,'{"yokcash_service_id":"WUTWVS6480YCGG","yokcash_cost_idr":1462800}')
 on conflict (id) do nothing;
