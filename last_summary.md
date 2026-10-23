@@ -1,36 +1,24 @@
 # Last Session Summary
 
-## FK-violation fix: order-referenced products (2026-10-21)
+## Local API server restarted for Aluu Pay (2026-10-23)
 
-- Error: `update or delete on table "products" violates foreign key
-  constraint "orders_product_id_fkey"`. Cause: `orders.product_id →
-  products.id` is `ON DELETE RESTRICT` (migrations 010/052), while
-  `catalogService.replaceProducts()` wipe-and-reinserted all of a game's
-  products on every save — breaking Game Editor saves, provider resyncs
-  (`syncProviderProducts`), `deleteProduct`, and `deleteGame` (cascade)
-  once a game had orders.
-- `replaceProducts` is now id-stable: upserts drafts preserving existing
-  ids (new drafts get `crypto.randomUUID()`), hard-deletes removed rows,
-  and on FK error retires removed rows to `status='inactive'` instead of
-  failing. Returns `{ products, archived }` — `products` stays index-
-  aligned with input drafts, so GameEditor's metadata remap still works.
-- `deleteProduct`/`deleteGame` now return `'deleted' | 'archived'` and
-  fall back to `status='inactive'` on 23503. ProductsList, GamesList and
-  GameEditor show "has orders — kept as Inactive" toasts and update rows
-  in place. Soft-deleted packages reappear in the editor as inactive —
-  intended; they must exist as order FK targets.
-- Verified: `npm run typecheck` clean, eslint clean on touched files.
-- Seed scripts `seed-new-games.mjs` / `seed-kazutora-games.mjs` still do
-  raw `delete().eq('game_id')` — will fail if re-run on games with
-  orders; left as-is (one-shot emitters for already-applied migrations).
+Started `main/server` with `npm run dev` (node --watch) — listening on
+http://localhost:3001. Verified `/api/health` ok and
+`/api/aluu/check-payment` live (401 without auth, as expected).
+`ALUU_USER_TOKEN` / `ALUU_WEBHOOK_SECRET` are present in `main/server/.env`,
+so the Aluu UPI endpoints are functional locally.
 
-## Still pending (from prior sessions)
+## Carried over (still pending)
 
-- Uncommitted tree work: auth-screen mobile chrome fix
-  (`main/src/App.jsx`, `pages/auth/index.jsx`), `main/server/aluu.js`
-  crypto-order client + tests, LazyVideo/index.html perf edits,
-  `scripts/gif-frames.mjs`, `scripts/set-site-graphic.js`.
 - `videos/pixiekat-portal-hop/` 9:16 render not built.
-- JJK promo 9th Exclusive card → 4+4+1 grid; MCGG/BGMI art low-res.
+- MCGG/BGMI card art low-res.
 - Open media slots: `contact_left_bottom`, `contact_right_back`,
   `contact_right_front`, products slider images.
+- Seed scripts still do raw product deletes — will fail on games with
+  orders if re-run (left as-is).
+- Someday: `VALIDATE` the two NOT VALID constraints from 052; arm the
+  010 protect_*_on_update triggers intentionally.
+- Going live: `rzp_live` keys + webhook secret +
+  `ONLINE_PAYMENTS_ENABLED` flip + apply 055 + confirm SUPER_ADMIN_*
+  env on EB. Crypto top-up client (aluu.js) still not wired into
+  index.js endpoints.
