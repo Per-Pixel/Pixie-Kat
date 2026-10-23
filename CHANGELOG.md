@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Security
+- Harden the payment surface ahead of going live: `requireSuperAdmin` now actually checks `isSuperAdmin()` instead of aliasing `requireAdmin`, so change-email, user delete, wallet adjust and provider-order routes are no longer reachable by every admin.
+- Aluu settlement now verifies the paid amount server-side: `check-payment`, `check-cart-payment` and the signed webhook all confirm the echoed order id and amount via `checkOrderStatus` before flipping orders to processing (same posture as the Razorpay `assertCapturedRazorpayPayment` path), and cart checkout rejects non-INR Aluu payments.
+- Set `trust proxy` so rate limiters key on the real client IP behind the production proxy and login history records it; the Yokcash webhook no longer trusts a client-supplied XFF header.
+- `055_lock_order_admin_updates.sql` (applied to prod) pins money/identity/payment columns on the admin order-update RLS policy (status/metadata stay writable) and drops the stale `orders: admin updates any` policy that survived from migration 001 — prod had drifted and the 010 drop never landed, so any admin could previously rewrite an order's owner, product, amount and payment linkage via PostgREST.
+
 ### Admin
 - Promotions become a first-class CMS section (`/pages/promotions`, `047_promotions.sql`): rich promo cards get slug, description, rich-text details, discount badge and `starts_at`/`ends_at` scheduling — items self-publish and self-hide, the list shows Active/Scheduled/Ended/Hidden badges, and a one-click Duplicate copies any item as a hidden draft.
 - Mobile admin gains an app-style bottom tab bar (Home/Orders/Add/Messages/More) with a spring quick-add sheet for one-tap New Promotion, product, game or message, safe-area padding, and fade page transitions.
