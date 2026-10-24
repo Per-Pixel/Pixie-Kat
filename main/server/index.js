@@ -1360,18 +1360,56 @@ function resolvePointsCost(product, skus, productid) {
   return NaN;
 }
 
-// Returns an error message when the merchant can't afford the SKU, else null.
-// Fail-open (null) when balance can't be determined; fail-closed when the
-// balance is zero or provably below the SKU cost.
-function pointsDeficiency(balance, cost) {
+// Generic provider-balance deficiency check. Returns an error message when the
+// merchant can't afford the order, else null. Fail-open (null) when balance
+// can't be determined; fail-closed when the balance is zero or provably below
+// the order cost.
+function balanceDeficiency(label, balance, cost) {
   if (!Number.isFinite(balance)) return null;
   if (balance <= 0) {
-    return `Insufficient Smile Points: balance is ${balance}. Top up the merchant balance and re-fulfill.`;
+    return `Insufficient ${label}: balance is ${balance}. Top up the merchant balance and re-fulfill.`;
   }
   if (Number.isFinite(cost) && balance < cost) {
-    return `Insufficient Smile Points: need ${cost}, have ${balance}. Top up the merchant balance and re-fulfill.`;
+    return `Insufficient ${label}: need ${cost}, have ${balance}. Top up the merchant balance and re-fulfill.`;
   }
   return null;
+}
+
+// Returns an error message when the merchant can't afford the SKU, else null.
+function pointsDeficiency(balance, cost) {
+  return balanceDeficiency('Smile Points', balance, cost);
+}
+
+// Parse the merchant Yokcash saldo (IDR) from a /saldo response.
+function extractYokcashSaldo(body) {
+  if (!body) return NaN;
+  const v = body?.data?.saldo ?? body?.saldo;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+// Parse the merchant SmileOne USD balance from a balance RPC response.
+function extractSmileOneBalance(body) {
+  if (!body) return NaN;
+  const v = body?.result?.usd_balance ?? body?.usd_balance;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+// Extract a provider-side order id from an order-placement response. Its
+// presence proves the provider booked (and charged) the order — the "never
+// refund" signal. A failure response with no order id is a clean rejection:
+// nothing was delivered or charged, and the buyer must be refunded.
+// NOTE: bare body.id is deliberately NOT a candidate — JSON-RPC responses
+// carry a top-level `id` that echoes the request id, not an order id.
+function extractProviderOrderId(body) {
+  if (!body || typeof body !== 'object') return null;
+  const id = body.order_id ?? body.orderid ?? body.orderId
+    ?? body?.data?.order_id ?? body?.data?.orderid ?? body?.data?.orderId
+    ?? body?.data?.id ?? null;
+  if (id == null) return null;
+  const s = String(id).trim();
+  return s || null;
 }
 
 // Pre-flight: block fulfillment when the merchant Smile Points balance can't
@@ -1400,6 +1438,56 @@ async function preFlightPointsCheck(productCode, productid, product = null) {
   }
   console.log(`[fulfill-order] Points pre-flight OK: balance ${balance}, SKU ${productid} cost ${Number.isFinite(pointsCost) ? pointsCost : 'unknown'}`);
   return { balance, pointsCost };
+}
+
+// Pre-flight: block fulfillment when the merchant Yokcash saldo (IDR) can't
+// cover the order. Same fail-open posture as preFlightPointsCheck — a
+// transient saldo-query failure must not block orders (the provider still
+// rejects on order placement if truly short). Cost comes from
+// product.metadata.expected_provider_price when configured (IDR for yokcash
+// products); when unknown, only a provably empty saldo blocks.
+async function preFlightSaldoCheck(product = null) {
+  let saldo = NaN;
+  try {
+    const body = await yokcash.saldo();
+    saldo = extractYokcashSaldo(body);
+  } catch (err) {
+    console.warn('[fulfill-order] Yokcash saldo pre-flight failed; proceeding to order:', err.message);
+    return { saldo: NaN, cost: NaN };
+  }
+  const cost = product?.metadata?.expected_provider_price != null
+    ? Number(product.metadata.expected_provider_price)
+    : NaN;
+  const deficiency = balanceDeficiency('Yokcash saldo (IDR)', saldo, cost);
+  if (deficiency) {
+    console.warn(`[fulfill-order] ${deficiency}`);
+    throw new Error(deficiency);
+  }
+  console.log(`[fulfill-order] Yokcash saldo pre-flight OK: ${saldo} IDR, cost ${Number.isFinite(cost) ? cost : 'unknown'}`);
+  return { saldo, cost };
+}
+
+// Pre-flight: block fulfillment when the merchant SmileOne USD balance can't
+// cover the order. Same fail-open posture as above.
+async function preFlightSmileOneBalanceCheck(product = null) {
+  let balance = NaN;
+  try {
+    const body = await smileOne.balance();
+    balance = extractSmileOneBalance(body);
+  } catch (err) {
+    console.warn('[fulfill-order] SmileOne balance pre-flight failed; proceeding to sendOrder:', err.message);
+    return { balance: NaN, cost: NaN };
+  }
+  const cost = product?.metadata?.expected_provider_price != null
+    ? Number(product.metadata.expected_provider_price)
+    : NaN;
+  const deficiency = balanceDeficiency('SmileOne USD balance', balance, cost);
+  if (deficiency) {
+    console.warn(`[fulfill-order] ${deficiency}`);
+    throw new Error(deficiency);
+  }
+  console.log(`[fulfill-order] SmileOne balance pre-flight OK: ${balance} USD, cost ${Number.isFinite(cost) ? cost : 'unknown'}`);
+  return { balance, cost };
 }
 
 // Fetch merchant balance + productlist once per provider product.
@@ -1686,6 +1774,10 @@ app.post('/api/batch-validate', batchValidateLimiter, async (req, res) => {
 
     const validatedItems = [];
     const pointsCache = new Map();
+    // Per-provider balance snapshots — saldo/usd_balance calls don't depend on
+    // the item, so they're fetched at most once per batch like pointsCache.
+    let yokcashSaldoSnap = null;
+    let smileOneBalanceSnap = null;
     let cartTotal = 0;
 
     for (const it of items) {
@@ -1757,6 +1849,61 @@ app.post('/api/batch-validate', batchValidateLimiter, async (req, res) => {
               pointsOk = true;
               expectedProviderPrice = Number.isFinite(pointsCost) ? pointsCost : null;
             }
+          }
+        }
+      } else if (game?.provider === 'yokcash' && yokcash.isConfigured()) {
+        const serviceId = resolveOrderProductId(product);
+        if (!serviceId) {
+          error = 'No valid Yokcash service_id for this product';
+          pointsOk = false;
+        } else {
+          if (!yokcashSaldoSnap) {
+            try {
+              yokcashSaldoSnap = { saldo: extractYokcashSaldo(await yokcash.saldo()) };
+            } catch (err) {
+              console.warn('[batch-validate] yokcash saldo query failed: %s', err.message);
+              yokcashSaldoSnap = { queryFailed: true };
+            }
+          }
+          if (yokcashSaldoSnap.queryFailed) {
+            // Fail open, same posture as the Smile Points branch.
+            pointsOk = null;
+          } else {
+            const cost = product?.metadata?.expected_provider_price != null
+              ? Number(product.metadata.expected_provider_price)
+              : NaN;
+            const deficiency = balanceDeficiency('Yokcash saldo (IDR)', yokcashSaldoSnap.saldo, cost);
+            if (deficiency) {
+              pointsOk = false;
+              error = deficiency;
+            } else {
+              pointsOk = true;
+              expectedProviderPrice = Number.isFinite(cost) ? cost : null;
+            }
+          }
+        }
+      } else if (game?.provider === 'smile_one' && smileOne.isConfigured() && game?.provider_game_code) {
+        if (!smileOneBalanceSnap) {
+          try {
+            smileOneBalanceSnap = { balance: extractSmileOneBalance(await smileOne.balance()) };
+          } catch (err) {
+            console.warn('[batch-validate] smileone balance query failed: %s', err.message);
+            smileOneBalanceSnap = { queryFailed: true };
+          }
+        }
+        if (smileOneBalanceSnap.queryFailed) {
+          pointsOk = null;
+        } else {
+          const cost = product?.metadata?.expected_provider_price != null
+            ? Number(product.metadata.expected_provider_price)
+            : NaN;
+          const deficiency = balanceDeficiency('SmileOne USD balance', smileOneBalanceSnap.balance, cost);
+          if (deficiency) {
+            pointsOk = false;
+            error = deficiency;
+          } else {
+            pointsOk = true;
+            expectedProviderPrice = Number.isFinite(cost) ? cost : null;
           }
         }
       }
@@ -3405,6 +3552,10 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
 
   // Hoisted so the catch block can detect whether the provider already delivered
   let fulfillResult = null;
+  // Set when the provider booked the order but reported an off-nominal status
+  // (e.g. "award failure") — delivered-for-refund-purposes, but flagged so it
+  // isn't a silent clean 'completed'.
+  let providerDeliveryUncertain = null;
   let orderMetadata = null;
   let orderPaymentMethod = null;
   let orderPaymentId = null;
@@ -3498,16 +3649,27 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
       }
       console.log('[fulfill-order] createorder response:', JSON.stringify(body).slice(0, 500));
 
-      // IMPORTANT: Set fulfillResult immediately after getting a response.
-      // Once createorder returns without a network/parse error, the provider
-      // may have already processed and delivered the order. We must never
-      // refund in this case — even if the status code is unexpected.
-      fulfillResult = body;
-
-      // Accept both numeric and string status, and ok:true
+      // Accept both numeric and string status, and ok:true. A provider order
+      // id also proves the order was booked + charged even when the status is
+      // off-nominal (e.g. 201 "award failure" — money spent, delivery state
+      // unknown), so it counts as delivered for refund purposes.
       const statusOk = Number(body.status) === 200 || body.ok === true;
+      const providerOrderId = extractProviderOrderId(body);
+
+      if (!statusOk && !providerOrderId) {
+        // Definitive rejection (insufficient balance, bad target, upstream
+        // failure) — nothing was booked or charged. Do NOT set fulfillResult:
+        // the catch must take the refund path, not "provider delivered".
+        throw new Error(body.message || body.msg || `SmileCoin order rejected (status ${body.status})`);
+      }
+
+      // IMPORTANT: fulfillResult must only be set once the provider has
+      // provably booked the order — it is the "never auto-refund" signal in
+      // the catch block.
+      fulfillResult = body;
       if (!statusOk) {
-        throw new Error(body.message || body.msg || `SmileCoin order failed (status ${body.status})`);
+        providerDeliveryUncertain = `SmileCoin status ${body.status}: ${body.message || body.msg || 'delivery unconfirmed'}`;
+        console.warn(`[fulfill-order] order ${orderId} booked (id ${providerOrderId}) but ${providerDeliveryUncertain}`);
       }
     } else if (game.provider === 'yokcash' && yokcash.isConfigured()) {
       // Yokcash: product.provider_product_id holds the service code (e.g. "ML5PH").
@@ -3529,6 +3691,10 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
       };
       console.log('[fulfill-order] yokcash order params:', JSON.stringify(ycParams));
 
+      // Pre-flight: block when the merchant Yokcash saldo can't cover the
+      // order (mirrors the Smile Points check above).
+      await preFlightSaldoCheck(product);
+
       let body;
       try {
         body = await yokcash.placeOrder(ycParams);
@@ -3539,17 +3705,29 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
         fulfillResult = { uncertain: true, error: ycErr.message };
         throw ycErr;
       }
-      fulfillResult = body;
 
       // Yokcash returns {status:true, msg, data:{id, status:"pending"|...}}.
-      // status:false = clean rejection (bad target, insufficient saldo) → refund path.
+      // Only status:true means the order was booked — status:false is a clean
+      // rejection (insufficient saldo, bad target). Do NOT set fulfillResult
+      // on a rejection: the catch must take the refund path.
       if (body?.status !== true) {
-        throw new Error(body?.msg || `Yokcash order failed (status ${body?.status})`);
+        throw new Error(body?.msg || `Yokcash order rejected (status ${body?.status})`);
+      }
+      fulfillResult = body;
+      const ycStatus = String(body?.data?.status ?? '').toLowerCase();
+      if (ycStatus && !['pending', 'processing', 'success'].includes(ycStatus)) {
+        providerDeliveryUncertain = `Yokcash status ${ycStatus}: ${body?.msg || 'delivery unconfirmed'}`;
+        console.warn(`[fulfill-order] order ${orderId} booked (id ${body?.data?.id}) but ${providerDeliveryUncertain}`);
       }
     } else if (game.provider === 'smile_one' && smileOne.isConfigured() && game.provider_game_code) {
       const sku = product?.sku;
       const pid = product?.provider_product_id;
       if (!sku && !pid) throw new Error('No SKU or provider_product_id configured for this product');
+
+      // Pre-flight: block when the merchant SmileOne USD balance can't cover
+      // the order (mirrors the Smile Points / Yokcash saldo checks).
+      await preFlightSmileOneBalanceCheck(product);
+
       const userAccount = { user_id: String(userId) };
       if (zoneId) userAccount.server_id = String(zoneId);
       let smileOneData;
@@ -3684,6 +3862,7 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
       fulfill_result: fulfillResult,
       fulfilled_at: new Date().toISOString(),
       ...(mismatch ? { provider_mismatch: mismatch } : {}),
+      ...(providerDeliveryUncertain ? { provider_delivery_uncertain: providerDeliveryUncertain } : {}),
     };
 
     await supabaseAdmin
@@ -3695,8 +3874,8 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
       })
       .eq('id', orderId);
 
-    console.log(`[fulfill-order] Order ${orderId} completed via ${game.provider}${mismatch ? ' (MISMATCH — refund ' + refundAmount + ')' : ''}`);
-    res.json({ ok: true, orderId, result: fulfillResult, ...(mismatch ? { mismatch } : {}) });
+    console.log(`[fulfill-order] Order ${orderId} completed via ${game.provider}${mismatch ? ' (MISMATCH — refund ' + refundAmount + ')' : ''}${providerDeliveryUncertain ? ' (UNCERTAIN — ' + providerDeliveryUncertain + ')' : ''}`);
+    res.json({ ok: true, orderId, result: fulfillResult, ...(mismatch ? { mismatch } : {}), ...(providerDeliveryUncertain ? { warning: providerDeliveryUncertain } : {}) });
 
   } catch (err) {
     console.error('[fulfill-order]', err.message);

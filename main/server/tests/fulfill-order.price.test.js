@@ -58,7 +58,8 @@ test('refund ratio is correct for cheaper provider price', () => {
 
 // ── Fulfillment guards: provider product id + Smile Points pre-flight ─────────
 // Mirrors of the pure helpers in ../index.js (resolveOrderProductId,
-// extractPointsBalance, extractSkuPrice, pointsDeficiency).
+// extractPointsBalance, extractSkuPrice, pointsDeficiency, balanceDeficiency,
+// extractYokcashSaldo, extractSmileOneBalance, extractProviderOrderId).
 
 function resolveOrderProductId(product) {
   const id = String(
@@ -114,15 +115,43 @@ function resolvePointsCost(product, skus, productid) {
   return NaN;
 }
 
-function pointsDeficiency(balance, cost) {
+function balanceDeficiency(label, balance, cost) {
   if (!Number.isFinite(balance)) return null;
   if (balance <= 0) {
-    return `Insufficient Smile Points: balance is ${balance}. Top up the merchant balance and re-fulfill.`;
+    return `Insufficient ${label}: balance is ${balance}. Top up the merchant balance and re-fulfill.`;
   }
   if (Number.isFinite(cost) && balance < cost) {
-    return `Insufficient Smile Points: need ${cost}, have ${balance}. Top up the merchant balance and re-fulfill.`;
+    return `Insufficient ${label}: need ${cost}, have ${balance}. Top up the merchant balance and re-fulfill.`;
   }
   return null;
+}
+
+function pointsDeficiency(balance, cost) {
+  return balanceDeficiency('Smile Points', balance, cost);
+}
+
+function extractYokcashSaldo(body) {
+  if (!body) return NaN;
+  const v = body?.data?.saldo ?? body?.saldo;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function extractSmileOneBalance(body) {
+  if (!body) return NaN;
+  const v = body?.result?.usd_balance ?? body?.usd_balance;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function extractProviderOrderId(body) {
+  if (!body || typeof body !== 'object') return null;
+  const id = body.order_id ?? body.orderid ?? body.orderId
+    ?? body?.data?.order_id ?? body?.data?.orderid ?? body?.data?.orderId
+    ?? body?.data?.id ?? null;
+  if (id == null) return null;
+  const s = String(id).trim();
+  return s || null;
 }
 
 test('resolveOrderProductId never falls back to a placeholder/lowest SKU', () => {
@@ -202,6 +231,48 @@ test('pointsDeficiency blocks zero/insufficient balance, fails open when unknown
   assert.strictEqual(pointsDeficiency(50, NaN), null);
   // Unknown balance → fail-open
   assert.strictEqual(pointsDeficiency(NaN, 100), null);
+});
+
+test('balanceDeficiency uses the provider label in messages', () => {
+  assert.ok(balanceDeficiency('Yokcash saldo (IDR)', 0, NaN)?.startsWith('Insufficient Yokcash saldo (IDR): balance is 0'));
+  assert.strictEqual(
+    balanceDeficiency('SmileOne USD balance', 2, 8),
+    'Insufficient SmileOne USD balance: need 8, have 2. Top up the merchant balance and re-fulfill.'
+  );
+  assert.strictEqual(balanceDeficiency('Yokcash saldo (IDR)', 100000, 5000), null);
+  assert.strictEqual(balanceDeficiency('Yokcash saldo (IDR)', NaN, 5000), null);
+});
+
+test('extractYokcashSaldo parses nested and flat saldo', () => {
+  assert.strictEqual(extractYokcashSaldo({ status: true, data: { saldo: 125000 } }), 125000);
+  assert.strictEqual(extractYokcashSaldo({ status: true, data: { saldo: '0' } }), 0);
+  assert.strictEqual(extractYokcashSaldo({ saldo: 42.5 }), 42.5);
+  assert.ok(Number.isNaN(extractYokcashSaldo({ status: false, msg: 'bad key' })));
+  assert.ok(Number.isNaN(extractYokcashSaldo(null)));
+});
+
+test('extractSmileOneBalance parses result.usd_balance', () => {
+  assert.strictEqual(extractSmileOneBalance({ result: { usd_balance: 12.5 } }), 12.5);
+  assert.strictEqual(extractSmileOneBalance({ result: { usd_balance: '0' } }), 0);
+  assert.strictEqual(extractSmileOneBalance({ usd_balance: 7 }), 7);
+  assert.ok(Number.isNaN(extractSmileOneBalance({ result: {} })));
+  assert.ok(Number.isNaN(extractSmileOneBalance(null)));
+});
+
+test('extractProviderOrderId finds booked-order ids across provider shapes', () => {
+  // SmileCoin success + award-failure shapes (top-level order_id, data.orderid)
+  assert.strictEqual(extractProviderOrderId({ status: 200, order_id: 'S123' }), 'S123');
+  assert.strictEqual(extractProviderOrderId({ status: 201, order_id: 'S456', price: 76 }), 'S456');
+  assert.strictEqual(extractProviderOrderId({ status: 200, data: { orderid: 'S789' } }), 'S789');
+  // Yokcash acceptance shape: {status:true, data:{id, status:"pending"}}
+  assert.strictEqual(extractProviderOrderId({ status: true, data: { id: 987654, status: 'pending' } }), '987654');
+  // Rejections carry no order id → null (the refund signal)
+  assert.strictEqual(extractProviderOrderId({ status: 210, message: 'Insufficient balance' }), null);
+  assert.strictEqual(extractProviderOrderId({ status: false, msg: 'Saldo tidak mencukupi' }), null);
+  // A bare top-level `id` (e.g. a JSON-RPC request-id echo) is NOT an order id
+  assert.strictEqual(extractProviderOrderId({ id: 'SC-TEST-123', error: { code: -1 } }), null);
+  assert.strictEqual(extractProviderOrderId(null), null);
+  assert.strictEqual(extractProviderOrderId({}), null);
 });
 
 // ── Expected price resolution ─────────────────────────────────────────────────
