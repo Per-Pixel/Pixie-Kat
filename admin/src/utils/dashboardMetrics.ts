@@ -3,6 +3,7 @@ import type {
   ReportOrder,
   ReportProduct,
 } from '../services/reportingService';
+import { formatAdminMoney, readStoredCurrency } from '../lib/currency';
 
 export type DashboardPeriod = 'today' | '7d' | '30d' | 'lifetime';
 
@@ -32,7 +33,13 @@ export function isInPeriod(dateStr: string, period: DashboardPeriod, reference: 
   return date >= start && date <= reference;
 }
 
-export function money(value: number, currency = 'INR') {
+export function money(value: number, currency?: string) {
+  if (currency === 'PKS' || currency === 'INR') {
+    return formatAdminMoney(value, currency);
+  }
+  if (!currency) {
+    return formatAdminMoney(value, readStoredCurrency());
+  }
   return `${currency} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 

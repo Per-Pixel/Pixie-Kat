@@ -1,15 +1,26 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   X, ShoppingCart, User, Package, CreditCard, Calendar,
   CheckCircle, Clock, AlertCircle, RefreshCw, XCircle,
-  PauseCircle, RotateCcw, Hash, Copy, ExternalLink, Coins,
+  PauseCircle, RotateCcw, Hash, Copy, ExternalLink, Coins, Sparkles,
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import clsx from 'clsx';
+import axios from 'axios';
 import api from '../../services/api';
+import { buildPixieKatOrderContext, openInChatGptWeb, type EnrichedOrderRow } from './ChatGptAssistantDrawer';
+import {
+  DURATION,
+  EASE_OUT,
+  fade,
+  iconSwap,
+  pressScale,
+  springDrawer,
+  staggerItem,
+  staggerParent,
+} from '../../lib/motion';
 
 type OrderStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'refunded' | 'cancelled' | 'on_hold';
 
@@ -30,6 +41,11 @@ interface OrderRow {
     game_slug?: string;
     verified_username?: string;
     contact?: { email?: string; whatsapp?: string };
+    fulfill_error?: string;
+    provider_delivery_uncertain?: string;
+    manual_fulfillment_note?: string;
+    supplier_order_id?: string;
+    fulfilled_at?: string;
     provider_mismatch?: {
       expected_provider_price: number | null;
       actual_provider_price: number;
@@ -43,7 +59,7 @@ interface OrderRow {
   } | null;
   created_at: string;
   updated_at: string;
-  profiles?: Array<{ id: string; name: string; email: string }> | null;
+  profiles?: Array<{ id?: string; name?: string; email?: string; role?: string }> | { id?: string; name?: string; email?: string; role?: string } | null;
 }
 
 interface OrderDrawerProps {
@@ -51,6 +67,7 @@ interface OrderDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onStatusChange?: (orderId: string, newStatus: OrderStatus) => void;
+  onOpenChatGpt?: (order: OrderRow) => void;
 }
 
 const statusConfig: Record<OrderStatus, { label: string; icon: React.ElementType; color: string; bg: string; badge: string }> = {
@@ -64,13 +81,13 @@ const statusConfig: Record<OrderStatus, { label: string; icon: React.ElementType
 };
 
 const statusTransitions: Record<OrderStatus, OrderStatus[]> = {
-  pending: ['processing', 'cancelled', 'on_hold'],
-  processing: ['failed', 'on_hold', 'cancelled'],
+  pending: ['processing', 'completed', 'cancelled', 'on_hold'],
+  processing: ['completed', 'on_hold', 'failed', 'cancelled'],
   completed: [],
-  failed: ['pending'],
+  failed: ['pending', 'processing'],
   refunded: [],
   cancelled: ['pending'],
-  on_hold: ['processing', 'cancelled'],
+  on_hold: ['completed', 'processing', 'cancelled'],
 };
 
 function formatDate(ts: string) {
@@ -80,17 +97,38 @@ function formatDate(ts: string) {
   });
 }
 
-const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onStatusChange }) => {
+function resolveProfile(profiles: OrderRow['profiles']): { name: string; email: string } {
+  if (Array.isArray(profiles)) {
+    return { name: profiles[0]?.name || 'Unknown', email: profiles[0]?.email || '' };
+  }
+  if (profiles && typeof profiles === 'object') {
+    return { name: profiles.name || 'Unknown', email: profiles.email || '' };
+  }
+  return { name: 'Unknown', email: '' };
+}
+
+function apiErrorMessage(err: unknown, fallback: string): string {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as { error?: string; message?: string } | undefined;
+    return data?.error || data?.message || err.message;
+  }
+  return err instanceof Error ? err.message : fallback;
+}
+
+const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onStatusChange, onOpenChatGpt }) => {
   const { user } = useAuth();
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [confirmStatus, setConfirmStatus] = useState<OrderStatus | null>(null);
+  const [fulfillmentNote, setFulfillmentNote] = useState('');
   const [crediting, setCrediting] = useState(false);
+  const reduceMotion = useReducedMotion();
 
   if (!order) return null;
 
   const cfg = statusConfig[order.status] ?? { label: order.status, icon: AlertCircle, color: 'text-gray-700', bg: 'bg-gray-50', badge: 'bg-gray-100 text-gray-700' };
   const StatusIcon = cfg.icon;
   const allowedTransitions = statusTransitions[order.status] ?? [];
+  const customerProfile = resolveProfile(order.profiles);
 
   const handleCreditRefund = async () => {
     const mm = order.metadata?.provider_mismatch;
@@ -103,20 +141,16 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
         type: 'refund',
         reference: `Manual mismatch credit for order ${order.id} — expected ${mm.expected_provider_price ?? 'unset'}, got ${mm.actual_provider_price}`,
       });
-      // Record that the refund was credited
-      await supabase
-        .from('orders')
-        .update({
-          metadata: {
-            ...order.metadata,
-            provider_mismatch: { ...mm, refund_status: 'completed', refund_error: undefined },
-          },
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', order.id);
+      // Record that the refund was credited (service-role write — direct
+      // PostgREST updates can be silently dropped by the orders UPDATE policy)
+      await api.post(`/admin/orders/${order.id}/status`, {
+        metadata: {
+          provider_mismatch: { ...mm, refund_status: 'completed', refund_error: undefined },
+        },
+      });
       toast.success('Refund credited to customer wallet');
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to credit refund');
+      toast.error(apiErrorMessage(err, 'Failed to credit refund'));
     } finally {
       setCrediting(false);
     }
@@ -127,19 +161,41 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
     setConfirmStatus(null);
     setUpdatingStatus(true);
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', order.id);
-      if (error) throw error;
+      await api.post(`/admin/orders/${order.id}/status`, {
+        status: newStatus,
+        ...(fulfillmentNote.trim() ? { note: fulfillmentNote.trim() } : {}),
+      });
       toast.success(`Order status updated to ${statusConfig[newStatus].label}`);
       onStatusChange?.(order.id, newStatus);
+      setFulfillmentNote('');
       onClose();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update status');
+      toast.error(apiErrorMessage(err, 'Failed to update status'));
     } finally {
       setUpdatingStatus(false);
     }
+  };
+
+  const handleAskChatGpt = () => {
+    if (onOpenChatGpt) {
+      onOpenChatGpt(order);
+      return;
+    }
+    const context = buildPixieKatOrderContext({
+      selectedOrders: [order as unknown as EnrichedOrderRow],
+      allVisibleOrders: [order as unknown as EnrichedOrderRow],
+      workspaceTitle: 'Order Details',
+      toggles: {
+        includeStoreRules: true,
+        includeQueueSummary: false,
+        includeSelectedOrders: true,
+        includeCustomerPii: true,
+      },
+    });
+    openInChatGptWeb(
+      context,
+      `Inspect PixieKat Order #${order.id.slice(0, 8).toUpperCase()} (${order.product_name}) and help me with fulfillment or customer support:`
+    );
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -153,19 +209,21 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
         <>
           {/* Backdrop */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            variants={fade}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: DURATION.fast }}
             className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
             onClick={onClose}
           />
 
           {/* Drawer */}
           <motion.aside
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            initial={reduceMotion ? { opacity: 0 } : { x: '100%' }}
+            animate={reduceMotion ? { opacity: 1 } : { x: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { x: '100%' }}
+            transition={reduceMotion ? { duration: DURATION.fast } : springDrawer}
             className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col"
           >
             {/* Header */}
@@ -187,19 +245,39 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
               </button>
             </div>
 
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-              {/* Status Banner */}
-              <div className={clsx('flex items-center gap-3 p-4 rounded-xl', cfg.bg)}>
-                <StatusIcon className={clsx('w-6 h-6', cfg.color)} />
-                <div>
-                  <p className={clsx('text-sm font-semibold', cfg.color)}>Status: {cfg.label}</p>
-                  <p className={clsx('text-xs opacity-75', cfg.color)}>Updated {formatDate(order.updated_at)}</p>
-                </div>
-              </div>
+            {/* Body — sections cascade in once per open */}
+            <motion.div
+              variants={staggerParent}
+              initial="initial"
+              animate="animate"
+              className="flex-1 overflow-y-auto px-6 py-5 space-y-5"
+            >
+              {/* Status Banner — content cross-fades when status changes */}
+              <motion.div
+                variants={staggerItem}
+                className={clsx('p-4 rounded-xl transition-colors', cfg.bg)}
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={order.status}
+                    variants={fade}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    transition={{ duration: DURATION.fast }}
+                    className="flex items-center gap-3"
+                  >
+                    <StatusIcon className={clsx('w-6 h-6', cfg.color)} />
+                    <div>
+                      <p className={clsx('text-sm font-semibold', cfg.color)}>Status: {cfg.label}</p>
+                      <p className={clsx('text-xs opacity-75', cfg.color)}>Updated {formatDate(order.updated_at)}</p>
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+              </motion.div>
 
               {/* Order Info */}
-              <section>
+              <motion.section variants={staggerItem}>
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Order Information</h3>
                 <div className="bg-gray-50 rounded-xl divide-y divide-gray-100">
                   <DetailRow icon={Hash} label="Order ID" value={order.id} onCopy={() => copyToClipboard(order.id, 'Order ID')} />
@@ -217,11 +295,11 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
                   )}
                   <DetailRow icon={Calendar} label="Placed" value={formatDate(order.created_at)} />
                 </div>
-              </section>
+              </motion.section>
 
               {/* Provider Mismatch */}
               {order.metadata?.provider_mismatch && (
-                <section>
+                <motion.section variants={staggerItem}>
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Provider Mismatch</h3>
                   <div className="bg-amber-50 rounded-xl border border-amber-200 p-4 space-y-3">
                     <div className="flex items-start gap-2 text-amber-800 text-sm">
@@ -250,21 +328,21 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
                       </button>
                     )}
                   </div>
-                </section>
+                </motion.section>
               )}
 
               {/* Customer Info */}
-              <section>
+              <motion.section variants={staggerItem}>
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Customer</h3>
                 <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
                     <span className="text-primary-700 text-sm font-semibold">
-                      {(order.profiles?.[0]?.name || 'U').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                      {(customerProfile.name || 'U').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900">{order.profiles?.[0]?.name || 'Unknown'}</p>
-                    <p className="text-xs text-gray-500 truncate">{order.profiles?.[0]?.email || order.user_id}</p>
+                    <p className="text-sm font-semibold text-gray-900">{customerProfile.name || 'Unknown'}</p>
+                    <p className="text-xs text-gray-500 truncate">{customerProfile.email || order.user_id}</p>
                   </div>
                   <a
                     href={`/users/${order.user_id}`}
@@ -274,11 +352,11 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
                     <ExternalLink className="w-4 h-4" />
                   </a>
                 </div>
-              </section>
+              </motion.section>
 
               {/* Game / Account Details */}
               {order.metadata?.account_fields && Object.keys(order.metadata.account_fields).length > 0 && (
-                <section>
+                <motion.section variants={staggerItem}>
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Game Account Details</h3>
                   <div className="bg-gray-50 rounded-xl divide-y divide-gray-100">
                     {order.metadata.game_name && (
@@ -304,31 +382,53 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
                     {order.metadata.contact?.whatsapp && (
                       <DetailRow icon={User} label="WhatsApp" value={order.metadata.contact.whatsapp} />
                     )}
+                    {order.metadata.manual_fulfillment_note && (
+                      <DetailRow icon={CheckCircle} label="Staff Note" value={order.metadata.manual_fulfillment_note} />
+                    )}
+                    {order.metadata.supplier_order_id && (
+                      <DetailRow icon={Hash} label="Supplier Ref" value={order.metadata.supplier_order_id} onCopy={() => copyToClipboard(order.metadata!.supplier_order_id!, 'Supplier Ref')} />
+                    )}
                   </div>
-                </section>
+                </motion.section>
+              )}
+
+              {/* Fulfillment Diagnostic / Error */}
+              {(order.metadata?.fulfill_error || order.metadata?.provider_delivery_uncertain) && (
+                <motion.section variants={staggerItem}>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Fulfillment Diagnostics</h3>
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-xs text-red-800 space-y-1">
+                    {order.metadata.fulfill_error && (
+                      <p><strong>Error:</strong> {order.metadata.fulfill_error}</p>
+                    )}
+                    {order.metadata.provider_delivery_uncertain && (
+                      <p><strong>Warning:</strong> {order.metadata.provider_delivery_uncertain}</p>
+                    )}
+                  </div>
+                </motion.section>
               )}
 
               {/* Status Change */}
               {user?.role === 'admin' && allowedTransitions.length > 0 && (
-                <section>
+                <motion.section variants={staggerItem}>
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Change Status</h3>
                   <div className="grid grid-cols-2 gap-2">
                     {allowedTransitions.map((s) => {
                       const sCfg = statusConfig[s];
                       const SIcon = sCfg.icon;
                       return (
-                        <button
+                        <motion.button
                           key={s}
+                          {...pressScale}
                           onClick={() => setConfirmStatus(s)}
                           disabled={updatingStatus}
                           className={clsx(
-                            'flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-all hover:shadow-sm',
+                            'flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-[border-color,box-shadow] hover:shadow-sm',
                             sCfg.bg, sCfg.color, 'border-current/20 hover:border-current/40'
                           )}
                         >
                           <SIcon className="w-4 h-4" />
                           {sCfg.label}
-                        </button>
+                        </motion.button>
                       );
                     })}
                   </div>
@@ -340,15 +440,23 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: DURATION.base, ease: EASE_OUT }}
                         className="overflow-hidden mt-3"
                       >
-                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                          <div className="flex items-start gap-2 mb-3">
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
+                          <div className="flex items-start gap-2">
                             <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                             <p className="text-sm text-amber-800">
                               Change status to <strong>{statusConfig[confirmStatus]?.label ?? confirmStatus}</strong>? This action will be logged.
                             </p>
                           </div>
+                          <input
+                            type="text"
+                            value={fulfillmentNote}
+                            onChange={(e) => setFulfillmentNote(e.target.value)}
+                            placeholder="Optional fulfillment note or supplier reference..."
+                            className="w-full h-9 px-3 rounded-lg border border-amber-300 bg-white text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          />
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleStatusChange(confirmStatus)}
@@ -368,13 +476,23 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </section>
+                </motion.section>
               )}
-            </div>
+            </motion.div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
-              <button onClick={onClose} className="btn btn-outline btn-md w-full">
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center gap-2">
+              <motion.button
+                type="button"
+                {...pressScale}
+                onClick={handleAskChatGpt}
+                className="flex-1 inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-xs font-bold text-white shadow-sm transition-opacity hover:opacity-95"
+                style={{ background: 'linear-gradient(135deg, #6c49ff 0%, #8b5cf6 100%)' }}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Send to ChatGPT Context</span>
+              </motion.button>
+              <button onClick={onClose} className="btn btn-outline btn-md">
                 Close
               </button>
             </div>
@@ -390,20 +508,51 @@ const DetailRow: React.FC<{
   label: string;
   value: string;
   onCopy?: () => void;
-}> = ({ icon: Icon, label, value, onCopy }) => (
-  <div className="flex items-center gap-3 px-4 py-3">
-    <Icon className="w-4 h-4 text-gray-400 flex-shrink-0" />
-    <span className="text-xs text-gray-500 w-28 flex-shrink-0">{label}</span>
-    <span className="text-sm text-gray-900 font-medium flex-1 truncate">{value}</span>
-    {onCopy && (
-      <button
-        onClick={onCopy}
-        className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
-      >
-        <Copy className="w-3.5 h-3.5" />
-      </button>
-    )}
-  </div>
-);
+}> = ({ icon: Icon, label, value, onCopy }) => {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    []
+  );
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      <Icon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+      <span className="text-xs text-gray-500 w-28 flex-shrink-0">{label}</span>
+      <span className="text-sm text-gray-900 font-medium flex-1 truncate">{value}</span>
+      {onCopy && (
+        <button
+          onClick={() => {
+            onCopy();
+            setCopied(true);
+            if (timer.current) clearTimeout(timer.current);
+            timer.current = setTimeout(() => setCopied(false), 1600);
+          }}
+          className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.span
+              key={copied ? 'done' : 'idle'}
+              variants={iconSwap}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={{ duration: DURATION.fast, ease: EASE_OUT }}
+              className="flex"
+            >
+              {copied ? (
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
+            </motion.span>
+          </AnimatePresence>
+        </button>
+      )}
+    </div>
+  );
+};
 
 export default OrderDrawer;

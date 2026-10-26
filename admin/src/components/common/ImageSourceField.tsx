@@ -100,7 +100,7 @@ const ImageSourceField: React.FC<ImageSourceFieldProps> = ({
           <button
             type="button"
             onClick={() => onChange('')}
-            className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white shadow-sm"
+            className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white shadow-sm transition-colors hover:bg-red-600"
             title="Remove image"
           >
             <X className="h-3 w-3" />
@@ -116,7 +116,7 @@ const ImageSourceField: React.FC<ImageSourceFieldProps> = ({
                 <h3 className="text-lg font-semibold text-gray-900">Pick image from storage</h3>
                 <p className="text-sm text-gray-500">Choose an uploaded image to fill this field.</p>
               </div>
-              <button type="button" onClick={() => setPickerOpen(false)} className="rounded-lg p-2 hover:bg-gray-100">
+              <button type="button" onClick={() => setPickerOpen(false)} className="rounded-lg p-2 transition-colors hover:bg-gray-100">
                 <X className="h-5 w-5 text-gray-500" />
               </button>
             </div>

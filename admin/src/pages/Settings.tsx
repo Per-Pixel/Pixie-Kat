@@ -9,6 +9,7 @@ import ComingSoonModal from '../components/common/ComingSoonModal';
 import ImageSourceField from '../components/common/ImageSourceField';
 import { supabase } from '../lib/supabase';
 import clsx from 'clsx';
+import { DURATION, EASE_OUT } from '../lib/motion';
 
 type Tab = 'store' | 'appearance' | 'payment' | 'notifications' | 'security';
 
@@ -420,7 +421,7 @@ const Settings: React.FC = () => {
             return (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={clsx(
-                  'flex items-center gap-2 px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-all',
+                  'flex items-center gap-2 px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors',
                   activeTab === tab.id
                     ? 'border-primary-600 text-primary-700 bg-primary-50/30'
                     : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
@@ -435,7 +436,9 @@ const Settings: React.FC = () => {
           <AnimatePresence mode="wait">
             {/* ---- STORE TAB ---- */}
             {activeTab === 'store' && (
-              <motion.div key="store" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              <motion.div key="store" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, transition: { duration: DURATION.fast } }}
+                transition={{ duration: DURATION.base, ease: EASE_OUT }}
                 className="space-y-6">
                 <SectionCard title="Store Information" description="Basic details shown to customers">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -498,7 +501,9 @@ const Settings: React.FC = () => {
 
             {/* ---- APPEARANCE TAB ---- */}
             {activeTab === 'appearance' && (
-              <motion.div key="appearance" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              <motion.div key="appearance" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, transition: { duration: DURATION.fast } }}
+                transition={{ duration: DURATION.base, ease: EASE_OUT }}
                 className="space-y-6">
                 <div className="flex items-start gap-2 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                   <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -619,7 +624,9 @@ const Settings: React.FC = () => {
 
             {/* ---- PAYMENT TAB ---- */}
             {activeTab === 'payment' && (
-              <motion.div key="payment" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              <motion.div key="payment" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, transition: { duration: DURATION.fast } }}
+                transition={{ duration: DURATION.base, ease: EASE_OUT }}
                 className="space-y-6">
                 <div className="flex items-start gap-2 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                   <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -698,7 +705,9 @@ const Settings: React.FC = () => {
 
             {/* ---- NOTIFICATIONS TAB ---- */}
             {activeTab === 'notifications' && (
-              <motion.div key="notifications" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              <motion.div key="notifications" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, transition: { duration: DURATION.fast } }}
+                transition={{ duration: DURATION.base, ease: EASE_OUT }}
                 className="space-y-6">
                 <SectionCard title="Email Notifications" description="Receive email alerts for store events">
                   <div className="divide-y divide-gray-100">
@@ -736,7 +745,9 @@ const Settings: React.FC = () => {
 
             {/* ---- SECURITY TAB ---- */}
             {activeTab === 'security' && (
-              <motion.div key="security" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              <motion.div key="security" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, transition: { duration: DURATION.fast } }}
+                transition={{ duration: DURATION.base, ease: EASE_OUT }}
                 className="space-y-6">
                 <SectionCard title="Authentication" description="Control admin access security">
                   <div className="divide-y divide-gray-100">

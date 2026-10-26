@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import clsx from 'clsx';
+import { EASE_OUT, springSnappy, staggerDelay } from '../lib/motion';
 import {
   Home,
   ShoppingCart,
@@ -20,8 +21,6 @@ import {
 interface MobileTabBarProps {
   onOpenSidebar: () => void;
 }
-
-const spring = { type: 'spring' as const, stiffness: 420, damping: 34 };
 
 interface Tab {
   id: string;
@@ -99,7 +98,7 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ onOpenSidebar }) => {
                 {active && (
                   <motion.span
                     layoutId="mobile-tab-pill"
-                    transition={spring}
+                    transition={springSnappy}
                     className="absolute inset-0 rounded-xl bg-violet-600/80"
                   />
                 )}
@@ -111,7 +110,9 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ onOpenSidebar }) => {
                   )}
                 >
                   <Icon className="h-5 w-5" />
-                  <span className="text-[10px] font-medium leading-none">{tab.label}</span>
+                  <span className={clsx('text-[10px] leading-none', active ? 'font-semibold' : 'font-medium')}>
+                    {tab.label}
+                  </span>
                 </motion.span>
               </button>
             );
@@ -140,7 +141,7 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ onOpenSidebar }) => {
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              transition={spring}
+              transition={springSnappy}
               drag="y"
               dragConstraints={{ top: 0, bottom: 0 }}
               dragElastic={{ top: 0, bottom: 0.6 }}
@@ -171,7 +172,7 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ onOpenSidebar }) => {
                       type="button"
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.04 + i * 0.03 }}
+                      transition={{ delay: 0.04 + staggerDelay(i), duration: 0.22, ease: EASE_OUT }}
                       onClick={() => go(action.path)}
                       className="flex flex-col items-start gap-1.5 rounded-2xl border border-white/10 bg-white/5 p-3.5 text-left active:bg-white/10"
                     >

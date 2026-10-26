@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Package, Edit, Trash2, Star, StarOff,
-  RefreshCw, Filter, ChevronDown, Plus, ExternalLink,
-  AlertCircle, CheckCircle, Zap, EyeOff, Download,
+  RefreshCw, Filter, ChevronDown, ChevronLeft, ChevronRight, Plus, ExternalLink,
+  AlertCircle, CheckCircle, Zap, EyeOff, Download, Percent,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
@@ -22,6 +22,8 @@ interface ProductsListProps {
 type Row = Product & { game?: { name: string; slug: string; provider: GameProvider } };
 type SortField = 'name' | 'price' | 'status' | 'created_at';
 type SortDir = 'asc' | 'desc';
+
+const PAGE_SIZE = 25;
 
 const statusConfig: Record<ProductStatus, { label: string; badge: string }> = {
   active:   { label: 'Active',   badge: 'bg-green-100 text-green-800' },
@@ -58,10 +60,21 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [gameFilter, setGameFilter] = useState<string>('all');
+  const [providerFilter, setProviderFilter] = useState<string>('all');
+  const [popularFilter, setPopularFilter] = useState<'all' | 'popular' | 'regular'>('all');
   const [localStatusFilter, setLocalStatusFilter] = useState<ProductStatus | 'all'>(statusFilter ?? 'all');
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [showFilters, setShowFilters] = useState(false);
+  const [page, setPage] = useState(1);
+  const [showAllPages, setShowAllPages] = useState(false);
+
+  // Selection & bulk actions
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [priceAdjustMode, setPriceAdjustMode] = useState<'percent' | 'flat'>('percent');
+  const [priceAdjustValue, setPriceAdjustValue] = useState<string>('5');
+
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Row | null>(null);
@@ -91,12 +104,13 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
 
   const gameOptions = useMemo(() => {
     const names = [...new Set(rows.map((r) => r.game?.name).filter(Boolean))];
-    return names as string[];
+    return (names as string[]).sort();
   }, [rows]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDir((d) => d === 'asc' ? 'desc' : 'asc');
     else { setSortField(field); setSortDir('asc'); }
+    setPage(1);
   };
 
   const filtered = useMemo(() => {
@@ -104,6 +118,10 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
     let list = rows.filter((r) => {
       if (localStatusFilter !== 'all' && r.status !== localStatusFilter) return false;
       if (gameFilter !== 'all' && r.game?.name !== gameFilter) return false;
+      const provKey = r.game?.provider ?? (r.provider_product_id ? 'other' : 'manual');
+      if (providerFilter !== 'all' && provKey !== providerFilter) return false;
+      if (popularFilter === 'popular' && !r.is_popular) return false;
+      if (popularFilter === 'regular' && r.is_popular) return false;
       if (term) {
         return [r.name, r.sku ?? '', r.provider_product_id ?? '', r.game?.name ?? ''].some((v) => v.toLowerCase().includes(term));
       }
@@ -118,7 +136,83 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
       return 0;
     });
     return list;
-  }, [rows, search, localStatusFilter, gameFilter, sortField, sortDir]);
+  }, [rows, search, localStatusFilter, gameFilter, providerFilter, popularFilter, sortField, sortDir]);
+
+  const toggleSelect = (id: string, checked: boolean) => {
+    const next = new Set(selectedIds);
+    if (checked) next.add(id); else next.delete(id);
+    setSelectedIds(next);
+  };
+
+  const toggleSelectAllFiltered = (checked: boolean) => {
+    if (checked) setSelectedIds(new Set(filtered.map((r) => r.id)));
+    else setSelectedIds(new Set());
+  };
+
+  const handleBulkStatus = async (newStatus: ProductStatus) => {
+    if (!selectedIds.size) return;
+    setBulkBusy(true);
+    try {
+      const ids = [...selectedIds];
+      await Promise.all(ids.map((id) => updateProduct(id, { status: newStatus })));
+      setRows((prev) => prev.map((r) => (selectedIds.has(r.id) ? { ...r, status: newStatus } : r)));
+      toast.success(`Updated ${ids.length} product(s) to ${newStatus}`);
+      setSelectedIds(new Set());
+    } catch {
+      toast.error('Failed to update some products');
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const handleBulkPopular = async (popular: boolean) => {
+    if (!selectedIds.size) return;
+    setBulkBusy(true);
+    try {
+      const ids = [...selectedIds];
+      await Promise.all(ids.map((id) => updateProduct(id, { is_popular: popular })));
+      setRows((prev) => prev.map((r) => (selectedIds.has(r.id) ? { ...r, is_popular: popular } : r)));
+      toast.success(`${popular ? 'Marked' : 'Unmarked'} ${ids.length} product(s) as popular`);
+      setSelectedIds(new Set());
+    } catch {
+      toast.error('Failed to update popular status');
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const handleBulkPriceAdjust = async (direction: 1 | -1) => {
+    const delta = Number(priceAdjustValue);
+    if (!selectedIds.size || !Number.isFinite(delta) || delta <= 0) {
+      toast.error('Enter a valid positive adjustment amount');
+      return;
+    }
+    const label = priceAdjustMode === 'percent' ? `${direction > 0 ? '+' : '-'}${delta}%` : `${direction > 0 ? '+' : '-'}${delta}`;
+    if (!window.confirm(`Adjust price by ${label} for ${selectedIds.size} selected package(s)?`)) return;
+
+    setBulkBusy(true);
+    try {
+      const selectedRows = rows.filter((r) => selectedIds.has(r.id));
+      const updates = selectedRows.map((r) => {
+        const current = Number(r.price) || 0;
+        const rawNext =
+          priceAdjustMode === 'percent'
+            ? current * (1 + (direction * delta) / 100)
+            : current + direction * delta;
+        const nextPrice = Math.max(0.01, Math.round(rawNext * 100) / 100);
+        return { id: r.id, nextPrice };
+      });
+      await Promise.all(updates.map((u) => updateProduct(u.id, { price: u.nextPrice })));
+      const priceMap = new Map(updates.map((u) => [u.id, u.nextPrice]));
+      setRows((prev) => prev.map((r) => (priceMap.has(r.id) ? { ...r, price: priceMap.get(r.id)! } : r)));
+      toast.success(`Adjusted prices (${label}) across ${updates.length} package(s)`);
+      setSelectedIds(new Set());
+    } catch {
+      toast.error('Failed to adjust prices');
+    } finally {
+      setBulkBusy(false);
+    }
+  };
 
   const togglePopular = async (product: Row) => {
     setTogglingId(product.id);
@@ -181,6 +275,12 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
     popular: rows.filter((r) => r.is_popular).length,
   }), [rows]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const visibleRows = showAllPages
+    ? filtered
+    : filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -219,7 +319,7 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
               </div>
               <div>
                 <p className="text-xs text-gray-500">{s.label}</p>
-                <p className={clsx('text-lg font-bold', s.color)}>{s.value}</p>
+                <p className={clsx('text-lg font-bold tabular-nums', s.color)}>{s.value}</p>
               </div>
             </div>
           );
@@ -232,8 +332,8 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
         <div className="flex flex-col lg:flex-row gap-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search packages, SKU, provider ID..." className="input pl-10 w-full" />
+            <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Search packages, SKU, provider ID, game..." className="input pl-10 w-full" />
           </div>
           <button onClick={() => setShowFilters(!showFilters)}
             className={clsx('btn btn-sm btn-outline flex-shrink-0', showFilters && 'bg-primary-50 border-primary-300 text-primary-700')}>
@@ -247,10 +347,10 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
           {showFilters && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-gray-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-gray-100">
                 <div>
                   <label className="label block mb-1.5 text-xs">Status</label>
-                  <select value={localStatusFilter} onChange={(e) => setLocalStatusFilter(e.target.value as ProductStatus | 'all')} className="input capitalize">
+                  <select value={localStatusFilter} onChange={(e) => { setLocalStatusFilter(e.target.value as ProductStatus | 'all'); setPage(1); }} className="input capitalize">
                     <option value="all">All Statuses</option>
                     <option value="active">Active</option>
                     <option value="draft">Draft</option>
@@ -259,9 +359,28 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
                 </div>
                 <div>
                   <label className="label block mb-1.5 text-xs">Game</label>
-                  <select value={gameFilter} onChange={(e) => setGameFilter(e.target.value)} className="input">
+                  <select value={gameFilter} onChange={(e) => { setGameFilter(e.target.value); setPage(1); }} className="input">
                     <option value="all">All Games</option>
                     {gameOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label block mb-1.5 text-xs">Provider</label>
+                  <select value={providerFilter} onChange={(e) => { setProviderFilter(e.target.value); setPage(1); }} className="input">
+                    <option value="all">All Providers</option>
+                    <option value="smile_one">Smile One API</option>
+                    <option value="smilecoin">Smile Coin API</option>
+                    <option value="yokcash">Yokcash API</option>
+                    <option value="manual">Manual</option>
+                    <option value="other">Other API</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label block mb-1.5 text-xs">Popular</label>
+                  <select value={popularFilter} onChange={(e) => { setPopularFilter(e.target.value as typeof popularFilter); setPage(1); }} className="input">
+                    <option value="all">All Packages</option>
+                    <option value="popular">Popular Only</option>
+                    <option value="regular">Non-Popular Only</option>
                   </select>
                 </div>
               </div>
@@ -269,6 +388,105 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Bulk Action Bar */}
+      <AnimatePresence initial={false}>
+        {selectedIds.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="rounded-xl border border-primary-200 bg-primary-50/60 p-4 flex flex-wrap items-center justify-between gap-3"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-primary-900 tabular-nums">
+                {selectedIds.size} package(s) selected
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="text-xs text-primary-600 hover:underline"
+              >
+                Clear
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={bulkBusy}
+                onClick={() => handleBulkStatus('active')}
+                className="btn btn-outline btn-sm bg-white text-green-700 border-green-200 hover:bg-green-50"
+              >
+                Set Active
+              </button>
+              <button
+                type="button"
+                disabled={bulkBusy}
+                onClick={() => handleBulkStatus('draft')}
+                className="btn btn-outline btn-sm bg-white text-yellow-700 border-yellow-200 hover:bg-yellow-50"
+              >
+                Set Draft
+              </button>
+              <button
+                type="button"
+                disabled={bulkBusy}
+                onClick={() => handleBulkStatus('inactive')}
+                className="btn btn-outline btn-sm bg-white text-gray-700 border-gray-200 hover:bg-gray-100"
+              >
+                Set Inactive
+              </button>
+              <button
+                type="button"
+                disabled={bulkBusy}
+                onClick={() => handleBulkPopular(true)}
+                className="btn btn-outline btn-sm bg-white text-amber-700 border-amber-200 hover:bg-amber-50"
+              >
+                <Star className="w-3.5 h-3.5 mr-1" /> Popular
+              </button>
+
+              {/* Bulk Price Adjuster */}
+              <div className="flex items-center gap-1.5 pl-2 border-l border-primary-200">
+                <Percent className="w-3.5 h-3.5 text-primary-600" />
+                <select
+                  value={priceAdjustMode}
+                  onChange={(e) => setPriceAdjustMode(e.target.value as 'percent' | 'flat')}
+                  className="input py-1 px-2 text-xs bg-white !w-auto"
+                >
+                  <option value="percent">% Adjust</option>
+                  <option value="flat">Flat Adjust</option>
+                </select>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.5"
+                  value={priceAdjustValue}
+                  onChange={(e) => setPriceAdjustValue(e.target.value)}
+                  className="input py-1 px-2 text-xs bg-white w-16 tabular-nums"
+                />
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => handleBulkPriceAdjust(1)}
+                  className="btn btn-primary btn-sm"
+                  title="Increase price for selected packages"
+                >
+                  +{priceAdjustValue}{priceAdjustMode === 'percent' ? '%' : ''}
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => handleBulkPriceAdjust(-1)}
+                  className="btn btn-outline btn-sm bg-white"
+                  title="Decrease price for selected packages"
+                >
+                  -{priceAdjustValue}{priceAdjustMode === 'percent' ? '%' : ''}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Table */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
@@ -293,6 +511,14 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
+                    <th className="px-4 py-3 text-left w-10">
+                      <input
+                        type="checkbox"
+                        checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                        onChange={(e) => toggleSelectAllFiltered(e.target.checked)}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                    </th>
                     {[
                       { label: 'Package', field: 'name' as SortField },
                       { label: 'Game', field: null },
@@ -315,7 +541,7 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filtered.map((product) => {
+                  {visibleRows.map((product) => {
                     const sCfg = statusConfig[product.status] ?? { label: product.status, badge: 'bg-gray-100 text-gray-700' };
                     const provKey = product.game?.provider ?? (product.provider_product_id ? 'other' : 'manual');
                     const pCfg = providerConfig[provKey] ?? providerConfig.other;
@@ -324,6 +550,14 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
 
                     return (
                       <tr key={product.id} className={clsx('hover:bg-gray-50 transition-colors', (isToggling || isDeleting) && 'opacity-60')}>
+                        <td className="px-4 py-3.5">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(product.id)}
+                            onChange={(e) => toggleSelect(product.id, e.target.checked)}
+                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                          />
+                        </td>
                         {/* Package */}
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -360,16 +594,16 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
 
                         {/* Price */}
                         <td className="px-4 py-3.5 whitespace-nowrap">
-                          <p className="text-sm font-semibold text-gray-900">
+                          <p className="text-sm font-semibold text-gray-900 tabular-nums">
                             {product.currency} {Number(product.price).toFixed(2)}
                           </p>
                           {product.compare_price ? (
-                            <p className="text-xs text-gray-400 line-through">
+                            <p className="text-xs text-gray-400 line-through tabular-nums">
                               {product.currency} {Number(product.compare_price).toFixed(2)}
                             </p>
                           ) : null}
                           {product.compare_price && product.compare_price > product.price ? (
-                            <span className="text-xs font-medium text-emerald-600">
+                            <span className="text-xs font-medium text-emerald-600 tabular-nums">
                               -{Math.round(100 - (product.price / product.compare_price) * 100)}% off
                             </span>
                           ) : null}
@@ -412,7 +646,7 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
                         {/* Popular toggle */}
                         <td className="px-4 py-3.5">
                           <button onClick={() => togglePopular(product)} disabled={isToggling}
-                            className={clsx('p-1.5 rounded-lg transition-all',
+                            className={clsx('p-1.5 rounded-lg transition-colors',
                               product.is_popular
                                 ? 'bg-amber-50 text-amber-500 hover:bg-amber-100'
                                 : 'text-gray-300 hover:text-amber-400 hover:bg-amber-50'
@@ -456,8 +690,42 @@ const ProductsList: React.FC<ProductsListProps> = ({ statusFilter, title = 'All 
               </table>
             </div>
 
-            <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-              <p className="text-xs text-gray-500">Showing {filtered.length} of {rows.length} products</p>
+            <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3 text-xs text-gray-500">
+                <span className="tabular-nums">
+                  Showing {visibleRows.length} of {filtered.length} matching ({rows.length} total)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowAllPages((v) => !v)}
+                  className="text-primary-600 hover:underline font-medium"
+                >
+                  {showAllPages ? 'Paginate (25/page)' : 'Show All'}
+                </button>
+              </div>
+
+              {!showAllPages && totalPages > 1 && (
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage === 1}
+                    className="p-1.5 rounded border bg-white disabled:opacity-40"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="tabular-nums">Page {safePage} / {totalPages}</span>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safePage === totalPages}
+                    className="p-1.5 rounded border bg-white disabled:opacity-40"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center gap-2 text-xs text-gray-400">
                 <Star className="w-3.5 h-3.5 text-amber-400 fill-current" />
                 <span>{stats.popular} marked as popular</span>

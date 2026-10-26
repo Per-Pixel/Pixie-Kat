@@ -3450,6 +3450,151 @@ app.post('/api/admin/analytics', requireAdmin, async (req, res) => {
   }
 });
 
+// ── Admin AI / ChatGPT Orders Context Assistant ──────────────────────────────
+// GET  /api/admin/ai/status  Check if server has OPENAI_API_KEY configured
+// POST /api/admin/ai/chat    Proxy chat completion with PixieKat order context
+app.get('/api/admin/ai/status', requireAdmin, (_req, res) => {
+  return res.json({
+    ok: true,
+    serverKeyConfigured: Boolean(process.env.OPENAI_API_KEY),
+    defaultModel: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+  });
+});
+
+app.post('/api/admin/ai/chat', requireAdmin, async (req, res) => {
+  const { messages, contextPrompt, apiKey, model } = req.body || {};
+  const resolvedKey = String(apiKey || process.env.OPENAI_API_KEY || '').trim();
+  if (!resolvedKey) {
+    return res.status(400).json({
+      ok: false,
+      error: 'No OpenAI API key provided. Enter your API key in the ChatGPT connection panel or set OPENAI_API_KEY on the server.',
+    });
+  }
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ ok: false, error: 'messages array is required' });
+  }
+
+  const chosenModel = String(model || process.env.OPENAI_MODEL || 'gpt-4o-mini').trim();
+  const systemContent = [
+    'You are the PixieKat Admin Operations & Manual Orders Assistant.',
+    'PixieKat is an instant & manual gaming credits storefront (currencies: PKS and INR, 1 PKS = 1 INR).',
+    'Auto-fulfillment providers include SmileCoin, SmileOne, and Yokcash. Games with provider="manual" (such as BGMI Not Instant, Genshin Impact USA, Hayabusa Starlight, etc.) or orders flagged on_hold/uncertain require manual staff fulfillment.',
+    'Help the admin inspect orders, format supplier fulfillment batches (UID, Zone/Server, Product, Quantity), draft customer messages (WhatsApp/Email), audit price mismatches or duplicate orders, and answer operational questions.',
+    contextPrompt ? `\n--- LIVE PIXIEKAT CONTEXT ---\n${String(contextPrompt).slice(0, 48000)}` : '',
+  ].filter(Boolean).join('\n');
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${resolvedKey}`,
+      },
+      body: JSON.stringify({
+        model: chosenModel,
+        temperature: 0.3,
+        messages: [
+          { role: 'system', content: systemContent },
+          ...messages.map((m) => ({
+            role: m.role === 'assistant' ? 'assistant' : 'user',
+            content: String(m.content ?? '').slice(0, 16000),
+          })),
+        ],
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const errMsg = data?.error?.message || `OpenAI API error (HTTP ${response.status})`;
+      return res.status(response.status).json({ ok: false, error: errMsg });
+    }
+
+    const reply = data?.choices?.[0]?.message?.content ?? '';
+    return res.json({
+      ok: true,
+      reply,
+      model: data?.model || chosenModel,
+      usage: data?.usage || null,
+    });
+  } catch (err) {
+    console.error('[admin/ai/chat]', err.message);
+    return res.status(500).json({ ok: false, error: err.message || 'Failed to reach OpenAI API' });
+  }
+});
+
+// ── Admin order status ───────────────────────────────────────────────────────
+// POST /api/admin/orders/:id/status   Trusted status/metadata write (requireAdmin)
+// Direct PostgREST updates from the browser can be silently dropped by the
+// orders UPDATE policy (USING fails → 0 rows, no error) and 'completed' is
+// reserved for trusted operations — admin order writes go through this route.
+const ADMIN_ORDER_TRANSITIONS = {
+  pending:    ['processing', 'cancelled', 'on_hold', 'failed', 'completed'],
+  processing: ['failed', 'on_hold', 'cancelled', 'completed'],
+  on_hold:    ['processing', 'cancelled', 'failed', 'completed'],
+  failed:     ['pending', 'processing', 'completed'],
+  cancelled:  ['pending'],
+  completed:  [],
+  refunded:   [],
+};
+
+app.post('/api/admin/orders/:id/status', requireAdmin, async (req, res) => {
+  const orderId = String(req.params.id || '').trim();
+  const { status, note, supplierOrderId, metadata: metadataPatch } = req.body || {};
+  if (!orderId) return res.status(400).json({ ok: false, error: 'Order id is required' });
+
+  const nextStatus = typeof status === 'string' && status.trim() ? status.trim() : null;
+  const hasNote = typeof note === 'string' && note.trim().length > 0;
+  const hasSupplier = typeof supplierOrderId === 'string' && supplierOrderId.trim().length > 0;
+  const hasMetadataPatch = metadataPatch && typeof metadataPatch === 'object' && !Array.isArray(metadataPatch);
+  if (!nextStatus && !hasNote && !hasSupplier && !hasMetadataPatch) {
+    return res.status(400).json({ ok: false, error: 'Nothing to update — send status, note, supplierOrderId or metadata' });
+  }
+
+  try {
+    const { data: order, error: fetchErr } = await supabaseAdmin
+      .from('orders')
+      .select('id, status, metadata')
+      .eq('id', orderId)
+      .single();
+    if (fetchErr || !order) return res.status(404).json({ ok: false, error: 'Order not found' });
+
+    if (nextStatus && nextStatus !== order.status) {
+      const allowed = ADMIN_ORDER_TRANSITIONS[order.status] || [];
+      if (!allowed.includes(nextStatus)) {
+        return res.status(400).json({ ok: false, error: `Cannot move order from '${order.status}' to '${nextStatus}'` });
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const nextMetadata = { ...(order.metadata ?? {}) };
+    if (hasNote) nextMetadata.manual_fulfillment_note = note.trim();
+    if (hasSupplier) nextMetadata.supplier_order_id = supplierOrderId.trim();
+    if (hasMetadataPatch) Object.assign(nextMetadata, metadataPatch);
+    if (nextStatus === 'completed') {
+      nextMetadata.fulfilled_at = nowIso;
+      nextMetadata.fulfilled_by = 'manual_admin';
+      delete nextMetadata.fulfill_error;
+      delete nextMetadata.provider_delivery_uncertain;
+    }
+
+    const updatePayload = { updated_at: nowIso, metadata: nextMetadata };
+    if (nextStatus && nextStatus !== order.status) updatePayload.status = nextStatus;
+
+    const { data: updated, error: updateErr } = await supabaseAdmin
+      .from('orders')
+      .update(updatePayload)
+      .eq('id', orderId)
+      .select()
+      .single();
+    if (updateErr) throw updateErr;
+
+    return res.json({ ok: true, order: updated });
+  } catch (err) {
+    console.error('[admin/orders/status]', err.message);
+    return res.status(500).json({ ok: false, error: err.message || 'Failed to update order' });
+  }
+});
+
 // ── Leaderboard ──────────────────────────────────────────────────────────────
 // GET  /api/leaderboard?period=YYYY-MM&limit=N   Public standings (service_role RPC proxy)
 // GET  /api/leaderboard/me?months=N             Signed-in user's rank history (requireUser)

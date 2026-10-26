@@ -112,7 +112,7 @@ const VideoSourceField: React.FC<VideoSourceFieldProps> = ({
           <button
             type="button"
             onClick={() => onChange('')}
-            className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white shadow-sm"
+            className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white shadow-sm transition-colors hover:bg-red-600"
             title="Remove video"
           >
             <X className="h-3 w-3" />

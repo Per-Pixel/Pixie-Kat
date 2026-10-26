@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Eye, EyeOff, ArrowRight, Image } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { LoginCredentials } from '../types/auth';
+import { DURATION, EASE_OUT, pressScale } from '../lib/motion';
 import toast from 'react-hot-toast';
 
 const Login: React.FC = () => {
   const { login, isLoading, error } = useAuth();
+  const reduceMotion = useReducedMotion();
   const [showPassword, setShowPassword] = useState(false);
   const [credentials, setCredentials] = useState<LoginCredentials>({
     email: '',
@@ -49,9 +51,9 @@ const Login: React.FC = () => {
 
       {/* Main Container */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
+        initial={{ opacity: 0, y: 14, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.35, ease: EASE_OUT }}
         className="relative z-10 w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden"
       >
         <div className="flex md:min-h-[600px]">
@@ -71,7 +73,7 @@ const Login: React.FC = () => {
             <motion.form
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
+              transition={{ delay: 0.2, duration: 0.3, ease: EASE_OUT }}
               onSubmit={handleSubmit}
               className="space-y-6"
             >
@@ -84,7 +86,7 @@ const Login: React.FC = () => {
                   type="email"
                   value={credentials.email}
                   onChange={handleInputChange('email')}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-[color,background-color,border-color,box-shadow]"
                   placeholder="admin@example.com"
                   required
                 />
@@ -100,7 +102,7 @@ const Login: React.FC = () => {
                     type={showPassword ? 'text' : 'password'}
                     value={credentials.password}
                     onChange={handleInputChange('password')}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all pr-12"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-[color,background-color,border-color,box-shadow] pr-12"
                     placeholder=""
                     required
                   />
@@ -127,10 +129,10 @@ const Login: React.FC = () => {
               {/* Submit Button */}
               <motion.button
                 whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                {...pressScale}
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-teal-500 to-orange-400 text-white py-3 px-4 rounded-lg font-medium hover:from-teal-600 hover:to-orange-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="w-full bg-gradient-to-r from-teal-500 to-orange-400 text-white py-3 px-4 rounded-lg font-medium hover:from-teal-600 hover:to-orange-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-[color,background-color,border-color,box-shadow] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {isLoading ? (
                   <div className="flex items-center">
@@ -163,6 +165,7 @@ const Login: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: DURATION.base, ease: EASE_OUT }}
                 className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
               >
                 {error}
@@ -173,14 +176,18 @@ const Login: React.FC = () => {
           {/* Right Panel - Image */}
           <div className="hidden md:flex flex-1 bg-teal-500 items-center justify-center relative">
             <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
+              initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.5, duration: 0.6 }}
+              transition={{ delay: 0.35, duration: 0.4, ease: EASE_OUT }}
               className="text-center text-white"
             >
-              <div className="w-32 h-32 mx-auto mb-4 bg-white/20 rounded-2xl flex items-center justify-center">
+              <motion.div
+                animate={reduceMotion ? undefined : { scale: [1, 1.04, 1] }}
+                transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-32 h-32 mx-auto mb-4 bg-white/20 rounded-2xl flex items-center justify-center"
+              >
                 <Image className="w-16 h-16 text-white" />
-              </div>
+              </motion.div>
               <p className="text-xl font-medium">Image Here</p>
             </motion.div>
           </div>

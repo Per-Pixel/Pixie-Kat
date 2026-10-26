@@ -107,7 +107,7 @@ describe('website graphic placements', () => {
     expect(placements.find((item) => item.id === 'about-image')?.url).toBe('/img/about.webp');
     expect(placements.filter((item) => item.section === 'Games carousel')).toHaveLength(4);
     expect(placements.find((item) => item.id === 'home-fallback-trending-1')?.label).toBe('Black Myth Wukong');
-    expect(placements.find((item) => item.id === 'home-fallback-exclusive-1')?.label).toBe('Mobile Legend Bang Bang');
+    expect(placements.find((item) => item.id === 'home-fallback-exclusive-1')?.label).toBe('Hayabusa Starlight Pass');
   });
 
   it('distinguishes a matching bucket path from another image with the same filename', () => {

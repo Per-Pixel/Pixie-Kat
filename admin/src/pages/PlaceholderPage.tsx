@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Construction } from 'lucide-react';
+import { DURATION, EASE_OUT, fadeUp, staggerDelay } from '../lib/motion';
 
 interface PlaceholderPageProps {
   title: string;
@@ -11,8 +12,10 @@ interface PlaceholderPageProps {
 const PlaceholderPage: React.FC<PlaceholderPageProps> = ({ title, description, items = [] }) => (
   <div className="space-y-6">
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      variants={fadeUp}
+      initial="initial"
+      animate="animate"
+      transition={{ duration: 0.3, ease: EASE_OUT }}
       className="flex flex-col sm:flex-row sm:items-center sm:justify-between"
     >
       <div>
@@ -22,9 +25,10 @@ const PlaceholderPage: React.FC<PlaceholderPageProps> = ({ title, description, i
     </motion.div>
 
     <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.1 }}
+      variants={fadeUp}
+      initial="initial"
+      animate="animate"
+      transition={{ duration: 0.3, ease: EASE_OUT, delay: 0.08 }}
       className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
     >
       <div className="flex items-start gap-4">
@@ -41,11 +45,21 @@ const PlaceholderPage: React.FC<PlaceholderPageProps> = ({ title, description, i
 
       {items.length > 0 ? (
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((item) => (
-            <div key={item} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700">
+          {items.map((item, index) => (
+            <motion.div
+              key={item}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: DURATION.base,
+                ease: EASE_OUT,
+                delay: 0.15 + staggerDelay(index, 0.04, 0.2),
+              }}
+              className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700"
+            >
               <span>{item}</span>
               <ArrowRight className="h-4 w-4 text-gray-400" />
-            </div>
+            </motion.div>
           ))}
         </div>
       ) : null}

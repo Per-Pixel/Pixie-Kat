@@ -17,8 +17,6 @@ import {
 } from "../../lib/leaderboard";
 import { fetchJsonSetting } from "../../lib/storeContent";
 
-const orderLabel = (count) => `${count} completed order${Number(count) === 1 ? "" : "s"}`;
-
 const formatSpent = (amount) => {
   const value = Number(amount);
   return amount == null || !Number.isFinite(value)
@@ -26,11 +24,10 @@ const formatSpent = (amount) => {
     : `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 };
 
-// Rank is set by spend; order count shows when amounts are hidden (admin toggle).
 const metricLabel = (row) =>
-  row.total_spent != null ? `${formatSpent(row.total_spent)} spent` : orderLabel(row.order_count);
+  row.total_spent != null ? `${formatSpent(row.total_spent)} spent` : "—";
 
-const StageCompetitor = ({ row, prominent, finalized, showAmounts }) => (
+const StageCompetitor = ({ row, prominent, finalized }) => (
   <article className={`relative flex min-w-0 flex-col justify-end border-t border-white/15 px-4 py-5 sm:px-7 md:min-h-[220px] md:border-l md:border-t-0 md:py-6 md:first:border-l-0 ${prominent ? "order-first bg-violet-300/25 md:order-none" : "bg-white/[0.02]"}`}>
     <span aria-hidden="true" className="pointer-events-none absolute right-2 top-2 font-display text-[7rem] leading-none text-white/[0.05] sm:text-[9rem]">
       {String(row.rank).padStart(2, "0")}
@@ -50,9 +47,6 @@ const StageCompetitor = ({ row, prominent, finalized, showAmounts }) => (
         {row.display_name || "Player"}
       </h3>
       <p className="mt-1 font-circular-web text-sm text-blue-100/70">{metricLabel(row)}</p>
-      {showAmounts && row.total_spent != null ? (
-        <p className="mt-1 font-circular-web text-xs text-blue-100/50">{orderLabel(row.order_count)}</p>
-      ) : null}
       {finalized && row.tier ? (
         <p className="mt-3 font-general text-[10px] font-semibold uppercase tracking-wider text-yellow-300">{row.tier} tier</p>
       ) : null}
@@ -124,7 +118,7 @@ const RankTicket = ({ userId, authLoading }) => {
   );
 };
 
-const StandingsRows = ({ rows, showAmounts, label }) => (
+const StandingsRows = ({ rows, label }) => (
   <>
     <div className="hidden border-l-2 border-violet-300 md:block">
       <table className="w-full text-left">
@@ -133,8 +127,7 @@ const StandingsRows = ({ rows, showAmounts, label }) => (
           <tr className="font-general text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-200/60">
             <th scope="col" className="w-24 px-5 py-4">Place</th>
             <th scope="col" className="px-5 py-4">Player</th>
-            {showAmounts ? <th scope="col" className="px-5 py-4 text-right">Spent</th> : null}
-            <th scope="col" className="px-5 py-4 text-right">Orders</th>
+            <th scope="col" className="px-5 py-4 text-right">Spent</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-blue-200/10">
@@ -148,8 +141,7 @@ const StandingsRows = ({ rows, showAmounts, label }) => (
                   {row.tier ? <span className="shrink-0 bg-violet-300/10 px-2 py-1 font-general text-[10px] font-semibold uppercase text-violet-300">{row.tier}</span> : null}
                 </div>
               </td>
-              {showAmounts ? <td className="px-5 py-4 text-right font-circular-web text-sm font-semibold text-blue-200">{formatSpent(row.total_spent)}</td> : null}
-              <td className={`px-5 py-4 text-right font-circular-web text-sm ${showAmounts ? "text-blue-200/70" : "font-semibold text-blue-200"}`}>{row.order_count}</td>
+              <td className="px-5 py-4 text-right font-circular-web text-sm font-semibold text-blue-200">{formatSpent(row.total_spent)}</td>
             </tr>
           ))}
         </tbody>
@@ -166,10 +158,9 @@ const StandingsRows = ({ rows, showAmounts, label }) => (
           <div className="min-w-0 flex-1">
             <p className="break-words font-general text-sm font-semibold leading-snug text-blue-200">{row.display_name || "Player"}</p>
             {row.tier ? <p className="mt-1 font-general text-[10px] font-semibold uppercase text-violet-300">{row.tier} tier</p> : null}
-            {showAmounts ? <p className="mt-1 font-circular-web text-xs text-blue-200/65">{orderLabel(row.order_count)}</p> : null}
           </div>
           <p className="shrink-0 text-right font-circular-web text-lg font-semibold leading-none text-blue-200">
-            {row.total_spent != null ? formatSpent(row.total_spent) : row.order_count}<span className="mt-1 block text-[10px] font-normal text-blue-200/60">{row.total_spent != null ? "spent" : "orders"}</span>
+            {formatSpent(row.total_spent)}<span className="mt-1 block text-[10px] font-normal text-blue-200/60">spent</span>
           </p>
         </li>
       ))}

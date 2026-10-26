@@ -238,26 +238,32 @@ export default function OverviewTab({ data, refetch }: Props) {
     let cancelled = false;
 
     const fetchOrderStats = async () => {
-      const [{ count }, { data: completedOrders }] = await Promise.all([
-        supabase
-          .from('orders')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', profile.id),
-        supabase
+      const PAGE = 1000;
+      const { count } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', profile.id);
+
+      let completedSpend = 0;
+      for (let from = 0; from < 50000; from += PAGE) {
+        const { data: rows, error } = await supabase
           .from('orders')
           .select('total_amount')
           .eq('user_id', profile.id)
-          .eq('status', 'completed'),
-      ]);
+          .eq('status', 'completed')
+          .range(from, from + PAGE - 1);
+        if (error || !rows) break;
+        for (const order of rows) {
+          completedSpend += Number(order.total_amount || 0);
+        }
+        if (rows.length < PAGE) break;
+      }
 
       if (cancelled) return;
 
       setOrderStats({
         count: count ?? 0,
-        completedSpend: (completedOrders ?? []).reduce(
-          (sum, order) => sum + Number(order.total_amount || 0),
-          0,
-        ),
+        completedSpend,
       });
     };
 

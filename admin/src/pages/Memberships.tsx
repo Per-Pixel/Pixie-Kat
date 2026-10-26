@@ -1,8 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
-import { BadgePercent, Crown, Plus, RefreshCw, Save, X } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import {
+  BadgePercent, ChevronLeft, ChevronRight, Crown, Download,
+  Plus, RefreshCw, Save, Search, UserPlus, X,
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
+import { useAdminCurrency } from '../lib/currency';
+import { exportToCsv } from '../utils/dateRange';
+import { DURATION, EASE_OUT, fadeUp, pop, pressScale, staggerDelay } from '../lib/motion';
 
 interface MembershipPlan {
   id: string;
@@ -21,6 +27,7 @@ interface MembershipPlan {
 interface UserMembership {
   id: string;
   user_id: string;
+  plan_id?: string;
   status: string;
   started_at: string;
   expires_at: string;
@@ -41,17 +48,14 @@ const emptyPlan: Omit<MembershipPlan, 'id'> = {
   sort_order: 0,
 };
 
+const PAGE_SIZE = 15;
+
 function slugify(value: string) {
   return value
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-}
-
-function formatMoney(value: number | string, currency = 'INR') {
-  const symbols: Record<string, string> = { INR: '₹', USD: '$', PKR: 'Rs ' };
-  return `${symbols[currency] ?? `${currency} `}${Number(value ?? 0).toFixed(2)}`;
 }
 
 function formatDate(value: string) {
@@ -68,6 +72,7 @@ function firstJoined<T>(value: T | T[] | null | undefined): T | null {
 }
 
 const Memberships: React.FC = () => {
+  const { formatMoney } = useAdminCurrency();
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [memberships, setMemberships] = useState<UserMembership[]>([]);
   const [selectedId, setSelectedId] = useState<string | 'new'>('new');
@@ -75,6 +80,26 @@ const Memberships: React.FC = () => {
   const [benefitsText, setBenefitsText] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // User memberships filters
+  const [memberSearch, setMemberSearch] = useState('');
+  const [planFilter, setPlanFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired' | 'cancelled'>('all');
+  const [memberPage, setMemberPage] = useState(1);
+  const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null);
+
+  // Grant membership inline drawer
+  const [grantOpen, setGrantOpen] = useState(false);
+  const [grantEmail, setGrantEmail] = useState('');
+  const [grantPlanId, setGrantPlanId] = useState('');
+  const [granting, setGranting] = useState(false);
+
+  const reduceMotion = useReducedMotion();
+  const rowsIntroduced = useRef(false);
+
+  useEffect(() => {
+    if (!loading) rowsIntroduced.current = true;
+  }, [loading]);
 
   const selectedPlan = useMemo(
     () => plans.find((plan) => plan.id === selectedId) ?? null,
@@ -99,16 +124,18 @@ const Memberships: React.FC = () => {
         .order('sort_order', { ascending: true }),
       supabase
         .from('user_memberships')
-        .select('id, user_id, status, started_at, expires_at, membership_plans(name, discount_percent), profiles:user_id(name, email)')
+        .select('id, user_id, plan_id, status, started_at, expires_at, membership_plans(name, discount_percent), profiles:user_id(name, email)')
         .order('created_at', { ascending: false })
-        .limit(25),
+        .limit(500),
     ]);
 
     if (plansRes.error) {
       if (!isMissingTable(plansRes.error.message)) toast.error(plansRes.error.message);
       setPlans([]);
     } else {
-      setPlans((plansRes.data as MembershipPlan[]) ?? []);
+      const loadedPlans = (plansRes.data as MembershipPlan[]) ?? [];
+      setPlans(loadedPlans);
+      if (!grantPlanId && loadedPlans[0]) setGrantPlanId(loadedPlans[0].id);
     }
 
     if (!membershipsRes.error) {
@@ -189,41 +216,171 @@ const Memberships: React.FC = () => {
     await loadData();
   };
 
+  const filteredMemberships = useMemo(() => {
+    const q = memberSearch.trim().toLowerCase();
+    const now = new Date();
+    return memberships.filter((m) => {
+      const profile = firstJoined(m.profiles);
+      const plan = firstJoined(m.membership_plans);
+      const isExpired = new Date(m.expires_at) <= now || m.status === 'expired';
+      const effectiveStatus = m.status === 'cancelled' ? 'cancelled' : isExpired ? 'expired' : 'active';
+
+      if (statusFilter !== 'all' && effectiveStatus !== statusFilter) return false;
+      if (planFilter !== 'all' && (plan?.name ?? '') !== planFilter) return false;
+      if (q && !`${profile?.name ?? ''} ${profile?.email ?? ''} ${m.user_id}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [memberships, memberSearch, statusFilter, planFilter]);
+
+  const handleExtend30d = async (membership: UserMembership) => {
+    setUpdatingMemberId(membership.id);
+    const base = new Date(membership.expires_at) > new Date() ? new Date(membership.expires_at) : new Date();
+    base.setDate(base.getDate() + 30);
+    const { error } = await supabase
+      .from('user_memberships')
+      .update({ expires_at: base.toISOString(), status: 'active' })
+      .eq('id', membership.id);
+    setUpdatingMemberId(null);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success('Extended membership by 30 days');
+    await loadData();
+  };
+
+  const handleToggleCancel = async (membership: UserMembership) => {
+    setUpdatingMemberId(membership.id);
+    const nextStatus = membership.status === 'cancelled' ? 'active' : 'cancelled';
+    const { error } = await supabase
+      .from('user_memberships')
+      .update({ status: nextStatus })
+      .eq('id', membership.id);
+    setUpdatingMemberId(null);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(nextStatus === 'cancelled' ? 'Membership cancelled' : 'Membership reactivated');
+    await loadData();
+  };
+
+  const handleGrantMembership = async () => {
+    const email = grantEmail.trim().toLowerCase();
+    const plan = plans.find((p) => p.id === grantPlanId);
+    if (!email || !plan) {
+      toast.error('Enter a customer email and select a plan');
+      return;
+    }
+    setGranting(true);
+    try {
+      const { data: userRow, error: userErr } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .ilike('email', email)
+        .maybeSingle();
+      if (userErr || !userRow) {
+        toast.error('No customer found with that email');
+        return;
+      }
+      const now = new Date();
+      const expires = new Date(now.getTime() + Number(plan.duration_days || 30) * 86_400_000);
+      const { error: insErr } = await supabase.from('user_memberships').insert({
+        user_id: userRow.id,
+        plan_id: plan.id,
+        status: 'active',
+        started_at: now.toISOString(),
+        expires_at: expires.toISOString(),
+      });
+      if (insErr) {
+        toast.error(insErr.message);
+        return;
+      }
+      toast.success(`Granted ${plan.name} to ${userRow.email}`);
+      setGrantEmail('');
+      setGrantOpen(false);
+      await loadData();
+    } finally {
+      setGranting(false);
+    }
+  };
+
+  const handleExportMemberships = () => {
+    exportToCsv(
+      'user-memberships',
+      ['User', 'Email', 'Plan', 'Status', 'Started', 'Expires'],
+      filteredMemberships.map((m) => {
+        const prof = firstJoined(m.profiles);
+        const plan = firstJoined(m.membership_plans);
+        return [
+          prof?.name ?? m.user_id,
+          prof?.email ?? '',
+          plan?.name ?? 'Deleted plan',
+          m.status,
+          m.started_at,
+          m.expires_at,
+        ];
+      })
+    );
+  };
+
+  const totalPages = Math.max(1, Math.ceil(filteredMemberships.length / PAGE_SIZE));
+  const safePage = Math.min(memberPage, totalPages);
+  const pageMemberships = filteredMemberships.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
   return (
     <div className="space-y-6">
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
+        variants={fadeUp}
+        initial="initial"
+        animate="animate"
+        transition={{ duration: DURATION.base, ease: EASE_OUT }}
         className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="flex items-center gap-3">
           <Crown className="h-8 w-8 text-primary-600" />
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Memberships</h1>
-            <p className="text-sm text-gray-500">Configure member pricing tiers and review active members</p>
+            <p className="text-sm text-gray-500">Configure member pricing tiers and manage active subscribers</p>
           </div>
         </div>
-        <button type="button" onClick={loadData} disabled={loading} className="btn btn-outline btn-md">
-          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportMemberships}
+            disabled={!filteredMemberships.length}
+            className="btn btn-outline btn-md"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </button>
+          <button type="button" onClick={loadData} disabled={loading} className="btn btn-outline btn-md">
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </motion.div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Plans</p>
-          <p className="mt-2 text-2xl font-bold text-gray-900">{plans.length}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Active Members</p>
-          <p className="mt-2 text-2xl font-bold text-gray-900">{activeCount}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Best Discount</p>
-          <p className="mt-2 text-2xl font-bold text-gray-900">
-            {plans.length ? `${Math.max(...plans.map((plan) => Number(plan.discount_percent ?? 0))).toFixed(0)}%` : '0%'}
-          </p>
-        </div>
+        {[
+          { label: 'Plans', value: plans.length.toLocaleString() },
+          { label: 'Active Members', value: activeCount.toLocaleString() },
+          {
+            label: 'Best Discount',
+            value: plans.length ? `${Math.max(...plans.map((plan) => Number(plan.discount_percent ?? 0))).toFixed(0)}%` : '0%',
+          },
+        ].map((card, i) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 + staggerDelay(i, 0.05, 0.12), duration: DURATION.base, ease: EASE_OUT }}
+            className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
+          >
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{card.label}</p>
+            <p className="mt-2 text-2xl font-bold text-gray-900 tabular-nums">{card.value}</p>
+          </motion.div>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -254,12 +411,15 @@ const Memberships: React.FC = () => {
                   <p className="text-xs text-amber-600 mt-2">Migration file: <code className="font-mono">supabase/migrations/010_memberships.sql</code></p>
                 </div>
               </div>
-            ) : plans.map((plan) => (
-              <button
+            ) : plans.map((plan, i) => (
+              <motion.button
                 key={plan.id}
                 type="button"
+                initial={rowsIntroduced.current ? false : { opacity: 0, y: reduceMotion ? 0 : 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: staggerDelay(i, 0.04, 0.2), duration: DURATION.base, ease: EASE_OUT }}
                 onClick={() => setSelectedId(plan.id)}
-                className={`flex w-full items-center justify-between gap-4 px-6 py-4 text-left hover:bg-gray-50 ${
+                className={`flex w-full items-center justify-between gap-4 px-6 py-4 text-left hover:bg-gray-50 transition-colors ${
                   selectedId === plan.id ? 'bg-primary-50/50' : ''
                 }`}
               >
@@ -275,10 +435,10 @@ const Memberships: React.FC = () => {
                   <p className="mt-1 text-sm text-gray-500">{plan.description || 'No description'}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold text-primary-600">{Number(plan.discount_percent).toFixed(0)}% off</p>
-                  <p className="text-sm text-gray-500">{formatMoney(plan.price, plan.currency)} / {plan.duration_days} days</p>
+                  <p className="text-lg font-bold text-primary-600 tabular-nums">{Number(plan.discount_percent).toFixed(0)}% off</p>
+                  <p className="text-sm text-gray-500 tabular-nums">{formatMoney(plan.price)} / {plan.duration_days} days</p>
                 </div>
-              </button>
+              </motion.button>
             ))}
           </div>
         </section>
@@ -351,55 +511,202 @@ const Memberships: React.FC = () => {
                 <span className={`block h-5 w-5 rounded-full bg-white shadow transition ${form.is_active ? 'translate-x-5' : ''}`} />
               </button>
             </div>
-            <button type="button" onClick={savePlan} disabled={saving} className="btn btn-primary btn-md w-full">
+            <motion.button type="button" {...pressScale} onClick={savePlan} disabled={saving} className="btn btn-primary btn-md w-full">
               {saving ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               Save Plan
-            </button>
+            </motion.button>
           </div>
         </section>
       </div>
 
       <section className="rounded-lg border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center gap-2 border-b border-gray-200 px-6 py-4">
-          <BadgePercent className="h-5 w-5 text-gray-400" />
-          <h2 className="text-lg font-semibold text-gray-900">Recent User Memberships</h2>
+        <div className="flex flex-col gap-3 border-b border-gray-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <BadgePercent className="h-5 w-5 text-gray-400" />
+            <h2 className="text-lg font-semibold text-gray-900">User Memberships ({filteredMemberships.length})</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => setGrantOpen((v) => !v)}
+            className="btn btn-outline btn-sm self-start sm:self-auto"
+          >
+            <UserPlus className="mr-1.5 h-4 w-4" />
+            Grant Membership
+          </button>
         </div>
+
+        {grantOpen && (
+          <div className="border-b border-gray-200 bg-primary-50/40 px-6 py-4 flex flex-col sm:flex-row items-end gap-3">
+            <div className="flex-1 w-full">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Customer Email</label>
+              <input
+                type="email"
+                value={grantEmail}
+                onChange={(e) => setGrantEmail(e.target.value)}
+                placeholder="customer@example.com"
+                className="input bg-white text-sm w-full"
+              />
+            </div>
+            <div className="w-full sm:w-56">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Plan</label>
+              <select
+                value={grantPlanId}
+                onChange={(e) => setGrantPlanId(e.target.value)}
+                className="input bg-white text-sm w-full"
+              >
+                {plans.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.duration_days}d)
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={handleGrantMembership}
+              disabled={granting || !plans.length}
+              className="btn btn-primary btn-md shrink-0"
+            >
+              {granting ? 'Granting…' : 'Grant Now'}
+            </button>
+          </div>
+        )}
+
+        <div className="border-b border-gray-100 px-6 py-3 flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={memberSearch}
+              onChange={(e) => { setMemberSearch(e.target.value); setMemberPage(1); }}
+              placeholder="Search subscribers by name or email..."
+              className="input pl-9 text-sm w-full"
+            />
+          </div>
+          <select
+            value={planFilter}
+            onChange={(e) => { setPlanFilter(e.target.value); setMemberPage(1); }}
+            className="input sm:w-48 text-sm"
+          >
+            <option value="all">All Plans</option>
+            {plans.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setMemberPage(1); }}
+            className="input sm:w-44 text-sm"
+          >
+            <option value="all">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="expired">Expired</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                {['User', 'Plan', 'Status', 'Started', 'Expires'].map((heading) => (
+                {['User', 'Plan', 'Status', 'Started', 'Expires', 'Actions'].map((heading) => (
                   <th key={heading} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{heading}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {memberships.length === 0 ? (
+              {pageMemberships.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">No user memberships yet.</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">No user memberships match your filters.</td>
                 </tr>
-              ) : memberships.map((membership) => {
+              ) : pageMemberships.map((membership, i) => {
                 const profile = firstJoined(membership.profiles);
                 const plan = firstJoined(membership.membership_plans);
+                const isExpired = new Date(membership.expires_at) <= new Date();
 
                 return (
-                  <tr key={membership.id} className="hover:bg-gray-50">
+                  <motion.tr
+                    key={membership.id}
+                    initial={rowsIntroduced.current ? false : { opacity: 0, y: reduceMotion ? 0 : 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: staggerDelay(i, 0.028, 0.2), duration: DURATION.base, ease: EASE_OUT }}
+                    className="hover:bg-gray-50"
+                  >
                     <td className="px-6 py-4">
                       <p className="text-sm font-medium text-gray-900">{profile?.name ?? 'Unknown user'}</p>
                       <p className="text-xs text-gray-500">{profile?.email ?? membership.user_id}</p>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700">{plan?.name ?? 'Deleted plan'}</td>
                     <td className="px-6 py-4">
-                      <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium capitalize text-gray-700">{membership.status}</span>
+                      <motion.span
+                        key={membership.status}
+                        variants={pop}
+                        initial="initial"
+                        animate="animate"
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium capitalize inline-block ${
+                          membership.status === 'cancelled'
+                            ? 'bg-red-100 text-red-700'
+                            : isExpired
+                            ? 'bg-gray-100 text-gray-600'
+                            : 'bg-emerald-100 text-emerald-700'
+                        }`}
+                      >
+                        {membership.status === 'active' && isExpired ? 'expired' : membership.status}
+                      </motion.span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{formatDate(membership.started_at)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{formatDate(membership.expires_at)}</td>
-                  </tr>
+                    <td className="px-6 py-4 text-sm text-gray-500 tabular-nums">{formatDate(membership.started_at)}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500 tabular-nums">{formatDate(membership.expires_at)}</td>
+                    <td className="px-6 py-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={updatingMemberId === membership.id}
+                          onClick={() => handleExtend30d(membership)}
+                          className="px-2.5 py-1 text-xs font-medium rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700"
+                        >
+                          +30d
+                        </button>
+                        <button
+                          type="button"
+                          disabled={updatingMemberId === membership.id}
+                          onClick={() => handleToggleCancel(membership)}
+                          className="px-2.5 py-1 text-xs font-medium rounded-md border border-gray-200 hover:bg-gray-50 text-gray-600"
+                        >
+                          {membership.status === 'cancelled' ? 'Reactivate' : 'Cancel'}
+                        </button>
+                      </div>
+                    </td>
+                  </motion.tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="px-6 py-3 bg-gray-50 border-t flex items-center justify-between text-xs text-gray-500">
+            <span className="tabular-nums">
+              Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filteredMemberships.length)} of {filteredMemberships.length}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setMemberPage((p) => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="p-1.5 rounded border bg-white disabled:opacity-40"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="tabular-nums">Page {safePage} / {totalPages}</span>
+              <button
+                type="button"
+                onClick={() => setMemberPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="p-1.5 rounded border bg-white disabled:opacity-40"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );

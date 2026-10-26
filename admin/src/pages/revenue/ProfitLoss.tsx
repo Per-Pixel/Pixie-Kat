@@ -1,14 +1,26 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertCircle, ArrowDownRight, ArrowUpRight, ChevronRight, CircleDollarSign, DollarSign,
-  Percent, RefreshCw, RotateCcw, Scale, UserCog,
+  AlertCircle, ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, CircleDollarSign, DollarSign,
+  Download, Filter, Percent, RefreshCw, RotateCcw, Scale, Search, UserCog,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAdminReport } from '../../hooks/useAdminReport';
+import { useAdminCurrency } from '../../lib/currency';
+import { exportToCsv } from '../../utils/dateRange';
 import type { ReportOrder, ReportProduct } from '../../services/reportingService';
 
-const money = (value: number, currency = 'PKS') => `${currency} ${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+type PlPeriod = 'today' | '7d' | '30d' | '90d' | '1y' | 'all' | 'custom';
+
+const PERIOD_OPTIONS: Array<{ value: PlPeriod; label: string }> = [
+  { value: 'today', label: 'Today' },
+  { value: '7d', label: '7 Days' },
+  { value: '30d', label: '30 Days' },
+  { value: '90d', label: '3 Months' },
+  { value: '1y', label: '1 Year' },
+  { value: 'all', label: 'Lifetime' },
+  { value: 'custom', label: 'Custom' },
+];
 
 const STATUS_TABS = [
   { value: 'all', label: 'All' },
@@ -20,6 +32,29 @@ const STATUS_TABS = [
   { value: 'failed', label: 'Failed' },
   { value: 'cancelled', label: 'Cancelled' },
 ] as const;
+
+const PAGE_SIZE = 50;
+
+function matchesPeriod(ts: string, period: PlPeriod, customStart: string, customEnd: string): boolean {
+  if (period === 'all') return true;
+  const date = new Date(ts);
+  if (Number.isNaN(date.getTime())) return false;
+  const now = new Date();
+  if (period === 'today') {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return date >= start;
+  }
+  if (period === '7d') return date >= new Date(now.getTime() - 7 * 86_400_000);
+  if (period === '30d') return date >= new Date(now.getTime() - 30 * 86_400_000);
+  if (period === '90d') return date >= new Date(now.getTime() - 90 * 86_400_000);
+  if (period === '1y') return date >= new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+  if (period === 'custom') {
+    if (customStart && date < new Date(`${customStart}T00:00:00`)) return false;
+    if (customEnd && date > new Date(`${customEnd}T23:59:59.999`)) return false;
+    return true;
+  }
+  return true;
+}
 
 const statusStyles: Record<string, string> = {
   completed: 'bg-green-100 text-green-800',
@@ -35,7 +70,9 @@ interface PlRow {
   id: string;
   date: string;
   customer: string;
+  email: string;
   productName: string;
+  paymentMethod: string;
   status: string;
   currency: string;
   value: number;
@@ -56,8 +93,25 @@ function unitCost(order: ReportOrder, productsById: Map<string, ReportProduct>, 
 const ProfitLoss: React.FC = () => {
   const navigate = useNavigate();
   const { data, loading, error, refresh } = useAdminReport();
+  const { formatMoney } = useAdminCurrency();
+  const money = (value: number, _currency?: string) => formatMoney(value);
+  const [period, setPeriod] = useState<PlPeriod>('all');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [search, setSearch] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [statusTab, setStatusTab] = useState<(typeof STATUS_TABS)[number]['value']>('all');
   const [includeInternal, setIncludeInternal] = useState(true);
+  const [page, setPage] = useState(1);
+
+  const paymentMethods = useMemo(() => {
+    if (!data) return [];
+    const set = new Set<string>();
+    data.orders.forEach((o) => {
+      if (o.payment_method) set.add(o.payment_method);
+    });
+    return Array.from(set).sort();
+  }, [data]);
 
   const { rows, summary, internalCount } = useMemo(() => {
     const emptySummary = {
@@ -69,6 +123,7 @@ const ProfitLoss: React.FC = () => {
     const adminIds = new Set(data.profiles.filter((p) => p.role === 'admin').map((p) => p.id));
     const productsById = new Map(data.products.map((p) => [p.id, p]));
     const productsByName = new Map(data.products.map((p) => [p.name, p]));
+    const term = search.trim().toLowerCase();
 
     const built: PlRow[] = [];
     let grossRevenue = 0, refundLosses = 0, cogs = 0, unknownCostOrders = 0;
@@ -79,6 +134,16 @@ const ProfitLoss: React.FC = () => {
       const isInternal = adminIds.has(order.user_id);
       if (isInternal) internalTotal += 1;
       if (!includeInternal && isInternal) return;
+      if (!matchesPeriod(order.created_at, period, customStart, customEnd)) return;
+      if (paymentFilter !== 'all' && (order.payment_method || '') !== paymentFilter) return;
+
+      const customerName = order.profiles?.name || order.profiles?.email || 'Unknown';
+      const customerEmail = order.profiles?.email || '';
+      if (term) {
+        const hit = [order.id, order.product_name, customerName, customerEmail, order.payment_id ?? '']
+          .some((v) => v.toLowerCase().includes(term));
+        if (!hit) return;
+      }
 
       const total = Number(order.total_amount || 0);
       const qty = Number(order.quantity || 1);
@@ -108,8 +173,10 @@ const ProfitLoss: React.FC = () => {
       built.push({
         id: order.id,
         date: order.created_at,
-        customer: order.profiles?.name || order.profiles?.email || 'Unknown',
+        customer: customerName,
+        email: customerEmail,
         productName: order.product_name,
+        paymentMethod: order.payment_method || '—',
         status: order.status,
         currency: order.currency || currency,
         value: total,
@@ -129,7 +196,7 @@ const ProfitLoss: React.FC = () => {
       summary: { grossRevenue, refundLosses, cogs, grossProfit, netProfit, margin, unknownCostOrders, completedOrders, refundedOrders, currency },
       internalCount: internalTotal,
     };
-  }, [data, includeInternal]);
+  }, [data, includeInternal, period, customStart, customEnd, paymentFilter, search]);
 
   if (loading && !data) {
     return (
@@ -161,6 +228,9 @@ const ProfitLoss: React.FC = () => {
   ];
 
   const visible = statusTab === 'all' ? rows : rows.filter((row) => row.status === statusTab);
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginatedVisible = visible.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -176,17 +246,115 @@ const ProfitLoss: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setIncludeInternal((v) => !v)}
+            onClick={() => { setIncludeInternal((v) => !v); setPage(1); }}
             className={clsx('btn btn-sm flex items-center gap-2', includeInternal ? 'btn-primary' : 'btn-outline')}
             title="Orders placed by admin accounts, hidden from the sales analytics"
           >
             <UserCog className="h-4 w-4" />
             {includeInternal ? `Internal shown (${internalCount})` : 'Internal hidden'}
           </button>
+          <button
+            onClick={() =>
+              exportToCsv(
+                `profit-loss-${period}`,
+                ['Order ID', 'Date', 'Customer', 'Email', 'Product', 'Payment', 'Status', 'Value', 'Refund', 'Cost', 'P/L'],
+                visible.map((r) => [
+                  r.id,
+                  r.date,
+                  r.customer,
+                  r.email,
+                  r.productName,
+                  r.paymentMethod,
+                  r.status,
+                  r.value.toFixed(2),
+                  r.refund.toFixed(2),
+                  r.cost != null ? r.cost.toFixed(2) : '',
+                  r.pl != null ? r.pl.toFixed(2) : '',
+                ])
+              )
+            }
+            disabled={!visible.length}
+            className="btn btn-outline btn-sm flex items-center gap-1.5"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </button>
           <button onClick={() => void refresh()} className="btn btn-outline btn-sm">
             <RefreshCw className={clsx('h-4 w-4', loading && 'animate-spin')} />
           </button>
         </div>
+      </div>
+
+      {/* Period & Search Filters */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-1.5">
+            {PERIOD_OPTIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => { setPeriod(value); setPage(1); }}
+                className={clsx(
+                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                  period === value
+                    ? 'bg-primary-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                placeholder="Search customer, product, ID..."
+                className="input h-9 pl-9 text-xs w-56"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Filter className="h-3.5 w-3.5 text-gray-400" />
+              <select
+                value={paymentFilter}
+                onChange={(e) => { setPaymentFilter(e.target.value); setPage(1); }}
+                className="input h-9 text-xs !w-auto capitalize"
+              >
+                <option value="all">All Payment Methods</option>
+                {paymentMethods.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {period === 'custom' && (
+          <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-gray-100">
+            <label className="text-xs text-gray-500">
+              Start date
+              <input
+                type="date"
+                className="input mt-1 h-9 text-xs block"
+                value={customStart}
+                onChange={(e) => { setCustomStart(e.target.value); setPage(1); }}
+              />
+            </label>
+            <label className="text-xs text-gray-500">
+              End date
+              <input
+                type="date"
+                className="input mt-1 h-9 text-xs block"
+                value={customEnd}
+                onChange={(e) => { setCustomEnd(e.target.value); setPage(1); }}
+              />
+            </label>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -222,7 +390,7 @@ const ProfitLoss: React.FC = () => {
             {STATUS_TABS.map(({ value, label }) => (
               <button
                 key={value}
-                onClick={() => setStatusTab(value)}
+                onClick={() => { setStatusTab(value); setPage(1); }}
                 className={clsx('rounded-lg px-3 py-1.5 text-sm', statusTab === value ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}
               >
                 {label}
@@ -231,7 +399,7 @@ const ProfitLoss: React.FC = () => {
           </div>
         </div>
         {visible.length === 0 ? (
-          <p className="p-12 text-center text-sm text-gray-400">No orders found for this status.</p>
+          <p className="p-12 text-center text-sm text-gray-400">No orders found for this filter.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -243,7 +411,7 @@ const ProfitLoss: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {visible.map((row) => (
+                {paginatedVisible.map((row) => (
                   <tr
                     key={row.id}
                     onClick={() => navigate(`/revenue/orders?order=${row.id}`)}
@@ -289,8 +457,33 @@ const ProfitLoss: React.FC = () => {
             </table>
           </div>
         )}
-        <div className="border-t border-gray-100 px-6 py-3 text-xs text-gray-400">
-          Completed orders: {summary.completedOrders.toLocaleString()} · Refunded orders: {summary.refundedOrders.toLocaleString()} · Only completed and refunded orders affect the P&amp;L statement; other statuses are listed for reference and marked with —. Refunds are counted at full order value.
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-t border-gray-100 px-6 py-3 text-xs text-gray-400">
+          <span>
+            Showing {visible.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, visible.length)} of {visible.length.toLocaleString()} orders · Completed: {summary.completedOrders.toLocaleString()} · Refunded: {summary.refundedOrders.toLocaleString()}
+          </span>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-40"
+              >
+                <ChevronLeft className="h-4 w-4 text-gray-600" />
+              </button>
+              <span className="px-2 text-xs text-gray-600 font-medium">
+                Page {safePage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-40"
+              >
+                <ChevronRight className="h-4 w-4 text-gray-600" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
