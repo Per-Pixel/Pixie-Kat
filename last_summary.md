@@ -1,17 +1,35 @@
 # Last session summary
 
-## Leaderboard now ranks by spend, not order count
-- New migration `supabase/migrations/056_leaderboard_spend_metric.sql` (457 lines) — applied to prod via `npx supabase db query --linked --file ...` (never `db push`). All `ROW_NUMBER` windows now order by `total_spent DESC, last_order_at ASC, user_id`; `order_count` kept as secondary; settings flipped to `metric=total_spent`, `show_amounts=true`; winner outbox payload + `leaderboard_awards` + `get_my_rank_history` rows all carry `total_spent`.
-- Verified live RPC: `metric=total_spent`, `show_amounts=true`, #1 S***m ₹1,174 > #2 Curious_Cat ₹259.
-- Storefront: leaderboard page podium/table/rank-ticket, homepage teaser, and account rank history (desktop + mobile) now lead with ₹ spend, order count secondary; falls back to orders when admin hides amounts (`show_amounts` toggle still honored).
-- Admin: `Leaderboard.tsx` standings/history columns are spend-first with ₹ formatting, settings note + page subtitle updated, `leaderboardService.ts` defaults to `total_spent`/`show_amounts=true`; user OverviewTab rank history shows spend.
-- `main/server/notifications.js` winner email announces ₹ spend (order count kept as a detail row); test updated + passes.
-- Verified: `vitest` leaderboard 13/13, `node --test` notifications 12/12, `tsc -b` admin clean, `vite build` main clean, eslint clean on touched files.
+## Admin Panel Top-to-Bottom SaaS Upgrade (4 Waves)
 
-## Prior context (unchanged)
-- MLBB Mini Packs auto-fulfill via Yokcash PH services (`MLONLYPH_5_S1`, `MLONLYPH_11_S1`, `MLONLYPH_22_S1`); ID SKUs refund on region. Deployed as `app-261023_153741797517`, commit `217599e` pushed.
-- Yokcash real orders need `YOKCASH_ALLOW_TEST_ORDER=true` on EB + whitelisted prod IP (35.154.145.21); local IP is blocked.
-- Bulk MLBB orders: `main/server/scripts/bulk-mlbb-orders.mjs` (`--verify` / `--fire`), SmileCoin SKUs WDP=16642, 55💎=22590, 275💎=22592.
+Audited the entire `admin/src` dashboard for missing SaaS/operations capabilities and executed a 4-wave upgrade covering shared currency/date utilities, command palette & dead controls, analytics/revenue alignment, operations tables, and catalog bulk tools.
 
-## Pending
-- Leaderboard changes committed locally; push to GitHub + `eb deploy` (notifications.js change) + Amplify builds await the user's go-ahead.
+- **Shared Foundation (`admin/src/lib/currency.tsx`, `admin/src/utils/dateRange.ts`, `admin/src/App.tsx`, `admin/src/utils/dashboardMetrics.ts`)**:
+  - Added `CurrencyProvider` + `useAdminCurrency()` with persistent `localStorage` toggle between `PKS` and `INR (₹)`, synced across components via custom events.
+  - Added `ADMIN_PERIOD_OPTIONS`, `matchesAdminPeriod`, and `exportToCsv` for consistent date-range filtering and CSV exports across all admin tables.
+
+- **Wave 1 — Command Palette, Chrome & Dead Controls (`CommandPalette.tsx`, `AdminLayout.tsx`, `Notifications.tsx`, `Compose.tsx`)**:
+  - Built `CommandPalette.tsx` (`Ctrl+K` / `⌘K` or top-bar search click) with instant route jumping and live debounced Supabase search across Orders, Users, and Games.
+  - Added a global `PKS` ↔ `₹ INR` currency switcher pill in `AdminLayout.tsx` and synced the header notification bell dot to actual unread notification count.
+  - Persisted read/dismissed notifications in `localStorage` in `Notifications.tsx`, added time-window (`24h / 48h / 7d / 30d`) and text search filters, and replaced raw `<a href>` links with SPA `Link` navigation.
+  - Wired `Compose.tsx` to real active customer/reseller profiles from Supabase with draft persistence, outbound `support_requests` logging, and optional `mailto:` launch.
+
+- **Wave 2 — Analytics, Dashboard & Revenue Suite (`Analytics.tsx`, `Dashboard.tsx`, `SalesOverview.tsx`, `ProfitLoss.tsx`, `RevenueProducts.tsx`, `Referral.tsx`, `Resellers.tsx`)**:
+  - Wired `useAdminCurrency()` across all financial KPIs, charts, tooltips, and tables.
+  - Added `Include Internal` toggle and CSV export to `Analytics.tsx`, and scoped all 5 tabs (`Financial`, `Products`, `Customers`, `API & Suppliers`, `Platform & User Activity`) to the selected time period while keeping the dedicated Lifetime comparison card.
+  - Upgraded `RevenueProducts.tsx` with period pills, search, game/status filters, internal/wallet toggles, COGS/Profit/Margin columns, column sorting, pagination, and CSV export.
+  - Added CSV exports, filters, and column sorting to `SalesOverview.tsx`, `ProfitLoss.tsx`, `Referral.tsx`, and `Resellers.tsx`.
+
+- **Wave 3 — Operations Tables (`ActivityLogs.tsx`, `Messages.tsx`, `Wallets.tsx`, `Memberships.tsx`)**:
+  - `ActivityLogs.tsx`: Added period pills + custom date range, actor role filter (`admin / user / reseller / system`), clear filters button, and pagination (25/page).
+  - `Messages.tsx`: Added source/category/period filters, route awareness for `/messages/sent` and `/messages/history`, CSV export, pagination, order deep-link button, and persistent internal admin triage notes.
+  - `Wallets.tsx`: Added status filter, non-zero balance toggle, sorting, pagination, and CSV export on balances; expanded the Wallet Activity Ledger to 500 rows with type/period/search filters, pagination, and Ledger CSV export.
+  - `Memberships.tsx`: Expanded user memberships table with search, plan/status filters, CSV export, pagination, `+30d` / `Cancel` quick actions, and a `Grant Membership` drawer.
+
+- **Wave 4 — Users, KYC Queue & Catalog Bulk Ops (`ManageUsers.tsx`, `Clients.tsx`, `ProductsList.tsx`, `GamesList.tsx`)**:
+  - `ManageUsers.tsx`: Wired CSV export, added `banned` status filter, joined `user_kyc` to add a `KYC Status` column & filter (supporting `?kyc=pending` deep-link from `Dashboard.tsx`), joined period filter, column sorting, and pagination.
+  - `Clients.tsx`: Wired `Find / Manage Client` email lookup bar, CSV export, and `useAdminCurrency()`.
+  - `ProductsList.tsx`: Added provider & popular filters, multi-select checkboxes, bulk status/popular actions, a Bulk Price Adjuster (`±%` or `±flat`), and pagination with `Show All` toggle.
+  - `GamesList.tsx`: Added status pills, provider filter, column sorting, and CSV export.
+
+- **Verification**: `admin/` `npm run typecheck` (0 errors), `npm test` (21/21 passing), and `npm run build` (clean production build).

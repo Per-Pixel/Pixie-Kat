@@ -85,10 +85,26 @@ function throwIfError(error: { message: string } | null, source: string) {
   if (error) throw new Error(`${source}: ${error.message}`);
 }
 
+async function fetchAllOrders(): Promise<ReportOrder[]> {
+  const PAGE = 1000;
+  const all: ReportOrder[] = [];
+  for (let from = 0; from < 50000; from += PAGE) {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('id, user_id, product_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, razorpay_order_id, unit_selling_price, unit_cost_price, metadata, created_at, updated_at, profiles:user_id(name, email)')
+      .order('created_at', { ascending: false })
+      .range(from, from + PAGE - 1);
+    throwIfError(error, 'Orders');
+    all.push(...((data ?? []) as unknown as ReportOrder[]));
+    if (!data || data.length < PAGE) break;
+  }
+  return all;
+}
+
 export async function getAdminReportData(): Promise<AdminReportData> {
   const [
     profilesResult,
-    ordersResult,
+    orders,
     productsResult,
     walletResult,
     referralsResult,
@@ -100,11 +116,7 @@ export async function getAdminReportData(): Promise<AdminReportData> {
       .select('id, name, email, role, status, wallet_balance, created_at')
       .order('created_at', { ascending: false })
       .limit(5000),
-    supabase
-      .from('orders')
-      .select('id, user_id, product_id, product_name, quantity, total_amount, currency, status, payment_method, payment_id, razorpay_order_id, unit_selling_price, unit_cost_price, metadata, created_at, updated_at, profiles:user_id(name, email)')
-      .order('created_at', { ascending: false })
-      .limit(5000),
+    fetchAllOrders(),
     supabase
       .from('products')
       .select('id, game_id, name, price, cost_price, currency, stock, status, is_popular, game:games(name, category, provider)')
@@ -132,7 +144,6 @@ export async function getAdminReportData(): Promise<AdminReportData> {
   ]);
 
   throwIfError(profilesResult.error, 'Profiles');
-  throwIfError(ordersResult.error, 'Orders');
   throwIfError(productsResult.error, 'Products');
   throwIfError(walletResult.error, 'Wallet transactions');
   throwIfError(referralsResult.error, 'Referrals');
@@ -141,7 +152,7 @@ export async function getAdminReportData(): Promise<AdminReportData> {
 
   return {
     profiles: (profilesResult.data ?? []) as ReportProfile[],
-    orders: (ordersResult.data ?? []) as unknown as ReportOrder[],
+    orders,
     products: (productsResult.data ?? []) as unknown as ReportProduct[],
     walletTransactions: (walletResult.data ?? []) as ReportWalletTransaction[],
     referrals: (referralsResult.data ?? []) as ReportReferral[],

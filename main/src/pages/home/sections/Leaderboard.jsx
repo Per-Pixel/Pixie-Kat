@@ -74,7 +74,7 @@ const Leaderboard = () => {
                   <p className="font-general text-[10px] font-semibold uppercase tracking-wider text-yellow-300">First place</p>
                   <p className="mt-1 break-words font-general text-base font-semibold text-blue-50 sm:text-lg">{leader.display_name || "Player"}</p>
                   <p className="mt-1 font-circular-web text-xs text-blue-100/70">
-                    {leader.total_spent != null ? `₹${Number(leader.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })} spent` : `${leader.order_count} completed orders`}
+                    {leader.total_spent != null ? `₹${Number(leader.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })} spent` : "—"}
                   </p>
                 </div>
                 <span className="shrink-0 font-display text-5xl font-black leading-none text-yellow-300 sm:text-6xl">#1</span>
@@ -88,8 +88,8 @@ const Leaderboard = () => {
                       <LeaderboardAvatar avatarUrl={row.avatar_url} frame={row.avatar_frame} sizeClass="size-8" />
                       <span className="min-w-0 flex-1 break-words font-general text-sm font-medium text-blue-50">{row.display_name || "Player"}</span>
                       <span className="shrink-0 text-right font-circular-web text-sm font-semibold text-blue-50">
-                        {row.total_spent != null ? `₹${Number(row.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : row.order_count}
-                        <span className="block text-[10px] font-normal text-blue-100/60">{row.total_spent != null ? "spent" : "orders"}</span>
+                        {row.total_spent != null ? `₹${Number(row.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : "—"}
+                        <span className="block text-[10px] font-normal text-blue-100/60">spent</span>
                       </span>
                     </li>
                   ))}

@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import clsx from 'clsx';
 import {
   Activity,
@@ -30,10 +31,11 @@ import {
   Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { useAdminReport } from '../hooks/useAdminReport';
+import { useAdminCurrency } from '../lib/currency';
+import { DURATION, EASE_OUT, springSoft, staggerDelay, staggerItem, staggerParent } from '../lib/motion';
 import {
   computeDashboardMetrics,
   computeCustomerInsights,
-  money,
 } from '../utils/dashboardMetrics';
 import type { ReportOrder } from '../services/reportingService';
 
@@ -45,12 +47,44 @@ function timeAgo(value: string) {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
+/** Ease-out count-up driven by rAF — settles in ~550ms, resumes from the last shown value. */
+function useCountUp(target: number, duration = 550) {
+  const reduceMotion = useReducedMotion();
+  const [display, setDisplay] = useState(0);
+  const prevRef = useRef(0);
+  useEffect(() => {
+    if (reduceMotion) {
+      prevRef.current = target;
+      setDisplay(target);
+      return;
+    }
+    const from = prevRef.current;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(from + (target - from) * eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else prevRef.current = target;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration, reduceMotion]);
+  return display;
+}
+
+function AnimatedNumber({ value, format }: { value: number; format: (v: number) => string }) {
+  const current = useCountUp(value);
+  return <span className="tabular-nums">{format(current)}</span>;
+}
+
 function ChangePill({ value, suffix = '%' }: { value: number; suffix?: string }) {
   const positive = value >= 0;
   return (
     <span
       className={clsx(
-        'inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold',
+        'inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums',
         positive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
       )}
     >
@@ -62,24 +96,24 @@ function ChangePill({ value, suffix = '%' }: { value: number; suffix?: string })
 
 function KpiCard({ label, value, sub, icon: Icon, tone }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   sub?: React.ReactNode;
   icon: React.ComponentType<{ className?: string }>;
   tone: string;
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <motion.div variants={staggerItem} transition={{ duration: DURATION.base, ease: EASE_OUT }} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-xs text-gray-500">{label}</p>
-          <p className="mt-1 truncate text-xl font-bold text-gray-900">{value}</p>
+          <p className="mt-1 truncate text-xl font-bold text-gray-900 tabular-nums">{value}</p>
         </div>
         <div className={clsx('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', tone)}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
       {sub && <div className="mt-2">{sub}</div>}
-    </div>
+    </motion.div>
   );
 }
 
@@ -103,6 +137,7 @@ function SectionHeader({ icon: Icon, title, hint, action }: {
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { data, loading, error, refresh } = useAdminReport();
+  const { formatMoney: money } = useAdminCurrency();
   const [walletOnly, setWalletOnly] = useState(false);
   const [includeInternal, setIncludeInternal] = useState(false);
 
@@ -170,45 +205,50 @@ const Dashboard: React.FC = () => {
   const kpis = [
     {
       label: "Today's Revenue",
-      value: money(todayVsYesterday.revenue.today),
+      value: <AnimatedNumber value={todayVsYesterday.revenue.today} format={money} />,
       icon: DollarSign,
       tone: 'bg-blue-50 text-blue-600',
       sub: <div className="flex items-center gap-1.5"><ChangePill value={todayVsYesterday.revenue.change} /><span className="text-xs text-gray-400">vs yesterday</span></div>,
     },
     {
       label: "Today's Profit",
-      value: money(todayVsYesterday.profit.today),
+      value: <AnimatedNumber value={todayVsYesterday.profit.today} format={money} />,
       icon: TrendingUp,
       tone: 'bg-emerald-50 text-emerald-600',
       sub: <div className="flex items-center gap-1.5"><ChangePill value={todayVsYesterday.profit.change} /><span className="text-xs text-gray-400">vs yesterday</span></div>,
     },
-    { label: 'Orders Today', value: ordersToday.length.toLocaleString(), icon: ShoppingCart, tone: 'bg-cyan-50 text-cyan-600' },
+    {
+      label: 'Orders Today',
+      value: <AnimatedNumber value={ordersToday.length} format={(v) => Math.round(v).toLocaleString()} />,
+      icon: ShoppingCart,
+      tone: 'bg-cyan-50 text-cyan-600',
+    },
     {
       label: '7-Day Revenue',
-      value: money(financial.revenue),
+      value: <AnimatedNumber value={financial.revenue} format={money} />,
       icon: BarChart3,
       tone: 'bg-violet-50 text-violet-600',
-      sub: <p className="text-xs text-gray-400">{money(financial.grossProfit)} gross profit</p>,
+      sub: <p className="text-xs text-gray-400 tabular-nums">{money(financial.grossProfit)} gross profit</p>,
     },
   ];
 
   const quickStats = [
-    { label: 'Avg order value (7d)', value: money(financial.aov), icon: BarChart3 },
-    { label: 'Profit margin (7d)', value: `${financial.profitMargin.toFixed(1)}%`, icon: TrendingUp },
-    { label: 'Repeat purchase rate', value: `${repeatMetrics.repeatPurchaseRate.toFixed(1)}%`, icon: Repeat },
+    { label: 'Avg order value (7d)', value: <AnimatedNumber value={financial.aov} format={money} />, icon: BarChart3 },
+    { label: 'Profit margin (7d)', value: <AnimatedNumber value={financial.profitMargin} format={(v) => `${v.toFixed(1)}%`} />, icon: TrendingUp },
+    { label: 'Repeat purchase rate', value: <AnimatedNumber value={repeatMetrics.repeatPurchaseRate} format={(v) => `${v.toFixed(1)}%`} />, icon: Repeat },
     {
       label: 'Avg processing time',
-      value: processingTime.samples ? `${processingTime.averageMinutes.toFixed(0)} min` : '—',
+      value: processingTime.samples ? <AnimatedNumber value={processingTime.averageMinutes} format={(v) => `${v.toFixed(0)} min`} /> : '—',
       icon: Timer,
     },
     { label: 'Active products', value: `${activeProducts.length} / ${data.products.length}`, icon: Package },
-    { label: 'Pending KYC', value: pendingKyc.toLocaleString(), icon: ShieldCheck },
+    { label: 'Pending KYC', value: <AnimatedNumber value={pendingKyc} format={(v) => Math.round(v).toLocaleString()} />, icon: ShieldCheck },
   ];
 
   const attention = [
     { label: 'Orders to fulfil', value: pendingOrdersCount, icon: ShoppingCart, tone: 'text-amber-700 bg-amber-50 border-amber-200', to: '/revenue/orders' },
     { label: 'Failed today', value: failedToday, icon: AlertCircle, tone: 'text-red-700 bg-red-50 border-red-200', to: '/revenue/orders' },
-    { label: 'KYC reviews', value: pendingKyc, icon: ShieldCheck, tone: 'text-purple-700 bg-purple-50 border-purple-200', to: '/users' },
+    { label: 'KYC reviews', value: pendingKyc, icon: ShieldCheck, tone: 'text-purple-700 bg-purple-50 border-purple-200', to: '/users?kyc=pending' },
     { label: 'Out of stock', value: outOfStock, icon: PackageX, tone: 'text-slate-700 bg-slate-100 border-slate-200', to: '/products' },
   ];
 
@@ -259,26 +299,31 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Today KPI row */}
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <motion.div variants={staggerParent} initial="initial" animate="animate" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         {kpis.map((kpi) => <KpiCard key={kpi.label} {...kpi} />)}
-      </div>
+      </motion.div>
 
       {/* QuickStats strip */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <motion.div variants={staggerParent} initial="initial" animate="animate" className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         {quickStats.map(({ label, value, icon: Icon }) => (
-          <div key={label} className="rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm">
+          <motion.div key={label} variants={staggerItem} transition={{ duration: DURATION.base, ease: EASE_OUT }} className="rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm">
             <div className="flex items-center gap-2 text-gray-400">
               <Icon className="h-3.5 w-3.5" />
               <p className="truncate text-xs">{label}</p>
             </div>
-            <p className="mt-1.5 truncate text-lg font-bold text-gray-900">{value}</p>
-          </div>
+            <p className="mt-1.5 truncate text-lg font-bold text-gray-900 tabular-nums">{value}</p>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       {/* Trend + attention rail */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm xl:col-span-2">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: DURATION.base, ease: EASE_OUT }}
+          className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm xl:col-span-2"
+        >
           <SectionHeader
             icon={TrendingUp}
             title="7-Day Revenue, Profit & Orders"
@@ -307,22 +352,30 @@ const Dashboard: React.FC = () => {
             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Profit</span>
             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-violet-500" /> Orders</span>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.16, duration: DURATION.base, ease: EASE_OUT }}
+          className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+        >
           <SectionHeader icon={AlertCircle} title="Needs Attention" />
           <div className="mt-4 space-y-2.5">
-            {attention.map(({ label, value, icon: Icon, tone, to }) => (
-              <button
+            {attention.map(({ label, value, icon: Icon, tone, to }, i) => (
+              <motion.button
                 key={label}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + staggerDelay(i, 0.05, 0.15), duration: DURATION.base, ease: EASE_OUT }}
                 onClick={() => navigate(to)}
                 className={clsx('flex w-full items-center gap-3 rounded-xl border p-3 text-left transition hover:opacity-90', tone)}
               >
                 <Icon className="h-4 w-4 shrink-0" />
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">{label}</span>
-                <span className="shrink-0 text-lg font-bold">{value.toLocaleString()}</span>
+                <span className="shrink-0 text-lg font-bold tabular-nums">{value.toLocaleString()}</span>
                 <ChevronRight className="h-4 w-4 shrink-0 opacity-50" />
-              </button>
+              </motion.button>
             ))}
           </div>
           {supplierPerformance.length > 0 && (
@@ -332,7 +385,7 @@ const Dashboard: React.FC = () => {
                 {supplierPerformance.slice(0, 3).map((s) => (
                   <div key={s.provider} className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">{s.label}</span>
-                    <span className={clsx('font-semibold', s.successRate >= 95 ? 'text-emerald-600' : s.successRate >= 80 ? 'text-amber-600' : 'text-red-600')}>
+                    <span className={clsx('font-semibold tabular-nums', s.successRate >= 95 ? 'text-emerald-600' : s.successRate >= 80 ? 'text-amber-600' : 'text-red-600')}>
                       {s.successRate.toFixed(0)}%
                     </span>
                   </div>
@@ -340,67 +393,92 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
           )}
-        </div>
+        </motion.div>
       </div>
 
       {/* Products / Games / Payments */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.22, duration: DURATION.base, ease: EASE_OUT }}
+          className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+        >
           <SectionHeader icon={Package} title="Top Products" action={<Link to="/revenue/products" className="text-xs text-primary-600 hover:underline">All →</Link>} />
           <div className="mt-4 space-y-3">
             {productPerformance.length ? productPerformance.slice(0, 5).map((p) => (
               <div key={p.id}>
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="min-w-0 truncate text-gray-700">{p.name}</span>
-                  <span className="shrink-0 font-semibold text-gray-900">{money(p.revenue)}</span>
+                  <span className="shrink-0 font-semibold text-gray-900 tabular-nums">{money(p.revenue)}</span>
                 </div>
                 <div className="mt-1 flex items-center justify-between gap-3">
                   <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-gray-100">
-                    <div className="h-full rounded-full bg-primary-500" style={{ width: `${topProductRevenue ? (p.revenue / topProductRevenue) * 100 : 0}%` }} />
+                    <motion.div
+                      initial={false}
+                      animate={{ width: `${topProductRevenue ? (p.revenue / topProductRevenue) * 100 : 0}%` }}
+                      transition={springSoft}
+                      className="h-full rounded-full bg-primary-500"
+                    />
                   </div>
-                  <span className={clsx('shrink-0 text-xs font-medium', p.profit >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+                  <span className={clsx('shrink-0 text-xs font-medium tabular-nums', p.profit >= 0 ? 'text-emerald-600' : 'text-red-600')}>
                     {p.profit >= 0 ? '+' : '-'}{money(Math.abs(p.profit))}
                   </span>
                 </div>
               </div>
             )) : <p className="py-10 text-center text-sm text-gray-400">No completed sales in the last 7 days.</p>}
           </div>
-        </div>
+        </motion.div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.28, duration: DURATION.base, ease: EASE_OUT }}
+          className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+        >
           <SectionHeader icon={Gamepad2} title="Top Games" />
           <div className="mt-4 divide-y divide-gray-50">
             {gamePerformance.length ? gamePerformance.slice(0, 5).map((g) => (
               <div key={g.id} className="flex items-center justify-between gap-3 py-2.5">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-gray-900">{g.name}</p>
-                  <p className="text-xs text-gray-400">{g.orders} orders · {g.units} units</p>
+                  <p className="text-xs text-gray-400 tabular-nums">{g.orders} orders · {g.units} units</p>
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-gray-900">{money(g.revenue)}</p>
+                <p className="shrink-0 text-sm font-semibold text-gray-900 tabular-nums">{money(g.revenue)}</p>
               </div>
             )) : <p className="py-10 text-center text-sm text-gray-400">No game sales in the last 7 days.</p>}
           </div>
-        </div>
+        </motion.div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.34, duration: DURATION.base, ease: EASE_OUT }}
+          className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+        >
           <SectionHeader icon={CreditCard} title="Payment Methods" />
           <div className="mt-4 divide-y divide-gray-50">
             {paymentMethods.length ? paymentMethods.map((m) => (
               <div key={m.method} className="flex items-center justify-between gap-3 py-2.5">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium capitalize text-gray-900">{m.method}</p>
-                  <p className="text-xs text-gray-400">{m.orders} orders</p>
+                  <p className="text-xs text-gray-400 tabular-nums">{m.orders} orders</p>
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-gray-900">{money(m.revenue)}</p>
+                <p className="shrink-0 text-sm font-semibold text-gray-900 tabular-nums">{money(m.revenue)}</p>
               </div>
             )) : <p className="py-10 text-center text-sm text-gray-400">No payments in the last 7 days.</p>}
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Customers / Activity */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: DURATION.base, ease: EASE_OUT }}
+          className="rounded-xl border border-gray-200 bg-white shadow-sm"
+        >
           <div className="border-b border-gray-100 p-4">
             <SectionHeader icon={Crown} title="Top Customers" action={<button onClick={() => navigate('/auth/clients')} className="text-xs text-primary-600 hover:underline">View all →</button>} />
           </div>
@@ -412,15 +490,20 @@ const Dashboard: React.FC = () => {
                   <p className="truncate text-xs text-gray-500">{c.email}</p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-sm font-semibold">{money(c.spent)}</p>
-                  <p className="text-xs text-gray-500">{c.orders} orders</p>
+                  <p className="text-sm font-semibold tabular-nums">{money(c.spent)}</p>
+                  <p className="text-xs text-gray-500 tabular-nums">{c.orders} orders</p>
                 </div>
               </button>
             )) : <p className="p-6 text-sm text-gray-400">No customer spending yet.</p>}
           </div>
-        </div>
+        </motion.div>
 
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm lg:col-span-2">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.46, duration: DURATION.base, ease: EASE_OUT }}
+          className="rounded-xl border border-gray-200 bg-white shadow-sm lg:col-span-2"
+        >
           <div className="border-b border-gray-100 p-4">
             <SectionHeader icon={Activity} title="Recent Activity" action={<button onClick={() => navigate('/activity-logs')} className="text-xs text-primary-600 hover:underline">View all →</button>} />
           </div>
@@ -436,7 +519,7 @@ const Dashboard: React.FC = () => {
               </div>
             )) : <p className="p-6 text-sm text-gray-400">No activity recorded.</p>}
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Refund / failure insight */}

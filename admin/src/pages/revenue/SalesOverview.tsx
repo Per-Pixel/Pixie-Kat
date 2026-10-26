@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertCircle, Ban, BarChart3, CheckCircle, Clock, DollarSign,
-  Package, RefreshCw, RotateCcw, Scale, ShoppingCart, TrendingUp,
+  Download, Package, RefreshCw, RotateCcw, Scale, ShoppingCart, TrendingUp,
   Wallet, XCircle,
 } from 'lucide-react';
 import {
@@ -10,6 +10,8 @@ import {
 } from 'recharts';
 import clsx from 'clsx';
 import { AdminAnalytics, AnalyticsPeriod, getAdminAnalytics } from '../../services/adminAnalyticsService';
+import { useAdminCurrency } from '../../lib/currency';
+import { exportToCsv } from '../../utils/dateRange';
 
 const statusColors: Record<string, string> = {
   completed: '#10b981',
@@ -20,8 +22,6 @@ const statusColors: Record<string, string> = {
   refunded: '#8b5cf6',
   on_hold: '#f97316',
 };
-
-const money = (value: number) => `INR ${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
 const periods: Array<{ value: AnalyticsPeriod; label: string }> = [
   { value: 'today', label: 'Today' }, { value: '7d', label: '7 days' },
@@ -44,7 +44,7 @@ function KpiCard({ label, value, sub, icon: Icon, tone }: {
       </div>
       <div className="min-w-0">
         <p className="text-xs text-gray-500">{label}</p>
-        <p className="truncate text-lg font-bold text-gray-900">{value}</p>
+        <p className="truncate text-lg font-bold text-gray-900 tabular-nums">{value}</p>
         {sub}
       </div>
     </div>
@@ -68,6 +68,7 @@ function SectionHeader({ icon: Icon, title, hint }: {
 }
 
 const SalesOverview: React.FC = () => {
+  const { formatMoney } = useAdminCurrency();
   const [period, setPeriod] = useState<AnalyticsPeriod>('30d');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -128,16 +129,28 @@ const SalesOverview: React.FC = () => {
   const topProducts = report.products.slice(0, 6);
   const topProductRevenue = topProducts[0] ? Number(topProducts[0].revenue) : 0;
 
+  const handleExport = () => {
+    exportToCsv(
+      `sales-overview-${period}`,
+      ['Product', 'Units', 'Revenue', 'Profit', 'Margin %'],
+      report.products.map((p) => {
+        const rev = Number(p.revenue || 0);
+        const prof = Number(p.profit || 0);
+        return [p.name, p.units, rev.toFixed(2), prof.toFixed(2), rev > 0 ? ((prof / rev) * 100).toFixed(1) : '0.0'];
+      })
+    );
+  };
+
   const kpis = [
-    { label: 'Revenue', value: money(metrics.revenue), icon: DollarSign, tone: 'bg-blue-50 text-blue-600' },
+    { label: 'Revenue', value: formatMoney(metrics.revenue), icon: DollarSign, tone: 'bg-blue-50 text-blue-600' },
     {
       label: 'Known Gross Profit',
-      value: money(metrics.known_profit),
+      value: formatMoney(metrics.known_profit),
       icon: TrendingUp,
       tone: 'bg-emerald-50 text-emerald-600',
       sub: <p className="text-xs text-gray-400">{profitMargin.toFixed(1)}% margin</p>,
     },
-    { label: 'Refunded Value', value: money(metrics.refunds), icon: RotateCcw, tone: 'bg-red-50 text-red-600' },
+    { label: 'Refunded Value', value: formatMoney(metrics.refunds), icon: RotateCcw, tone: 'bg-red-50 text-red-600' },
     {
       label: 'Orders',
       value: metrics.total_orders.toLocaleString(),
@@ -145,7 +158,7 @@ const SalesOverview: React.FC = () => {
       tone: 'bg-cyan-50 text-cyan-600',
       sub: <p className="text-xs text-gray-400">{completionRate.toFixed(1)}% completed</p>,
     },
-    { label: 'Avg Order Value', value: money(avgOrder), icon: BarChart3, tone: 'bg-indigo-50 text-indigo-600' },
+    { label: 'Avg Order Value', value: formatMoney(avgOrder), icon: BarChart3, tone: 'bg-indigo-50 text-indigo-600' },
     { label: 'Units Sold', value: metrics.units_sold.toLocaleString(), icon: Package, tone: 'bg-amber-50 text-amber-600' },
   ];
 
@@ -181,6 +194,10 @@ const SalesOverview: React.FC = () => {
           >
             <Wallet className="h-4 w-4" />
             {walletOnly ? 'Wallet Only' : 'Wallet Only: Off'}
+          </button>
+          <button onClick={handleExport} disabled={!report.products.length} className="btn btn-outline btn-sm flex items-center gap-1.5">
+            <Download className="h-4 w-4" />
+            Export
           </button>
           <button onClick={() => void refresh()} className="btn btn-outline btn-sm">
             <RefreshCw className={clsx('h-4 w-4', loading && 'animate-spin')} />
@@ -238,7 +255,7 @@ const SalesOverview: React.FC = () => {
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                   <YAxis yAxisId="left" tick={{ fontSize: 11 }} width={64} />
                   <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 11 }} width={36} />
-                  <Tooltip formatter={(value, name) => [name === 'orders' ? Number(value).toLocaleString() : money(Number(value)), String(name)]} />
+                  <Tooltip formatter={(value, name) => [name === 'orders' ? Number(value).toLocaleString() : formatMoney(Number(value)), String(name)]} />
                   <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#3b82f6" fill="#dbeafe" name="Revenue" />
                   <Area yAxisId="left" type="monotone" dataKey="profit" stroke="#10b981" fill="#d1fae5" name="Known Profit" />
                   <Line yAxisId="right" type="monotone" dataKey="orders" stroke="#8b5cf6" strokeWidth={2} dot={false} name="Orders" />
@@ -266,7 +283,7 @@ const SalesOverview: React.FC = () => {
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusColors[s.status] || '#94a3b8' }} />
                       <span className="truncate">{s.status.replace(/_/g, ' ')}</span>
                     </span>
-                    <span className="shrink-0 font-semibold text-gray-900">{Number(s.count).toLocaleString()}</span>
+                    <span className="shrink-0 font-semibold text-gray-900 tabular-nums">{Number(s.count).toLocaleString()}</span>
                   </div>
                   <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100">
                     <div
@@ -308,12 +325,12 @@ const SalesOverview: React.FC = () => {
                       <td className="max-w-[16rem] px-5 py-3.5">
                         <p className="truncate text-sm font-medium text-gray-900">{product.name}</p>
                       </td>
-                      <td className="px-5 py-3.5 text-sm text-gray-600">{product.units.toLocaleString()}</td>
-                      <td className="whitespace-nowrap px-5 py-3.5 text-sm font-semibold text-gray-900">{money(revenue)}</td>
-                      <td className={clsx('whitespace-nowrap px-5 py-3.5 text-sm font-semibold', profit >= 0 ? 'text-emerald-600' : 'text-red-600')}>
-                        {profit >= 0 ? '+' : '-'}{money(Math.abs(profit))}
+                      <td className="px-5 py-3.5 text-sm text-gray-600 tabular-nums">{product.units.toLocaleString()}</td>
+                      <td className="whitespace-nowrap px-5 py-3.5 text-sm font-semibold text-gray-900 tabular-nums">{formatMoney(revenue)}</td>
+                      <td className={clsx('whitespace-nowrap px-5 py-3.5 text-sm font-semibold tabular-nums', profit >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+                        {profit >= 0 ? '+' : '-'}{formatMoney(Math.abs(profit))}
                       </td>
-                      <td className="px-5 py-3.5 text-sm text-gray-600">{margin.toFixed(1)}%</td>
+                      <td className="px-5 py-3.5 text-sm text-gray-600 tabular-nums">{margin.toFixed(1)}%</td>
                     </tr>
                   );
                 })}
@@ -335,7 +352,7 @@ const SalesOverview: React.FC = () => {
                 <div key={p.product_id ?? p.name}>
                   <div className="flex items-center justify-between gap-3 text-sm">
                     <span className="min-w-0 truncate text-gray-700">{p.name}</span>
-                    <span className="shrink-0 font-semibold text-gray-900">{money(Number(p.revenue))}</span>
+                    <span className="shrink-0 font-semibold text-gray-900 tabular-nums">{formatMoney(Number(p.revenue))}</span>
                   </div>
                   <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100">
                     <div
@@ -361,12 +378,12 @@ const SalesOverview: React.FC = () => {
             ].map((row) => (
               <div key={row.label} className="flex items-center justify-between border-b border-gray-50 py-2.5 text-sm last:border-0">
                 <span className="text-gray-600">{row.label}</span>
-                <span className={clsx('font-semibold', row.tone)}>{money(row.value)}</span>
+                <span className={clsx('font-semibold tabular-nums', row.tone)}>{formatMoney(row.value)}</span>
               </div>
             ))}
           </div>
           <p className="mt-3 text-xs text-gray-400">
-            Customer wallets hold {money(customers.customer_wallet_balance)} across {customers.total_customers.toLocaleString()} customers.
+            Customer wallets hold {formatMoney(customers.customer_wallet_balance)} across {customers.total_customers.toLocaleString()} customers.
           </p>
         </div>
 
@@ -380,7 +397,7 @@ const SalesOverview: React.FC = () => {
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-xs text-gray-500">{label}</p>
-                  <p className="text-base font-bold text-gray-900">{value.toLocaleString()}</p>
+                  <p className="text-base font-bold text-gray-900 tabular-nums">{value.toLocaleString()}</p>
                 </div>
               </div>
             ))}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Gamepad2 } from 'lucide-react';
 
 const quotes = [
@@ -25,6 +25,7 @@ const floatingIcons = [
 
 const LoadingScreen: React.FC = () => {
   const [quoteIndex, setQuoteIndex] = useState(0);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const id = setInterval(() => setQuoteIndex(i => (i + 1) % quotes.length), 2200);
@@ -51,9 +52,17 @@ const LoadingScreen: React.FC = () => {
           key={i}
           className={`absolute ${item.size} pointer-events-none`}
           style={{ left: item.x, top: item.y }}
-          initial={{ opacity: 0, scale: 0.5 }}
-          animate={{ opacity: [0.08, 0.22, 0.08], y: [-8, 8, -8], scale: [0.9, 1.05, 0.9] }}
-          transition={{ duration: 3 + i * 0.4, delay: item.delay, repeat: Infinity, ease: 'easeInOut' }}
+          initial={reduceMotion ? { opacity: 0.12 } : { opacity: 0, scale: 0.5 }}
+          animate={
+            reduceMotion
+              ? { opacity: 0.12 }
+              : { opacity: [0.08, 0.22, 0.08], y: [-8, 8, -8], scale: [0.9, 1.05, 0.9] }
+          }
+          transition={
+            reduceMotion
+              ? { duration: 0.3 }
+              : { duration: 3 + i * 0.4, delay: item.delay, repeat: Infinity, ease: 'easeInOut' }
+          }
         >
           {item.icon}
         </motion.div>
@@ -69,8 +78,12 @@ const LoadingScreen: React.FC = () => {
       <div className="relative z-10 flex flex-col items-center">
         {/* Logo icon */}
         <motion.div
-          animate={{ scale: [1, 1.06, 1], boxShadow: ['0 0 20px rgba(124,58,237,0.3)', '0 0 40px rgba(124,58,237,0.6)', '0 0 20px rgba(124,58,237,0.3)'] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          animate={
+            reduceMotion
+              ? { boxShadow: '0 0 28px rgba(124,58,237,0.4)' }
+              : { scale: [1, 1.06, 1], boxShadow: ['0 0 20px rgba(124,58,237,0.3)', '0 0 40px rgba(124,58,237,0.6)', '0 0 20px rgba(124,58,237,0.3)'] }
+          }
+          transition={{ duration: 2, repeat: reduceMotion ? 0 : Infinity, ease: 'easeInOut' }}
           className="w-20 h-20 rounded-2xl flex items-center justify-center mb-6"
           style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)' }}
         >
@@ -90,7 +103,7 @@ const LoadingScreen: React.FC = () => {
           <motion.div
             className="h-full rounded-full"
             style={{ background: 'linear-gradient(90deg, #7c3aed, #a78bfa)' }}
-            animate={{ x: ['-100%', '200%'] }}
+            animate={reduceMotion ? { x: 0, opacity: [0.35, 1, 0.35] } : { x: ['-100%', '200%'] }}
             transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
           />
         </div>
@@ -99,9 +112,9 @@ const LoadingScreen: React.FC = () => {
         <AnimatePresence mode="wait">
           <motion.p
             key={quoteIndex}
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            exit={{ opacity: 0, y: reduceMotion ? 0 : -8 }}
             transition={{ duration: 0.35 }}
             className="text-sm font-medium text-center px-8"
             style={{ color: '#9ca3af' }}

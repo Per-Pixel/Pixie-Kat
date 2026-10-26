@@ -80,6 +80,9 @@ export default {
         'fade-in': 'fadeIn 0.5s ease-in-out',
         'slide-in': 'slideIn 0.3s ease-out',
         'bounce-in': 'bounceIn 0.6s ease-out',
+        'shimmer': 'shimmer 1.6s linear infinite',
+        'check-draw': 'checkDraw 0.3s ease-out forwards',
+        'pulse-dot': 'pulseDot 2s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -96,6 +99,21 @@ export default {
           '70%': { transform: 'scale(0.9)' },
           '100%': { transform: 'scale(1)', opacity: '1' },
         },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+        checkDraw: {
+          '100%': { strokeDashoffset: '0' },
+        },
+        pulseDot: {
+          '0%, 100%': { transform: 'scale(1)', opacity: '1' },
+          '50%': { transform: 'scale(1.35)', opacity: '0.7' },
+        },
+      },
+      transitionTimingFunction: {
+        'ease-out-strong': 'cubic-bezier(0.23, 1, 0.32, 1)',
+        'ease-drawer': 'cubic-bezier(0.32, 0.72, 0, 1)',
       },
     },
   },

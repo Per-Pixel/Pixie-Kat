@@ -66,17 +66,30 @@ export default function SpendingTab({ data }: Props) {
   useEffect(() => {
     const fetchOrders = async () => {
       setLoading(true);
-      const { data: rows, error } = await supabase
-        .from('orders')
-        .select('id, product_name, total_amount, currency, status, created_at')
-        .eq('user_id', data.profile.id)
-        .order('created_at', { ascending: false })
-        .limit(500);
-      if (error) {
+      const PAGE = 1000;
+      const all: OrderRecord[] = [];
+      let fetchErr: string | null = null;
+
+      for (let from = 0; from < 50000; from += PAGE) {
+        const { data: rows, error } = await supabase
+          .from('orders')
+          .select('id, product_name, total_amount, currency, status, created_at')
+          .eq('user_id', data.profile.id)
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (error) {
+          fetchErr = error.message;
+          break;
+        }
+        all.push(...((rows as OrderRecord[]) ?? []));
+        if (!rows || rows.length < PAGE) break;
+      }
+
+      if (fetchErr) {
         setOrders([]);
-        toast.error(`Failed to load spending: ${error.message}`);
+        toast.error(`Failed to load spending: ${fetchErr}`);
       } else {
-        setOrders((rows as OrderRecord[]) ?? []);
+        setOrders(all);
       }
       setLoading(false);
     };

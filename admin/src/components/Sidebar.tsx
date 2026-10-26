@@ -1,7 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
+import { supabase } from '../lib/supabase';
+import {
+  badgePop,
+  DURATION,
+  EASE_OUT,
+  expandCollapse,
+  springSnappy,
+  springSoft,
+  staggerDelay,
+} from '../lib/motion';
 import {
   Home,
   Package,
@@ -33,6 +43,7 @@ interface SubSubMenuItem {
 interface SubMenuItem {
   label: string;
   path?: string;
+  badge?: number | string;
   children?: SubSubMenuItem[];
 }
 
@@ -55,8 +66,46 @@ const isMobileViewport = () =>
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [expandedItems, setExpandedItems] = useState<string[]>(() =>
+    location.pathname.startsWith('/orders') ? ['orders'] : []
+  );
   const [expandedSubItems, setExpandedSubItems] = useState<string[]>([]);
+  const [orderBadges, setOrderBadges] = useState<{ total: number; manualActionable: number }>({
+    total: 0,
+    manualActionable: 0,
+  });
+
+  const prevPathRef = useRef(location.pathname);
+
+  useEffect(() => {
+    const wasOrders = prevPathRef.current.startsWith('/orders');
+    prevPathRef.current = location.pathname;
+    if (!wasOrders && location.pathname.startsWith('/orders')) {
+      setExpandedItems((prev) => (prev.includes('orders') ? prev : [...prev, 'orders']));
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([
+      supabase.from('orders').select('id', { count: 'exact', head: true }),
+      supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['pending', 'processing', 'on_hold']),
+    ])
+      .then(([allRes, queueRes]) => {
+        if (!mounted) return;
+        setOrderBadges({
+          total: allRes.count ?? 0,
+          manualActionable: queueRes.count ?? 0,
+        });
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const navigateAndMaybeClose = (path: string) => {
     navigate(path);
@@ -77,7 +126,24 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { label: 'Drafts', path: '/products/drafts' },
       ],
     },
-    { id: 'orders', label: 'Orders', icon: ShoppingCart, path: '/orders' },
+    {
+      id: 'orders',
+      label: 'Orders',
+      icon: ShoppingCart,
+      subItems: [
+        { label: 'Orders', path: '/orders' },
+        {
+          label: 'Order History',
+          path: '/orders/history',
+          badge: orderBadges.total > 0 ? orderBadges.total : undefined,
+        },
+        {
+          label: 'Manual Orders',
+          path: '/orders/manual',
+          badge: orderBadges.manualActionable > 0 ? orderBadges.manualActionable : 'AI',
+        },
+      ],
+    },
     { id: 'users', label: 'Users', icon: Users, path: '/users' },
     { id: 'wallets', label: 'Wallets', icon: Wallet, path: '/wallets' },
     { id: 'memberships', label: 'Memberships', icon: Crown, path: '/memberships' },
@@ -189,16 +255,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const isPathUnder = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + '/');
 
-  const isSubItemActive = (sub: SubMenuItem): boolean => {
+  const isSubItemActive = (sub: SubMenuItem, siblings?: SubMenuItem[]): boolean => {
     if (!sub.path) return false;
     if (sub.children) return sub.children.some(c => isPathUnder(c.path));
+    if (siblings && siblings.some((other) => other !== sub && other.path && other.path.startsWith(sub.path + '/') && isPathUnder(other.path))) {
+      return isActive(sub.path);
+    }
     return isPathUnder(sub.path);
   };
 
   const isParentActive = (item: MenuItem): boolean => {
     if (item.path) return isActive(item.path);
     if (item.subItems) {
-      return item.subItems.some(sub => isSubItemActive(sub));
+      return item.subItems.some(sub => isSubItemActive(sub, item.subItems));
     }
     return false;
   };
@@ -236,7 +305,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto scrollbar-hide">
         {menuItems.map((item, index) => {
           const isExpanded = expandedItems.includes(item.id);
           const parentActive = isParentActive(item);
@@ -254,12 +323,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 type="button"
                 onClick={() => handleItemClick(item)}
                 className={clsx(
-                  'w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200',
+                  'relative w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-[color,background-color,border-color,box-shadow] duration-200',
                   parentActive
                     ? 'bg-gradient-to-r from-violet-600/80 to-purple-700/60 text-white shadow-lg shadow-violet-900/40'
                     : 'text-gray-500 hover:bg-white/5 hover:text-white'
                 )}
               >
+                {parentActive && (
+                  <motion.span
+                    layoutId={`nav-active-${showMobileClose ? 'mobile' : 'desktop'}`}
+                    transition={springSoft}
+                    className="absolute -left-3 top-1/2 -mt-2.5 h-5 w-[3px] rounded-full bg-violet-400"
+                  />
+                )}
                 <div className="flex items-center">
                   <Icon className="w-4 h-4 mr-3 shrink-0" />
                   <span>{item.label}</span>
@@ -271,24 +347,41 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 )}
               </button>
 
-              {/* Level 2 */}
-              <AnimatePresence>
+              {/* Level 2 — Cloud Dock tree connector branch */}
+              <AnimatePresence initial={false}>
                 {item.subItems && isExpanded && (
                   <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.18 }}
+                    variants={expandCollapse}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    transition={{ duration: 0.18, ease: EASE_OUT }}
                     className="overflow-hidden"
                   >
-                    <div className="mt-0.5 space-y-0.5 pb-1">
-                      {item.subItems.map((sub) => {
+                    <div className="mt-1 ml-5 pl-3 border-l border-violet-400/20 space-y-1 pb-1.5">
+                      {item.subItems.map((sub, subIndex) => {
                         const subKey = `${item.id}__${sub.label}`;
                         const isSubExpanded = expandedSubItems.includes(subKey);
-                        const subActive = isSubItemActive(sub);
+                        const subActive = isSubItemActive(sub, item.subItems);
 
                         return (
-                          <div key={sub.label}>
+                          <motion.div
+                            key={sub.label}
+                            className="relative"
+                            initial={{ opacity: 0, x: -4 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                            transition={{
+                              duration: DURATION.fast,
+                              ease: EASE_OUT,
+                              delay: staggerDelay(subIndex, 0.02, 0.18),
+                            }}
+                          >
+                            {/* Horizontal curved tree connector arm */}
+                            <span
+                              aria-hidden="true"
+                              className="pointer-events-none absolute -left-3 top-1/2 -translate-y-full w-2.5 h-3 border-l border-b border-violet-400/25 rounded-bl-md"
+                            />
                             <button
                               type="button"
                               onClick={() => {
@@ -299,58 +392,90 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                                 }
                               }}
                               className={clsx(
-                                'w-full flex items-center justify-between pl-9 pr-3 py-2 text-sm rounded-lg transition-colors duration-150',
+                                'w-full flex items-center justify-between px-3 py-2 text-xs rounded-xl transition-[color,background-color,border-color,box-shadow] duration-150',
                                 subActive
-                                  ? 'text-violet-300 font-medium'
-                                  : 'text-gray-600 hover:bg-white/5 hover:text-gray-200'
+                                  ? 'bg-white/[0.08] text-white font-semibold border border-white/10 shadow-xs'
+                                  : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
                               )}
                             >
-                              <div className="flex items-center gap-2">
-                                <ChevronRight className="w-3 h-3 shrink-0 text-gray-700" />
-                                <span>{sub.label}</span>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="truncate">{sub.label}</span>
                               </div>
-                              {sub.children && (
-                                <motion.div
-                                  animate={{ rotate: isSubExpanded ? 90 : 0 }}
-                                  transition={{ duration: 0.15 }}
-                                >
-                                  <ChevronRight className="w-3 h-3 text-gray-600" />
-                                </motion.div>
-                              )}
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <AnimatePresence mode="popLayout" initial={false}>
+                                  {sub.badge !== undefined && (
+                                    <motion.span
+                                      key={String(sub.badge)}
+                                      variants={badgePop}
+                                      initial="initial"
+                                      animate="animate"
+                                      exit="exit"
+                                      transition={springSnappy}
+                                      className={clsx(
+                                        'px-2 py-0.5 rounded-full text-[10px] font-bold',
+                                        subActive
+                                          ? 'bg-violet-500/30 text-violet-200 border border-violet-400/30'
+                                          : 'bg-white/10 text-gray-300'
+                                      )}
+                                    >
+                                      {sub.badge}
+                                    </motion.span>
+                                  )}
+                                </AnimatePresence>
+                                {sub.children ? (
+                                  <motion.div
+                                    animate={{ rotate: isSubExpanded ? 90 : 0 }}
+                                    transition={{ duration: 0.15 }}
+                                  >
+                                    <ChevronRight className="w-3 h-3 text-gray-500" />
+                                  </motion.div>
+                                ) : (
+                                  !sub.badge && <ChevronRight className="w-3 h-3 text-gray-600" />
+                                )}
+                              </div>
                             </button>
 
                             {/* Level 3 */}
-                            <AnimatePresence>
+                            <AnimatePresence initial={false}>
                               {sub.children && isSubExpanded && (
                                 <motion.div
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: 'auto', opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  transition={{ duration: 0.15 }}
+                                  variants={expandCollapse}
+                                  initial="initial"
+                                  animate="animate"
+                                  exit="exit"
+                                  transition={{ duration: 0.15, ease: EASE_OUT }}
                                   className="overflow-hidden"
                                 >
-                                  <div className="mt-0.5 space-y-0.5 pb-0.5">
-                                    {sub.children.map((child) => (
-                                      <button
+                                  <div className="mt-0.5 ml-3 pl-2.5 border-l border-white/10 space-y-0.5 pb-0.5">
+                                    {sub.children.map((child, childIndex) => (
+                                      <motion.button
                                         type="button"
                                         key={child.path}
                                         onClick={() => navigateAndMaybeClose(child.path)}
+                                        initial={{ opacity: 0, x: -4 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                                        transition={{
+                                          duration: DURATION.fast,
+                                          ease: EASE_OUT,
+                                          delay: staggerDelay(childIndex, 0.02, 0.12),
+                                        }}
                                         className={clsx(
-                                          'w-full flex items-center pl-14 pr-3 py-1.5 text-xs rounded-lg transition-colors',
+                                          'w-full flex items-center px-3 py-1.5 text-xs rounded-lg transition-colors',
                                           isActive(child.path)
                                             ? 'text-violet-300 font-semibold'
-                                            : 'text-gray-600 hover:bg-white/5 hover:text-gray-300'
+                                            : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'
                                         )}
                                       >
                                         <span className="w-1.5 h-1.5 rounded-full bg-current mr-2 opacity-40 shrink-0" />
                                         {child.label}
-                                      </button>
+                                      </motion.button>
                                     ))}
                                   </div>
                                 </motion.div>
                               )}
                             </AnimatePresence>
-                          </div>
+                          </motion.div>
                         );
                       })}
                     </div>

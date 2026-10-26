@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { CurrencyProvider } from './lib/currency';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoadingScreen from './components/LoadingScreen';
 import AdminLayout from './layouts/AdminLayout';
@@ -9,6 +10,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Orders from './pages/Orders';
+import ManualOrders from './pages/ManualOrders';
 import Messages from './pages/Messages';
 import Resellers from './pages/Resellers';
 import Settings from './pages/Settings';
@@ -98,6 +100,8 @@ const AppRoutes: React.FC = () => {
         <Route path="users" element={<ManageUsers />} />
         <Route path="users/:id" element={<UserDetail />} />
         <Route path="orders" element={<Orders />} />
+        <Route path="orders/history" element={<ManualOrders mode="history" />} />
+        <Route path="orders/manual" element={<ManualOrders mode="manual" />} />
         <Route path="games" element={<GamesList title="All Games" />} />
         <Route path="messages" element={<Messages />} />
         <Route path="resellers" element={<Resellers />} />
@@ -173,19 +177,33 @@ const AppRoutes: React.FC = () => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppRoutes />
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-          }}
-        />
-      </Router>
+      <CurrencyProvider>
+        <Router>
+          <AppRoutes />
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#0c0c18',
+                color: '#fff',
+                border: '1px solid rgba(139, 92, 246, 0.25)',
+                borderRadius: '12px',
+                boxShadow:
+                  '0 8px 30px rgba(12, 12, 24, 0.55), 0 4px 16px rgba(124, 58, 237, 0.22)',
+                fontSize: '13px',
+                fontWeight: 500,
+              },
+              success: {
+                iconTheme: { primary: '#7c3aed', secondary: '#ffffff' },
+              },
+              error: {
+                iconTheme: { primary: '#ef4444', secondary: '#ffffff' },
+              },
+            }}
+          />
+        </Router>
+      </CurrencyProvider>
     </AuthProvider>
   );
 }

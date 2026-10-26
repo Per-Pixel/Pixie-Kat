@@ -33,6 +33,7 @@ Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.
 - `manager`, `conferences`, `agent-scripts` = internal ops/note repos. After task change: validate, commit, push, pull/verify, leave clean. No push approval needed.
 
 ## Routing
+- Multi-file feature builds, new pages, or >150-line implementations (>3 tool calls): ALWAYS write `.bridge/directions.md` and delegate to a worker via `agent-bridge` (`bridge_delegate` / `bridge-delegate` skill) instead of generating large files in the main thread. Keep main-session turns under ~10 by batching parallel reads/edits and verifying once via `bridge_result` + `git diff --stat`.
 - Claude Code implementation/refactor/test/fix: `$codex-first`. Design/API design/tiny edit: direct. Codex session: ignore.
 - Claude Code parallel/background work (Codex workers, monitors, long jobs): each = own harness-tracked task (`run_in_background: true`), labeled for target, one sidebar chip each. Never `&`-detach durable work — hides it, only agent sees. Quick foreground cmds inline. Other harnesses: ignore.
 - Screenshot/live-UI bug: `$browser-use`.

@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, UserPlus, Search, Eye, Edit, Trash2, Shield, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Users, UserPlus, Search, Eye, Edit, Trash2, Shield,
+  Loader2, ChevronLeft, ChevronRight, Download, X,
+} from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { api } from '../../services/api';
+import { useAdminCurrency } from '../../lib/currency';
+import { exportToCsv } from '../../utils/dateRange';
 
 const getApiErrorMessage = (err: unknown, fallback: string) => {
   const apiErr = err as { response?: { data?: { message?: string } }; message?: string };
@@ -70,6 +75,7 @@ const CLIENT_ROLE = 'user';
 
 const Clients: React.FC = () => {
   const navigate = useNavigate();
+  const { formatMoney } = useAdminCurrency();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -78,6 +84,8 @@ const Clients: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState({ totalClients: 0, activeClients: 0, suspendedClients: 0, totalWallet: 0 });
   const [processing, setProcessing] = useState<string | null>(null);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [lookupEmail, setLookupEmail] = useState('');
 
   const loadClients = useCallback(async () => {
     setLoading(true);
@@ -153,7 +161,6 @@ const Clients: React.FC = () => {
     loadStats();
   }, [loadStats]);
 
-  // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
       if (page !== 0) setPage(0);
@@ -203,6 +210,42 @@ const Clients: React.FC = () => {
     }
   };
 
+  const handleExport = () => {
+    exportToCsv(
+      'clients',
+      ['ID', 'Name', 'Email', 'Username', 'Status', 'Wallet Balance', 'Created At', 'Last Login'],
+      clients.map((c) => [
+        c.id,
+        c.name,
+        c.email,
+        c.username ?? '',
+        c.status,
+        Number(c.wallet_balance ?? 0).toFixed(2),
+        c.created_at,
+        c.last_login_at ?? '',
+      ])
+    );
+  };
+
+  const handleLookupOrOpen = async () => {
+    const email = lookupEmail.trim().toLowerCase();
+    if (!email) {
+      toast.error('Enter an email address');
+      return;
+    }
+    const { data } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('email', email)
+      .maybeSingle();
+    if (data?.id) {
+      setAddModalOpen(false);
+      navigate(`/users/${data.id}`);
+    } else {
+      toast.error('No registered account found with that email — customers register on the storefront.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -211,7 +254,7 @@ const Clients: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center">
             <Users className="w-8 h-8 text-primary-600 mr-3" />
             <div>
@@ -219,11 +262,52 @@ const Clients: React.FC = () => {
               <p className="text-gray-600">Customer accounts — role: user only. Staff and admins are managed separately.</p>
             </div>
           </div>
-          <button className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center">
-            <UserPlus className="w-4 h-4 mr-2" />
-            Add Client
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={!clients.length}
+              className="btn btn-outline btn-md flex items-center"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => setAddModalOpen((v) => !v)}
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center"
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Find / Manage Client
+            </button>
+          </div>
         </div>
+
+        {addModalOpen && (
+          <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col sm:flex-row items-end gap-3">
+            <div className="flex-1 w-full">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Look up customer account by email (or open full Users directory)
+              </label>
+              <input
+                type="email"
+                value={lookupEmail}
+                onChange={(e) => setLookupEmail(e.target.value)}
+                placeholder="customer@example.com"
+                className="input w-full"
+              />
+            </div>
+            <button type="button" onClick={handleLookupOrOpen} className="btn btn-primary btn-md">
+              Open Profile
+            </button>
+            <button type="button" onClick={() => navigate('/users')} className="btn btn-outline btn-md">
+              All Users &amp; Roles
+            </button>
+            <button type="button" onClick={() => setAddModalOpen(false)} className="p-2 text-gray-400 hover:text-gray-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </motion.div>
 
       {/* Stats Cards */}
@@ -237,7 +321,7 @@ const Clients: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Clients</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{stats.totalClients}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-2 tabular-nums">{stats.totalClients}</p>
             </div>
             <Users className="w-8 h-8 text-primary-600" />
           </div>
@@ -252,7 +336,7 @@ const Clients: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Active Clients</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{stats.activeClients}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-2 tabular-nums">{stats.activeClients}</p>
             </div>
             <Shield className="w-8 h-8 text-green-600" />
           </div>
@@ -267,7 +351,7 @@ const Clients: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Suspended / Banned</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{stats.suspendedClients}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-2 tabular-nums">{stats.suspendedClients}</p>
             </div>
             <Users className="w-8 h-8 text-red-500" />
           </div>
@@ -282,8 +366,8 @@ const Clients: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Wallet Balance</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">
-                {stats.totalWallet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <p className="text-2xl font-bold text-gray-900 mt-2 tabular-nums">
+                {formatMoney(stats.totalWallet)}
               </p>
             </div>
             <Users className="w-8 h-8 text-purple-600" />
@@ -332,7 +416,7 @@ const Clients: React.FC = () => {
       >
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">Client List</h3>
-          <span className="text-sm text-gray-500">{total} clients</span>
+          <span className="text-sm text-gray-500 tabular-nums">{total} clients</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -388,8 +472,8 @@ const Clients: React.FC = () => {
                         {client.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {Number(client.wallet_balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 tabular-nums">
+                      {formatMoney(client.wallet_balance ?? 0)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(client.last_login_at)}
@@ -440,7 +524,7 @@ const Clients: React.FC = () => {
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-gray-500 tabular-nums">
               Page {page + 1} of {totalPages}
             </span>
             <div className="flex items-center gap-2">

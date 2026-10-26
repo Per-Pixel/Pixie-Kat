@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Trophy, RefreshCw, Lock, CheckCircle2,
   EyeOff, Plus, Trash2, Save, Medal,
@@ -13,6 +13,7 @@ import {
 import type {
   LeaderboardSettings, LeaderboardTier, PreviewResponse, PeriodRow,
 } from '../services/leaderboardService';
+import { badgePop, DURATION, EASE_OUT, fade, fadeUp, staggerDelay } from '../lib/motion';
 
 type Tab = 'standings' | 'history' | 'settings';
 
@@ -52,6 +53,13 @@ function StandingsTab({ periods, onChanged }: { periods: PeriodRow[]; onChanged:
   const [loading, setLoading] = useState(true);
   const [finalizing, setFinalizing] = useState(false);
   const [toggling, setToggling] = useState<string | null>(null);
+  const reduceMotion = useReducedMotion();
+  // Entrance stagger runs once — period switches afterwards swap instantly.
+  const rowsIntroduced = useRef(false);
+
+  useEffect(() => {
+    if (!loading && data && data.rows.length > 0) rowsIntroduced.current = true;
+  }, [loading, data]);
 
   const finalizedSet = useMemo(() => new Set(periods.map((p) => p.period)), [periods]);
 
@@ -130,9 +138,15 @@ function StandingsTab({ periods, onChanged }: { periods: PeriodRow[]; onChanged:
       >
         {data && (
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${data.finalized ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+            <motion.span
+              key={data.finalized ? 'final' : 'live'}
+              variants={badgePop}
+              initial="initial"
+              animate="animate"
+              className={`px-2.5 py-1 rounded-full text-xs font-semibold ${data.finalized ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}
+            >
               {data.finalized ? 'Finalized — frozen standings' : 'Live preview — not finalized'}
-            </span>
+            </motion.span>
             <span className="text-xs text-gray-400">Metric: {data.metric.replace(/_/g, ' ')}</span>
             {canFinalize && (
               <button
@@ -159,23 +173,34 @@ function StandingsTab({ periods, onChanged }: { periods: PeriodRow[]; onChanged:
                   <th className="py-2 pr-3 font-semibold">Rank</th>
                   <th className="py-2 pr-3 font-semibold">Player</th>
                   <th className="py-2 pr-3 font-semibold text-right">Spent</th>
-                  <th className="py-2 pr-3 font-semibold text-right">Orders</th>
                   <th className="py-2 pr-3 font-semibold">{data.finalized ? 'Tier awarded' : 'Tier preview'}</th>
                   <th className="py-2 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {data.rows.map((row) => (
-                  <tr key={row.user_id} className="hover:bg-gray-50/60">
+                {data.rows.map((row, i) => (
+                  <motion.tr
+                    key={row.user_id}
+                    initial={rowsIntroduced.current ? false : { opacity: 0, y: reduceMotion ? 0 : 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: staggerDelay(i, 0.04, 0.28), duration: DURATION.base, ease: EASE_OUT }}
+                    className="hover:bg-gray-50/60"
+                  >
                     <td className="py-3 pr-3">
-                      <span className={`inline-flex w-8 h-8 items-center justify-center rounded-full text-xs font-black ${
-                        row.rank === 1 ? 'bg-amber-100 text-amber-700'
-                        : row.rank === 2 ? 'bg-gray-200 text-gray-700'
-                        : row.rank === 3 ? 'bg-orange-100 text-orange-700'
-                        : 'bg-gray-50 text-gray-500'
-                      }`}>
+                      <motion.span
+                        key={row.rank}
+                        variants={badgePop}
+                        initial="initial"
+                        animate="animate"
+                        className={`inline-flex w-8 h-8 items-center justify-center rounded-full text-xs font-black tabular-nums ${
+                          row.rank === 1 ? 'bg-amber-100 text-amber-700'
+                          : row.rank === 2 ? 'bg-gray-200 text-gray-700'
+                          : row.rank === 3 ? 'bg-orange-100 text-orange-700'
+                          : 'bg-gray-50 text-gray-500'
+                        }`}
+                      >
                         {row.rank}
-                      </span>
+                      </motion.span>
                     </td>
                     <td className="py-3 pr-3">
                       <div className="flex items-center gap-3">
@@ -186,13 +211,20 @@ function StandingsTab({ periods, onChanged }: { periods: PeriodRow[]; onChanged:
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 pr-3 text-right font-semibold text-gray-900">
+                    <td className="py-3 pr-3 text-right font-semibold text-gray-900 tabular-nums">
                       {row.total_spent != null ? `₹${Number(row.total_spent).toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—'}
                     </td>
-                    <td className="py-3 pr-3 text-right text-gray-500">{row.order_count}</td>
                     <td className="py-3 pr-3">
                       {row.tier ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-600 capitalize">{row.tier}</span>
+                        <motion.span
+                          key={row.tier}
+                          variants={badgePop}
+                          initial="initial"
+                          animate="animate"
+                          className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-600 capitalize inline-block"
+                        >
+                          {row.tier}
+                        </motion.span>
                       ) : (
                         <span className="text-xs text-gray-300">—</span>
                       )}
@@ -210,7 +242,7 @@ function StandingsTab({ periods, onChanged }: { periods: PeriodRow[]; onChanged:
                         </button>
                       )}
                     </td>
-                  </tr>
+                  </motion.tr>
                 ))}
               </tbody>
             </table>
@@ -225,7 +257,6 @@ function StandingsTab({ periods, onChanged }: { periods: PeriodRow[]; onChanged:
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-400">
                   <th className="py-2 pr-3 font-semibold">Player</th>
-                  <th className="py-2 pr-3 font-semibold text-right">Orders</th>
                   <th className="py-2 pr-3 font-semibold">Reason</th>
                   <th className="py-2 font-semibold text-right">Actions</th>
                 </tr>
@@ -237,7 +268,6 @@ function StandingsTab({ periods, onChanged }: { periods: PeriodRow[]; onChanged:
                       <p className="font-medium text-gray-900">{row.display_name}</p>
                       <p className="text-xs text-gray-400">{row.email}</p>
                     </td>
-                    <td className="py-3 pr-3 text-right text-gray-600">{row.order_count}</td>
                     <td className="py-3 pr-3">
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 capitalize">
                         {row.reason.replace(/_/g, ' ')}
@@ -275,6 +305,12 @@ function HistoryTab({ periods, loading }: { periods: PeriodRow[]; loading: boole
   const [selected, setSelected] = useState<string | null>(null);
   const [data, setData] = useState<PreviewResponse | null>(null);
   const [drillLoading, setDrillLoading] = useState(false);
+  const reduceMotion = useReducedMotion();
+  const rowsIntroduced = useRef(false);
+
+  useEffect(() => {
+    if (!drillLoading && data && data.rows.length > 0) rowsIntroduced.current = true;
+  }, [drillLoading, data]);
 
   const drill = async (period: string) => {
     setSelected(period);
@@ -305,14 +341,18 @@ function HistoryTab({ periods, loading }: { periods: PeriodRow[]; loading: boole
                   <th className="py-2 pr-3 font-semibold">Rank</th>
                   <th className="py-2 pr-3 font-semibold">Player</th>
                   <th className="py-2 pr-3 font-semibold text-right">Spent</th>
-                  <th className="py-2 pr-3 font-semibold text-right">Orders</th>
                   <th className="py-2 font-semibold">Tier</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {data.rows.map((row) => (
-                  <tr key={row.user_id}>
-                    <td className="py-3 pr-3 font-bold text-gray-700">#{row.rank}</td>
+                {data.rows.map((row, i) => (
+                  <motion.tr
+                    key={row.user_id}
+                    initial={rowsIntroduced.current ? false : { opacity: 0, y: reduceMotion ? 0 : 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: staggerDelay(i, 0.04, 0.28), duration: DURATION.base, ease: EASE_OUT }}
+                  >
+                    <td className="py-3 pr-3 font-bold text-gray-700 tabular-nums">#{row.rank}</td>
                     <td className="py-3 pr-3">
                       <div className="flex items-center gap-3">
                         <Avatar url={row.avatar_url} name={row.display_name} />
@@ -322,18 +362,25 @@ function HistoryTab({ periods, loading }: { periods: PeriodRow[]; loading: boole
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 pr-3 text-right font-semibold text-gray-900">
+                    <td className="py-3 pr-3 text-right font-semibold text-gray-900 tabular-nums">
                       {row.total_spent != null ? `₹${Number(row.total_spent).toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—'}
                     </td>
-                    <td className="py-3 pr-3 text-right text-gray-500">{row.order_count}</td>
                     <td className="py-3">
                       {row.tier ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-600 capitalize">{row.tier}</span>
+                        <motion.span
+                          key={row.tier}
+                          variants={badgePop}
+                          initial="initial"
+                          animate="animate"
+                          className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-600 capitalize inline-block"
+                        >
+                          {row.tier}
+                        </motion.span>
                       ) : (
                         <span className="text-xs text-gray-300">—</span>
                       )}
                     </td>
-                  </tr>
+                  </motion.tr>
                 ))}
               </tbody>
             </table>
@@ -353,20 +400,23 @@ function HistoryTab({ periods, loading }: { periods: PeriodRow[]; loading: boole
         </p>
       ) : (
         <div className="divide-y divide-gray-50">
-          {periods.map((p) => (
-            <button
+          {periods.map((p, i) => (
+            <motion.button
               key={p.period}
+              initial={{ opacity: 0, y: reduceMotion ? 0 : 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: staggerDelay(i, 0.04, 0.2), duration: DURATION.base, ease: EASE_OUT }}
               onClick={() => drill(p.period)}
               className="w-full flex items-center justify-between py-3 text-left hover:bg-gray-50/60 px-2 rounded-lg"
             >
               <div>
                 <p className="font-medium text-gray-900">{periodLabel(p.period)}</p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-400 tabular-nums">
                   {p.participant_count} participants · finalized {new Date(p.finalized_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </p>
               </div>
               <Medal className="w-4 h-4 text-gray-300" />
-            </button>
+            </motion.button>
           ))}
         </div>
       )}
@@ -586,7 +636,9 @@ export default function LeaderboardPage() {
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4">
+      <motion.div variants={fadeUp} initial="initial" animate="animate"
+        transition={{ duration: DURATION.base, ease: EASE_OUT }}
+        className="flex items-center gap-4">
         <div className="p-2.5 bg-amber-50 rounded-xl">
           <Trophy className="w-6 h-6 text-amber-500" />
         </div>
@@ -616,9 +668,20 @@ export default function LeaderboardPage() {
         </div>
       </div>
 
-      {tab === 'standings' && <StandingsTab periods={periods} onChanged={loadPeriods} />}
-      {tab === 'history' && <HistoryTab periods={periods} loading={periodsLoading} />}
-      {tab === 'settings' && <SettingsTab />}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={tab}
+          variants={fade}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          transition={{ duration: DURATION.fast, ease: EASE_OUT }}
+        >
+          {tab === 'standings' && <StandingsTab periods={periods} onChanged={loadPeriods} />}
+          {tab === 'history' && <HistoryTab periods={periods} loading={periodsLoading} />}
+          {tab === 'settings' && <SettingsTab />}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

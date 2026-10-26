@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Clock } from 'lucide-react';
+import { DURATION, EASE_OUT, pop, springSoft } from '../../lib/motion';
 
 interface ComingSoonModalProps {
   isOpen: boolean;
@@ -23,15 +24,18 @@ const ComingSoonModal: React.FC<ComingSoonModalProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: DURATION.base }}
             className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
             onClick={onClose}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ type: 'spring', duration: 0.4 }}
+              variants={pop}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={springSoft}
+              style={{ transformOrigin: 'center top' }}
               className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center"
               onClick={(e) => e.stopPropagation()}
             >
@@ -58,10 +62,11 @@ const ComingSoonModal: React.FC<ComingSoonModalProps> = ({
               {/* Progress bar */}
               <div className="relative h-2 bg-gray-100 rounded-full overflow-hidden mb-6">
                 <motion.div
-                  className="absolute left-0 top-0 h-full bg-gradient-to-r from-primary-400 to-primary-600 rounded-full"
-                  initial={{ width: '0%' }}
-                  animate={{ width: '72%' }}
-                  transition={{ delay: 0.3, duration: 1.2, ease: 'easeOut' }}
+                  className="absolute left-0 top-0 h-full w-full bg-gradient-to-r from-primary-400 to-primary-600 rounded-full"
+                  style={{ transformOrigin: 'left' }}
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 0.72 }}
+                  transition={{ delay: 0.3, duration: 0.9, ease: EASE_OUT }}
                 />
               </div>
               <p className="text-xs text-gray-400 mb-8">Development progress: 72%</p>
