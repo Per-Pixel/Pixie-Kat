@@ -16,6 +16,7 @@ Audited the entire `admin/src` dashboard for missing SaaS/operations capabilitie
 
 - **Wave 2 — Analytics, Dashboard & Revenue Suite (`Analytics.tsx`, `Dashboard.tsx`, `SalesOverview.tsx`, `ProfitLoss.tsx`, `RevenueProducts.tsx`, `Referral.tsx`, `Resellers.tsx`)**:
   - Wired `useAdminCurrency()` across all financial KPIs, charts, tooltips, and tables.
+  - Upgraded `Dashboard.tsx` with period selector pills (`Today / 7d / 30d / 90d / 1y / Lifetime / Custom`), dynamic daily/monthly trend bucketing, Payment Method filter dropdown, live Supplier Health & Balance strip (`Smile.One` USD + `Yokcash` IDR), a live `Recent Orders` feed with inline `OrderDrawer` preview, `Open support tickets` alert in Needs Attention, and CSV export.
   - Added `Include Internal` toggle and CSV export to `Analytics.tsx`, and scoped all 5 tabs (`Financial`, `Products`, `Customers`, `API & Suppliers`, `Platform & User Activity`) to the selected time period while keeping the dedicated Lifetime comparison card.
   - Upgraded `RevenueProducts.tsx` with period pills, search, game/status filters, internal/wallet toggles, COGS/Profit/Margin columns, column sorting, pagination, and CSV export.
   - Added CSV exports, filters, and column sorting to `SalesOverview.tsx`, `ProfitLoss.tsx`, `Referral.tsx`, and `Resellers.tsx`.
