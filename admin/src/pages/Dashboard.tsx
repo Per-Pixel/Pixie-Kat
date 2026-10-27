@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import clsx from 'clsx';
@@ -12,10 +12,15 @@ import {
   CreditCard,
   Crown,
   DollarSign,
+  Download,
+  Eye,
+  Filter,
   Gamepad2,
   LayoutDashboard,
+  MessageSquare,
   Package,
   PackageX,
+  Plug,
   RefreshCw,
   Repeat,
   RotateCcw,
@@ -24,18 +29,23 @@ import {
   Timer,
   TrendingUp,
   UserCog,
-  Wallet,
 } from 'lucide-react';
 import {
   Area, ComposedChart, CartesianGrid, Line, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from 'recharts';
+import { supabase } from '../lib/supabase';
 import { useAdminReport } from '../hooks/useAdminReport';
 import { useAdminCurrency } from '../lib/currency';
+import { ADMIN_PERIOD_OPTIONS, AdminPeriod, exportToCsv, matchesAdminPeriod } from '../utils/dateRange';
+import { fetchSmileOneStatus, SmileOneStatus } from '../services/providerService';
+import { yokcash, YcHealthResponse } from '../services/yokcashService';
+import OrderDrawer from '../components/orders/OrderDrawer';
 import { DURATION, EASE_OUT, springSoft, staggerDelay, staggerItem, staggerParent } from '../lib/motion';
 import {
   computeDashboardMetrics,
   computeCustomerInsights,
+  toNumber,
 } from '../utils/dashboardMetrics';
 import type { ReportOrder } from '../services/reportingService';
 
@@ -46,6 +56,16 @@ function timeAgo(value: string) {
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   return `${Math.floor(seconds / 86400)}d ago`;
 }
+
+const orderStatusBadge: Record<string, string> = {
+  completed: 'bg-emerald-100 text-emerald-800',
+  pending: 'bg-amber-100 text-amber-800',
+  processing: 'bg-blue-100 text-blue-800',
+  on_hold: 'bg-orange-100 text-orange-800',
+  failed: 'bg-red-100 text-red-800',
+  refunded: 'bg-purple-100 text-purple-800',
+  cancelled: 'bg-gray-100 text-gray-700',
+};
 
 /** Ease-out count-up driven by rAF — settles in ~550ms, resumes from the last shown value. */
 function useCountUp(target: number, duration = 550) {
@@ -134,32 +154,170 @@ function SectionHeader({ icon: Icon, title, hint, action }: {
   );
 }
 
+function buildPeriodTrend(orders: ReportOrder[], period: AdminPeriod) {
+  const useMonthly = period === '90d' || period === '1y' || period === 'all';
+  if (!useMonthly) {
+    const days = period === 'today' ? 1 : period === '30d' ? 30 : 7;
+    const now = new Date();
+    const map = new Map<string, { date: string; label: string; revenue: number; profit: number; orders: number }>();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      map.set(key, {
+        date: key,
+        label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        revenue: 0,
+        profit: 0,
+        orders: 0,
+      });
+    }
+    orders.forEach((o) => {
+      const key = new Date(o.created_at).toISOString().slice(0, 10);
+      const bucket = map.get(key);
+      if (!bucket) return;
+      bucket.orders += 1;
+      if (o.status === 'completed') {
+        const rev = toNumber(o.total_amount);
+        const cost = toNumber(o.unit_cost_price) * (o.quantity || 1);
+        bucket.revenue += rev;
+        bucket.profit += rev - cost;
+      }
+    });
+    return Array.from(map.values());
+  }
+
+  const bucketMap = new Map<string, { date: string; label: string; revenue: number; profit: number; orders: number }>();
+  const sorted = [...orders].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  sorted.forEach((o) => {
+    const d = new Date(o.created_at);
+    if (Number.isNaN(d.getTime())) return;
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const existing = bucketMap.get(key) ?? {
+      date: key,
+      label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+      revenue: 0,
+      profit: 0,
+      orders: 0,
+    };
+    existing.orders += 1;
+    if (o.status === 'completed') {
+      const rev = toNumber(o.total_amount);
+      const cost = toNumber(o.unit_cost_price) * (o.quantity || 1);
+      existing.revenue += rev;
+      existing.profit += rev - cost;
+    }
+    bucketMap.set(key, existing);
+  });
+  return Array.from(bucketMap.values());
+}
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { data, loading, error, refresh } = useAdminReport();
   const { formatMoney: money } = useAdminCurrency();
-  const [walletOnly, setWalletOnly] = useState(false);
+
+  const [period, setPeriod] = useState<AdminPeriod>('7d');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [includeInternal, setIncludeInternal] = useState(false);
+
+  // Live supplier health & open support tickets
+  const [smileStatus, setSmileStatus] = useState<SmileOneStatus | null>(null);
+  const [yokStatus, setYokStatus] = useState<YcHealthResponse | null>(null);
+  const [suppliersLoading, setSuppliersLoading] = useState(true);
+  const [openTicketsCount, setOpenTicketsCount] = useState(0);
+
+  // Order drawer preview
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const loadOperationalExtras = useCallback(async () => {
+    setSuppliersLoading(true);
+    const [smileRes, yokRes, ticketsRes] = await Promise.allSettled([
+      fetchSmileOneStatus(),
+      yokcash.health(),
+      supabase
+        .from('support_requests')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['new', 'open']),
+    ]);
+
+    if (smileRes.status === 'fulfilled') setSmileStatus(smileRes.value);
+    else setSmileStatus({ configured: false, connected: false, message: 'Offline' });
+
+    if (yokRes.status === 'fulfilled') setYokStatus(yokRes.value);
+    else setYokStatus({ configured: false, connected: false, message: 'Offline' });
+
+    if (ticketsRes.status === 'fulfilled' && !ticketsRes.value.error) {
+      setOpenTicketsCount(ticketsRes.value.count ?? 0);
+    }
+    setSuppliersLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void loadOperationalExtras();
+  }, [loadOperationalExtras]);
+
+  const handleRefreshAll = () => {
+    void refresh();
+    void loadOperationalExtras();
+  };
 
   const adminIds = useMemo(
     () => new Set(data?.profiles.filter((p) => p.role === 'admin').map((p) => p.id) ?? []),
     [data]
   );
 
-  const scopedOrder = useMemo(
-    () => (o: ReportOrder) => (includeInternal || !adminIds.has(o.user_id)) && (!walletOnly || o.payment_method === 'wallet'),
-    [adminIds, includeInternal, walletOnly]
+  const paymentMethodsList = useMemo(() => {
+    if (!data) return [];
+    const set = new Set<string>();
+    data.orders.forEach((o) => {
+      if (o.payment_method) set.add(o.payment_method);
+    });
+    return Array.from(set).sort();
+  }, [data]);
+
+  const baseScopedOrders = useMemo(() => {
+    if (!data) return [];
+    return data.orders.filter(
+      (o) =>
+        (includeInternal || !adminIds.has(o.user_id)) &&
+        (paymentFilter === 'all' || (o.payment_method ?? '') === paymentFilter)
+    );
+  }, [data, adminIds, includeInternal, paymentFilter]);
+
+  const periodScopedOrders = useMemo(
+    () => baseScopedOrders.filter((o) => matchesAdminPeriod(o.created_at, period, customStart, customEnd)),
+    [baseScopedOrders, period, customStart, customEnd]
   );
 
   const todayReport = useMemo(() => {
     if (!data) return null;
-    return computeDashboardMetrics(data, 'today', new Date(), walletOnly ? 'wallet' : undefined, includeInternal);
-  }, [data, walletOnly, includeInternal]);
+    return computeDashboardMetrics(
+      { ...data, orders: baseScopedOrders },
+      'today',
+      new Date(),
+      undefined,
+      includeInternal
+    );
+  }, [data, baseScopedOrders, includeInternal]);
 
-  const sevenDayReport = useMemo(() => {
+  const periodReport = useMemo(() => {
     if (!data) return null;
-    return computeDashboardMetrics(data, '7d', new Date(), walletOnly ? 'wallet' : undefined, includeInternal);
-  }, [data, walletOnly, includeInternal]);
+    return computeDashboardMetrics(
+      { ...data, orders: periodScopedOrders },
+      'lifetime',
+      new Date(),
+      undefined,
+      includeInternal
+    );
+  }, [data, periodScopedOrders, includeInternal]);
+
+  const trend = useMemo(
+    () => buildPeriodTrend(periodScopedOrders, period),
+    [periodScopedOrders, period]
+  );
 
   if (loading && !data) {
     return (
@@ -172,25 +330,37 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  if (error || !todayReport || !sevenDayReport || !data) {
+  if (error || !todayReport || !periodReport || !data) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
         <AlertCircle className="h-5 w-5 mb-2" />
         <p className="font-medium">Could not load dashboard data</p>
         <p className="mt-1 text-sm">{error}</p>
-        <button onClick={refresh} className="btn btn-outline btn-sm mt-4">Retry</button>
+        <button onClick={handleRefreshAll} className="btn btn-outline btn-sm mt-4">Retry</button>
       </div>
     );
   }
 
-  const { todayVsYesterday } = todayReport;
-  const { financial, trend, productPerformance, gamePerformance, paymentMethods, supplierPerformance, repeatMetrics, processingTime } = sevenDayReport;
+  const periodLabel =
+    period === 'custom'
+      ? 'Custom'
+      : ADMIN_PERIOD_OPTIONS.find((opt) => opt.value === period)?.label ?? '7 Days';
 
-  const scopedOrders = data.orders.filter(scopedOrder);
-  const totalOrdersAllTime = scopedOrders.length;
-  const pendingOrdersCount = scopedOrders.filter((o) => ['pending', 'processing', 'on_hold'].includes(o.status)).length;
+  const { todayVsYesterday } = todayReport;
+  const {
+    financial,
+    productPerformance,
+    gamePerformance,
+    paymentMethods,
+    supplierPerformance,
+    repeatMetrics,
+    processingTime,
+  } = periodReport;
+
+  const totalOrdersAllTime = baseScopedOrders.length;
+  const pendingOrdersCount = baseScopedOrders.filter((o) => ['pending', 'processing', 'on_hold'].includes(o.status)).length;
   const today = new Date();
-  const ordersToday = scopedOrders.filter((o) => {
+  const ordersToday = baseScopedOrders.filter((o) => {
     const d = new Date(o.created_at);
     return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
   });
@@ -198,9 +368,31 @@ const Dashboard: React.FC = () => {
   const pendingKyc = data.pendingKyc;
   const activeProducts = data.products.filter((p) => p.status === 'active');
   const outOfStock = activeProducts.filter((p) => Number(p.stock ?? 0) <= 0).length;
-  const recentActivity = data.activities.filter((a) => includeInternal || !adminIds.has(a.user_id ?? '')).slice(0, 8);
-  const recentCustomers = computeCustomerInsights(scopedOrders, data.profiles).slice(0, 5);
+  const recentActivity = data.activities
+    .filter((a) => (includeInternal || !adminIds.has(a.user_id ?? '')) && matchesAdminPeriod(a.created_at, period, customStart, customEnd))
+    .slice(0, 8);
+  const topCustomersInPeriod = computeCustomerInsights(periodScopedOrders, data.profiles).slice(0, 5);
+  const recentOrders = periodScopedOrders.slice(0, 8);
   const topProductRevenue = productPerformance[0]?.revenue ?? 0;
+
+  const handleExportOverview = () => {
+    exportToCsv(
+      `dashboard-orders-${period}`,
+      ['Order ID', 'Date', 'Customer', 'Email', 'Product', 'Quantity', 'Amount', 'Currency', 'Payment Method', 'Status'],
+      periodScopedOrders.map((o) => [
+        o.id,
+        o.created_at,
+        o.profiles?.name ?? 'Unknown',
+        o.profiles?.email ?? '',
+        o.product_name,
+        o.quantity,
+        Number(o.total_amount || 0).toFixed(2),
+        o.currency,
+        o.payment_method ?? '',
+        o.status,
+      ])
+    );
+  };
 
   const kpis = [
     {
@@ -222,9 +414,10 @@ const Dashboard: React.FC = () => {
       value: <AnimatedNumber value={ordersToday.length} format={(v) => Math.round(v).toLocaleString()} />,
       icon: ShoppingCart,
       tone: 'bg-cyan-50 text-cyan-600',
+      sub: <p className="text-xs text-gray-400 tabular-nums">{periodScopedOrders.length.toLocaleString()} in {periodLabel}</p>,
     },
     {
-      label: '7-Day Revenue',
+      label: `${periodLabel} Revenue`,
       value: <AnimatedNumber value={financial.revenue} format={money} />,
       icon: BarChart3,
       tone: 'bg-violet-50 text-violet-600',
@@ -233,8 +426,8 @@ const Dashboard: React.FC = () => {
   ];
 
   const quickStats = [
-    { label: 'Avg order value (7d)', value: <AnimatedNumber value={financial.aov} format={money} />, icon: BarChart3 },
-    { label: 'Profit margin (7d)', value: <AnimatedNumber value={financial.profitMargin} format={(v) => `${v.toFixed(1)}%`} />, icon: TrendingUp },
+    { label: `Avg order value (${periodLabel})`, value: <AnimatedNumber value={financial.aov} format={money} />, icon: BarChart3 },
+    { label: `Profit margin (${periodLabel})`, value: <AnimatedNumber value={financial.profitMargin} format={(v) => `${v.toFixed(1)}%`} />, icon: TrendingUp },
     { label: 'Repeat purchase rate', value: <AnimatedNumber value={repeatMetrics.repeatPurchaseRate} format={(v) => `${v.toFixed(1)}%`} />, icon: Repeat },
     {
       label: 'Avg processing time',
@@ -246,8 +439,9 @@ const Dashboard: React.FC = () => {
   ];
 
   const attention = [
-    { label: 'Orders to fulfil', value: pendingOrdersCount, icon: ShoppingCart, tone: 'text-amber-700 bg-amber-50 border-amber-200', to: '/revenue/orders' },
+    { label: 'Orders to fulfil', value: pendingOrdersCount, icon: ShoppingCart, tone: 'text-amber-700 bg-amber-50 border-amber-200', to: '/orders/manual' },
     { label: 'Failed today', value: failedToday, icon: AlertCircle, tone: 'text-red-700 bg-red-50 border-red-200', to: '/revenue/orders' },
+    { label: 'Open support tickets', value: openTicketsCount, icon: MessageSquare, tone: 'text-blue-700 bg-blue-50 border-blue-200', to: '/messages' },
     { label: 'KYC reviews', value: pendingKyc, icon: ShieldCheck, tone: 'text-purple-700 bg-purple-50 border-purple-200', to: '/users?kyc=pending' },
     { label: 'Out of stock', value: outOfStock, icon: PackageX, tone: 'text-slate-700 bg-slate-100 border-slate-200', to: '/products' },
   ];
@@ -269,7 +463,7 @@ const Dashboard: React.FC = () => {
               </span>
             </h1>
             <p className="mt-0.5 text-sm text-gray-500">
-              Real-time store health{includeInternal ? ' · including internal (admin) orders' : ''}
+              Real-time store health · Showing {periodLabel.toLowerCase()} metrics{includeInternal ? ' (including internal admin orders)' : ''}
             </p>
           </div>
         </div>
@@ -282,21 +476,122 @@ const Dashboard: React.FC = () => {
             <UserCog className="h-4 w-4" />
             {includeInternal ? 'Internal: On' : 'Internal: Off'}
           </button>
+          <div className="flex items-center gap-1.5">
+            <Filter className="h-3.5 w-3.5 text-gray-400 hidden sm:inline" />
+            <select
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value)}
+              className="input h-8 py-1 text-xs !w-auto capitalize"
+            >
+              <option value="all">All Payments</option>
+              {paymentMethodsList.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </div>
           <button
-            onClick={() => setWalletOnly((v: boolean) => !v)}
-            className={clsx('btn btn-sm flex items-center gap-2', walletOnly ? 'btn-primary' : 'btn-outline')}
+            onClick={handleExportOverview}
+            disabled={!periodScopedOrders.length}
+            className="btn btn-outline btn-sm flex items-center gap-1.5"
           >
-            <Wallet className="h-4 w-4" />
-            {walletOnly ? 'Wallet Only' : 'Wallet Only: Off'}
+            <Download className="h-4 w-4" />
+            Export CSV
           </button>
-          <button onClick={refresh} disabled={loading} className="btn btn-outline btn-sm">
+          <button onClick={handleRefreshAll} disabled={loading} className="btn btn-outline btn-sm">
             <RefreshCw className={clsx('h-4 w-4', loading && 'animate-spin')} />
           </button>
-          <Link to="/analytics" className="btn btn-outline btn-sm">
+          <Link to="/analytics" className="btn btn-primary btn-sm">
             Deep Analytics
           </Link>
         </div>
       </div>
+
+      {/* Period Filter Bar + Supplier Live Status Strip */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {ADMIN_PERIOD_OPTIONS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setPeriod(value)}
+              className={clsx(
+                'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                period === value
+                  ? 'bg-primary-600 text-white shadow-xs'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Supplier Live Health Strip */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-gray-400 flex items-center gap-1 font-medium">
+            <Plug className="w-3.5 h-3.5 text-primary-600" /> Suppliers:
+          </span>
+          <button
+            type="button"
+            onClick={() => navigate('/providers/smile-one')}
+            className={clsx(
+              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border font-medium transition-colors',
+              suppliersLoading
+                ? 'bg-gray-50 text-gray-500 border-gray-200'
+                : smileStatus?.connected
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+            )}
+          >
+            <span className={clsx('w-2 h-2 rounded-full', smileStatus?.connected ? 'bg-emerald-500' : 'bg-amber-500')} />
+            <span>Smile.One</span>
+            {smileStatus?.usd_balance != null && (
+              <span className="font-bold tabular-nums">${Number(smileStatus.usd_balance).toFixed(2)}</span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/providers/yokcash')}
+            className={clsx(
+              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border font-medium transition-colors',
+              suppliersLoading
+                ? 'bg-gray-50 text-gray-500 border-gray-200'
+                : yokStatus?.connected
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+            )}
+          >
+            <span className={clsx('w-2 h-2 rounded-full', yokStatus?.connected ? 'bg-emerald-500' : 'bg-amber-500')} />
+            <span>Yokcash</span>
+            {yokStatus?.saldo != null && (
+              <span className="font-bold tabular-nums">IDR {Number(yokStatus.saldo).toLocaleString()}</span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {period === 'custom' && (
+        <div className="flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <label className="text-xs text-gray-500">
+            Start date
+            <input
+              type="date"
+              className="input mt-1 h-9 text-xs block"
+              value={customStart}
+              onChange={(e) => setCustomStart(e.target.value)}
+            />
+          </label>
+          <label className="text-xs text-gray-500">
+            End date
+            <input
+              type="date"
+              className="input mt-1 h-9 text-xs block"
+              value={customEnd}
+              onChange={(e) => setCustomEnd(e.target.value)}
+            />
+          </label>
+        </div>
+      )}
 
       {/* Today KPI row */}
       <motion.div variants={staggerParent} initial="initial" animate="animate" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
@@ -326,8 +621,8 @@ const Dashboard: React.FC = () => {
         >
           <SectionHeader
             icon={TrendingUp}
-            title="7-Day Revenue, Profit & Orders"
-            hint={`${totalOrdersAllTime.toLocaleString()} orders all time`}
+            title={`Revenue, Profit & Orders (${periodLabel})`}
+            hint={`${periodScopedOrders.length.toLocaleString()} orders in period · ${totalOrdersAllTime.toLocaleString()} all time`}
           />
           <div className="mt-4">
             {trend.some((t) => t.revenue > 0 || t.orders > 0) ? (
@@ -344,7 +639,7 @@ const Dashboard: React.FC = () => {
                 </ComposedChart>
               </ResponsiveContainer>
             ) : (
-              <p className="py-16 text-center text-sm text-gray-400">No orders in the last 7 days.</p>
+              <p className="py-16 text-center text-sm text-gray-400">No orders in the selected period.</p>
             )}
           </div>
           <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
@@ -361,7 +656,7 @@ const Dashboard: React.FC = () => {
           className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
         >
           <SectionHeader icon={AlertCircle} title="Needs Attention" />
-          <div className="mt-4 space-y-2.5">
+          <div className="mt-4 space-y-2">
             {attention.map(({ label, value, icon: Icon, tone, to }, i) => (
               <motion.button
                 key={label}
@@ -369,18 +664,18 @@ const Dashboard: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 + staggerDelay(i, 0.05, 0.15), duration: DURATION.base, ease: EASE_OUT }}
                 onClick={() => navigate(to)}
-                className={clsx('flex w-full items-center gap-3 rounded-xl border p-3 text-left transition hover:opacity-90', tone)}
+                className={clsx('flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition hover:opacity-90', tone)}
               >
                 <Icon className="h-4 w-4 shrink-0" />
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">{label}</span>
-                <span className="shrink-0 text-lg font-bold tabular-nums">{value.toLocaleString()}</span>
+                <span className="shrink-0 text-base font-bold tabular-nums">{value.toLocaleString()}</span>
                 <ChevronRight className="h-4 w-4 shrink-0 opacity-50" />
               </motion.button>
             ))}
           </div>
           {supplierPerformance.length > 0 && (
-            <div className="mt-5 border-t border-gray-100 pt-4">
-              <p className="mb-2 text-xs font-medium text-gray-500">Fulfilment success (7d)</p>
+            <div className="mt-4 border-t border-gray-100 pt-3">
+              <p className="mb-2 text-xs font-medium text-gray-500">Fulfilment success ({periodLabel})</p>
               <div className="space-y-1.5">
                 {supplierPerformance.slice(0, 3).map((s) => (
                   <div key={s.provider} className="flex items-center justify-between text-sm">
@@ -396,6 +691,104 @@ const Dashboard: React.FC = () => {
         </motion.div>
       </div>
 
+      {/* Live Recent Orders Feed */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: DURATION.base, ease: EASE_OUT }}
+        className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden"
+      >
+        <div className="border-b border-gray-100 px-5 py-4 flex flex-wrap items-center justify-between gap-2">
+          <SectionHeader
+            icon={ShoppingCart}
+            title={`Recent Orders (${periodLabel})`}
+            hint="Click View to inspect or update fulfillment status"
+          />
+          <div className="flex items-center gap-3 text-xs">
+            <Link to="/orders/manual" className="font-medium text-violet-600 hover:underline">
+              Manual Queue ({pendingOrdersCount}) →
+            </Link>
+            <Link to="/orders" className="font-medium text-primary-600 hover:underline">
+              All Orders →
+            </Link>
+          </div>
+        </div>
+        {recentOrders.length === 0 ? (
+          <p className="p-8 text-center text-sm text-gray-400">No orders in the selected period.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  {['Order', 'Customer', 'Product', 'Amount', 'Payment', 'Status', 'When', ''].map((h) => (
+                    <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {recentOrders.map((o) => (
+                  <tr key={o.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 text-xs font-mono font-semibold text-gray-900 whitespace-nowrap">
+                      #{o.id.slice(0, 8).toUpperCase()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/users/${o.user_id}`)}
+                        className="text-left hover:underline"
+                      >
+                        <p className="text-sm font-medium text-gray-900 truncate max-w-[140px]">
+                          {o.profiles?.name || 'Customer'}
+                        </p>
+                        <p className="text-xs text-gray-400 truncate max-w-[140px]">
+                          {o.profiles?.email || o.user_id.slice(0, 8)}
+                        </p>
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-800 max-w-[200px] truncate">
+                      {o.product_name}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap tabular-nums">
+                      {money(toNumber(o.total_amount))}
+                    </td>
+                    <td className="px-4 py-3 text-xs capitalize text-gray-500 whitespace-nowrap">
+                      {o.payment_method || '—'}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span
+                        className={clsx(
+                          'inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize',
+                          orderStatusBadge[o.status] ?? 'bg-gray-100 text-gray-700'
+                        )}
+                      >
+                        {o.status.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap tabular-nums">
+                      {timeAgo(o.created_at)}
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedOrder(o);
+                          setDrawerOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> View
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </motion.div>
+
       {/* Products / Games / Payments */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <motion.div
@@ -404,7 +797,7 @@ const Dashboard: React.FC = () => {
           transition={{ delay: 0.22, duration: DURATION.base, ease: EASE_OUT }}
           className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
         >
-          <SectionHeader icon={Package} title="Top Products" action={<Link to="/revenue/products" className="text-xs text-primary-600 hover:underline">All →</Link>} />
+          <SectionHeader icon={Package} title={`Top Products (${periodLabel})`} action={<Link to="/revenue/products" className="text-xs text-primary-600 hover:underline">All →</Link>} />
           <div className="mt-4 space-y-3">
             {productPerformance.length ? productPerformance.slice(0, 5).map((p) => (
               <div key={p.id}>
@@ -426,7 +819,7 @@ const Dashboard: React.FC = () => {
                   </span>
                 </div>
               </div>
-            )) : <p className="py-10 text-center text-sm text-gray-400">No completed sales in the last 7 days.</p>}
+            )) : <p className="py-10 text-center text-sm text-gray-400">No completed sales in this period.</p>}
           </div>
         </motion.div>
 
@@ -436,7 +829,7 @@ const Dashboard: React.FC = () => {
           transition={{ delay: 0.28, duration: DURATION.base, ease: EASE_OUT }}
           className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
         >
-          <SectionHeader icon={Gamepad2} title="Top Games" />
+          <SectionHeader icon={Gamepad2} title={`Top Games (${periodLabel})`} />
           <div className="mt-4 divide-y divide-gray-50">
             {gamePerformance.length ? gamePerformance.slice(0, 5).map((g) => (
               <div key={g.id} className="flex items-center justify-between gap-3 py-2.5">
@@ -446,7 +839,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 <p className="shrink-0 text-sm font-semibold text-gray-900 tabular-nums">{money(g.revenue)}</p>
               </div>
-            )) : <p className="py-10 text-center text-sm text-gray-400">No game sales in the last 7 days.</p>}
+            )) : <p className="py-10 text-center text-sm text-gray-400">No game sales in this period.</p>}
           </div>
         </motion.div>
 
@@ -456,7 +849,7 @@ const Dashboard: React.FC = () => {
           transition={{ delay: 0.34, duration: DURATION.base, ease: EASE_OUT }}
           className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
         >
-          <SectionHeader icon={CreditCard} title="Payment Methods" />
+          <SectionHeader icon={CreditCard} title={`Payment Methods (${periodLabel})`} />
           <div className="mt-4 divide-y divide-gray-50">
             {paymentMethods.length ? paymentMethods.map((m) => (
               <div key={m.method} className="flex items-center justify-between gap-3 py-2.5">
@@ -466,7 +859,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 <p className="shrink-0 text-sm font-semibold text-gray-900 tabular-nums">{money(m.revenue)}</p>
               </div>
-            )) : <p className="py-10 text-center text-sm text-gray-400">No payments in the last 7 days.</p>}
+            )) : <p className="py-10 text-center text-sm text-gray-400">No payments in this period.</p>}
           </div>
         </motion.div>
       </div>
@@ -480,10 +873,10 @@ const Dashboard: React.FC = () => {
           className="rounded-xl border border-gray-200 bg-white shadow-sm"
         >
           <div className="border-b border-gray-100 p-4">
-            <SectionHeader icon={Crown} title="Top Customers" action={<button onClick={() => navigate('/auth/clients')} className="text-xs text-primary-600 hover:underline">View all →</button>} />
+            <SectionHeader icon={Crown} title={`Top Customers (${periodLabel})`} action={<button onClick={() => navigate('/auth/clients')} className="text-xs text-primary-600 hover:underline">View all →</button>} />
           </div>
           <div className="divide-y divide-gray-50">
-            {recentCustomers.length ? recentCustomers.map((c) => (
+            {topCustomersInPeriod.length ? topCustomersInPeriod.map((c) => (
               <button key={c.id} onClick={() => navigate(`/users/${c.id}`)} className="flex w-full items-center justify-between gap-3 p-4 text-left transition hover:bg-gray-50">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{c.name}</p>
@@ -494,7 +887,7 @@ const Dashboard: React.FC = () => {
                   <p className="text-xs text-gray-500 tabular-nums">{c.orders} orders</p>
                 </div>
               </button>
-            )) : <p className="p-6 text-sm text-gray-400">No customer spending yet.</p>}
+            )) : <p className="p-6 text-sm text-gray-400">No customer spending in this period.</p>}
           </div>
         </motion.div>
 
@@ -505,7 +898,7 @@ const Dashboard: React.FC = () => {
           className="rounded-xl border border-gray-200 bg-white shadow-sm lg:col-span-2"
         >
           <div className="border-b border-gray-100 p-4">
-            <SectionHeader icon={Activity} title="Recent Activity" action={<button onClick={() => navigate('/activity-logs')} className="text-xs text-primary-600 hover:underline">View all →</button>} />
+            <SectionHeader icon={Activity} title={`Recent Activity (${periodLabel})`} action={<button onClick={() => navigate('/activity-logs')} className="text-xs text-primary-600 hover:underline">View all →</button>} />
           </div>
           <div className="divide-y divide-gray-50">
             {recentActivity.length ? recentActivity.map((item) => (
@@ -517,35 +910,35 @@ const Dashboard: React.FC = () => {
                 </div>
                 <p className="shrink-0 text-xs text-gray-400">{timeAgo(item.created_at)}</p>
               </div>
-            )) : <p className="p-6 text-sm text-gray-400">No activity recorded.</p>}
+            )) : <p className="p-6 text-sm text-gray-400">No activity recorded in this period.</p>}
           </div>
         </motion.div>
       </div>
 
       {/* Refund / failure insight */}
-      {(sevenDayReport.refundReasons.length > 0 || sevenDayReport.failureReasons.length > 0) && (
+      {(periodReport.refundReasons.length > 0 || periodReport.failureReasons.length > 0) && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {sevenDayReport.refundReasons.length > 0 && (
+          {periodReport.refundReasons.length > 0 && (
             <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <SectionHeader icon={RotateCcw} title="Refund Reasons" hint="7 days" />
+              <SectionHeader icon={RotateCcw} title="Refund Reasons" hint={periodLabel} />
               <div className="mt-4 divide-y divide-gray-50">
-                {sevenDayReport.refundReasons.slice(0, 4).map((r) => (
+                {periodReport.refundReasons.slice(0, 4).map((r) => (
                   <div key={r.reason} className="flex items-center justify-between gap-3 py-2.5">
                     <p className="min-w-0 truncate text-sm text-gray-700">{r.reason}</p>
-                    <p className="shrink-0 text-sm font-semibold text-gray-900">{r.count} × {money(r.value)}</p>
+                    <p className="shrink-0 text-sm font-semibold text-gray-900 tabular-nums">{r.count} × {money(r.value)}</p>
                   </div>
                 ))}
               </div>
             </div>
           )}
-          {sevenDayReport.failureReasons.length > 0 && (
+          {periodReport.failureReasons.length > 0 && (
             <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <SectionHeader icon={AlertCircle} title="Failure Reasons" hint="7 days" />
+              <SectionHeader icon={AlertCircle} title="Failure Reasons" hint={periodLabel} />
               <div className="mt-4 divide-y divide-gray-50">
-                {sevenDayReport.failureReasons.slice(0, 4).map((f) => (
+                {periodReport.failureReasons.slice(0, 4).map((f) => (
                   <div key={f.reason} className="flex items-center justify-between gap-3 py-2.5">
                     <p className="min-w-0 truncate text-sm text-gray-700">{f.reason}</p>
-                    <p className="shrink-0 text-sm font-semibold text-gray-900">{f.count} orders</p>
+                    <p className="shrink-0 text-sm font-semibold text-gray-900 tabular-nums">{f.count} orders</p>
                   </div>
                 ))}
               </div>
@@ -557,6 +950,18 @@ const Dashboard: React.FC = () => {
       <p className="text-xs text-gray-400">
         Revenue and profit exclude orders placed by admin accounts unless Internal is enabled above. Per-order P&amp;L lives under <Link to="/revenue/profit-loss" className="text-primary-600 hover:underline">Revenue → Profit &amp; Loss</Link>.
       </p>
+
+      <OrderDrawer
+        order={selectedOrder}
+        isOpen={drawerOpen}
+        onClose={() => {
+          setDrawerOpen(false);
+          setSelectedOrder(null);
+        }}
+        onStatusChange={() => {
+          void refresh();
+        }}
+      />
     </div>
   );
 };
