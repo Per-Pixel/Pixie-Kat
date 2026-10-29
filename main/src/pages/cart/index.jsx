@@ -10,6 +10,7 @@ import {
   Minus,
   Plus,
   ShoppingCart,
+  Smartphone,
   Trash2,
   UserCheck,
   Wallet,
@@ -41,10 +42,8 @@ const formatPrice = (value, currency = "PKS") => {
   return `${symbol}${Number(value).toFixed(2)}`;
 };
 
-// Online payment gateways are temporarily disabled (fake-payment abuse) —
-// wallet balance is the only live checkout method. Restore the aluu/razorpay
-// entries once the providers are back on production keys.
 const paymentMethods = [
+  { id: "aluu", name: "UPI Gateway", description: "Pay instantly with any UPI app", icon: Smartphone },
   { id: "wallet", name: "Pixie Wallet", description: "Use your PixieKat wallet balance", icon: Wallet },
 ];
 

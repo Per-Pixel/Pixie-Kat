@@ -12,6 +12,7 @@ import {
   Info,
   Lightbulb,
   ShoppingCart,
+  Smartphone,
   Wallet,
 } from "lucide-react";
 
@@ -54,10 +55,9 @@ First purchase of the 250 Diamond level: 250 Base Diamonds + 250 Bonus Diamonds 
 First purchase of the 500 Diamond level: 500 Base Diamonds + 500 Bonus Diamonds = 1000 Diamonds in total
 3. For each tier, the double Diamond bonus only applies to your first purchase, regardless of the payment channel or platform.`;
 
-// Online payment gateways are temporarily disabled (fake-payment abuse) —
-// wallet balance is the only live checkout method. Restore the aluu/razorpay
-// entries once the providers are back on production keys.
+// Razorpay stays hidden until production keys are configured (test keys fulfilled fake orders).
 const paymentMethods = [
+  { id: "aluu", logo: "UPI", name: "UPI Gateway", description: "Pay instantly with any UPI app", icon: Smartphone },
   { id: "wallet", logo: "Wallet", name: "Pixie Wallet", description: "Use your PixieKat wallet balance for this order", icon: Wallet },
 ];
 

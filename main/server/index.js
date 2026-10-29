@@ -2020,13 +2020,20 @@ function assertCapturedRazorpayPayment(order, payment) {
 }
 
 // ── Online payments kill switch ──────────────────────────────────────────────
-// Razorpay/Aluu checkout is temporarily disabled: the configured Razorpay key
-// is a test key, so fake "payments" pass signature verification and trigger
-// real fulfillment. Wallet orders (backed by ledger balance) stay enabled, and
-// the verify/webhook/check endpoints still run so genuinely-paid pending
-// orders can settle. Flip to true to re-enable gateway checkout.
-const ONLINE_PAYMENTS_ENABLED = false;
+// Razorpay checkout stays off while the configured key is test mode (fake
+// payments pass verification and trigger fulfillment). Aluu UPI can run on its
+// own merchant token. Verify/webhook/check endpoints stay live for pending orders.
+const RAZORPAY_CHECKOUT_ENABLED = false;
+const ALUU_CHECKOUT_ENABLED = true;
 const ONLINE_PAYMENTS_MESSAGE = 'Online payments are temporarily unavailable. Please use your Pixie Wallet balance or try again later.';
+
+function onlineCheckoutBlocked(paymentMethod) {
+  const method = String(paymentMethod || '').trim().toLowerCase();
+  if (!method || method === 'wallet') return false;
+  if (method === 'aluu') return !ALUU_CHECKOUT_ENABLED;
+  if (method === 'razorpay') return !RAZORPAY_CHECKOUT_ENABLED;
+  return true;
+}
 
 // ── Order placement (proxied RPC) ────────────────────────────────────────────
 // POST /api/place-order
@@ -2056,7 +2063,7 @@ app.post('/api/place-order', placeOrderLimiter, async (req, res) => {
   if (!product_id || !product_name || total_amount == null || !currency) {
     return res.status(400).json({ ok: false, error: 'Missing required fields' });
   }
-  if (!ONLINE_PAYMENTS_ENABLED && paymentMethod && paymentMethod !== 'wallet') {
+  if (onlineCheckoutBlocked(paymentMethod)) {
     return res.status(503).json({ ok: false, error: ONLINE_PAYMENTS_MESSAGE });
   }
 
@@ -2357,7 +2364,7 @@ app.post('/api/cart-checkout', cartCheckoutLimiter, async (req, res) => {
   if (!['wallet', 'razorpay', 'aluu'].includes(paymentMethod)) {
     return res.status(400).json({ ok: false, error: 'Unsupported payment method' });
   }
-  if (!ONLINE_PAYMENTS_ENABLED && paymentMethod !== 'wallet') {
+  if (onlineCheckoutBlocked(paymentMethod)) {
     return res.status(503).json({ ok: false, error: ONLINE_PAYMENTS_MESSAGE });
   }
 
@@ -3326,7 +3333,7 @@ app.post('/api/wallet/topup', servicePurchaseLimiter, requireUser, async (req, r
     if (!['razorpay', 'aluu'].includes(paymentMethod)) {
       return res.status(400).json({ ok: false, error: 'payment_method must be razorpay or aluu' });
     }
-    if (!ONLINE_PAYMENTS_ENABLED) {
+    if (onlineCheckoutBlocked(paymentMethod)) {
       return res.status(503).json({ ok: false, error: 'Wallet top-ups are temporarily unavailable.' });
     }
 
@@ -3360,7 +3367,7 @@ app.post('/api/membership/purchase', servicePurchaseLimiter, requireUser, async 
     if (!['wallet', 'razorpay', 'aluu'].includes(paymentMethod)) {
       return res.status(400).json({ ok: false, error: 'payment_method must be wallet, razorpay or aluu' });
     }
-    if (!ONLINE_PAYMENTS_ENABLED && paymentMethod !== 'wallet') {
+    if (onlineCheckoutBlocked(paymentMethod)) {
       return res.status(503).json({ ok: false, error: ONLINE_PAYMENTS_MESSAGE });
     }
 

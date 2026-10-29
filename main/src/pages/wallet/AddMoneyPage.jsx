@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Crown,
   Loader2,
+  Smartphone,
   Wallet,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -22,9 +23,9 @@ const MAX_COINS = 10_000; // 1 coin = ₹1
 
 const quickAddAmounts = [100, 500, 1000, 5000, 10000];
 
-// Online payment gateways are temporarily disabled (fake-payment abuse) —
-// re-add the aluu/razorpay entries once providers run on production keys.
-const gatewayMethods = [];
+const gatewayMethods = [
+  { id: "aluu", name: "UPI", description: "Pay instantly with any UPI app", icon: Smartphone },
+];
 const paymentsDisabled = gatewayMethods.length === 0;
 
 const PENDING_KEY = "pixiekat_pending_service_payment";
