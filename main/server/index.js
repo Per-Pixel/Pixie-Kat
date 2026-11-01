@@ -338,6 +338,7 @@ app.get('/api/catalog/games/:slug', async (req, res) => {
 app.post('/api/auth/login-session', requireUser, async (req, res) => {
   try {
     const userAgent = String(req.get('user-agent') || '').slice(0, 500);
+    const used2fa = req.body?.used_2fa === true;
     const now = new Date().toISOString();
     const { error } = await supabaseAdmin.from('user_login_history').insert({
       user_id: req.user.id,
@@ -346,7 +347,7 @@ app.post('/api/auth/login-session', requireUser, async (req, res) => {
       device_type: getDeviceType(userAgent),
       browser: getBrowser(userAgent),
       success: true,
-      used_2fa: false,
+      used_2fa: used2fa,
       created_at: now,
     });
     if (error) throw error;

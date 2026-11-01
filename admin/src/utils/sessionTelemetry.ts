@@ -11,7 +11,7 @@ function decodeJwtPayload(token: string): Record<string, unknown> {
   }
 }
 
-export async function recordLoginSession(session: Session | null) {
+export async function recordLoginSession(session: Session | null, options?: { used2fa?: boolean }) {
   if (!session?.user?.id || typeof window === 'undefined') return;
 
   const claims = decodeJwtPayload(session.access_token);
@@ -32,7 +32,11 @@ export async function recordLoginSession(session: Session | null) {
     }
     const response = await fetch(`${baseUrl}/auth/login-session`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${session.access_token}` },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ used_2fa: options?.used2fa === true }),
     });
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);

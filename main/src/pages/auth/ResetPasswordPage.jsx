@@ -3,17 +3,8 @@ import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock } from 'lucide-react';
 
+import { validatePassword } from '../../lib/passwordPolicy';
 import { supabase } from '../../lib/supabase';
-
-const validatePassword = (password, confirm) => {
-  if (password.length < 8) return 'Password must be at least 8 characters long';
-  if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter';
-  if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
-  if (!/[0-9]/.test(password)) return 'Password must contain at least one number';
-  if (!/[!@#$%^&*(),.?":{}|<>\-_]/.test(password)) return 'Password must contain at least one special character';
-  if (password !== confirm) return 'Passwords do not match';
-  return '';
-};
 
 const ResetPasswordPage = () => {
   const navigate = useNavigate();

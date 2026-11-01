@@ -4,6 +4,18 @@ import { recordLoginSession } from '../utils/sessionTelemetry';
 
 const AuthContext = createContext();
 
+async function recordSessionIfMfaComplete(newSession) {
+  let used2fa = false;
+  try {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') return;
+    used2fa = aal?.currentLevel === 'aal2';
+  } catch {
+    used2fa = false;
+  }
+  await recordLoginSession(newSession, { used2fa });
+}
+
 async function fetchProfile(userId) {
   const { data, error } = await supabase
     .from('profiles')
@@ -50,7 +62,7 @@ export const AuthProvider = ({ children }) => {
     setProfile(p);
     setSession(newSession);
     setIsLoading(false);
-    recordLoginSession(newSession);
+    await recordSessionIfMfaComplete(newSession);
   }, []);
 
   useEffect(() => {
@@ -102,8 +114,6 @@ export const AuthProvider = ({ children }) => {
         : error.message;
       return { success: false, error: msg };
     }
-
-    await recordLoginSession(data.session);
 
     return { success: true, user: data.user };
   }, []);

@@ -4,6 +4,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, UserRound, ArrowLeft } from 'lucide-react';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { validatePassword } from '../../lib/passwordPolicy';
+import { safeRedirectPath } from '../../lib/safeRedirectPath';
 import { publicMediaUrl, supabase } from '../../lib/supabase';
 
 const Auth = () => {
@@ -18,6 +20,7 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
   const [mfaFactor, setMfaFactor] = useState(null);
   const [mfaCode, setMfaCode] = useState('');
 
@@ -25,7 +28,7 @@ const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = location.state?.from?.pathname || '/';
+  const from = safeRedirectPath(location.state?.from?.pathname);
   const isRegisterRoute = location.pathname === '/register';
   const pageTitle = forgotMode ? 'Reset Password' : isRegisterRoute ? 'Sign Up' : 'Welcome!';
   const submitLabel = forgotMode ? 'Send Reset Link' : isRegisterRoute ? 'Create Account' : 'Login';
@@ -44,6 +47,7 @@ const Auth = () => {
   useEffect(() => {
     setForgotMode(false);
     setResetSent(false);
+    setVerificationSent(false);
     setError('');
   }, [location.pathname]);
 
@@ -109,38 +113,9 @@ const Auth = () => {
 
     try {
       if (isRegisterRoute) {
-        if (formData.password.length < 8) {
-          setError('Password must be at least 8 characters long');
-          setIsLoading(false);
-          return;
-        }
-
-        if (!/[a-z]/.test(formData.password)) {
-          setError('Password must contain at least one lowercase letter');
-          setIsLoading(false);
-          return;
-        }
-
-        if (!/[A-Z]/.test(formData.password)) {
-          setError('Password must contain at least one uppercase letter');
-          setIsLoading(false);
-          return;
-        }
-
-        if (!/[0-9]/.test(formData.password)) {
-          setError('Password must contain at least one number');
-          setIsLoading(false);
-          return;
-        }
-
-        if (!/[!@#$%^&*(),.?":{}|<>\-_]/.test(formData.password)) {
-          setError('Password must contain at least one special character');
-          setIsLoading(false);
-          return;
-        }
-
-        if (formData.password !== formData.confirmPassword) {
-          setError('Passwords do not match');
+        const passwordError = validatePassword(formData.password, formData.confirmPassword);
+        if (passwordError) {
+          setError(passwordError);
           setIsLoading(false);
           return;
         }
@@ -152,7 +127,9 @@ const Auth = () => {
           confirmPassword: formData.confirmPassword
         });
 
-        if (result.success) {
+        if (result.success && result.requiresEmailVerification) {
+          setVerificationSent(true);
+        } else if (result.success) {
           navigate(from, { replace: true });
         } else {
           setError(result.error || 'Registration failed');
@@ -475,6 +452,14 @@ const Auth = () => {
                 <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
                   <p className="text-sm text-emerald-300">
                     Reset link sent — check your inbox and spam folder. The link opens a page to set a new password.
+                  </p>
+                </div>
+              ) : null}
+
+              {verificationSent ? (
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
+                  <p className="text-sm text-emerald-300">
+                    Check your email to confirm your account, then sign in. Your email stays unverified until you open that link.
                   </p>
                 </div>
               ) : null}

@@ -1,4 +1,4 @@
 # Last session summary
 
-- **Aluu cancel / return UX**: Added `/payments/aluu/return` bridge page — on pay/cancel Aluu redirects there; page `postMessage`s opener, focuses checkout tab, closes payment tab. Server `redirect_url` now uses `buildAluuRedirectUrl()` for place-order, cart checkout, wallet/membership. Checkout pages track popup close + return and stop “waiting” with a clear dismiss message (like Razorpay `ondismiss`).
-- **Deploy**: Frontend route needs Amplify (`main` push); API redirect URLs need `eb deploy` from `main/server`.
+- **Auth hardening (local, not deployed)**: `safeRedirectPath` for post-login redirects; register stays on the page when email confirmation is required; shared `validatePassword`; `POST /api/auth/login-session` accepts `used_2fa`; storefront and admin record login history only after MFA AAL is complete. Docs: `SUPABASE_SETUP.md` production checklist, `main/server/README.md` no longer describes SQLite auth.
+- **Tests**: `main` vitest `safeRedirectPath.test.js` — 3 passed.

@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Fixed
+- Registration with email confirmation enabled stays on the sign-up page and asks you to confirm before signing in, instead of navigating away as if you were already logged in. Post-login redirects only follow same-site paths.
 - Aluu UPI checkout opens a named popup and uses a `/payments/aluu/return` bridge (BroadcastChannel + localStorage + postMessage) so cancel or pay refocuses the checkout tab and clears the “waiting for payment” message instead of leaving it stuck.
 
 ### Security

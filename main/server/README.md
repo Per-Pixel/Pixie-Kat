@@ -1,109 +1,56 @@
-# PixieKat Authentication Server
+# PixieKat API server
 
-Backend authentication server for PixieKat with SQLite database, bcrypt password hashing, and JWT-based sessions.
+Node/Express API for privileged Supabase operations, payments, and provider fulfillment. Customer sign-up and sign-in go through **Supabase Auth** in the storefront (`main/`) and admin app (`admin/`), not through this process.
 
-## Features
-
-- ✅ User registration with validation
-- ✅ Secure login with bcrypt password hashing
-- ✅ JWT tokens stored in httpOnly cookies
-- ✅ Rate limiting (5 login attempts per 15 minutes)
-- ✅ Password requirements (8+ chars, uppercase, number)
-- ✅ Email validation and duplicate prevention
-- ✅ Session expiration (7 days)
-- ✅ Protected routes with auth middleware
+Auth setup, production URL allowlists, email confirmation, and password settings: see [`SUPABASE_SETUP.md`](../../SUPABASE_SETUP.md) at the repo root.
 
 ## Setup
 
-1. **Install dependencies:**
+1. Install dependencies:
+
    ```bash
-   cd server
+   cd main/server
    npm install
    ```
 
-2. **Configure environment:**
-   - Copy `.env.example` to `.env`
-   - Update `JWT_SECRET` with a strong secret key
+2. Copy `.env.example` to `.env` and set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and the other provider secrets listed there. The service role key stays on the server only.
 
-3. **Start the server:**
+3. Start the server:
+
    ```bash
    npm start
    ```
 
    Or for development with auto-reload:
+
    ```bash
    npm run dev
    ```
 
-The server will run on `http://localhost:3001`
+The server listens on `http://localhost:3001` by default.
 
-## API Endpoints
+## Auth-related API
 
-### Authentication
+- `POST /api/auth/login-session` — Record a successful sign-in for the authenticated user (JWT required). Optional JSON body `{ "used_2fa": true }` after authenticator verification. Login history is written only after MFA is complete when the client gates the call on assurance level.
 
-- `POST /api/auth/signup` - Register new user
-- `POST /api/auth/login` - Login user
-- `POST /api/auth/logout` - Logout user
-- `GET /api/auth/me` - Get current user (protected)
+Protected routes verify the Supabase JWT with `supabase.auth.getUser` and require an active `profiles` row. Admin and super-admin routes also check role.
 
-### Protected Example
+## Payments
 
-- `GET /api/protected` - Example protected route
-
-### Payments
-
-- `POST /api/place-order` - Create a wallet order or a Razorpay order for an authenticated user
+- `POST /api/place-order` - Create a wallet, Razorpay, or Aluu order for an authenticated user
 - `POST /api/razorpay/verify-payment` - Verify Razorpay Checkout's signed payment response
 - `POST /api/webhooks/razorpay` - Receive signed `payment.captured` events from Razorpay
+- `POST /api/webhooks/aluu` - Receive signed Aluu payment webhooks
 - `POST /api/fulfill-order` - Deliver a confirmed order through the configured provider
 
 Razorpay order creation and signature verification require `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`. Configure the Razorpay Dashboard webhook URL as `<API_ORIGIN>/api/webhooks/razorpay` and set its signing secret as `RAZORPAY_WEBHOOK_SECRET`. `RAZORPAY_SUPPORTED_CURRENCIES` defaults to `INR`; add another currency only after enabling it on the Razorpay account and configuring matching product prices.
 
-## Database
+Aluu UPI uses `ALUU_USER_TOKEN` and `ALUU_WEBHOOK_SECRET`. Webhook URL: `<API_ORIGIN>/api/webhooks/aluu`.
 
-SQLite database (`auth.db`) is automatically created on first run with the following schema:
+## Data
 
-```sql
-CREATE TABLE users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name VARCHAR(100) NOT NULL,
-  email VARCHAR(255) NOT NULL UNIQUE,
-  password_hash VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+Application data lives in Supabase (Postgres + Auth + Storage), not a local SQLite file. Apply SQL from `supabase/migrations/` as described in `SUPABASE_SETUP.md`.
 
-## Security Features
+## Production
 
-- **Password Hashing**: bcrypt with 10 salt rounds
-- **JWT Tokens**: Signed with secret, 7-day expiration
-- **httpOnly Cookies**: Prevents XSS attacks
-- **Rate Limiting**: 5 login attempts per 15 minutes per IP
-- **Generic Error Messages**: "Invalid email or password" (doesn't reveal if email exists)
-- **Email Normalization**: Lowercase storage
-- **CORS**: Configured for localhost:5173 (frontend)
-
-## Password Requirements
-
-- Minimum 8 characters
-- At least 1 uppercase letter
-- At least 1 number
-- Must match confirmation password
-
-## Environment Variables
-
-```
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-PORT=3001
-NODE_ENV=development
-```
-
-## Production Deployment
-
-1. Set `NODE_ENV=production`
-2. Use a strong `JWT_SECRET`
-3. Configure CORS for your production domain
-4. Use HTTPS
-5. Consider using PostgreSQL instead of SQLite
-6. Add additional security headers (helmet.js)
-7. Implement refresh tokens for better security
+Deploy with `npm run deploy` from this directory (`eb deploy pixiekat-api-prod`). Set production `FRONTEND_URL` and `CORS_ORIGINS` on the Elastic Beanstalk environment. Do not put the service role key in the frontend.
