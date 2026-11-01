@@ -16,6 +16,12 @@ import { fallbackGameImage, gamesData } from "../games/gamesData";
 import { publicMediaUrl, supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { loadRazorpayCheckout } from "../../lib/razorpay";
+import {
+  ALUU_PAYMENT_DISMISSED,
+  openAluuPaymentWindow,
+  sleepUntilInterrupt,
+  trackAluuPaymentWindow,
+} from "../../lib/aluuCheckout";
 import { API_BASE } from "../../lib/apiBase";
 
 const MIN_COINS = 1;
@@ -169,17 +175,39 @@ const AddMoneyPage = () => {
         })
     );
 
-  const pollAluu = async (orderId, token) => {
+  const pollAluu = async (orderId, token, paymentWindow) => {
     const deadline = Date.now() + 10 * 60 * 1000;
-    while (Date.now() < deadline && pollToken.current === token) {
-      try {
-        const { data } = await postApi("/aluu/check-payment", { orderId });
-        if (data.ok) return "paid";
-        if (data.status === "failed") return "failed";
-      } catch { /* transient — keep polling */ }
-      await sleep(4000);
+    let interrupted = false;
+    const disposeTracker = trackAluuPaymentWindow(paymentWindow, {
+      orderId,
+      onInterrupt: () => {
+        interrupted = true;
+        setError(ALUU_PAYMENT_DISMISSED);
+      },
+    });
+    try {
+      while (Date.now() < deadline && pollToken.current === token) {
+        try {
+          const { data } = await postApi("/aluu/check-payment", { orderId });
+          if (data.ok) return "paid";
+          if (data.status === "failed") return "failed";
+        } catch { /* transient — keep polling */ }
+
+        if (interrupted) {
+          try {
+            const { data } = await postApi("/aluu/check-payment", { orderId });
+            if (data.ok) return "paid";
+            if (data.status === "failed") return "failed";
+          } catch { /* ignore */ }
+          return "dismissed";
+        }
+
+        await sleepUntilInterrupt(4000, () => interrupted || pollToken.current !== token);
+      }
+      return "timeout";
+    } finally {
+      disposeTracker();
     }
-    return "timeout";
   };
 
   // Runs the provider payment for a freshly created service order and settles
@@ -198,13 +226,13 @@ const AddMoneyPage = () => {
     }
 
     if (data.aluu?.paymentUrl) {
-      const paymentWindow = window.open(data.aluu.paymentUrl, "_blank");
+      const paymentWindow = openAluuPaymentWindow(data.aluu.paymentUrl);
       if (!paymentWindow) {
         window.location.href = data.aluu.paymentUrl;
         return false;
       }
       const token = ++pollToken.current;
-      const outcome = await pollAluu(data.orderId, token);
+      const outcome = await pollAluu(data.orderId, token, paymentWindow);
       if (outcome === "paid") {
         await finish(kind, label);
         return true;
@@ -213,6 +241,10 @@ const AddMoneyPage = () => {
         writePending(null);
         setPending(null);
         throw new Error("Payment failed or the payment link expired. Please try again.");
+      }
+      if (outcome === "dismissed") {
+        setError(ALUU_PAYMENT_DISMISSED);
+        return false;
       }
       setError("Payment was not confirmed yet. If you paid, the coins will appear once the provider confirms — or use Check status below.");
       return false;

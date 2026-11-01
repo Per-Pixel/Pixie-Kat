@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- Aluu UPI checkout opens a named popup and uses a `/payments/aluu/return` bridge (BroadcastChannel + localStorage + postMessage) so cancel or pay refocuses the checkout tab and clears the “waiting for payment” message instead of leaving it stuck.
+
 ### Security
 - Harden the payment surface ahead of going live: `requireSuperAdmin` now actually checks `isSuperAdmin()` instead of aliasing `requireAdmin`, so change-email, user delete, wallet adjust and provider-order routes are no longer reachable by every admin.
 - Aluu settlement now verifies the paid amount server-side: `check-payment`, `check-cart-payment` and the signed webhook all confirm the echoed order id and amount via `checkOrderStatus` before flipping orders to processing (same posture as the Razorpay `assertCapturedRazorpayPayment` path), and cart checkout rejects non-INR Aluu payments.

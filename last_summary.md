@@ -1,5 +1,4 @@
 # Last session summary
 
-- **Attribution hygiene**: Scanned tracked source/docs — no agent co-author or "generated with" strings in app code. Tightened `AGENTS.md` (no agent footers or co-author trailers; human PR credit only). Renamed `memory.md` header to neutral "Agent memory".
-- **Git note**: A handful of commits on `main` still carry an IDE-added co-author trailer (metadata only, not in file contents). Cleaning that needs an explicit ask and a history rewrite.
-- **Prior ship** (unchanged): Aluu UPI live — commit `ab42a66`, Amplify job 110, EB `app-261029_160851611527`.
+- **Aluu cancel / return UX**: Added `/payments/aluu/return` bridge page — on pay/cancel Aluu redirects there; page `postMessage`s opener, focuses checkout tab, closes payment tab. Server `redirect_url` now uses `buildAluuRedirectUrl()` for place-order, cart checkout, wallet/membership. Checkout pages track popup close + return and stop “waiting” with a clear dismiss message (like Razorpay `ondismiss`).
+- **Deploy**: Frontend route needs Amplify (`main` push); API redirect URLs need `eb deploy` from `main/server`.

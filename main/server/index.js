@@ -59,7 +59,7 @@ import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
-import { config } from './config.js';
+import { config, buildAluuRedirectUrl } from './config.js';
 import { supabaseAdmin, verifyAdminRequest, verifyUserRequest, isSuperAdmin } from './supabase-admin.js';
 import { validateEmail } from './utils/validation.js';
 import * as smileOne from './smileone.js';
@@ -2179,9 +2179,9 @@ app.post('/api/place-order', placeOrderLimiter, async (req, res) => {
 
         // Use orderId as external order_id for Aluu — guarantees uniqueness
         const customerMobile = String(orderMetadata.customer_mobile || orderMetadata.contact_phone || '0000000000').replace(/\D/g, '').slice(-10) || '0000000000';
-        const redirectUrl = config.frontendUrl
-          ? `${config.frontendUrl}/account/orders/${orderId}`
-          : String(req.headers.origin || req.headers.referer || 'http://localhost:5173').replace(/\/+$/, '') + `/account/orders/${orderId}`;
+        const frontendBase = config.frontendUrl
+          || String(req.headers.origin || req.headers.referer || 'http://localhost:5173').replace(/\/+$/, '');
+        const redirectUrl = buildAluuRedirectUrl(frontendBase, { orderId });
 
         const providerOrder = await aluu.createOrder({
           amount: totalAmount,
@@ -2593,7 +2593,7 @@ app.post('/api/cart-checkout', cartCheckoutLimiter, async (req, res) => {
         amount: grandTotal,
         orderId: groupId, // external order id = group id → webhook resolves the group
         customerMobile,
-        redirectUrl: `${redirectBase}/cart`,
+        redirectUrl: buildAluuRedirectUrl(redirectBase, { groupId }),
         remark1: `PixieKat cart ${groupId.slice(0, 8)}`,
         remark2: `${units.length} items`,
       });
@@ -3292,9 +3292,9 @@ async function createServiceGatewayPayment({ req, userId, productName, amount, c
     const customerMobile = String(
       metadata?.contact?.whatsapp || req.profile?.phone || '0000000000'
     ).replace(/\D/g, '').slice(-10) || '0000000000';
-    const redirectUrl = config.frontendUrl
-      ? `${config.frontendUrl}/account/orders/${orderId}`
-      : String(req.headers.origin || req.headers.referer || 'http://localhost:5173').replace(/\/+$/, '') + `/account/orders/${orderId}`;
+    const frontendBase = config.frontendUrl
+      || String(req.headers.origin || req.headers.referer || 'http://localhost:5173').replace(/\/+$/, '');
+    const redirectUrl = buildAluuRedirectUrl(frontendBase, { orderId });
 
     const providerOrder = await aluu.createOrder({
       amount,
