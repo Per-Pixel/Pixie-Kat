@@ -10,6 +10,7 @@ import {
   Minus,
   Plus,
   ShoppingCart,
+  Smartphone,
   Trash2,
   UserCheck,
   Wallet,
@@ -26,6 +27,13 @@ import { useReducedMotion } from "../../hooks/useReducedMotion";
 import { supabase } from "../../lib/supabase";
 import { loadRazorpayCheckout } from "../../lib/razorpay";
 import {
+  ALUU_PAYMENT_DISMISSED,
+  ALUU_PAYMENT_WAITING,
+  openAluuPaymentWindow,
+  sleepUntilInterrupt,
+  trackAluuPaymentWindow,
+} from "../../lib/aluuCheckout";
+import {
   cartCount,
   lineQuantityCap,
   productAccountLimit,
@@ -41,10 +49,8 @@ const formatPrice = (value, currency = "PKS") => {
   return `${symbol}${Number(value).toFixed(2)}`;
 };
 
-// Online payment gateways are temporarily disabled (fake-payment abuse) —
-// wallet balance is the only live checkout method. Restore the aluu/razorpay
-// entries once the providers are back on production keys.
 const paymentMethods = [
+  { id: "aluu", name: "UPI Gateway", description: "Pay instantly with any UPI app", icon: Smartphone },
   { id: "wallet", name: "Pixie Wallet", description: "Use your PixieKat wallet balance", icon: Wallet },
 ];
 
@@ -469,13 +475,13 @@ const CartPage = () => {
           orderIds: data.lines.flatMap((l) => l.order_ids),
           startedAt: Date.now(),
         });
-        const paymentWindow = window.open(data.aluu.paymentUrl, "_blank");
+        const paymentWindow = openAluuPaymentWindow(data.aluu.paymentUrl);
         if (!paymentWindow) {
           setCheckoutError("Pop-up blocked. Redirecting to payment page…");
           setTimeout(() => { window.location.href = data.aluu.paymentUrl; }, 1200);
           return;
         }
-        pollAluu(data.groupId, lines, totalLabel, data.currency, token);
+        pollAluu(data.groupId, lines, totalLabel, data.currency, token, paymentWindow);
         return; // keep isSubmitting — poll resolves it
       }
 
@@ -559,34 +565,69 @@ const CartPage = () => {
     }
   };
 
-  const pollAluu = async (groupId, lines, totalLabel, currency, token) => {
-    setCheckoutError("Waiting for UPI payment confirmation… Complete payment in the opened window.");
+  const pollAluu = async (groupId, lines, totalLabel, currency, token, paymentWindow) => {
+    setCheckoutError(ALUU_PAYMENT_WAITING);
     const POLL_INTERVAL_MS = 4000;
     const MAX_POLL_TIME_MS = 10 * 60 * 1000;
     const pollStart = Date.now();
+    let interrupted = false;
+    const disposeTracker = trackAluuPaymentWindow(paymentWindow, {
+      groupId,
+      onInterrupt: () => {
+        interrupted = true;
+        setCheckoutError(ALUU_PAYMENT_DISMISSED);
+      },
+    });
 
-    while (Date.now() - pollStart < MAX_POLL_TIME_MS) {
-      try {
-        const { data } = await postApi("/aluu/check-cart-payment", { groupId }, token);
-        if (data.ok && data.status === "processing") {
-          setCheckoutError("");
-          await finishCheckout(lines, "aluu", totalLabel, currency);
+    const checkOnce = async () => {
+      const { data } = await postApi("/aluu/check-cart-payment", { groupId }, token);
+      if (data.ok && data.status === "processing") return "paid";
+      if (data.status === "failed") return "failed";
+      return "pending";
+    };
+
+    try {
+      while (Date.now() - pollStart < MAX_POLL_TIME_MS) {
+        try {
+          const status = await checkOnce();
+          if (status === "paid") {
+            setCheckoutError("");
+            await finishCheckout(lines, "aluu", totalLabel, currency);
+            setIsSubmitting(false);
+            return;
+          }
+          if (status === "failed") {
+            setIsSubmitting(false);
+            setCheckoutError("Payment failed or the payment link expired. Please try again.");
+            writePendingCheckout(null);
+            setPendingCheckout(null);
+            return;
+          }
+        } catch { /* transient poll error — keep waiting */ }
+
+        if (interrupted) {
+          try {
+            const status = await checkOnce();
+            if (status === "paid") {
+              setCheckoutError("");
+              await finishCheckout(lines, "aluu", totalLabel, currency);
+              setIsSubmitting(false);
+              return;
+            }
+          } catch { /* ignore */ }
           setIsSubmitting(false);
+          setCheckoutError(ALUU_PAYMENT_DISMISSED);
           return;
         }
-        if (data.status === "failed") {
-          setIsSubmitting(false);
-          setCheckoutError("Payment failed or the payment link expired. Please try again.");
-          writePendingCheckout(null);
-          setPendingCheckout(null);
-          return;
-        }
-      } catch { /* transient poll error — keep waiting */ }
-      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+
+        await sleepUntilInterrupt(POLL_INTERVAL_MS, () => interrupted);
+      }
+
+      setIsSubmitting(false);
+      setCheckoutError("Payment was not confirmed in time. If you paid, your orders will appear in order history — or use Resume below.");
+    } finally {
+      disposeTracker();
     }
-
-    setIsSubmitting(false);
-    setCheckoutError("Payment was not confirmed in time. If you paid, your orders will appear in order history — or use Resume below.");
   };
 
   // ── resume a payment that survived a navigation/redirect ──

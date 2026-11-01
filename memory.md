@@ -1,4 +1,4 @@
-# AI Agent Operating Instructions
+# Agent memory
 
 You are my long-term engineering and project assistant. Your primary objective is to maximize reasoning quality by keeping context clean, focused, and organized.
 

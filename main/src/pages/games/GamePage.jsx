@@ -12,6 +12,7 @@ import {
   Info,
   Lightbulb,
   ShoppingCart,
+  Smartphone,
   Wallet,
 } from "lucide-react";
 
@@ -23,6 +24,13 @@ import { publicMediaUrl, supabase } from "../../lib/supabase";
 import { API_BASE } from "../../lib/apiBase";
 import { sanitizeRichText } from "../../utils/sanitizeRichText";
 import { loadRazorpayCheckout } from "../../lib/razorpay";
+import {
+  ALUU_PAYMENT_DISMISSED,
+  ALUU_PAYMENT_WAITING,
+  openAluuPaymentWindow,
+  sleepUntilInterrupt,
+  trackAluuPaymentWindow,
+} from "../../lib/aluuCheckout";
 const defaultBanner = publicMediaUrl("/img/hero/game-mlbb-card.webp");
 
 const COUNTRY_DIAL_CODES = [
@@ -54,10 +62,9 @@ First purchase of the 250 Diamond level: 250 Base Diamonds + 250 Bonus Diamonds 
 First purchase of the 500 Diamond level: 500 Base Diamonds + 500 Bonus Diamonds = 1000 Diamonds in total
 3. For each tier, the double Diamond bonus only applies to your first purchase, regardless of the payment channel or platform.`;
 
-// Online payment gateways are temporarily disabled (fake-payment abuse) —
-// wallet balance is the only live checkout method. Restore the aluu/razorpay
-// entries once the providers are back on production keys.
+// Razorpay stays hidden until production keys are configured (test keys fulfilled fake orders).
 const paymentMethods = [
+  { id: "aluu", logo: "UPI", name: "UPI Gateway", description: "Pay instantly with any UPI app", icon: Smartphone },
   { id: "wallet", logo: "Wallet", name: "Pixie Wallet", description: "Use your PixieKat wallet balance for this order", icon: Wallet },
 ];
 
@@ -925,7 +932,7 @@ const GamePage = () => {
         if (!data.aluu?.paymentUrl) throw new Error("UPI payment link is missing. Please try again.");
 
         const orderId = data.orderId;
-        const paymentWindow = window.open(data.aluu.paymentUrl, "_blank");
+        const paymentWindow = openAluuPaymentWindow(data.aluu.paymentUrl);
         if (!paymentWindow) {
           // Popup blocked — fall back to redirect in same tab
           // But first show a message
@@ -936,11 +943,18 @@ const GamePage = () => {
 
         setShowCartReview(false);
 
-        // Poll for payment completion (Aluu link expires after ~8 min)
         const POLL_INTERVAL_MS = 4000;
-        const MAX_POLL_TIME_MS = 10 * 60 * 1000; // 10 minutes
+        const MAX_POLL_TIME_MS = 10 * 60 * 1000;
         const pollStart = Date.now();
         let paymentConfirmed = false;
+        let interrupted = false;
+        const disposeTracker = trackAluuPaymentWindow(paymentWindow, {
+          orderId,
+          onInterrupt: () => {
+            interrupted = true;
+            setCheckoutError(ALUU_PAYMENT_DISMISSED);
+          },
+        });
 
         const pollStatus = async () => {
           try {
@@ -956,61 +970,77 @@ const GamePage = () => {
           return false;
         };
 
-        setCheckoutError("Waiting for UPI payment confirmation… Complete payment in the opened window.");
+        setCheckoutError(ALUU_PAYMENT_WAITING);
 
         const pollLoop = async () => {
-          while (Date.now() - pollStart < MAX_POLL_TIME_MS) {
-            const result = await pollStatus();
-            if (result === true) break;
-            if (result === "failed") {
-              setIsSubmitting(false);
-              setCheckoutError("Payment failed or the payment link expired. Please try again.");
-              return;
-            }
-            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-          }
-
-          if (!paymentConfirmed) {
-            // One final check
-            const finalResult = await pollStatus();
-            if (finalResult !== true) {
-              setIsSubmitting(false);
-              setCheckoutError("Payment was not confirmed in time. If you paid, please check your order history — it may still process.");
-              return;
-            }
-          }
-
-          // Payment confirmed — fulfill
-          setCheckoutError("");
           try {
-            const { response: fulfillResponse, data: fulfillData } = await postApi("/fulfill-order", { orderId });
-            const fulfilled = Boolean(fulfillData.ok || fulfillData.already);
-            const refunded = fulfillResponse.status === 500 && Boolean(fulfillData.refunded);
-            setOrderComplete({
-              orderId,
-              method: "aluu",
-              amount: paymentTotalLabel,
-              package: selectedPackage.name,
-              fulfilled,
-              provisioned: fulfillData.provisioned !== false,
-              refunded,
-              paymentReceived: true,
-              paymentPending: !fulfilled && !refunded,
-              mismatch: fulfillData.mismatch || null,
-              fulfillError: fulfilled || refunded ? null : fulfillData.error || null,
-            });
-          } catch {
-            setOrderComplete({
-              orderId,
-              method: "aluu",
-              amount: paymentTotalLabel,
-              package: selectedPackage.name,
-              paymentReceived: true,
-              paymentPending: true,
-              fulfillError: "Payment was received, but confirmation is still processing. Please contact support with your Order ID.",
-            });
+            while (Date.now() - pollStart < MAX_POLL_TIME_MS) {
+              const result = await pollStatus();
+              if (result === true) break;
+              if (result === "failed") {
+                setIsSubmitting(false);
+                setCheckoutError("Payment failed or the payment link expired. Please try again.");
+                return;
+              }
+
+              if (interrupted) {
+                const afterReturn = await pollStatus();
+                if (afterReturn === true) break;
+                if (afterReturn === "failed") {
+                  setIsSubmitting(false);
+                  setCheckoutError("Payment failed or the payment link expired. Please try again.");
+                  return;
+                }
+                setIsSubmitting(false);
+                setCheckoutError(ALUU_PAYMENT_DISMISSED);
+                return;
+              }
+
+              await sleepUntilInterrupt(POLL_INTERVAL_MS, () => interrupted);
+            }
+
+            if (!paymentConfirmed) {
+              const finalResult = await pollStatus();
+              if (finalResult !== true) {
+                setIsSubmitting(false);
+                setCheckoutError("Payment was not confirmed in time. If you paid, please check your order history — it may still process.");
+                return;
+              }
+            }
+
+            setCheckoutError("");
+            try {
+              const { response: fulfillResponse, data: fulfillData } = await postApi("/fulfill-order", { orderId });
+              const fulfilled = Boolean(fulfillData.ok || fulfillData.already);
+              const refunded = fulfillResponse.status === 500 && Boolean(fulfillData.refunded);
+              setOrderComplete({
+                orderId,
+                method: "aluu",
+                amount: paymentTotalLabel,
+                package: selectedPackage.name,
+                fulfilled,
+                provisioned: fulfillData.provisioned !== false,
+                refunded,
+                paymentReceived: true,
+                paymentPending: !fulfilled && !refunded,
+                mismatch: fulfillData.mismatch || null,
+                fulfillError: fulfilled || refunded ? null : fulfillData.error || null,
+              });
+            } catch {
+              setOrderComplete({
+                orderId,
+                method: "aluu",
+                amount: paymentTotalLabel,
+                package: selectedPackage.name,
+                paymentReceived: true,
+                paymentPending: true,
+                fulfillError: "Payment was received, but confirmation is still processing. Please contact support with your Order ID.",
+              });
+            } finally {
+              setIsSubmitting(false);
+            }
           } finally {
-            setIsSubmitting(false);
+            disposeTracker();
           }
         };
 

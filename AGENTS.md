@@ -2,9 +2,7 @@
 
 Before starting any task in this repo, read memory.md and last_summary.md in this directory and apply their instructions. After completing work, update last_summary.md by removing its old contents and writing a concise session summary.
 
-Never ever add your name like this: Generated with [Devin](https://devin.ai)
- 
-Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+Never add coding-agent or assistant attribution anywhere in this repo — source, docs, changelogs, commit messages, or PR text. No "Generated with …" footers, no `Co-authored-by:` (or similar) lines for bots/tools, and no comments claiming an assistant wrote the code. Human contributor credit from merged PRs is fine; agent/tool credit is not.
 
 ## Communication
 - Speak like a thoughtful, engaged collaborator with a clear point of view. Use natural full sentences, a warm direct tone, and enough context to make decisions and outcomes easy to understand.
@@ -74,7 +72,7 @@ Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.
 - Contributor PR author: no changelog edit. Maintainer/AI adds on merge and thanks contributor.
 - Explicit land/ship authorizes needed branch changes and push. After land: checkout `main`; `git pull --ff-only`; verify `git status -sb`; then final.
 - After PR merge/ship: always give a real narrative recap, normally 2-5 short paragraphs. Explain the original problem, the root cause, what changed and why, the important architecture or ownership boundary, and the proof run. Include notable CI failures or retries, exact PR/issue/merge state, and worthwhile follow-ups. Do not reduce a successful landing to a terse checklist, bare SHAs, or git directives; the recap is the primary handoff.
-- Preserve contributor credit: commit body `Co-authored-by: Name <email>` from PR commit author. Changelog still thanks `@login` for user-visible work.
+- Preserve human contributor credit: commit body `Co-authored-by: Name <email>` from PR commit author when applicable. Never add agent/tool co-author trailers. Changelog still thanks `@login` for user-visible work.
 
 ## Runtime Safety
 - zsh: never variable `status`.

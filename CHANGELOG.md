@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+- Registration with email confirmation enabled stays on the sign-up page and asks you to confirm before signing in, instead of navigating away as if you were already logged in. Post-login redirects only follow same-site paths.
+- Aluu UPI checkout opens a named popup and uses a `/payments/aluu/return` bridge (BroadcastChannel + localStorage + postMessage) so cancel or pay refocuses the checkout tab and clears the “waiting for payment” message instead of leaving it stuck.
+
 ### Security
 - Harden the payment surface ahead of going live: `requireSuperAdmin` now actually checks `isSuperAdmin()` instead of aliasing `requireAdmin`, so change-email, user delete, wallet adjust and provider-order routes are no longer reachable by every admin.
 - Aluu settlement now verifies the paid amount server-side: `check-payment`, `check-cart-payment` and the signed webhook all confirm the echoed order id and amount via `checkOrderStatus` before flipping orders to processing (same posture as the Razorpay `assertCapturedRazorpayPayment` path), and cart checkout rejects non-INR Aluu payments.
@@ -19,6 +23,7 @@
 - Homepage Promotions section is now data-driven from `promotional_items` (the three existing cards are seeded so they stay editable), every card links to a new `/promotions` index and `/promotions/:slug` detail page with the full offer text, end-date badge and Top Up CTA — nav dropdown and More-menu "Promo" entries now open it instead of "coming soon". Requires migration `047_promotions.sql`.
 
 ### Fixes
+- Re-enable Aluu Pay (UPI) on checkout, cart, and wallet top-up while Razorpay checkout stays off until production keys replace the test key that was fulfilling fake orders.
 - MLBB Mini Packs now auto-fulfill on payment: the game is wired to Yokcash (Philippines S1 services — Indonesia SKUs refund on region mismatch), so 5/11/22-diamond orders deliver instantly instead of staying `processing` for manual top-up; package costs updated to real provider pricing.
 - Checkout UX: the order confirmation now scrolls into view instead of leaving you pinned at the bottom of the collapsed page — on both the cart and the single-game checkout (`orderComplete`), which previously had no scroll correction at all. Route changes jump to the top instantly (the global `scroll-behavior: smooth` turned `scrollTo(0,0)` into an interruptible animated scroll), ScrollTrigger positions refresh after the collapse so the footer reveal still fires, the reveal itself plays once rather than hiding again when page height shifts, and the mobile bottom nav no longer covers the footer links. "Order history" now lands on the Orders section instead of Profile.
 - Show the account avatar in the top navbar when logged in, falling back to the profile icon.

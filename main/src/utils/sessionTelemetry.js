@@ -11,7 +11,7 @@ function decodeJwtPayload(token) {
   }
 }
 
-export async function recordLoginSession(session) {
+export async function recordLoginSession(session, { used2fa = false } = {}) {
   if (!session?.user?.id || typeof window === "undefined") return;
 
   const claims = decodeJwtPayload(session.access_token);
@@ -23,7 +23,11 @@ export async function recordLoginSession(session) {
   try {
     const response = await fetch(`${API_BASE}/auth/login-session`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${session.access_token}` },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ used_2fa: used2fa === true }),
     });
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);

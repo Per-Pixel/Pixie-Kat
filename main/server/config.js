@@ -53,6 +53,16 @@ if (superAdminIds.length === 0 && superAdminEmails.length === 0) {
   );
 }
 
+/** Aluu redirect after pay/cancel — popup return page notifies opener via postMessage. */
+export function buildAluuRedirectUrl(baseUrl, { orderId, groupId } = {}) {
+  const base = String(baseUrl || '').replace(/\/+$/, '');
+  if (!base) throw new Error('A frontend base URL is required for Aluu redirect_url');
+  const params = new URLSearchParams();
+  if (orderId) params.set('orderId', String(orderId));
+  if (groupId) params.set('groupId', String(groupId));
+  return `${base}/payments/aluu/return?${params.toString()}`;
+}
+
 export const config = {
   port: Number(process.env.PORT) || 3001,
   nodeEnv: NODE_ENV,

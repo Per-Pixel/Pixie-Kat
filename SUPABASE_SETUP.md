@@ -119,24 +119,46 @@ If not, the `002_functions_triggers.sql` handles this — re-run the last block 
 
 ---
 
-## Step 8 — Configure Auth Settings (optional but recommended)
+## Step 8 — Configure Auth Settings
 
-In **Authentication → Settings**:
+In **Authentication → Settings** (and **Authentication → URL Configuration**):
 
-| Setting | Recommended Value |
+### Local development
+
+| Setting | Value |
 |---|---|
-| Site URL | `http://localhost:5173` (dev) |
+| Site URL | `http://localhost:5173` |
 | Redirect URLs | `http://localhost:5173/**` |
 | Enable email confirmations | Yes |
 | Minimum password length | 8 |
 | JWT expiry | 3600 (1 hour) |
 | Leaked Password Protection | Enabled (dashboard-only — cannot be toggled via SQL) |
 
+### Production (`pixiekat.store`)
+
+| Setting | Value |
+|---|---|
+| Site URL | `https://pixiekat.store` |
+| Redirect URLs | `https://pixiekat.store/**`, `https://admin.pixiekat.store/**` (admin host if used), plus `http://localhost:5173/**` for local dev |
+| Enable email confirmations | On or off — if **on**, the storefront register page stays put and asks the user to confirm email before signing in |
+| Minimum password length | 8 or higher (storefront UI also requires upper, lower, a number, and a special character; the dashboard is what actually blocks weak passwords sent straight to the Auth API) |
+| Leaked Password Protection | Enabled |
+| JWT expiry | 3600 (1 hour), unless you deliberately choose another value |
+
 > **Leaked Password Protection**: This setting is found in Supabase Studio →
 > Project Settings → Authentication → Security. It checks new passwords against
 > the [HaveIBeenPwned](https://haveibeenpwned.com) API. It cannot be toggled via
 > SQL migration — it must be enabled in the dashboard. The Supabase linter flags
 > it as a warning, but it is a dashboard-only configuration item.
+>
+> Client password rules in the storefront do **not** replace dashboard settings. Anyone can call the Auth API directly.
+
+### Verification checklist (manual)
+
+1. Sign up on `https://pixiekat.store/register`. If email confirmation is on, you stay on the page with a “check your email” message and are not treated as logged in.
+2. Open the confirmation link, then sign in.
+3. Use **Forgot password**. The reset link must land on `/reset-password` on the same origin.
+4. On an account with authenticator 2FA, login history and the login-alert email should appear only after the TOTP code succeeds (`used_2fa` true). Accounts without 2FA record one row with `used_2fa` false.
 
 ---
 

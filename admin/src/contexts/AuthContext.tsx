@@ -30,6 +30,18 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function recordSessionIfMfaComplete(newSession: Session) {
+  let used2fa = false;
+  try {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') return;
+    used2fa = aal?.currentLevel === 'aal2';
+  } catch {
+    used2fa = false;
+  }
+  await recordLoginSession(newSession, { used2fa });
+}
+
 async function fetchProfile(userId: string): Promise<User | null> {
   const { data, error } = await supabase
     .from('profiles')
@@ -123,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(newSession);
     setLastActivity(new Date());
     setIsLoading(false);
-    recordLoginSession(newSession);
+    await recordSessionIfMfaComplete(newSession);
   }, []);
 
   useEffect(() => {
@@ -145,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
 
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email: credentials.email.trim(),
       password: credentials.password,
     });
@@ -159,7 +171,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(msg);
     }
 
-    await recordLoginSession(data.session);
     // onAuthStateChange fires and calls handleSession — no manual state needed here
   }, []);
 

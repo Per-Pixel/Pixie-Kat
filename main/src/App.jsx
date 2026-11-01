@@ -63,6 +63,8 @@ const PromoDetailPage = lazy(() => import("./pages/promotions/PromoDetailPage"))
 
 const LegalPage = lazy(() => import("./pages/legal/LegalPage"));
 
+const AluuReturnPage = lazy(() => import("./pages/payments/AluuReturnPage"));
+
 
 
 const preloadImage = (src) => {
@@ -94,6 +96,8 @@ const AppShell = ({ children }) => {
   const isAuthRoute = ["/login", "/register", "/auth", "/reset-password"].includes(location.pathname);
 
   const isEventArchive = location.pathname.startsWith("/event/");
+  const isAluuReturnRoute = location.pathname === "/payments/aluu/return";
+  const chromeHidden = isWalletRoute || isAuthRoute || isEventArchive || isAluuReturnRoute;
 
 
 
@@ -101,15 +105,15 @@ const AppShell = ({ children }) => {
 
     <>
 
-      {!isWalletRoute && !isAuthRoute && !isEventArchive ? <NavBar /> : null}
+      {!chromeHidden ? <NavBar /> : null}
 
       {children}
 
-      {!isWalletRoute && !isHomePage && !isAuthRoute && !isEventArchive ? <Footer /> : null}
+      {!chromeHidden && !isHomePage ? <Footer /> : null}
 
-      {!isWalletRoute && !isAuthRoute && !isEventArchive ? <BottomNav /> : null}
+      {!chromeHidden ? <BottomNav /> : null}
 
-      {!isWalletRoute && !isAuthRoute && !isEventArchive ? <FloatingActions /> : null}
+      {!chromeHidden ? <FloatingActions /> : null}
 
     </>
 
@@ -280,6 +284,8 @@ function App() {
                   <Route path="/batch-order" element={<BatchOrderPage />} />
 
                   <Route path="/cart" element={<CartPage />} />
+
+                  <Route path="/payments/aluu/return" element={<AluuReturnPage />} />
 
                   <Route path="/leaderboard" element={<LeaderboardPage />} />
 
