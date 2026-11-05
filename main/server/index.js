@@ -2179,7 +2179,14 @@ app.post('/api/place-order', placeOrderLimiter, async (req, res) => {
         orderId = data;
 
         // Use orderId as external order_id for Aluu — guarantees uniqueness
-        const customerMobile = String(orderMetadata.customer_mobile || orderMetadata.contact_phone || '0000000000').replace(/\D/g, '').slice(-10) || '0000000000';
+        const contactMeta = isPlainObject(orderMetadata.contact) ? orderMetadata.contact : {};
+        const customerMobile = aluu.normalizeIndianMobile(
+          orderMetadata.customer_mobile,
+          orderMetadata.contact_phone,
+          contactMeta.whatsapp,
+          contactMeta.mobile,
+        );
+        if (!customerMobile) throw new Error('A valid WhatsApp number is required for UPI payment.');
         const frontendBase = config.frontendUrl
           || String(req.headers.origin || req.headers.referer || 'http://localhost:5173').replace(/\/+$/, '');
         const redirectUrl = buildAluuRedirectUrl(frontendBase, { orderId });
@@ -2586,8 +2593,8 @@ app.post('/api/cart-checkout', cartCheckoutLimiter, async (req, res) => {
       if (!aluu.isConfigured()) throw new Error('Aluu Pay is not configured on the payment server');
       if (currency !== 'INR') throw new Error('UPI payments are only available for INR amounts');
       const contactMeta = isPlainObject(contact) ? contact : {};
-      const customerMobile = String(contactMeta.whatsapp || contactMeta.mobile || '0000000000')
-        .replace(/\D/g, '').slice(-10) || '0000000000';
+      const customerMobile = aluu.normalizeIndianMobile(contactMeta.whatsapp, contactMeta.mobile);
+      if (!customerMobile) throw new Error('A valid WhatsApp number is required for UPI payment.');
       const redirectBase = config.frontendUrl
         || String(req.headers.origin || req.headers.referer || 'http://localhost:5173').replace(/\/+$/, '');
       const providerOrder = await aluu.createOrder({
@@ -3290,9 +3297,11 @@ async function createServiceGatewayPayment({ req, userId, productName, amount, c
     if (!aluu.isConfigured()) throw new Error('Aluu Pay is not configured on the payment server');
     if (currency !== 'INR') throw new Error('UPI payments are only available for INR amounts');
 
-    const customerMobile = String(
-      metadata?.contact?.whatsapp || req.profile?.phone || '0000000000'
-    ).replace(/\D/g, '').slice(-10) || '0000000000';
+    const customerMobile = aluu.normalizeIndianMobile(
+      metadata?.contact?.whatsapp,
+      req.profile?.phone,
+    );
+    if (!customerMobile) throw new Error('Add a valid phone number to your profile or contact details for UPI payment.');
     const frontendBase = config.frontendUrl
       || String(req.headers.origin || req.headers.referer || 'http://localhost:5173').replace(/\/+$/, '');
     const redirectUrl = buildAluuRedirectUrl(frontendBase, { orderId });

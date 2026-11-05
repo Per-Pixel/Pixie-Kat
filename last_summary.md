@@ -1,4 +1,4 @@
 # Last session summary
 
-- **Auth hardening (local, not deployed)**: `safeRedirectPath` for post-login redirects; register stays on the page when email confirmation is required; shared `validatePassword`; `POST /api/auth/login-session` accepts `used_2fa`; storefront and admin record login history only after MFA AAL is complete. Docs: `SUPABASE_SETUP.md` production checklist, `main/server/README.md` no longer describes SQLite auth.
-- **Tests**: `main` vitest `safeRedirectPath.test.js` — 3 passed.
+- **Aluu UPI invalid QR**: Game checkout stored WhatsApp under `metadata.contact.whatsapp`, but `place-order` only read `customer_mobile` / `contact_phone`, so Aluu always got `0000000000` and the hosted pay page showed a broken QR/image. Fixed by `normalizeIndianMobile()` in `main/server/aluu.js` and wiring all Aluu create-order paths (game, cart, wallet/membership) to use it with clear errors when the number is missing.
+- **Deploy**: API change only — run `eb deploy` from `main/server` for production; Amplify storefront unchanged.

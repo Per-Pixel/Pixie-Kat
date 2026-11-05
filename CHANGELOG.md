@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Fixed
+- Aluu UPI on game checkout now sends the customer’s WhatsApp number to the gateway (read from `metadata.contact.whatsapp`) instead of a placeholder `0000000000`, which was causing invalid QR codes on Aluu’s payment page.
+- Order email is one message when the outcome is known: delivered, or failed, with refunded yes or no on that same message. "Payment received" and "processing" mail is no longer sent. A cart sends one receipt listing every item once the whole cart has finished, instead of one email per item. The receipt is a PixieKat ticket (lavender page, night header, yellow stub) that reads cleanly in Gmail. Deploy the API before applying `057_order_outcome_emails.sql` — an older API would skip the new cart rows.
 - Registration with email confirmation enabled stays on the sign-up page and asks you to confirm before signing in, instead of navigating away as if you were already logged in. Post-login redirects only follow same-site paths.
 - Aluu UPI checkout opens a named popup and uses a `/payments/aluu/return` bridge (BroadcastChannel + localStorage + postMessage) so cancel or pay refocuses the checkout tab and clears the “waiting for payment” message instead of leaving it stuck.
 

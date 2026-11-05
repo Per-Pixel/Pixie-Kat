@@ -6,6 +6,7 @@ import { Buffer } from 'node:buffer';
 
 import {
   isConfigured,
+  normalizeIndianMobile,
   createOrder,
   createCryptoOrder,
   checkOrderStatus,
@@ -29,13 +30,20 @@ test('detects if Aluu is configured', () => {
   }
 });
 
+test('normalizeIndianMobile extracts 10-digit number from formatted contact', () => {
+  assert.strictEqual(normalizeIndianMobile('+91 98765 43210'), '9876543210');
+  assert.strictEqual(normalizeIndianMobile('0000000000'), null);
+  assert.strictEqual(normalizeIndianMobile('5123456789'), null);
+  assert.strictEqual(normalizeIndianMobile(''), null);
+});
+
 test('createOrder rejects invalid parameters', async () => {
   const orig = process.env.ALUU_USER_TOKEN;
   process.env.ALUU_USER_TOKEN = 'test_token';
   try {
     await assert.rejects(() => createOrder({ amount: 0, orderId: '1', customerMobile: '9999999999', redirectUrl: 'http://test' }), /greater than zero/);
     await assert.rejects(() => createOrder({ amount: 10, orderId: '', customerMobile: '9999999999', redirectUrl: 'http://test' }), /order ID is required/);
-    await assert.rejects(() => createOrder({ amount: 10, orderId: '1', customerMobile: '', redirectUrl: 'http://test' }), /customer mobile/);
+    await assert.rejects(() => createOrder({ amount: 10, orderId: '1', customerMobile: '', redirectUrl: 'http://test' }), /10-digit customer mobile/);
     await assert.rejects(() => createOrder({ amount: 10, orderId: '1', customerMobile: '9999999999', redirectUrl: '' }), /redirect URL/);
   } finally {
     if (orig !== undefined) process.env.ALUU_USER_TOKEN = orig;
@@ -124,7 +132,7 @@ test('createCryptoOrder rejects invalid parameters', async () => {
   try {
     await assert.rejects(() => createCryptoOrder({ amountUsd: 0, orderId: '1', customerMobile: '9999999999', redirectUrl: 'http://test' }), /greater than zero/);
     await assert.rejects(() => createCryptoOrder({ amountUsd: 10, orderId: '', customerMobile: '9999999999', redirectUrl: 'http://test' }), /order ID is required/);
-    await assert.rejects(() => createCryptoOrder({ amountUsd: 10, orderId: '1', customerMobile: '', redirectUrl: 'http://test' }), /customer mobile/);
+    await assert.rejects(() => createCryptoOrder({ amountUsd: 10, orderId: '1', customerMobile: '', redirectUrl: 'http://test' }), /10-digit customer mobile/);
     await assert.rejects(() => createCryptoOrder({ amountUsd: 10, orderId: '1', customerMobile: '9999999999', redirectUrl: '' }), /redirect URL/);
     await assert.rejects(() => createCryptoOrder({ amountUsd: 10, orderId: '1', customerMobile: '9999999999', redirectUrl: 'http://test', network: 'SOLANA' }), /network must be one of/);
   } finally {
