@@ -33,6 +33,18 @@ export function isConfigured() {
   return Boolean(String(process.env.ALUU_USER_TOKEN ?? '').trim());
 }
 
+/** Aluu requires a 10-digit Indian mobile (leading digit 6–9). Strips country codes from formatted numbers. */
+export function normalizeIndianMobile(...candidates) {
+  for (const candidate of candidates) {
+    if (candidate == null) continue;
+    const digits = String(candidate).replace(/\D/g, '');
+    if (digits.length < 10) continue;
+    const ten = digits.slice(-10);
+    if (/^[6-9]\d{9}$/.test(ten)) return ten;
+  }
+  return null;
+}
+
 /**
  * Create a payment order on Aluu Pay.
  *
@@ -50,17 +62,19 @@ export async function createOrder({ amount, orderId, customerMobile, redirectUrl
 
   if (!amount || Number(amount) <= 0) throw new Error('Payment amount must be greater than zero.');
   if (!orderId) throw new Error('An order ID is required.');
-  if (!customerMobile) throw new Error('A customer mobile number is required.');
+  const mobile = normalizeIndianMobile(customerMobile);
+  if (!mobile) throw new Error('A valid 10-digit customer mobile number is required.');
   if (!redirectUrl) throw new Error('A redirect URL is required.');
+  if (String(orderId).trim().length > 50) throw new Error('Order ID must be at most 50 characters for Aluu Pay.');
 
   const body = new URLSearchParams();
-  body.append('customer_mobile', String(customerMobile).trim());
+  body.append('customer_mobile', mobile);
   body.append('user_token', token);
   body.append('amount', String(amount));
   body.append('order_id', String(orderId).trim());
   body.append('redirect_url', String(redirectUrl).trim());
-  if (remark1) body.append('remark1', String(remark1).slice(0, 256));
-  if (remark2) body.append('remark2', String(remark2).slice(0, 256));
+  if (remark1) body.append('remark1', String(remark1).slice(0, 100));
+  if (remark2) body.append('remark2', String(remark2).slice(0, 100));
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -130,7 +144,8 @@ export async function createCryptoOrder({ amountUsd, orderId, customerMobile, re
 
   if (!amountUsd || Number(amountUsd) <= 0) throw new Error('Payment amount must be greater than zero.');
   if (!orderId) throw new Error('An order ID is required.');
-  if (!customerMobile) throw new Error('A customer mobile number is required.');
+  const mobile = normalizeIndianMobile(customerMobile);
+  if (!mobile) throw new Error('A valid 10-digit customer mobile number is required.');
   if (!redirectUrl) throw new Error('A redirect URL is required.');
 
   let normalizedNetwork = null;
@@ -142,13 +157,13 @@ export async function createCryptoOrder({ amountUsd, orderId, customerMobile, re
   }
 
   const body = new URLSearchParams();
-  body.append('customer_mobile', String(customerMobile).trim());
+  body.append('customer_mobile', mobile);
   body.append('user_token', token);
   body.append('amount', String(amountUsd));
   body.append('order_id', String(orderId).trim());
   body.append('redirect_url', String(redirectUrl).trim());
-  if (remark1) body.append('remark1', String(remark1).slice(0, 256));
-  if (remark2) body.append('remark2', String(remark2).slice(0, 256));
+  if (remark1) body.append('remark1', String(remark1).slice(0, 100));
+  if (remark2) body.append('remark2', String(remark2).slice(0, 100));
   if (normalizedNetwork) body.append('network', normalizedNetwork);
 
   const controller = new AbortController();

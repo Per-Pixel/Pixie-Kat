@@ -256,7 +256,12 @@ export async function replaceProducts(
   }));
 
   const keepIds = new Set(rows.map((r) => r.id));
-  const removedIds = existing.map((p) => p.id).filter((id) => !keepIds.has(id));
+  // Already-inactive rows were retired on an earlier save. Leave them alone so
+  // they are not reported as newly archived every time the game is saved.
+  const removedIds = existing
+    .filter((p) => p.status !== 'inactive')
+    .map((p) => p.id)
+    .filter((id) => !keepIds.has(id));
 
   let archived = 0;
   if (removedIds.length) {

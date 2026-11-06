@@ -1,8 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import {
+  DEFAULT_CONTACT,
+  buildWhatsAppUrl,
+  fetchContactSettings,
+} from '../../lib/storeContent';
 
 const GetSupportPage = () => {
   const { user } = useAuth();
@@ -16,6 +21,26 @@ const GetSupportPage = () => {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [contact, setContact] = useState(DEFAULT_CONTACT);
+  const ticketRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchContactSettings().then((data) => {
+      if (!cancelled) setContact(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const focusTicket = (category) => {
+    if (category) setForm((prev) => ({ ...prev, category }));
+    ticketRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.setTimeout(() => {
+      document.getElementById(category ? 'gs-desc' : 'gs-name')?.focus();
+    }, 400);
+  };
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -56,6 +81,7 @@ const GetSupportPage = () => {
       description: "Your top-up hasn\u2019t arrived yet? Let us track it down for you.",
       color: 'bg-amber-50 text-amber-600 border-amber-200',
       iconBg: 'bg-amber-100',
+      category: 'order',
     },
     {
       icon: (
@@ -67,6 +93,7 @@ const GetSupportPage = () => {
       description: "Money was deducted but order failed? We\u2019ll sort it out.",
       color: 'bg-red-50 text-red-600 border-red-200',
       iconBg: 'bg-red-100',
+      category: 'payment',
     },
     {
       icon: (
@@ -78,6 +105,7 @@ const GetSupportPage = () => {
       description: 'Received fewer diamonds/UC than expected? Report it here.',
       color: 'bg-orange-50 text-orange-600 border-orange-200',
       iconBg: 'bg-orange-100',
+      category: 'amount',
     },
     {
       icon: (
@@ -89,8 +117,15 @@ const GetSupportPage = () => {
       description: 'Problems with login, profile, or membership? We can help.',
       color: 'bg-violet-50 text-violet-600 border-violet-200',
       iconBg: 'bg-violet-100',
+      category: 'account',
     },
   ];
+
+  const whatsappUrl = buildWhatsAppUrl(
+    contact.whatsapp,
+    'Hi PixieKat support, I need help with an order.',
+  );
+  const supportEmail = contact.support_email || DEFAULT_CONTACT.support_email;
 
   const channels = [
     {
@@ -106,6 +141,8 @@ const GetSupportPage = () => {
       color: 'text-green-600',
       bgColor: 'bg-green-50 border-green-200',
       iconBg: 'bg-green-100',
+      href: whatsappUrl,
+      external: whatsappUrl.startsWith('http'),
     },
     {
       icon: (
@@ -114,11 +151,12 @@ const GetSupportPage = () => {
         </svg>
       ),
       title: 'Email',
-      subtitle: 'support@pixiekat.com',
+      subtitle: supportEmail,
       detail: 'Avg. response: 2 hours',
       color: 'text-violet-600',
       bgColor: 'bg-violet-50 border-violet-200',
       iconBg: 'bg-violet-100',
+      href: `mailto:${supportEmail}`,
     },
     {
       icon: (
@@ -128,10 +166,11 @@ const GetSupportPage = () => {
       ),
       title: 'Live Chat',
       subtitle: 'Available 24/7',
-      detail: 'Instant response',
+      detail: 'Opens the ticket form',
       color: 'text-blue-600',
       bgColor: 'bg-blue-50 border-blue-200',
       iconBg: 'bg-blue-100',
+      onClick: () => focusTicket(''),
     },
   ];
 
@@ -184,21 +223,23 @@ const GetSupportPage = () => {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {quickHelp.map((item, i) => (
-              <motion.div
+              <motion.button
+                type="button"
                 key={i}
                 custom={i}
                 initial="hidden"
                 animate="visible"
                 variants={fadeUp}
                 whileHover={{ y: -4, boxShadow: '0 10px 32px rgba(0,0,0,0.08)' }}
-                className={`cursor-pointer rounded-2xl border p-5 transition-shadow duration-200 ${item.color}`}
+                onClick={() => focusTicket(item.category)}
+                className={`cursor-pointer rounded-2xl border p-5 text-left transition-shadow duration-200 ${item.color}`}
               >
                 <div className={`size-11 rounded-xl ${item.iconBg} mb-4 flex items-center justify-center`}>
                   {item.icon}
                 </div>
                 <h3 className="mb-1.5 text-[0.9375rem] font-semibold">{item.title}</h3>
                 <p className="text-sm leading-relaxed opacity-80">{item.description}</p>
-              </motion.div>
+              </motion.button>
             ))}
           </div>
         </div>
@@ -217,30 +258,58 @@ const GetSupportPage = () => {
           </motion.h2>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {channels.map((ch, i) => (
-              <motion.div
-                key={i}
-                custom={i}
-                initial="hidden"
-                animate="visible"
-                variants={fadeUp}
-                whileHover={{ y: -4 }}
-                className={`cursor-pointer rounded-2xl border p-6 transition-all duration-200 ${ch.bgColor}`}
-              >
+            {channels.map((ch, i) => {
+              const cardClass = `cursor-pointer rounded-2xl border p-6 text-left transition-all duration-200 ${ch.bgColor}`;
+              const body = (
+                <>
                 <div className={`size-12 rounded-xl ${ch.iconBg} ${ch.color} mb-4 flex items-center justify-center`}>
                   {ch.icon}
                 </div>
                 <h3 className={`text-[0.9375rem] font-semibold ${ch.color} mb-0.5`}>{ch.title}</h3>
                 <p className="text-sm text-gray-700">{ch.subtitle}</p>
                 <p className="mt-1 text-xs text-gray-400">{ch.detail}</p>
-              </motion.div>
-            ))}
+                </>
+              );
+              if (ch.href) {
+                return (
+                  <motion.a
+                    key={i}
+                    href={ch.href}
+                    target={ch.external ? '_blank' : undefined}
+                    rel={ch.external ? 'noopener noreferrer' : undefined}
+                    custom={i}
+                    initial="hidden"
+                    animate="visible"
+                    variants={fadeUp}
+                    whileHover={{ y: -4 }}
+                    className={cardClass}
+                  >
+                    {body}
+                  </motion.a>
+                );
+              }
+              return (
+              <motion.button
+                type="button"
+                key={i}
+                custom={i}
+                initial="hidden"
+                animate="visible"
+                variants={fadeUp}
+                whileHover={{ y: -4 }}
+                onClick={ch.onClick}
+                className={cardClass}
+              >
+                {body}
+              </motion.button>
+              );
+            })}
           </div>
         </div>
       </section>
 
       {/* ── Submit a Ticket ──────────────────────────── */}
-      <section className="bg-[#fef3c7] py-14 md:py-16">
+      <section ref={ticketRef} className="scroll-mt-24 bg-[#fef3c7] py-14 md:py-16">
         <div className="mx-auto max-w-3xl px-6 md:px-10">
           <motion.h2
             initial="hidden"

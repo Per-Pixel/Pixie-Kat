@@ -700,8 +700,8 @@ export const RewardsPanel = ({ profile }) => {
             <p aria-live="polite" className="mt-1 break-words font-display text-4xl font-black uppercase leading-none text-blue-50 sm:text-6xl">
               {historyError ? "Unavailable" : history === null ? "Loading…" : current ? `#${current.rank}` : "Unranked this month"}
             </p>
-            {current ? <p className="mt-2 font-circular-web text-sm text-blue-100/75">{current.total_spent != null ? `₹${Number(current.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })} spent` : `${current.order_count} completed order${Number(current.order_count) === 1 ? "" : "s"}`} this month</p> : null}
-            {history !== null && !historyError && !current ? <p className="mt-2 font-circular-web text-sm text-blue-100/70">Complete an order to join this month’s board.</p> : null}
+            {current ? <p className="mt-2 font-circular-web text-sm text-blue-100/75">{current.total_spent != null ? `₹${Number(current.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })} spent` : "—"} this month</p> : null}
+            {history !== null && !historyError && !current ? <p className="mt-2 font-circular-web text-sm text-blue-100/70">Spend this month to join the board.</p> : null}
             {current?.hidden ? (
               <p className="mt-2 font-circular-web text-xs font-medium text-yellow-300">
                 {current.hidden_reason === "opted_out"
@@ -739,14 +739,14 @@ export const RewardsPanel = ({ profile }) => {
       {/* Rank history */}
       <SectionCard>
         <h2 className="font-display text-3xl font-black uppercase text-blue-200">Monthly rank history</h2>
-        <p className="mt-2 font-circular-web text-sm text-blue-200/65">Your orders, places, and awarded tiers by month.</p>
+        <p className="mt-2 font-circular-web text-sm text-blue-200/65">Your spend, places, and awarded tiers by month.</p>
         {historyError ? (
           <p role="alert" className="mt-5 font-circular-web text-sm text-red-600">{historyError}</p>
         ) : history === null ? (
           <p role="status" className="mt-6 font-circular-web text-sm text-blue-200/65">Loading rank history…</p>
         ) : history.length === 0 ? (
           <div className="mt-5 border-l-2 border-violet-300 bg-blue-100 p-5">
-            <p className="font-circular-web text-sm text-blue-200/75">No rank yet — complete an order this month to appear on the leaderboard.</p>
+            <p className="font-circular-web text-sm text-blue-200/75">No rank yet — spend this month to appear on the leaderboard.</p>
             <Link to="/games" className="mt-4 inline-flex min-h-11 items-center gap-2 font-general text-xs font-semibold uppercase text-violet-300 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
               Browse games <ArrowRight aria-hidden="true" className="size-4" />
             </Link>
@@ -771,7 +771,7 @@ export const RewardsPanel = ({ profile }) => {
                     <tr key={row.period} className="transition-colors hover:bg-violet-300/5">
                       <td className="whitespace-nowrap p-4 font-general text-sm font-semibold text-blue-200">{periodLabel(row.period)}</td>
                       <td className="p-4 font-display text-2xl font-black text-violet-300">{row.rank ? `#${row.rank}` : "—"}</td>
-                      <td className="p-4 font-circular-web text-blue-200/75">{row.total_spent != null ? `₹${Number(row.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : (row.order_count ?? "—")}</td>
+                      <td className="p-4 font-circular-web text-blue-200/75">{row.total_spent != null ? `₹${Number(row.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : "—"}</td>
                       <td className="p-4"><RankTrend rank={row.rank} previousRank={history[index + 1]?.rank} /></td>
                       <td className="p-4 font-circular-web text-blue-200/75">{row.tier || "—"}</td>
                       <td className="p-4"><RankStatus finalized={row.finalized} /></td>
@@ -794,7 +794,7 @@ export const RewardsPanel = ({ profile }) => {
                   <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-blue-200/10 pt-3">
                     <div>
                       <dt className="font-general text-[10px] uppercase text-blue-200/55">Spent</dt>
-                      <dd className="mt-1 font-circular-web text-sm text-blue-200">{row.total_spent != null ? `₹${Number(row.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : (row.order_count ?? "—")}</dd>
+                      <dd className="mt-1 font-circular-web text-sm text-blue-200">{row.total_spent != null ? `₹${Number(row.total_spent).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : "—"}</dd>
                     </div>
                     <div>
                       <dt className="font-general text-[10px] uppercase text-blue-200/55">Trend</dt>

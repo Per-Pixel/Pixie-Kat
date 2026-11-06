@@ -245,7 +245,9 @@ const GameEditor: React.FC = () => {
       const featuredProductIds = Array.isArray(meta.package_featured)
         ? (meta.package_featured as unknown[]).map(String)
         : [];
-      const productDrafts = (game.products ?? []).map((p) => {
+      // Inactive rows are packages retired because orders still reference them.
+      // Keep them in the database; do not put them back on the form.
+      const productDrafts = (game.products ?? []).filter((p) => p.status !== 'inactive').map((p) => {
         const draft = productFromDB(p);
         draft.is_default = Boolean(defaultProductId && p.id === defaultProductId);
         draft.is_featured = featuredProductIds.includes(p.id);
