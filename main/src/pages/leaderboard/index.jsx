@@ -105,7 +105,7 @@ const RankTicket = ({ userId, authLoading }) => {
         ) : (
           <>
             <p className="font-display text-4xl font-black uppercase leading-none text-blue-200">Not ranked yet</p>
-            <p className="mt-2 font-circular-web text-sm text-blue-200/70">A completed order gets you on the board — spend the most to take it.</p>
+            <p className="mt-2 font-circular-web text-sm text-blue-200/70">Spend this month to get on the board — the most spent takes the top.</p>
           </>
         )}
       </div>
@@ -308,7 +308,7 @@ const LeaderboardPage = () => {
             <div className="relative z-10 flex min-h-64 flex-col items-start justify-center gap-4">
               <Trophy aria-hidden="true" className="size-9 text-yellow-300" />
               <p className="font-display text-3xl font-black uppercase text-blue-50">{board.finalized ? "No final standings" : "The board is open"}</p>
-              <p className="font-circular-web text-sm text-blue-100/70">{board.finalized ? `No completed orders were recorded in ${selectedLabel}.` : "No completed orders in this period yet."}</p>
+              <p className="font-circular-web text-sm text-blue-100/70">{board.finalized ? `No spend was recorded in ${selectedLabel}.` : "No spend in this period yet."}</p>
               <Link to="/games" className="inline-flex min-h-11 items-center gap-2 font-general text-xs font-semibold uppercase text-yellow-300 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-300">
                 Browse games <ArrowRight aria-hidden="true" className="size-4" />
               </Link>

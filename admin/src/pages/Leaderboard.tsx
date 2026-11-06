@@ -164,7 +164,7 @@ function StandingsTab({ periods, onChanged }: { periods: PeriodRow[]; onChanged:
         {loading ? (
           <p className="py-10 text-center text-sm text-gray-400">Loading standings…</p>
         ) : !data || data.rows.length === 0 ? (
-          <p className="py-10 text-center text-sm text-gray-500">No completed orders in this period.</p>
+          <p className="py-10 text-center text-sm text-gray-500">No spend in this period.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

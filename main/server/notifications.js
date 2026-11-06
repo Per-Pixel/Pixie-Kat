@@ -519,7 +519,6 @@ export function renderNotification(row) {
             Period: payload.period,
             Rank: `#${payload.rank}`,
             'Total spent': spent,
-            'Completed orders': payload.order_count,
             Tier: payload.tier_label || payload.tier,
             'Perks unlocked': perkNames || undefined,
           }),
