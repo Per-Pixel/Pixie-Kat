@@ -27,7 +27,7 @@ interface MembershipPlan {
 interface UserMembership {
   id: string;
   user_id: string;
-  plan_id?: string;
+  membership_plan_id: string;
   status: string;
   started_at: string;
   expires_at: string;
@@ -124,7 +124,7 @@ const Memberships: React.FC = () => {
         .order('sort_order', { ascending: true }),
       supabase
         .from('user_memberships')
-        .select('id, user_id, plan_id, status, started_at, expires_at, membership_plans(name, discount_percent), profiles:user_id(name, email)')
+        .select('id, user_id, membership_plan_id, status, started_at, expires_at, membership_plans(name, discount_percent), profiles:user_id(name, email)')
         .order('created_at', { ascending: false })
         .limit(500),
     ]);
@@ -138,7 +138,12 @@ const Memberships: React.FC = () => {
       if (!grantPlanId && loadedPlans[0]) setGrantPlanId(loadedPlans[0].id);
     }
 
-    if (!membershipsRes.error) {
+    if (membershipsRes.error) {
+      if (!isMissingTable(membershipsRes.error.message)) {
+        toast.error(membershipsRes.error.message);
+      }
+      setMemberships([]);
+    } else {
       setMemberships((membershipsRes.data as unknown as UserMembership[]) ?? []);
     }
 
@@ -287,7 +292,7 @@ const Memberships: React.FC = () => {
       const expires = new Date(now.getTime() + Number(plan.duration_days || 30) * 86_400_000);
       const { error: insErr } = await supabase.from('user_memberships').insert({
         user_id: userRow.id,
-        plan_id: plan.id,
+        membership_plan_id: plan.id,
         status: 'active',
         started_at: now.toISOString(),
         expires_at: expires.toISOString(),
