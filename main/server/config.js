@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import process from 'node:process';
+import crypto from 'node:crypto';
 
 export const NODE_ENV = process.env.NODE_ENV || 'development';
 export const isProduction = NODE_ENV === 'production';
@@ -73,4 +74,9 @@ export const config = {
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   superAdminIds,
   superAdminEmails,
+  /** Shared secret for in-process cron calls (auto-fulfill after Aluu reconcile). */
+  internalJobSecret: String(process.env.INTERNAL_JOB_SECRET || '').trim()
+    || (process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? crypto.createHmac('sha256', process.env.SUPABASE_SERVICE_ROLE_KEY).update('pixiekat-internal-fulfill-v1').digest('hex')
+      : ''),
 };

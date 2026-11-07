@@ -69,6 +69,16 @@ import * as razorpay from './razorpay.js';
 import * as aluu from './aluu.js';
 import * as pinterest from './pinterest.js';
 import * as notifications from './notifications.js';
+import {
+  aluuStatusCompleted,
+  aluuStatusFailed,
+  externalAluuOrderKey,
+  settleAluuCartGroupPaid,
+  settleAluuOrderPaid,
+  markAluuOrderFailed,
+  startAluuReconcileWorker,
+} from './aluu-settlement.js';
+import { startProvisionWorker } from './order-jobs.js';
 
 const app = express();
 const PORT = config.port;
@@ -2899,56 +2909,17 @@ app.post('/api/aluu/check-payment', aluuCheckPaymentLimiter, async (req, res) =>
     // Poll Aluu for current status — use our orderId as the external order_id
     const statusResult = await aluu.checkOrderStatus(orderId);
 
-    if (statusResult.txnStatus === 'COMPLETED' || statusResult.status === 'COMPLETED') {
-      // Never settle on status alone: the echoed order id and paid amount must
-      // match our record, same posture as assertCapturedRazorpayPayment.
-      const paidAmount = Number(statusResult.amount);
-      if (String(statusResult.orderId) !== String(orderId)
-          || !Number.isFinite(paidAmount) || paidAmount <= 0
-          || Math.abs(paidAmount - Number(order.total_amount)) > 0.01) {
-        console.error(`[aluu/check-payment] settle rejected for order ${orderId}: provider order=${statusResult.orderId} amount=${statusResult.amount} expected=${order.total_amount}`);
+    if (aluuStatusCompleted(statusResult)) {
+      const settled = await settleAluuOrderPaid(supabaseAdmin, order, statusResult, 'check_payment');
+      if (!settled.ok) {
+        console.error(`[aluu/check-payment] settle rejected for order ${orderId}:`, settled);
         return res.status(400).json({ ok: false, orderId: order.id, status: order.status, error: 'Paid amount does not match the order. Please contact support.' });
       }
-      const paymentId = statusResult.utr || `aluu_${statusResult.orderId}`;
-      const aluuMeta = {
-        aluu_txn_status: statusResult.txnStatus,
-        aluu_utr: statusResult.utr,
-        aluu_amount: statusResult.amount,
-        aluu_date: statusResult.date,
-        verified_at: new Date().toISOString(),
-      };
-
-      // Mark order as processing (idempotent)
-      if (order.status === 'pending') {
-        const { error: updateError } = await supabaseAdmin
-          .from('orders')
-          .update({
-            status: 'processing',
-            payment_id: paymentId,
-            updated_at: new Date().toISOString(),
-            metadata: { ...(order.metadata || {}), aluu_payment: aluuMeta },
-          })
-          .eq('id', orderId)
-          .eq('status', 'pending');
-        if (updateError) throw updateError;
-      }
-
-      return res.json({ ok: true, orderId: order.id, status: 'processing', paymentId });
+      return res.json({ ok: true, orderId: order.id, status: 'processing', paymentId: settled.paymentId });
     }
 
-    if (statusResult.txnStatus === 'FAILED' || statusResult.status === 'FAILED') {
-      // Mark order failed if still pending
-      if (order.status === 'pending') {
-        await supabaseAdmin
-          .from('orders')
-          .update({
-            status: 'failed',
-            updated_at: new Date().toISOString(),
-            metadata: { ...(order.metadata || {}), aluu_status: 'FAILED', failed_at: new Date().toISOString() },
-          })
-          .eq('id', orderId)
-          .eq('status', 'pending');
-      }
+    if (aluuStatusFailed(statusResult)) {
+      if (order.status === 'pending') await markAluuOrderFailed(supabaseAdmin, order);
       return res.json({ ok: false, orderId: order.id, status: 'failed', error: 'Payment failed or expired' });
     }
 
@@ -3011,49 +2982,17 @@ app.post('/api/aluu/check-cart-payment', aluuCheckPaymentLimiter, async (req, re
 
     const statusResult = await aluu.checkOrderStatus(groupId);
 
-    if (statusResult.txnStatus === 'COMPLETED' || statusResult.status === 'COMPLETED') {
-      // One provider payment covers the whole group — the paid amount must
-      // equal the grand total before any sibling order settles.
-      const expectedTotal = orders.reduce((s, o) => s + Number(o.total_amount), 0);
-      const paidAmount = Number(statusResult.amount);
-      if (String(statusResult.orderId) !== String(groupId)
-          || !Number.isFinite(paidAmount) || paidAmount <= 0
-          || Math.abs(paidAmount - expectedTotal) > 0.01) {
-        console.error(`[aluu/check-cart-payment] settle rejected for group ${groupId}: provider order=${statusResult.orderId} amount=${statusResult.amount} expected=${expectedTotal}`);
+    if (aluuStatusCompleted(statusResult)) {
+      const settled = await settleAluuCartGroupPaid(supabaseAdmin, orders, statusResult, 'check_cart_payment');
+      if (!settled.ok) {
+        console.error(`[aluu/check-cart-payment] settle rejected for group ${groupId}:`, settled);
         return res.status(400).json({ ok: false, error: 'Paid amount does not match the cart total. Please contact support.' });
       }
-      const paymentId = statusResult.utr || `aluu_${statusResult.orderId}`;
-      const aluuMeta = {
-        aluu_txn_status: statusResult.txnStatus,
-        aluu_utr: statusResult.utr,
-        aluu_amount: statusResult.amount,
-        aluu_date: statusResult.date,
-        verified_at: new Date().toISOString(),
-      };
-      await Promise.all(pending.map((o) => supabaseAdmin
-        .from('orders')
-        .update({
-          status: 'processing',
-          payment_id: paymentId,
-          updated_at: new Date().toISOString(),
-          metadata: { ...(o.metadata || {}), aluu_payment: aluuMeta },
-        })
-        .eq('id', o.id)
-        .eq('status', 'pending')));
-
-      return res.json({ ok: true, status: 'processing', paymentId, orderIds: orders.map((o) => o.id) });
+      return res.json({ ok: true, status: 'processing', paymentId: settled.paymentId, orderIds: orders.map((o) => o.id) });
     }
 
-    if (statusResult.txnStatus === 'FAILED' || statusResult.status === 'FAILED') {
-      await Promise.all(pending.map((o) => supabaseAdmin
-        .from('orders')
-        .update({
-          status: 'failed',
-          updated_at: new Date().toISOString(),
-          metadata: { ...(o.metadata || {}), aluu_status: 'FAILED', failed_at: new Date().toISOString() },
-        })
-        .eq('id', o.id)
-        .eq('status', 'pending')));
+    if (aluuStatusFailed(statusResult)) {
+      await Promise.all(pending.map((o) => markAluuOrderFailed(supabaseAdmin, o)));
       return res.json({ ok: false, status: 'failed', error: 'Payment failed or expired' });
     }
 
@@ -3699,18 +3638,36 @@ app.post('/api/admin/leaderboard/finalize', requireAdmin, async (req, res) => {
 // Body: { orderId }
 // Auth: any authenticated user — must own the order
 app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    return res.status(401).json({ ok: false, error: 'Authorization required' });
-  }
-  const token = authHeader.slice(7);
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !user) {
-    return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
-  }
-
   const { orderId } = req.body || {};
   if (!orderId) return res.status(400).json({ ok: false, error: 'orderId is required' });
+
+  const internalSecret = config.internalJobSecret;
+  const internalHeader = String(req.headers['x-pixiekat-internal-job'] || '').trim();
+  const isInternalJob = Boolean(internalSecret && internalHeader === internalSecret);
+
+  let user = null;
+  if (isInternalJob) {
+    const { data: ownerRow, error: ownerErr } = await supabaseAdmin
+      .from('orders')
+      .select('user_id')
+      .eq('id', orderId)
+      .maybeSingle();
+    if (ownerErr || !ownerRow) {
+      return res.status(404).json({ ok: false, error: 'Order not found' });
+    }
+    user = { id: ownerRow.user_id };
+  } else {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ ok: false, error: 'Authorization required' });
+    }
+    const token = authHeader.slice(7);
+    const { data: { user: authUser }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !authUser) {
+      return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
+    }
+    user = authUser;
+  }
 
   // Hoisted so the catch block can detect whether the provider already delivered
   let fulfillResult = null;
@@ -4186,4 +4143,20 @@ app.listen(PORT, '0.0.0.0', () => {
   } else {
     console.warn('[notify] SMTP_HOST/SMTP_USER/SMTP_PASS not set — email notifications disabled');
   }
+  startAluuReconcileWorker(supabaseAdmin);
+  const invokeFulfill = async (orderId) => {
+    const response = await fetch(`http://127.0.0.1:${PORT}/api/fulfill-order`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-pixiekat-internal-job': config.internalJobSecret,
+      },
+      body: JSON.stringify({ orderId }),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || `HTTP ${response.status}`);
+    }
+  };
+  startProvisionWorker(supabaseAdmin, invokeFulfill);
 });

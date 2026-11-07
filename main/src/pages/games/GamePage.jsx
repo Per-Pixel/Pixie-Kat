@@ -25,7 +25,7 @@ import { API_BASE } from "../../lib/apiBase";
 import { sanitizeRichText } from "../../utils/sanitizeRichText";
 import { loadRazorpayCheckout } from "../../lib/razorpay";
 import {
-  ALUU_PAYMENT_DISMISSED,
+  ALUU_PAYMENT_QR_WAITING,
   ALUU_PAYMENT_WAITING,
   openAluuPaymentWindow,
   sleepUntilInterrupt,
@@ -947,12 +947,12 @@ const GamePage = () => {
         const MAX_POLL_TIME_MS = 10 * 60 * 1000;
         const pollStart = Date.now();
         let paymentConfirmed = false;
-        let interrupted = false;
+        let paymentWindowClosed = false;
         const disposeTracker = trackAluuPaymentWindow(paymentWindow, {
           orderId,
           onInterrupt: () => {
-            interrupted = true;
-            setCheckoutError(ALUU_PAYMENT_DISMISSED);
+            paymentWindowClosed = true;
+            setCheckoutError(ALUU_PAYMENT_QR_WAITING);
           },
         });
 
@@ -983,20 +983,7 @@ const GamePage = () => {
                 return;
               }
 
-              if (interrupted) {
-                const afterReturn = await pollStatus();
-                if (afterReturn === true) break;
-                if (afterReturn === "failed") {
-                  setIsSubmitting(false);
-                  setCheckoutError("Payment failed or the payment link expired. Please try again.");
-                  return;
-                }
-                setIsSubmitting(false);
-                setCheckoutError(ALUU_PAYMENT_DISMISSED);
-                return;
-              }
-
-              await sleepUntilInterrupt(POLL_INTERVAL_MS, () => interrupted);
+              await sleepUntilInterrupt(POLL_INTERVAL_MS, () => paymentWindowClosed);
             }
 
             if (!paymentConfirmed) {

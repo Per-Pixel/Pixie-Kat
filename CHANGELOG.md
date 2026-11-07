@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Fixed
+- Aluu UPI/QR checkout no longer leaves paid orders stuck on `pending` when customers close the payment tab after scanning: storefront keeps polling, and the API runs a background Aluu reconcile + auto-fulfill worker (`aluu-settlement.js`, `order-jobs.js`). Requires **API** deploy (`eb deploy` from `main/server`).
 - Admin **Memberships** page loads and grants user plans again — list/insert used nonexistent `plan_id` instead of `membership_plan_id`, so the query failed silently and the table stayed empty.
 - Admin revenue and profit dashboards no longer treat Pixie Wallet top-ups as sales — they are balance deposits, so P&amp;L, dashboard trends, and `get_admin_analytics` exclude `metadata.wallet_topup` orders (apply `058_exclude_wallet_topup_from_analytics.sql`).
 - Aluu UPI on game checkout now sends the customer’s WhatsApp number to the gateway (read from `metadata.contact.whatsapp`) instead of a placeholder `0000000000`, which was causing invalid QR codes on Aluu’s payment page.

@@ -11,6 +11,10 @@ export const ALUU_PAYMENT_DISMISSED =
 export const ALUU_PAYMENT_WAITING =
   "Waiting for UPI payment confirmation… Complete payment in the opened window.";
 
+/** After the customer scans a shared QR and pays in GPay/PhonePe, the payment tab is often closed. */
+export const ALUU_PAYMENT_QR_WAITING =
+  "Complete payment in your UPI app — we'll confirm automatically. You can close the payment window after scanning the QR.";
+
 function matchesReturnPayload(data, { orderId, groupId } = {}) {
   if (!data || data.type !== ALUU_RETURN_MESSAGE) return false;
   if (groupId && data.groupId && data.groupId !== groupId) return false;

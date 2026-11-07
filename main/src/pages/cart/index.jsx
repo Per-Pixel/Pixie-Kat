@@ -27,7 +27,7 @@ import { useReducedMotion } from "../../hooks/useReducedMotion";
 import { supabase } from "../../lib/supabase";
 import { loadRazorpayCheckout } from "../../lib/razorpay";
 import {
-  ALUU_PAYMENT_DISMISSED,
+  ALUU_PAYMENT_QR_WAITING,
   ALUU_PAYMENT_WAITING,
   openAluuPaymentWindow,
   sleepUntilInterrupt,
@@ -570,12 +570,12 @@ const CartPage = () => {
     const POLL_INTERVAL_MS = 4000;
     const MAX_POLL_TIME_MS = 10 * 60 * 1000;
     const pollStart = Date.now();
-    let interrupted = false;
+    let paymentWindowClosed = false;
     const disposeTracker = trackAluuPaymentWindow(paymentWindow, {
       groupId,
       onInterrupt: () => {
-        interrupted = true;
-        setCheckoutError(ALUU_PAYMENT_DISMISSED);
+        paymentWindowClosed = true;
+        setCheckoutError(ALUU_PAYMENT_QR_WAITING);
       },
     });
 
@@ -605,22 +605,7 @@ const CartPage = () => {
           }
         } catch { /* transient poll error — keep waiting */ }
 
-        if (interrupted) {
-          try {
-            const status = await checkOnce();
-            if (status === "paid") {
-              setCheckoutError("");
-              await finishCheckout(lines, "aluu", totalLabel, currency);
-              setIsSubmitting(false);
-              return;
-            }
-          } catch { /* ignore */ }
-          setIsSubmitting(false);
-          setCheckoutError(ALUU_PAYMENT_DISMISSED);
-          return;
-        }
-
-        await sleepUntilInterrupt(POLL_INTERVAL_MS, () => interrupted);
+        await sleepUntilInterrupt(POLL_INTERVAL_MS, () => paymentWindowClosed);
       }
 
       setIsSubmitting(false);
