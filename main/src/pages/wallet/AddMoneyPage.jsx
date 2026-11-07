@@ -17,7 +17,7 @@ import { publicMediaUrl, supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { loadRazorpayCheckout } from "../../lib/razorpay";
 import {
-  ALUU_PAYMENT_DISMISSED,
+  ALUU_PAYMENT_QR_WAITING,
   openAluuPaymentWindow,
   sleepUntilInterrupt,
   trackAluuPaymentWindow,
@@ -177,12 +177,12 @@ const AddMoneyPage = () => {
 
   const pollAluu = async (orderId, token, paymentWindow) => {
     const deadline = Date.now() + 10 * 60 * 1000;
-    let interrupted = false;
+    let paymentWindowClosed = false;
     const disposeTracker = trackAluuPaymentWindow(paymentWindow, {
       orderId,
       onInterrupt: () => {
-        interrupted = true;
-        setError(ALUU_PAYMENT_DISMISSED);
+        paymentWindowClosed = true;
+        setError(ALUU_PAYMENT_QR_WAITING);
       },
     });
     try {
@@ -193,16 +193,7 @@ const AddMoneyPage = () => {
           if (data.status === "failed") return "failed";
         } catch { /* transient — keep polling */ }
 
-        if (interrupted) {
-          try {
-            const { data } = await postApi("/aluu/check-payment", { orderId });
-            if (data.ok) return "paid";
-            if (data.status === "failed") return "failed";
-          } catch { /* ignore */ }
-          return "dismissed";
-        }
-
-        await sleepUntilInterrupt(4000, () => interrupted || pollToken.current !== token);
+        await sleepUntilInterrupt(4000, () => paymentWindowClosed || pollToken.current !== token);
       }
       return "timeout";
     } finally {
@@ -241,10 +232,6 @@ const AddMoneyPage = () => {
         writePending(null);
         setPending(null);
         throw new Error("Payment failed or the payment link expired. Please try again.");
-      }
-      if (outcome === "dismissed") {
-        setError(ALUU_PAYMENT_DISMISSED);
-        return false;
       }
       setError("Payment was not confirmed yet. If you paid, the coins will appear once the provider confirms — or use Check status below.");
       return false;
