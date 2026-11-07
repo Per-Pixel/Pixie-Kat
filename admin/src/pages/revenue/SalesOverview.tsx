@@ -114,7 +114,8 @@ const SalesOverview: React.FC = () => {
   const { metrics, customers, wallet } = report;
   const completionRate = metrics.total_orders ? (metrics.completed_orders / metrics.total_orders) * 100 : 0;
   const avgOrder = metrics.completed_orders ? metrics.revenue / metrics.completed_orders : 0;
-  const profitMargin = metrics.revenue ? (metrics.known_profit / metrics.revenue) * 100 : 0;
+  const knownRevenue = Number(metrics.known_profit || 0) + Number(metrics.known_cost || 0);
+  const profitMargin = knownRevenue > 0 ? (Number(metrics.known_profit) / knownRevenue) * 100 : 0;
   const totalStatus = report.statuses.reduce((sum, s) => sum + s.count, 0);
 
   const trend = report.trend.map((item) => ({

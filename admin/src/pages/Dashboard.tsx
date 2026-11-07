@@ -47,6 +47,8 @@ import {
   computeCustomerInsights,
   toNumber,
 } from '../utils/dashboardMetrics';
+import { orderKnownGrossProfit } from '../utils/orderFinance';
+import type { ReportProduct } from '../services/reportingService';
 import type { ReportOrder } from '../services/reportingService';
 
 function timeAgo(value: string) {
@@ -154,7 +156,9 @@ function SectionHeader({ icon: Icon, title, hint, action }: {
   );
 }
 
-function buildPeriodTrend(orders: ReportOrder[], period: AdminPeriod) {
+function buildPeriodTrend(orders: ReportOrder[], period: AdminPeriod, products: ReportProduct[]) {
+  const productsById = new Map(products.map((p) => [p.id, p]));
+  const productsByName = new Map(products.map((p) => [p.name, p]));
   const useMonthly = period === '90d' || period === '1y' || period === 'all';
   if (!useMonthly) {
     const days = period === 'today' ? 1 : period === '30d' ? 30 : 7;
@@ -176,11 +180,10 @@ function buildPeriodTrend(orders: ReportOrder[], period: AdminPeriod) {
       const bucket = map.get(key);
       if (!bucket) return;
       bucket.orders += 1;
-      if (o.status === 'completed') {
-        const rev = toNumber(o.total_amount);
-        const cost = toNumber(o.unit_cost_price) * (o.quantity || 1);
-        bucket.revenue += rev;
-        bucket.profit += rev - cost;
+      const pl = orderKnownGrossProfit(o, productsById, productsByName);
+      if (pl) {
+        bucket.revenue += pl.revenue;
+        bucket.profit += pl.profit;
       }
     });
     return Array.from(map.values());
@@ -200,11 +203,10 @@ function buildPeriodTrend(orders: ReportOrder[], period: AdminPeriod) {
       orders: 0,
     };
     existing.orders += 1;
-    if (o.status === 'completed') {
-      const rev = toNumber(o.total_amount);
-      const cost = toNumber(o.unit_cost_price) * (o.quantity || 1);
-      existing.revenue += rev;
-      existing.profit += rev - cost;
+    const pl = orderKnownGrossProfit(o, productsById, productsByName);
+    if (pl) {
+      existing.revenue += pl.revenue;
+      existing.profit += pl.profit;
     }
     bucketMap.set(key, existing);
   });
@@ -315,8 +317,8 @@ const Dashboard: React.FC = () => {
   }, [data, periodScopedOrders, includeInternal]);
 
   const trend = useMemo(
-    () => buildPeriodTrend(periodScopedOrders, period),
-    [periodScopedOrders, period]
+    () => buildPeriodTrend(periodScopedOrders, period, data?.products ?? []),
+    [periodScopedOrders, period, data?.products]
   );
 
   if (loading && !data) {
@@ -427,7 +429,18 @@ const Dashboard: React.FC = () => {
 
   const quickStats = [
     { label: `Avg order value (${periodLabel})`, value: <AnimatedNumber value={financial.aov} format={money} />, icon: BarChart3 },
-    { label: `Profit margin (${periodLabel})`, value: <AnimatedNumber value={financial.profitMargin} format={(v) => `${v.toFixed(1)}%`} />, icon: TrendingUp },
+    {
+      label: `Profit margin (${periodLabel})`,
+      value: <AnimatedNumber value={financial.profitMargin} format={(v) => `${v.toFixed(1)}%`} />,
+      icon: TrendingUp,
+      sub: financial.walletTopupOrdersExcluded > 0 ? (
+        <p className="text-xs text-gray-400 tabular-nums">
+          Excludes {financial.walletTopupOrdersExcluded} wallet top-up{financial.walletTopupOrdersExcluded === 1 ? '' : 's'} ({money(financial.walletTopupRevenueExcluded)})
+        </p>
+      ) : (
+        <p className="text-xs text-gray-400">Product sales with known cost only</p>
+      ),
+    },
     { label: 'Repeat purchase rate', value: <AnimatedNumber value={repeatMetrics.repeatPurchaseRate} format={(v) => `${v.toFixed(1)}%`} />, icon: Repeat },
     {
       label: 'Avg processing time',
@@ -600,13 +613,14 @@ const Dashboard: React.FC = () => {
 
       {/* QuickStats strip */}
       <motion.div variants={staggerParent} initial="initial" animate="animate" className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        {quickStats.map(({ label, value, icon: Icon }) => (
+        {quickStats.map(({ label, value, icon: Icon, sub }) => (
           <motion.div key={label} variants={staggerItem} transition={{ duration: DURATION.base, ease: EASE_OUT }} className="rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm">
             <div className="flex items-center gap-2 text-gray-400">
               <Icon className="h-3.5 w-3.5" />
               <p className="truncate text-xs">{label}</p>
             </div>
             <p className="mt-1.5 truncate text-lg font-bold text-gray-900 tabular-nums">{value}</p>
+            {sub && <div className="mt-1">{sub}</div>}
           </motion.div>
         ))}
       </motion.div>

@@ -4,6 +4,7 @@ import type {
   ReportProduct,
 } from '../services/reportingService';
 import { formatAdminMoney, readStoredCurrency } from '../lib/currency';
+import { isSaleOrderForAnalytics, isWalletTopupOrder, orderKnownGrossProfit, resolveOrderUnitCost } from './orderFinance';
 
 export type DashboardPeriod = 'today' | '7d' | '30d' | 'lifetime';
 
@@ -58,6 +59,10 @@ export interface FinancialSnapshot {
   revenue: number;
   cogs: number;
   grossProfit: number;
+  knownRevenue: number;
+  profitUnknownOrders: number;
+  walletTopupRevenueExcluded: number;
+  walletTopupOrdersExcluded: number;
   refunds: number;
   paymentFees: number;
   otherExpenses: number;
@@ -77,22 +82,49 @@ export interface FinancialSnapshot {
 
 export function computeFinancials(
   orders: ReportOrder[],
-  options: { paymentFees?: number; otherExpenses?: number } = {},
+  options: {
+    paymentFees?: number;
+    otherExpenses?: number;
+    products?: ReportProduct[];
+  } = {},
 ): FinancialSnapshot {
-  const successful = orders.filter((o) => o.status === 'completed');
+  const completed = orders.filter((o) => o.status === 'completed');
+  const walletTopups = completed.filter(isWalletTopupOrder);
+  const successful = completed.filter(isSaleOrderForAnalytics);
   const failed = orders.filter((o) => o.status === 'failed');
   const pending = orders.filter((o) => ['pending', 'processing', 'on_hold'].includes(o.status));
   const refunded = orders.filter((o) => o.status === 'refunded');
   const lost = orders.filter((o) => ['failed', 'cancelled'].includes(o.status));
 
+  const productsById = new Map((options.products ?? []).map((p) => [p.id, p]));
+  const productsByName = new Map((options.products ?? []).map((p) => [p.name, p]));
+
   const revenue = successful.reduce((sum, o) => sum + toNumber(o.total_amount), 0);
-  const cogs = successful.reduce((sum, o) => sum + toNumber(o.unit_cost_price) * (o.quantity || 1), 0);
-  const grossProfit = revenue - cogs;
+  let cogs = 0;
+  let knownRevenue = 0;
+  let grossProfit = 0;
+  let profitUnknownOrders = 0;
+
+  successful.forEach((o) => {
+    const unitCost = resolveOrderUnitCost(o, productsById, productsByName);
+    const lineRevenue = toNumber(o.total_amount);
+    if (unitCost == null) {
+      profitUnknownOrders += 1;
+      return;
+    }
+    const qty = o.quantity || 1;
+    const lineCogs = unitCost * qty;
+    knownRevenue += lineRevenue;
+    cogs += lineCogs;
+    grossProfit += lineRevenue - lineCogs;
+  });
+
+  const walletTopupRevenueExcluded = walletTopups.reduce((sum, o) => sum + toNumber(o.total_amount), 0);
   const refunds = refunded.reduce((sum, o) => sum + toNumber(o.total_amount), 0);
   const paymentFees = options.paymentFees ?? 0;
   const otherExpenses = options.otherExpenses ?? 0;
   const netProfit = grossProfit - refunds - paymentFees - otherExpenses;
-  const profitMargin = revenue ? (grossProfit / revenue) * 100 : 0;
+  const profitMargin = knownRevenue ? (grossProfit / knownRevenue) * 100 : 0;
   const aov = successful.length ? revenue / successful.length : 0;
   const avgProfitPerOrder = successful.length ? grossProfit / successful.length : 0;
 
@@ -100,6 +132,10 @@ export function computeFinancials(
     revenue,
     cogs,
     grossProfit,
+    knownRevenue,
+    profitUnknownOrders,
+    walletTopupRevenueExcluded,
+    walletTopupOrdersExcluded: walletTopups.length,
     refunds,
     paymentFees,
     otherExpenses,
@@ -129,7 +165,7 @@ export function computeTodayVsYesterday(orders: ReportOrder[], reference: Date =
   yesterdayDate.setDate(reference.getDate() - 1);
   const yesterday = dayKey(yesterdayDate);
 
-  const completed = orders.filter((o) => o.status === 'completed');
+  const completed = orders.filter((o) => o.status === 'completed' && isSaleOrderForAnalytics(o));
   const revenueToday = completed
     .filter((o) => dayKey(new Date(o.created_at)) === today)
     .reduce((sum, o) => sum + toNumber(o.total_amount), 0);
@@ -137,12 +173,15 @@ export function computeTodayVsYesterday(orders: ReportOrder[], reference: Date =
     .filter((o) => dayKey(new Date(o.created_at)) === yesterday)
     .reduce((sum, o) => sum + toNumber(o.total_amount), 0);
 
-  const profitToday = completed
-    .filter((o) => dayKey(new Date(o.created_at)) === today)
-    .reduce((sum, o) => sum + (toNumber(o.total_amount) - toNumber(o.unit_cost_price) * (o.quantity || 1)), 0);
-  const profitYesterday = completed
-    .filter((o) => dayKey(new Date(o.created_at)) === yesterday)
-    .reduce((sum, o) => sum + (toNumber(o.total_amount) - toNumber(o.unit_cost_price) * (o.quantity || 1)), 0);
+  const profitForDay = (day: string) => completed
+    .filter((o) => dayKey(new Date(o.created_at)) === day)
+    .reduce((sum, o) => {
+      const unit = toNumber(o.unit_cost_price);
+      if (unit <= 0) return sum;
+      return sum + (toNumber(o.total_amount) - unit * (o.quantity || 1));
+    }, 0);
+  const profitToday = profitForDay(today);
+  const profitYesterday = profitForDay(yesterday);
 
   return {
     revenue: {
@@ -177,7 +216,7 @@ export function computeProductPerformance(
   const productById = new Map(products.map((p) => [p.id, p]));
 
   orders
-    .filter((o) => o.status === 'completed')
+    .filter((o) => o.status === 'completed' && isSaleOrderForAnalytics(o))
     .forEach((o) => {
       const key = o.product_id || o.product_name;
       const product = o.product_id ? productById.get(o.product_id) : undefined;
@@ -221,7 +260,7 @@ export function computeGamePerformance(
   const map = new Map<string, GamePerformance>();
 
   orders
-    .filter((o) => o.status === 'completed')
+    .filter((o) => o.status === 'completed' && isSaleOrderForAnalytics(o))
     .forEach((o) => {
       const product = o.product_id ? productById.get(o.product_id) : undefined;
       const gameId = product?.game_id || 'unknown';
@@ -273,7 +312,7 @@ export function computeSupplierPerformance(
   const productById = new Map(products.map((p) => [p.id, p]));
   const map = new Map<string, SupplierPerformance>();
 
-  orders.forEach((o) => {
+  orders.filter(isSaleOrderForAnalytics).forEach((o) => {
     const product = o.product_id ? productById.get(o.product_id) : undefined;
     const provider = product?.game?.provider || 'manual';
     const existing = map.get(provider) || {
@@ -322,6 +361,7 @@ export function computeCustomerInsights(
 
   orders
     .filter((o) => !['admin'].includes(profiles.find((p) => p.id === o.user_id)?.role || ''))
+    .filter(isSaleOrderForAnalytics)
     .forEach((o) => {
       const profile = profiles.find((p) => p.id === o.user_id);
       const existing = map.get(o.user_id);
@@ -386,7 +426,7 @@ export interface PaymentMethodBreakdown {
 export function computePaymentMethodBreakdown(orders: ReportOrder[]): PaymentMethodBreakdown[] {
   const map = new Map<string, PaymentMethodBreakdown>();
   orders
-    .filter((o) => o.status === 'completed')
+    .filter((o) => o.status === 'completed' && isSaleOrderForAnalytics(o))
     .forEach((o) => {
       const method = o.payment_method || 'Unknown';
       const existing = map.get(method) || { method, orders: 0, revenue: 0 };
@@ -407,7 +447,7 @@ export function computePeakSales(orders: ReportOrder[]): PeakSales {
   const dayMap = new Map<string, { day: string; orders: number; revenue: number }>();
 
   orders
-    .filter((o) => o.status === 'completed')
+    .filter((o) => o.status === 'completed' && isSaleOrderForAnalytics(o))
     .forEach((o) => {
       const date = new Date(o.created_at);
       const hour = `${String(date.getHours()).padStart(2, '0')}:00`;
@@ -541,7 +581,7 @@ export function computeDashboardMetrics(
     (o) => (includeInternalOrders || !adminIds.has(o.user_id)) && isInPeriod(o.created_at, period, reference) && (!paymentMethod || o.payment_method === paymentMethod),
   );
 
-  const financial = computeFinancials(periodOrders);
+  const financial = computeFinancials(periodOrders, { products: data.products });
   const todayVsYesterday = computeTodayVsYesterday(periodOrders, reference);
   const productPerformance = computeProductPerformance(periodOrders, data.products);
   const gamePerformance = computeGamePerformance(periodOrders, data.products);
@@ -554,6 +594,9 @@ export function computeDashboardMetrics(
   const refundReasons = computeRefundReasons(periodOrders);
   const failureReasons = computeFailureReasons(periodOrders, data.products);
 
+  const productsById = new Map(data.products.map((p) => [p.id, p]));
+  const productsByName = new Map(data.products.map((p) => [p.name, p]));
+
   const trend: DashboardMetrics['trend'] = [];
   if (period === 'today') {
     // Hourly buckets for today
@@ -563,10 +606,16 @@ export function computeDashboardMetrics(
         const d = new Date(o.created_at);
         return d.getHours() === i;
       });
-      const completed = bucketOrders.filter((o) => o.status === 'completed');
-      const revenue = completed.reduce((sum, o) => sum + toNumber(o.total_amount), 0);
-      const cogs = completed.reduce((sum, o) => sum + toNumber(o.unit_cost_price) * (o.quantity || 1), 0);
-      trend.push({ label: hour, revenue, profit: revenue - cogs, orders: bucketOrders.length });
+      let revenue = 0;
+      let profit = 0;
+      bucketOrders.forEach((o) => {
+        const pl = orderKnownGrossProfit(o, productsById, productsByName);
+        if (pl) {
+          revenue += pl.revenue;
+          profit += pl.profit;
+        }
+      });
+      trend.push({ label: hour, revenue, profit, orders: bucketOrders.length });
     });
   } else {
     const days = period === '7d' ? 7 : period === '30d' ? 30 : 30;
@@ -575,13 +624,19 @@ export function computeDashboardMetrics(
       const date = new Date(start.getTime() + i * 86_400_000);
       const key = dayKey(date);
       const bucketOrders = periodOrders.filter((o) => dayKey(new Date(o.created_at)) === key);
-      const completed = bucketOrders.filter((o) => o.status === 'completed');
-      const revenue = completed.reduce((sum, o) => sum + toNumber(o.total_amount), 0);
-      const cogs = completed.reduce((sum, o) => sum + toNumber(o.unit_cost_price) * (o.quantity || 1), 0);
+      let revenue = 0;
+      let profit = 0;
+      bucketOrders.forEach((o) => {
+        const pl = orderKnownGrossProfit(o, productsById, productsByName);
+        if (pl) {
+          revenue += pl.revenue;
+          profit += pl.profit;
+        }
+      });
       trend.push({
         label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         revenue,
-        profit: revenue - cogs,
+        profit,
         orders: bucketOrders.length,
       });
     });
