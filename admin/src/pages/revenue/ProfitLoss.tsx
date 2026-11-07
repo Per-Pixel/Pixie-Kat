@@ -9,6 +9,7 @@ import { useAdminReport } from '../../hooks/useAdminReport';
 import { useAdminCurrency } from '../../lib/currency';
 import { exportToCsv } from '../../utils/dateRange';
 import type { ReportOrder, ReportProduct } from '../../services/reportingService';
+import { isWalletTopupOrder } from '../../utils/orderFinance';
 
 type PlPeriod = 'today' | '7d' | '30d' | '90d' | '1y' | 'all' | 'custom';
 
@@ -151,17 +152,22 @@ const ProfitLoss: React.FC = () => {
       const cost = perUnit != null ? perUnit * qty : null;
       const isCompleted = order.status === 'completed';
       const isRefunded = order.status === 'refunded';
+      const walletTopup = isWalletTopupOrder(order);
       if (isCompleted && order.currency) currency = order.currency;
 
       let refund = 0, pl: number | null = null;
       if (isCompleted) {
-        completedOrders += 1;
-        grossRevenue += total;
-        if (cost != null) {
-          cogs += cost;
-          pl = total - cost;
+        if (walletTopup) {
+          pl = 0;
         } else {
-          unknownCostOrders += 1;
+          completedOrders += 1;
+          grossRevenue += total;
+          if (cost != null) {
+            cogs += cost;
+            pl = total - cost;
+          } else {
+            unknownCostOrders += 1;
+          }
         }
       } else if (isRefunded) {
         refundedOrders += 1;

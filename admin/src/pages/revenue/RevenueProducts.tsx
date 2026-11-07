@@ -8,6 +8,7 @@ import clsx from 'clsx';
 import { useAdminReport } from '../../hooks/useAdminReport';
 import { useAdminCurrency } from '../../lib/currency';
 import { ADMIN_PERIOD_OPTIONS, AdminPeriod, exportToCsv, matchesAdminPeriod } from '../../utils/dateRange';
+import { isSaleOrderForAnalytics } from '../../utils/orderFinance';
 
 type SortField = 'name' | 'price' | 'orders' | 'units' | 'revenue' | 'profit' | 'margin';
 type SortDir = 'asc' | 'desc';
@@ -61,6 +62,7 @@ const RevenueProducts: React.FC = () => {
         const orders = data.orders.filter(
           (order) =>
             order.status === 'completed' &&
+            isSaleOrderForAnalytics(order) &&
             (includeInternal || !adminIds.has(order.user_id)) &&
             (!walletOnly || order.payment_method === 'wallet') &&
             matchesAdminPeriod(order.created_at, period, customStart, customEnd) &&
