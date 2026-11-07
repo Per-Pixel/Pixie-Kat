@@ -1,3 +1,3 @@
 # Last session summary
 
-- Fixed Aluu QR/UPI orders stuck pending: background `aluu-settlement` reconcile + auto-fulfill workers on API; storefront keeps polling after payment popup closes. One paid stuck order reconciled locally to `processing`. Ship: `eb deploy` (API) + Amplify `main` (storefront).
+- Added API worker `expireStalePendingOrders`: Aluu/Razorpay `pending` >24h → `failed` (last-chance Aluu paid check). Commit pushed; deploy API with `eb deploy` from `main/server`.

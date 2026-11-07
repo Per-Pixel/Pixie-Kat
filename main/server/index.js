@@ -78,7 +78,7 @@ import {
   markAluuOrderFailed,
   startAluuReconcileWorker,
 } from './aluu-settlement.js';
-import { startProvisionWorker } from './order-jobs.js';
+import { startExpirePendingWorker, startProvisionWorker } from './order-jobs.js';
 
 const app = express();
 const PORT = config.port;
@@ -4159,4 +4159,5 @@ app.listen(PORT, '0.0.0.0', () => {
     }
   };
   startProvisionWorker(supabaseAdmin, invokeFulfill);
+  startExpirePendingWorker(supabaseAdmin);
 });
