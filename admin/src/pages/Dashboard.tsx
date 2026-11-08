@@ -47,9 +47,8 @@ import {
   computeCustomerInsights,
   toNumber,
 } from '../utils/dashboardMetrics';
-import { orderKnownGrossProfit } from '../utils/orderFinance';
 import { formatPaymentMethodLabel } from '../utils/paymentMethodLabel';
-import { localDayKey } from '../utils/localDate';
+import { buildRevenueProfitTrend } from '../utils/trendSeries';
 import type { ReportProduct } from '../services/reportingService';
 import type { ReportOrder } from '../services/reportingService';
 
@@ -158,63 +157,6 @@ function SectionHeader({ icon: Icon, title, hint, action }: {
   );
 }
 
-function buildPeriodTrend(orders: ReportOrder[], period: AdminPeriod, products: ReportProduct[]) {
-  const productsById = new Map(products.map((p) => [p.id, p]));
-  const productsByName = new Map(products.map((p) => [p.name, p]));
-  const useMonthly = period === '90d' || period === '1y' || period === 'all';
-  if (!useMonthly) {
-    const days = period === 'today' ? 1 : period === '30d' ? 30 : 7;
-    const now = new Date();
-    const map = new Map<string, { date: string; label: string; revenue: number; profit: number; orders: number }>();
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-      const key = localDayKey(d);
-      map.set(key, {
-        date: key,
-        label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        revenue: 0,
-        profit: 0,
-        orders: 0,
-      });
-    }
-    orders.forEach((o) => {
-      const key = localDayKey(o.created_at);
-      const bucket = map.get(key);
-      if (!bucket) return;
-      bucket.orders += 1;
-      const pl = orderKnownGrossProfit(o, productsById, productsByName);
-      if (pl) {
-        bucket.revenue += pl.revenue;
-        bucket.profit += pl.profit;
-      }
-    });
-    return Array.from(map.values());
-  }
-
-  const bucketMap = new Map<string, { date: string; label: string; revenue: number; profit: number; orders: number }>();
-  const sorted = [...orders].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  sorted.forEach((o) => {
-    const d = new Date(o.created_at);
-    if (Number.isNaN(d.getTime())) return;
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const existing = bucketMap.get(key) ?? {
-      date: key,
-      label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-      revenue: 0,
-      profit: 0,
-      orders: 0,
-    };
-    existing.orders += 1;
-    const pl = orderKnownGrossProfit(o, productsById, productsByName);
-    if (pl) {
-      existing.revenue += pl.revenue;
-      existing.profit += pl.profit;
-    }
-    bucketMap.set(key, existing);
-  });
-  return Array.from(bucketMap.values());
-}
-
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { data, loading, error, refresh } = useAdminReport();
@@ -319,8 +261,8 @@ const Dashboard: React.FC = () => {
   }, [data, periodScopedOrders, includeInternal]);
 
   const trend = useMemo(
-    () => buildPeriodTrend(periodScopedOrders, period, data?.products ?? []),
-    [periodScopedOrders, period, data?.products]
+    () => buildRevenueProfitTrend(periodScopedOrders, data?.products ?? [], period, customStart, customEnd),
+    [periodScopedOrders, period, customStart, customEnd, data?.products]
   );
 
   if (loading && !data) {
@@ -659,12 +601,32 @@ const Dashboard: React.FC = () => {
                 <ComposedChart data={trend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 11 }} width={64} />
-                  <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 11 }} width={36} />
-                  <Tooltip formatter={(value, name) => [name === 'orders' ? Number(value).toLocaleString() : money(Number(value)), String(name)]} />
-                  <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#3b82f6" fill="#dbeafe" name="Revenue" />
-                  <Area yAxisId="left" type="monotone" dataKey="profit" stroke="#10b981" fill="#d1fae5" name="Profit" />
-                  <Line yAxisId="right" type="monotone" dataKey="orders" stroke="#8b5cf6" strokeWidth={2} dot={false} name="Orders" />
+                  <YAxis yAxisId="revenue" tick={{ fontSize: 11 }} width={64} />
+                  <YAxis
+                    yAxisId="profit"
+                    orientation="right"
+                    tick={{ fontSize: 10 }}
+                    width={56}
+                    tickFormatter={(v) => money(Number(v))}
+                  />
+                  <YAxis
+                    yAxisId="orders"
+                    orientation="right"
+                    allowDecimals={false}
+                    tick={{ fontSize: 10 }}
+                    width={28}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    formatter={(value, name) => {
+                      if (name === 'orders') return [Number(value).toLocaleString(), 'Orders'];
+                      return [money(Number(value)), String(name)];
+                    }}
+                  />
+                  <Area yAxisId="revenue" type="monotone" dataKey="revenue" stroke="#3b82f6" fill="#dbeafe" name="Revenue" />
+                  <Line yAxisId="profit" type="monotone" dataKey="profit" stroke="#10b981" strokeWidth={2.5} dot={{ r: 2 }} name="Profit" />
+                  <Line yAxisId="orders" type="monotone" dataKey="orders" stroke="#a78bfa" strokeWidth={1.5} dot={false} name="Orders" strokeDasharray="4 3" />
                 </ComposedChart>
               </ResponsiveContainer>
             ) : (
