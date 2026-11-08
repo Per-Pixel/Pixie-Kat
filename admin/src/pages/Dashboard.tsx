@@ -339,7 +339,6 @@ const Dashboard: React.FC = () => {
     return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
   });
   const failedToday = ordersToday.filter((o) => o.status === 'failed').length;
-  const internalInPeriod = periodScopedOrders.filter((o) => adminIds.has(o.user_id)).length;
   const pendingKyc = data.pendingKyc;
   const activeProducts = data.products.filter((p) => p.status === 'active');
   const outOfStock = activeProducts.filter((p) => Number(p.stock ?? 0) <= 0).length;
@@ -371,39 +370,32 @@ const Dashboard: React.FC = () => {
 
   const kpis = [
     {
-      label: "Today's Revenue",
-      value: <AnimatedNumber value={todayRevenue} format={money} />,
+      label: `${periodLabel} Revenue`,
+      value: <AnimatedNumber value={periodRevenue} format={money} />,
       icon: DollarSign,
       tone: 'bg-blue-50 text-blue-600',
+      sub: <p className="text-xs text-gray-400">Same totals as Analytics for this range</p>,
+    },
+    {
+      label: `${periodLabel} Profit`,
+      value: <AnimatedNumber value={periodGrossProfit} format={money} />,
+      icon: TrendingUp,
+      tone: 'bg-emerald-50 text-emerald-600',
+      sub: <p className="text-xs text-gray-400 tabular-nums">{periodProfitMargin.toFixed(1)}% margin · known cost</p>,
+    },
+    {
+      label: "Today's Revenue",
+      value: <AnimatedNumber value={todayRevenue} format={money} />,
+      icon: BarChart3,
+      tone: 'bg-violet-50 text-violet-600',
       sub: <div className="flex items-center gap-1.5"><ChangePill value={percentChange(todayRevenue, yesterdayRevenue)} /><span className="text-xs text-gray-400">vs yesterday</span></div>,
     },
     {
       label: "Today's Profit",
       value: <AnimatedNumber value={todayProfit} format={money} />,
-      icon: TrendingUp,
-      tone: 'bg-emerald-50 text-emerald-600',
-      sub: (
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5">
-            <ChangePill value={percentChange(todayProfit, yesterdayProfit)} />
-            <span className="text-xs text-gray-400">vs yesterday · customer orders</span>
-          </div>
-        </div>
-      ),
-    },
-    {
-      label: 'Orders Today',
-      value: <AnimatedNumber value={ordersToday.length} format={(v) => Math.round(v).toLocaleString()} />,
       icon: ShoppingCart,
       tone: 'bg-cyan-50 text-cyan-600',
-      sub: <p className="text-xs text-gray-400 tabular-nums">{periodScopedOrders.length.toLocaleString()} in {periodLabel}</p>,
-    },
-    {
-      label: `${periodLabel} Revenue`,
-      value: <AnimatedNumber value={periodRevenue} format={money} />,
-      icon: BarChart3,
-      tone: 'bg-violet-50 text-violet-600',
-      sub: <p className="text-xs text-gray-400 tabular-nums">{money(periodGrossProfit)} gross profit</p>,
+      sub: <div className="flex items-center gap-1.5"><ChangePill value={percentChange(todayProfit, yesterdayProfit)} /><span className="text-xs text-gray-400">vs yesterday</span></div>,
     },
   ];
 
