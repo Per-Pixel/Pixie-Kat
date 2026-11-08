@@ -48,6 +48,7 @@ import {
   toNumber,
 } from '../utils/dashboardMetrics';
 import { orderKnownGrossProfit } from '../utils/orderFinance';
+import { formatPaymentMethodLabel } from '../utils/paymentMethodLabel';
 import type { ReportProduct } from '../services/reportingService';
 import type { ReportOrder } from '../services/reportingService';
 
@@ -373,7 +374,7 @@ const Dashboard: React.FC = () => {
   const recentActivity = data.activities
     .filter((a) => (includeInternal || !adminIds.has(a.user_id ?? '')) && matchesAdminPeriod(a.created_at, period, customStart, customEnd))
     .slice(0, 8);
-  const topCustomersInPeriod = computeCustomerInsights(periodScopedOrders, data.profiles).slice(0, 5);
+  const topCustomersInPeriod = computeCustomerInsights(periodScopedOrders, data.profiles, data.products).slice(0, 5);
   const recentOrders = periodScopedOrders.slice(0, 8);
   const topProductRevenue = productPerformance[0]?.revenue ?? 0;
 
@@ -390,7 +391,7 @@ const Dashboard: React.FC = () => {
         o.quantity,
         Number(o.total_amount || 0).toFixed(2),
         o.currency,
-        o.payment_method ?? '',
+        formatPaymentMethodLabel(o.payment_method),
         o.status,
       ])
     );
@@ -494,11 +495,11 @@ const Dashboard: React.FC = () => {
             <select
               value={paymentFilter}
               onChange={(e) => setPaymentFilter(e.target.value)}
-              className="input h-8 py-1 text-xs !w-auto capitalize"
+              className="input h-8 py-1 text-xs !w-auto"
             >
               <option value="all">All Payments</option>
               {paymentMethodsList.map((m) => (
-                <option key={m} value={m}>{m}</option>
+                <option key={m} value={m}>{formatPaymentMethodLabel(m)}</option>
               ))}
             </select>
           </div>
@@ -767,8 +768,8 @@ const Dashboard: React.FC = () => {
                     <td className="px-4 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap tabular-nums">
                       {money(toNumber(o.total_amount))}
                     </td>
-                    <td className="px-4 py-3 text-xs capitalize text-gray-500 whitespace-nowrap">
-                      {o.payment_method || '—'}
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      {formatPaymentMethodLabel(o.payment_method)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span
@@ -868,7 +869,7 @@ const Dashboard: React.FC = () => {
             {paymentMethods.length ? paymentMethods.map((m) => (
               <div key={m.method} className="flex items-center justify-between gap-3 py-2.5">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium capitalize text-gray-900">{m.method}</p>
+                  <p className="truncate text-sm font-medium text-gray-900">{formatPaymentMethodLabel(m.method)}</p>
                   <p className="text-xs text-gray-400 tabular-nums">{m.orders} orders</p>
                 </div>
                 <p className="shrink-0 text-sm font-semibold text-gray-900 tabular-nums">{money(m.revenue)}</p>
