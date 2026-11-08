@@ -6,17 +6,16 @@ import type {
 import { formatAdminMoney, readStoredCurrency } from '../lib/currency';
 import { isSaleOrderForAnalytics, isWalletTopupOrder, orderKnownGrossProfit, resolveOrderUnitCost } from './orderFinance';
 import { formatPaymentMethodLabel } from './paymentMethodLabel';
+import { localDayKey, startOfLocalDay } from './localDate';
 
 export type DashboardPeriod = 'today' | '7d' | '30d' | 'lifetime';
 
 function dayKey(value: Date) {
-  return value.toISOString().slice(0, 10);
+  return localDayKey(value);
 }
 
 function startOfDay(value: Date) {
-  const d = new Date(value);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  return startOfLocalDay(value);
 }
 
 export function periodStart(period: DashboardPeriod, reference: Date = new Date()): Date | null {
@@ -175,14 +174,14 @@ export function computeTodayVsYesterday(
 
   const completed = orders.filter((o) => o.status === 'completed' && isSaleOrderForAnalytics(o));
   const revenueToday = completed
-    .filter((o) => dayKey(new Date(o.created_at)) === today)
+    .filter((o) => localDayKey(o.created_at) === today)
     .reduce((sum, o) => sum + toNumber(o.total_amount), 0);
   const revenueYesterday = completed
-    .filter((o) => dayKey(new Date(o.created_at)) === yesterday)
+    .filter((o) => localDayKey(o.created_at) === yesterday)
     .reduce((sum, o) => sum + toNumber(o.total_amount), 0);
 
   const profitForDay = (day: string) => completed
-    .filter((o) => dayKey(new Date(o.created_at)) === day)
+    .filter((o) => localDayKey(o.created_at) === day)
     .reduce((sum, o) => {
       const pl = orderKnownGrossProfit(o, productsById, productsByName);
       return pl ? sum + pl.profit : sum;
@@ -654,7 +653,7 @@ export function computeDashboardMetrics(
     Array.from({ length: days }, (_, i) => {
       const date = new Date(start.getTime() + i * 86_400_000);
       const key = dayKey(date);
-      const bucketOrders = periodOrders.filter((o) => dayKey(new Date(o.created_at)) === key);
+      const bucketOrders = periodOrders.filter((o) => localDayKey(o.created_at) === key);
       let revenue = 0;
       let profit = 0;
       bucketOrders.forEach((o) => {

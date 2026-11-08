@@ -1,5 +1,22 @@
 import type { ReportOrder, ReportProduct } from '../services/reportingService';
 
+type ProductMeta = {
+  currencies?: Record<string, { cost_price?: number | string }>;
+};
+
+function productCatalogUnitCost(product: ReportProduct, orderCurrency: string): number | null {
+  const primary = product.currency || 'INR';
+  const costCol = product.cost_price;
+  if (costCol != null && Number(costCol) > 0) {
+    if (!orderCurrency || orderCurrency === primary) return Number(costCol);
+  }
+  const meta = product.metadata as ProductMeta | null | undefined;
+  const fromMeta = meta?.currencies?.[orderCurrency]?.cost_price;
+  if (fromMeta != null && Number(fromMeta) > 0) return Number(fromMeta);
+  if (costCol != null && Number(costCol) > 0) return Number(costCol);
+  return null;
+}
+
 /** Wallet top-ups credit customer balance — they are not product revenue or gross profit. */
 export function isWalletTopupOrder(
   order: Pick<ReportOrder, 'metadata' | 'product_name' | 'product_id'>,
@@ -31,8 +48,9 @@ export function resolveOrderUnitCost(
   const product =
     (order.product_id ? productsById.get(order.product_id) : undefined)
     ?? productsByName.get(order.product_name);
-  if (product?.cost_price != null && Number(product.cost_price) > 0) {
-    return Number(product.cost_price);
+  if (product) {
+    const fromCatalog = productCatalogUnitCost(product, order.currency || 'INR');
+    if (fromCatalog != null) return fromCatalog;
   }
   return null;
 }

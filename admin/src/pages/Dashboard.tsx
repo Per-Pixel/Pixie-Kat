@@ -49,6 +49,7 @@ import {
 } from '../utils/dashboardMetrics';
 import { orderKnownGrossProfit } from '../utils/orderFinance';
 import { formatPaymentMethodLabel } from '../utils/paymentMethodLabel';
+import { localDayKey } from '../utils/localDate';
 import type { ReportProduct } from '../services/reportingService';
 import type { ReportOrder } from '../services/reportingService';
 
@@ -167,7 +168,7 @@ function buildPeriodTrend(orders: ReportOrder[], period: AdminPeriod, products: 
     const map = new Map<string, { date: string; label: string; revenue: number; profit: number; orders: number }>();
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      const key = localDayKey(d);
       map.set(key, {
         date: key,
         label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -177,7 +178,7 @@ function buildPeriodTrend(orders: ReportOrder[], period: AdminPeriod, products: 
       });
     }
     orders.forEach((o) => {
-      const key = new Date(o.created_at).toISOString().slice(0, 10);
+      const key = localDayKey(o.created_at);
       const bucket = map.get(key);
       if (!bucket) return;
       bucket.orders += 1;
@@ -368,6 +369,7 @@ const Dashboard: React.FC = () => {
     return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
   });
   const failedToday = ordersToday.filter((o) => o.status === 'failed').length;
+  const internalInPeriod = periodScopedOrders.filter((o) => adminIds.has(o.user_id)).length;
   const pendingKyc = data.pendingKyc;
   const activeProducts = data.products.filter((p) => p.status === 'active');
   const outOfStock = activeProducts.filter((p) => Number(p.stock ?? 0) <= 0).length;
@@ -410,7 +412,19 @@ const Dashboard: React.FC = () => {
       value: <AnimatedNumber value={todayVsYesterday.profit.today} format={money} />,
       icon: TrendingUp,
       tone: 'bg-emerald-50 text-emerald-600',
-      sub: <div className="flex items-center gap-1.5"><ChangePill value={todayVsYesterday.profit.change} /><span className="text-xs text-gray-400">vs yesterday</span></div>,
+      sub: (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5">
+            <ChangePill value={todayVsYesterday.profit.change} />
+            <span className="text-xs text-gray-400">vs yesterday</span>
+          </div>
+          {!includeInternal && internalInPeriod > 0 && (
+            <p className="text-xs text-amber-700">
+              Staff orders hidden — turn <span className="font-medium">Internal: On</span> to include them in profit.
+            </p>
+          )}
+        </div>
+      ),
     },
     {
       label: 'Orders Today',
