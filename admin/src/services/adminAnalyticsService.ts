@@ -1,6 +1,6 @@
 import { api } from './api';
 
-export type AnalyticsPeriod = 'today' | '7d' | '30d' | '6m' | '1y' | 'all' | 'custom';
+export type AnalyticsPeriod = 'today' | '7d' | '30d' | '90d' | '6m' | '1y' | 'all' | 'custom';
 
 export interface AnalyticsMetrics {
   total_orders: number;
@@ -46,6 +46,7 @@ export function analyticsRange(period: AnalyticsPeriod, customStart?: string, cu
   if (period === 'today') start = new Date(new Date().setHours(0, 0, 0, 0));
   if (period === '7d') start = new Date(Date.now() - 6 * 86_400_000);
   if (period === '30d') start = new Date(Date.now() - 29 * 86_400_000);
+  if (period === '90d') start = new Date(Date.now() - 89 * 86_400_000);
   if (period === '6m') start = new Date(new Date().setMonth(new Date().getMonth() - 6));
   if (period === '1y') start = new Date(new Date().setFullYear(new Date().getFullYear() - 1));
 

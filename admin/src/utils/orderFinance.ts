@@ -60,6 +60,14 @@ export function isSaleOrderForAnalytics(order: ReportOrder): boolean {
   return !isWalletTopupOrder(order);
 }
 
+/** Line revenue — matches `get_admin_analytics` when unit snapshots exist. */
+export function resolveOrderLineRevenue(order: ReportOrder): number {
+  const qty = order.quantity || 1;
+  const unitSell = order.unit_selling_price != null ? Number(order.unit_selling_price) : null;
+  if (unitSell != null && Number.isFinite(unitSell) && unitSell > 0) return unitSell * qty;
+  return Number(order.total_amount || 0);
+}
+
 /** Gross profit for a line when unit cost is known (order snapshot or product catalog). */
 export function orderKnownGrossProfit(
   order: ReportOrder,
@@ -69,7 +77,12 @@ export function orderKnownGrossProfit(
   if (order.status !== 'completed' || !isSaleOrderForAnalytics(order)) return null;
   const unitCost = resolveOrderUnitCost(order, productsById, productsByName);
   if (unitCost == null) return null;
+  const qty = order.quantity || 1;
+  const unitSell = order.unit_selling_price != null ? Number(order.unit_selling_price) : null;
+  if (unitSell != null && Number.isFinite(unitSell) && unitSell > 0) {
+    const revenue = unitSell * qty;
+    return { revenue, profit: (unitSell - unitCost) * qty };
+  }
   const revenue = Number(order.total_amount || 0);
-  const profit = revenue - unitCost * (order.quantity || 1);
-  return { revenue, profit };
+  return { revenue, profit: revenue - unitCost * qty };
 }
