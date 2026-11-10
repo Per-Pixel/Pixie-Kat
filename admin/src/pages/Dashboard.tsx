@@ -45,9 +45,11 @@ import { DURATION, EASE_OUT, springSoft, staggerDelay, staggerItem, staggerParen
 import {
   computeDashboardMetrics,
   computeCustomerInsights,
+  percentChange,
   toNumber,
 } from '../utils/dashboardMetrics';
-import { orderKnownGrossProfit } from '../utils/orderFinance';
+import { formatPaymentMethodLabel } from '../utils/paymentMethodLabel';
+import { useAdminPeriodAnalytics, useTodayYesterdayAnalytics } from '../hooks/useAdminPeriodAnalytics';
 import type { ReportProduct } from '../services/reportingService';
 import type { ReportOrder } from '../services/reportingService';
 
@@ -156,63 +158,6 @@ function SectionHeader({ icon: Icon, title, hint, action }: {
   );
 }
 
-function buildPeriodTrend(orders: ReportOrder[], period: AdminPeriod, products: ReportProduct[]) {
-  const productsById = new Map(products.map((p) => [p.id, p]));
-  const productsByName = new Map(products.map((p) => [p.name, p]));
-  const useMonthly = period === '90d' || period === '1y' || period === 'all';
-  if (!useMonthly) {
-    const days = period === 'today' ? 1 : period === '30d' ? 30 : 7;
-    const now = new Date();
-    const map = new Map<string, { date: string; label: string; revenue: number; profit: number; orders: number }>();
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
-      map.set(key, {
-        date: key,
-        label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        revenue: 0,
-        profit: 0,
-        orders: 0,
-      });
-    }
-    orders.forEach((o) => {
-      const key = new Date(o.created_at).toISOString().slice(0, 10);
-      const bucket = map.get(key);
-      if (!bucket) return;
-      bucket.orders += 1;
-      const pl = orderKnownGrossProfit(o, productsById, productsByName);
-      if (pl) {
-        bucket.revenue += pl.revenue;
-        bucket.profit += pl.profit;
-      }
-    });
-    return Array.from(map.values());
-  }
-
-  const bucketMap = new Map<string, { date: string; label: string; revenue: number; profit: number; orders: number }>();
-  const sorted = [...orders].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  sorted.forEach((o) => {
-    const d = new Date(o.created_at);
-    if (Number.isNaN(d.getTime())) return;
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const existing = bucketMap.get(key) ?? {
-      date: key,
-      label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-      revenue: 0,
-      profit: 0,
-      orders: 0,
-    };
-    existing.orders += 1;
-    const pl = orderKnownGrossProfit(o, productsById, productsByName);
-    if (pl) {
-      existing.revenue += pl.revenue;
-      existing.profit += pl.profit;
-    }
-    bucketMap.set(key, existing);
-  });
-  return Array.from(bucketMap.values());
-}
-
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { data, loading, error, refresh } = useAdminReport();
@@ -223,6 +168,19 @@ const Dashboard: React.FC = () => {
   const [customEnd, setCustomEnd] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [includeInternal, setIncludeInternal] = useState(false);
+
+  const apiPayment = paymentFilter === 'all' ? null : paymentFilter;
+  const {
+    data: periodAnalytics,
+    loading: periodAnalyticsLoading,
+    error: periodAnalyticsError,
+    refresh: refreshPeriodAnalytics,
+  } = useAdminPeriodAnalytics(period, customStart, customEnd, apiPayment);
+  const {
+    today: todayAnalytics,
+    yesterday: yesterdayAnalytics,
+    refresh: refreshDayAnalytics,
+  } = useTodayYesterdayAnalytics(apiPayment);
 
   // Live supplier health & open support tickets
   const [smileStatus, setSmileStatus] = useState<SmileOneStatus | null>(null);
@@ -263,6 +221,8 @@ const Dashboard: React.FC = () => {
 
   const handleRefreshAll = () => {
     void refresh();
+    void refreshPeriodAnalytics();
+    void refreshDayAnalytics();
     void loadOperationalExtras();
   };
 
@@ -294,17 +254,6 @@ const Dashboard: React.FC = () => {
     [baseScopedOrders, period, customStart, customEnd]
   );
 
-  const todayReport = useMemo(() => {
-    if (!data) return null;
-    return computeDashboardMetrics(
-      { ...data, orders: baseScopedOrders },
-      'today',
-      new Date(),
-      undefined,
-      includeInternal
-    );
-  }, [data, baseScopedOrders, includeInternal]);
-
   const periodReport = useMemo(() => {
     if (!data) return null;
     return computeDashboardMetrics(
@@ -316,10 +265,20 @@ const Dashboard: React.FC = () => {
     );
   }, [data, periodScopedOrders, includeInternal]);
 
-  const trend = useMemo(
-    () => buildPeriodTrend(periodScopedOrders, period, data?.products ?? []),
-    [periodScopedOrders, period, data?.products]
-  );
+  const trend = useMemo(() => {
+    if (!periodAnalytics?.trend?.length) return [];
+    const monthly = period === '6m' || period === '1y' || period === 'all';
+    return periodAnalytics.trend.map((item) => ({
+      label: new Date(item.bucket).toLocaleDateString(undefined, {
+        month: 'short',
+        day: monthly ? undefined : 'numeric',
+        year: period === '1y' || period === 'all' ? '2-digit' : undefined,
+      }),
+      revenue: Number(item.revenue),
+      profit: Number(item.profit),
+      orders: Number(item.orders),
+    }));
+  }, [periodAnalytics, period]);
 
   if (loading && !data) {
     return (
@@ -332,7 +291,7 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  if (error || !todayReport || !periodReport || !data) {
+  if (error || !periodReport || !data) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
         <AlertCircle className="h-5 w-5 mb-2" />
@@ -348,7 +307,6 @@ const Dashboard: React.FC = () => {
       ? 'Custom'
       : ADMIN_PERIOD_OPTIONS.find((opt) => opt.value === period)?.label ?? '7 Days';
 
-  const { todayVsYesterday } = todayReport;
   const {
     financial,
     productPerformance,
@@ -358,6 +316,20 @@ const Dashboard: React.FC = () => {
     repeatMetrics,
     processingTime,
   } = periodReport;
+
+  const apiMetrics = periodAnalytics?.metrics;
+  const todayRevenue = Number(todayAnalytics?.metrics.revenue ?? 0);
+  const yesterdayRevenue = Number(yesterdayAnalytics?.metrics.revenue ?? 0);
+  const todayProfit = Number(todayAnalytics?.metrics.known_profit ?? 0);
+  const yesterdayProfit = Number(yesterdayAnalytics?.metrics.known_profit ?? 0);
+  const periodRevenue = apiMetrics ? Number(apiMetrics.revenue) : financial.revenue;
+  const periodGrossProfit = apiMetrics ? Number(apiMetrics.known_profit) : financial.grossProfit;
+  const periodProfitMargin = periodRevenue > 0 && apiMetrics
+    ? (periodGrossProfit / periodRevenue) * 100
+    : financial.profitMargin;
+  const periodAov = apiMetrics && apiMetrics.completed_orders
+    ? periodRevenue / apiMetrics.completed_orders
+    : financial.aov;
 
   const totalOrdersAllTime = baseScopedOrders.length;
   const pendingOrdersCount = baseScopedOrders.filter((o) => ['pending', 'processing', 'on_hold'].includes(o.status)).length;
@@ -373,7 +345,7 @@ const Dashboard: React.FC = () => {
   const recentActivity = data.activities
     .filter((a) => (includeInternal || !adminIds.has(a.user_id ?? '')) && matchesAdminPeriod(a.created_at, period, customStart, customEnd))
     .slice(0, 8);
-  const topCustomersInPeriod = computeCustomerInsights(periodScopedOrders, data.profiles).slice(0, 5);
+  const topCustomersInPeriod = computeCustomerInsights(periodScopedOrders, data.profiles, data.products).slice(0, 5);
   const recentOrders = periodScopedOrders.slice(0, 8);
   const topProductRevenue = productPerformance[0]?.revenue ?? 0;
 
@@ -390,7 +362,7 @@ const Dashboard: React.FC = () => {
         o.quantity,
         Number(o.total_amount || 0).toFixed(2),
         o.currency,
-        o.payment_method ?? '',
+        formatPaymentMethodLabel(o.payment_method),
         o.status,
       ])
     );
@@ -398,40 +370,40 @@ const Dashboard: React.FC = () => {
 
   const kpis = [
     {
-      label: "Today's Revenue",
-      value: <AnimatedNumber value={todayVsYesterday.revenue.today} format={money} />,
+      label: `${periodLabel} Revenue`,
+      value: <AnimatedNumber value={periodRevenue} format={money} />,
       icon: DollarSign,
       tone: 'bg-blue-50 text-blue-600',
-      sub: <div className="flex items-center gap-1.5"><ChangePill value={todayVsYesterday.revenue.change} /><span className="text-xs text-gray-400">vs yesterday</span></div>,
+      sub: <p className="text-xs text-gray-400">Same totals as Analytics for this range</p>,
+    },
+    {
+      label: `${periodLabel} Profit`,
+      value: <AnimatedNumber value={periodGrossProfit} format={money} />,
+      icon: TrendingUp,
+      tone: 'bg-emerald-50 text-emerald-600',
+      sub: <p className="text-xs text-gray-400 tabular-nums">{periodProfitMargin.toFixed(1)}% margin · known cost</p>,
+    },
+    {
+      label: "Today's Revenue",
+      value: <AnimatedNumber value={todayRevenue} format={money} />,
+      icon: BarChart3,
+      tone: 'bg-violet-50 text-violet-600',
+      sub: <div className="flex items-center gap-1.5"><ChangePill value={percentChange(todayRevenue, yesterdayRevenue)} /><span className="text-xs text-gray-400">vs yesterday</span></div>,
     },
     {
       label: "Today's Profit",
-      value: <AnimatedNumber value={todayVsYesterday.profit.today} format={money} />,
-      icon: TrendingUp,
-      tone: 'bg-emerald-50 text-emerald-600',
-      sub: <div className="flex items-center gap-1.5"><ChangePill value={todayVsYesterday.profit.change} /><span className="text-xs text-gray-400">vs yesterday</span></div>,
-    },
-    {
-      label: 'Orders Today',
-      value: <AnimatedNumber value={ordersToday.length} format={(v) => Math.round(v).toLocaleString()} />,
+      value: <AnimatedNumber value={todayProfit} format={money} />,
       icon: ShoppingCart,
       tone: 'bg-cyan-50 text-cyan-600',
-      sub: <p className="text-xs text-gray-400 tabular-nums">{periodScopedOrders.length.toLocaleString()} in {periodLabel}</p>,
-    },
-    {
-      label: `${periodLabel} Revenue`,
-      value: <AnimatedNumber value={financial.revenue} format={money} />,
-      icon: BarChart3,
-      tone: 'bg-violet-50 text-violet-600',
-      sub: <p className="text-xs text-gray-400 tabular-nums">{money(financial.grossProfit)} gross profit</p>,
+      sub: <div className="flex items-center gap-1.5"><ChangePill value={percentChange(todayProfit, yesterdayProfit)} /><span className="text-xs text-gray-400">vs yesterday</span></div>,
     },
   ];
 
   const quickStats = [
-    { label: `Avg order value (${periodLabel})`, value: <AnimatedNumber value={financial.aov} format={money} />, icon: BarChart3 },
+    { label: `Avg order value (${periodLabel})`, value: <AnimatedNumber value={periodAov} format={money} />, icon: BarChart3 },
     {
       label: `Profit margin (${periodLabel})`,
-      value: <AnimatedNumber value={financial.profitMargin} format={(v) => `${v.toFixed(1)}%`} />,
+      value: <AnimatedNumber value={periodProfitMargin} format={(v) => `${v.toFixed(1)}%`} />,
       icon: TrendingUp,
       sub: financial.walletTopupOrdersExcluded > 0 ? (
         <p className="text-xs text-gray-400 tabular-nums">
@@ -494,11 +466,11 @@ const Dashboard: React.FC = () => {
             <select
               value={paymentFilter}
               onChange={(e) => setPaymentFilter(e.target.value)}
-              className="input h-8 py-1 text-xs !w-auto capitalize"
+              className="input h-8 py-1 text-xs !w-auto"
             >
               <option value="all">All Payments</option>
               {paymentMethodsList.map((m) => (
-                <option key={m} value={m}>{m}</option>
+                <option key={m} value={m}>{formatPaymentMethodLabel(m)}</option>
               ))}
             </select>
           </div>
@@ -636,17 +608,26 @@ const Dashboard: React.FC = () => {
           <SectionHeader
             icon={TrendingUp}
             title={`Revenue, Profit & Orders (${periodLabel})`}
-            hint={`${periodScopedOrders.length.toLocaleString()} orders in period · ${totalOrdersAllTime.toLocaleString()} all time`}
+            hint={`Customer orders (same source as Analytics) · ${periodScopedOrders.length.toLocaleString()} rows in table filters`}
           />
           <div className="mt-4">
-            {trend.some((t) => t.revenue > 0 || t.orders > 0) ? (
+            {periodAnalyticsLoading ? (
+              <p className="py-16 text-center text-sm text-gray-400">Loading revenue &amp; profit…</p>
+            ) : periodAnalyticsError ? (
+              <p className="py-16 text-center text-sm text-red-600">{periodAnalyticsError}</p>
+            ) : trend.some((t) => t.revenue > 0 || t.profit > 0 || t.orders > 0) ? (
               <ResponsiveContainer width="100%" height={260}>
                 <ComposedChart data={trend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                   <YAxis yAxisId="left" tick={{ fontSize: 11 }} width={64} />
                   <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 11 }} width={36} />
-                  <Tooltip formatter={(value, name) => [name === 'orders' ? Number(value).toLocaleString() : money(Number(value)), String(name)]} />
+                  <Tooltip
+                    formatter={(value, name) => [
+                      name === 'orders' ? Number(value).toLocaleString() : money(Number(value)),
+                      String(name),
+                    ]}
+                  />
                   <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#3b82f6" fill="#dbeafe" name="Revenue" />
                   <Area yAxisId="left" type="monotone" dataKey="profit" stroke="#10b981" fill="#d1fae5" name="Profit" />
                   <Line yAxisId="right" type="monotone" dataKey="orders" stroke="#8b5cf6" strokeWidth={2} dot={false} name="Orders" />
@@ -767,8 +748,8 @@ const Dashboard: React.FC = () => {
                     <td className="px-4 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap tabular-nums">
                       {money(toNumber(o.total_amount))}
                     </td>
-                    <td className="px-4 py-3 text-xs capitalize text-gray-500 whitespace-nowrap">
-                      {o.payment_method || '—'}
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      {formatPaymentMethodLabel(o.payment_method)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span
@@ -868,7 +849,7 @@ const Dashboard: React.FC = () => {
             {paymentMethods.length ? paymentMethods.map((m) => (
               <div key={m.method} className="flex items-center justify-between gap-3 py-2.5">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium capitalize text-gray-900">{m.method}</p>
+                  <p className="truncate text-sm font-medium text-gray-900">{formatPaymentMethodLabel(m.method)}</p>
                   <p className="text-xs text-gray-400 tabular-nums">{m.orders} orders</p>
                 </div>
                 <p className="shrink-0 text-sm font-semibold text-gray-900 tabular-nums">{money(m.revenue)}</p>

@@ -57,6 +57,8 @@ const LeaderboardPage = lazy(() => import("./pages/leaderboard"));
 
 const JjkCheaperPage = lazy(() => import("./pages/events/jjk-cheaper"));
 
+const KaguraLegendPage = lazy(() => import("./pages/events/kagura-legend"));
+
 const PromotionsPage = lazy(() => import("./pages/promotions"));
 
 const PromoDetailPage = lazy(() => import("./pages/promotions/PromoDetailPage"));
@@ -290,6 +292,8 @@ function App() {
                   <Route path="/leaderboard" element={<LeaderboardPage />} />
 
                   <Route path="/event/jjk-cheaper" element={<JjkCheaperPage />} />
+
+                  <Route path="/event/kagura-legend" element={<KaguraLegendPage />} />
 
                   <Route path="/promotions" element={<PromotionsPage />} />
 

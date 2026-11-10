@@ -40,6 +40,7 @@ export interface ReportProduct {
   stock?: number | null;
   status: string;
   is_popular: boolean;
+  metadata?: Record<string, unknown> | null;
   game?: { name: string; category?: string | null; provider?: string | null } | null;
 }
 
@@ -119,7 +120,7 @@ export async function getAdminReportData(): Promise<AdminReportData> {
     fetchAllOrders(),
     supabase
       .from('products')
-      .select('id, game_id, name, price, cost_price, currency, stock, status, is_popular, game:games(name, category, provider)')
+      .select('id, game_id, name, price, cost_price, currency, stock, status, is_popular, metadata, game:games(name, category, provider)')
       .order('created_at', { ascending: false })
       .limit(2000),
     supabase

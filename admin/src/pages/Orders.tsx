@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase';
 import OrderDrawer from '../components/orders/OrderDrawer';
 import clsx from 'clsx';
 import { DURATION, EASE_OUT, fadeUp, pop, staggerDelay } from '../lib/motion';
+import { formatPaymentMethodLabel } from '../utils/paymentMethodLabel';
 
 type OrderStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'refunded' | 'cancelled' | 'on_hold';
 type SortField = 'created_at' | 'total_amount' | 'status' | 'product_name';
@@ -113,7 +114,7 @@ function downloadCsv(orders: OrderRow[]) {
       return [
         o.id, prof.name ?? 'Unknown', prof.email ?? '',
         o.product_name, String(o.quantity), String(o.total_amount),
-        o.currency, o.status, o.payment_method ?? '', o.payment_id ?? '', o.razorpay_order_id ?? '', o.created_at,
+        o.currency, o.status, formatPaymentMethodLabel(o.payment_method), o.payment_id ?? '', o.razorpay_order_id ?? '', o.created_at,
       ];
     }),
   ];
@@ -394,10 +395,10 @@ const Orders: React.FC = () => {
               ))}
             </select>
             <select value={paymentFilter} onChange={(e) => { setPaymentFilter(e.target.value); setPage(1); }}
-              className="input min-w-36 capitalize">
+              className="input min-w-36">
               <option value="all">All Payments</option>
               {paymentMethods.map((m) => (
-                <option key={m} value={m}>{m}</option>
+                <option key={m} value={m}>{formatPaymentMethodLabel(m)}</option>
               ))}
             </select>
           </div>
@@ -434,6 +435,7 @@ const Orders: React.FC = () => {
                       { label: 'Qty', field: null },
                       { label: 'Amount', field: 'total_amount' as SortField },
                       { label: 'Status', field: 'status' as SortField },
+                      { label: 'Payment', field: null },
                       { label: 'Date', field: 'created_at' as SortField },
                       { label: 'Actions', field: null },
                     ].map((col) => (
@@ -495,6 +497,9 @@ const Orders: React.FC = () => {
                         >
                           {order.status.replace('_', ' ')}
                         </motion.span>
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap text-sm text-gray-600">
+                        {formatPaymentMethodLabel(order.payment_method)}
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap text-sm text-gray-500">{formatDate(order.created_at)}</td>
                       <td className="px-4 py-3.5 whitespace-nowrap text-sm font-medium">

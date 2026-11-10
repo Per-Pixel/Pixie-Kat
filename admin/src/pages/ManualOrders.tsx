@@ -32,6 +32,7 @@ import clsx from 'clsx';
 import { supabase } from '../lib/supabase';
 import axios from 'axios';
 import api from '../services/api';
+import { formatPaymentMethodLabel } from '../utils/paymentMethodLabel';
 import OrderDrawer from '../components/orders/OrderDrawer';
 import ChatGptAssistantDrawer, {
   type EnrichedOrderRow,
@@ -218,7 +219,7 @@ function downloadOrdersCsv(orders: EnrichedOrderRow[], prefix: string) {
         o.metadata?.verified_username ?? '',
         cust.name,
         cust.email,
-        o.payment_method ?? '',
+        formatPaymentMethodLabel(o.payment_method),
         o.metadata?.manual_fulfillment_note ?? '',
         o.created_at,
       ];
@@ -1722,7 +1723,7 @@ const ManualOrders: React.FC<ManualOrdersProps> = ({ mode = 'manual' }) => {
                                   </p>
                                 ) : (
                                   <p className="text-[11px] text-gray-400">
-                                    {order.payment_method || 'wallet'}
+                                    {formatPaymentMethodLabel(order.payment_method || 'wallet')}
                                   </p>
                                 )}
                               </div>

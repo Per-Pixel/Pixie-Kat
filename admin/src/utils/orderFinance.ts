@@ -1,5 +1,22 @@
 import type { ReportOrder, ReportProduct } from '../services/reportingService';
 
+type ProductMeta = {
+  currencies?: Record<string, { cost_price?: number | string }>;
+};
+
+function productCatalogUnitCost(product: ReportProduct, orderCurrency: string): number | null {
+  const primary = product.currency || 'INR';
+  const costCol = product.cost_price;
+  if (costCol != null && Number(costCol) > 0) {
+    if (!orderCurrency || orderCurrency === primary) return Number(costCol);
+  }
+  const meta = product.metadata as ProductMeta | null | undefined;
+  const fromMeta = meta?.currencies?.[orderCurrency]?.cost_price;
+  if (fromMeta != null && Number(fromMeta) > 0) return Number(fromMeta);
+  if (costCol != null && Number(costCol) > 0) return Number(costCol);
+  return null;
+}
+
 /** Wallet top-ups credit customer balance — they are not product revenue or gross profit. */
 export function isWalletTopupOrder(
   order: Pick<ReportOrder, 'metadata' | 'product_name' | 'product_id'>,
@@ -31,8 +48,9 @@ export function resolveOrderUnitCost(
   const product =
     (order.product_id ? productsById.get(order.product_id) : undefined)
     ?? productsByName.get(order.product_name);
-  if (product?.cost_price != null && Number(product.cost_price) > 0) {
-    return Number(product.cost_price);
+  if (product) {
+    const fromCatalog = productCatalogUnitCost(product, order.currency || 'INR');
+    if (fromCatalog != null) return fromCatalog;
   }
   return null;
 }
@@ -40,6 +58,14 @@ export function resolveOrderUnitCost(
 /** Orders that should affect revenue, COGS, and margin metrics. */
 export function isSaleOrderForAnalytics(order: ReportOrder): boolean {
   return !isWalletTopupOrder(order);
+}
+
+/** Line revenue — matches `get_admin_analytics` when unit snapshots exist. */
+export function resolveOrderLineRevenue(order: ReportOrder): number {
+  const qty = order.quantity || 1;
+  const unitSell = order.unit_selling_price != null ? Number(order.unit_selling_price) : null;
+  if (unitSell != null && Number.isFinite(unitSell) && unitSell > 0) return unitSell * qty;
+  return Number(order.total_amount || 0);
 }
 
 /** Gross profit for a line when unit cost is known (order snapshot or product catalog). */
@@ -51,7 +77,12 @@ export function orderKnownGrossProfit(
   if (order.status !== 'completed' || !isSaleOrderForAnalytics(order)) return null;
   const unitCost = resolveOrderUnitCost(order, productsById, productsByName);
   if (unitCost == null) return null;
+  const qty = order.quantity || 1;
+  const unitSell = order.unit_selling_price != null ? Number(order.unit_selling_price) : null;
+  if (unitSell != null && Number.isFinite(unitSell) && unitSell > 0) {
+    const revenue = unitSell * qty;
+    return { revenue, profit: (unitSell - unitCost) * qty };
+  }
   const revenue = Number(order.total_amount || 0);
-  const profit = revenue - unitCost * (order.quantity || 1);
-  return { revenue, profit };
+  return { revenue, profit: revenue - unitCost * qty };
 }

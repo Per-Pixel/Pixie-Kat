@@ -5,17 +5,17 @@ import type {
 } from '../services/reportingService';
 import { formatAdminMoney, readStoredCurrency } from '../lib/currency';
 import { isSaleOrderForAnalytics, isWalletTopupOrder, orderKnownGrossProfit, resolveOrderUnitCost } from './orderFinance';
+import { formatPaymentMethodLabel } from './paymentMethodLabel';
+import { localDayKey, startOfLocalDay } from './localDate';
 
 export type DashboardPeriod = 'today' | '7d' | '30d' | 'lifetime';
 
 function dayKey(value: Date) {
-  return value.toISOString().slice(0, 10);
+  return localDayKey(value);
 }
 
 function startOfDay(value: Date) {
-  const d = new Date(value);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  return startOfLocalDay(value);
 }
 
 export function periodStart(period: DashboardPeriod, reference: Date = new Date()): Date | null {
@@ -159,26 +159,32 @@ export interface TodayVsYesterday {
   profit: { today: number; yesterday: number; change: number };
 }
 
-export function computeTodayVsYesterday(orders: ReportOrder[], reference: Date = new Date()): TodayVsYesterday {
+export function computeTodayVsYesterday(
+  orders: ReportOrder[],
+  reference: Date = new Date(),
+  products: ReportProduct[] = [],
+): TodayVsYesterday {
   const today = dayKey(reference);
   const yesterdayDate = new Date(reference);
   yesterdayDate.setDate(reference.getDate() - 1);
   const yesterday = dayKey(yesterdayDate);
 
+  const productsById = new Map(products.map((p) => [p.id, p]));
+  const productsByName = new Map(products.map((p) => [p.name, p]));
+
   const completed = orders.filter((o) => o.status === 'completed' && isSaleOrderForAnalytics(o));
   const revenueToday = completed
-    .filter((o) => dayKey(new Date(o.created_at)) === today)
+    .filter((o) => localDayKey(o.created_at) === today)
     .reduce((sum, o) => sum + toNumber(o.total_amount), 0);
   const revenueYesterday = completed
-    .filter((o) => dayKey(new Date(o.created_at)) === yesterday)
+    .filter((o) => localDayKey(o.created_at) === yesterday)
     .reduce((sum, o) => sum + toNumber(o.total_amount), 0);
 
   const profitForDay = (day: string) => completed
-    .filter((o) => dayKey(new Date(o.created_at)) === day)
+    .filter((o) => localDayKey(o.created_at) === day)
     .reduce((sum, o) => {
-      const unit = toNumber(o.unit_cost_price);
-      if (unit <= 0) return sum;
-      return sum + (toNumber(o.total_amount) - unit * (o.quantity || 1));
+      const pl = orderKnownGrossProfit(o, productsById, productsByName);
+      return pl ? sum + pl.profit : sum;
     }, 0);
   const profitToday = profitForDay(today);
   const profitYesterday = profitForDay(yesterday);
@@ -213,19 +219,24 @@ export function computeProductPerformance(
   products: ReportProduct[],
 ): ProductPerformance[] {
   const map = new Map<string, ProductPerformance>();
-  const productById = new Map(products.map((p) => [p.id, p]));
+  const productsById = new Map(products.map((p) => [p.id, p]));
+  const productsByName = new Map(products.map((p) => [p.name, p]));
 
   orders
     .filter((o) => o.status === 'completed' && isSaleOrderForAnalytics(o))
     .forEach((o) => {
       const key = o.product_id || o.product_name;
-      const product = o.product_id ? productById.get(o.product_id) : undefined;
+      const product = o.product_id ? productsById.get(o.product_id) : productsByName.get(o.product_name);
+      const pl = orderKnownGrossProfit(o, productsById, productsByName);
+      const revenue = toNumber(o.total_amount);
+      const lineCost = pl ? pl.revenue - pl.profit : 0;
+      const lineProfit = pl?.profit ?? 0;
       const existing = map.get(key);
       if (existing) {
         existing.units += o.quantity || 1;
-        existing.revenue += toNumber(o.total_amount);
-        existing.cost += toNumber(o.unit_cost_price) * (o.quantity || 1);
-        existing.profit = existing.revenue - existing.cost;
+        existing.revenue += revenue;
+        existing.cost += lineCost;
+        existing.profit += lineProfit;
       } else {
         map.set(key, {
           id: key,
@@ -233,9 +244,9 @@ export function computeProductPerformance(
           gameName: product?.game?.name || '—',
           provider: product?.game?.provider || 'manual',
           units: o.quantity || 1,
-          revenue: toNumber(o.total_amount),
-          cost: toNumber(o.unit_cost_price) * (o.quantity || 1),
-          profit: toNumber(o.total_amount) - toNumber(o.unit_cost_price) * (o.quantity || 1),
+          revenue,
+          cost: lineCost,
+          profit: lineProfit,
         });
       }
     });
@@ -256,23 +267,27 @@ export function computeGamePerformance(
   orders: ReportOrder[],
   products: ReportProduct[],
 ): GamePerformance[] {
-  const productById = new Map(products.map((p) => [p.id, p]));
+  const productsById = new Map(products.map((p) => [p.id, p]));
+  const productsByName = new Map(products.map((p) => [p.name, p]));
   const map = new Map<string, GamePerformance>();
 
   orders
     .filter((o) => o.status === 'completed' && isSaleOrderForAnalytics(o))
     .forEach((o) => {
-      const product = o.product_id ? productById.get(o.product_id) : undefined;
+      const product =
+        (o.product_id ? productsById.get(o.product_id) : undefined)
+        ?? productsByName.get(o.product_name);
       const gameId = product?.game_id || 'unknown';
       const gameName = product?.game?.name || 'Unknown Game';
       const existing = map.get(gameId);
       const revenue = toNumber(o.total_amount);
-      const cost = toNumber(o.unit_cost_price) * (o.quantity || 1);
+      const pl = orderKnownGrossProfit(o, productsById, productsByName);
+      const lineProfit = pl?.profit ?? 0;
       if (existing) {
         existing.orders += 1;
         existing.units += o.quantity || 1;
         existing.revenue += revenue;
-        existing.profit += revenue - cost;
+        existing.profit += lineProfit;
       } else {
         map.set(gameId, {
           id: gameId,
@@ -280,7 +295,7 @@ export function computeGamePerformance(
           orders: 1,
           units: o.quantity || 1,
           revenue,
-          profit: revenue - cost,
+          profit: lineProfit,
         });
       }
     });
@@ -309,11 +324,14 @@ export function computeSupplierPerformance(
   orders: ReportOrder[],
   products: ReportProduct[],
 ): SupplierPerformance[] {
-  const productById = new Map(products.map((p) => [p.id, p]));
+  const productsById = new Map(products.map((p) => [p.id, p]));
+  const productsByName = new Map(products.map((p) => [p.name, p]));
   const map = new Map<string, SupplierPerformance>();
 
   orders.filter(isSaleOrderForAnalytics).forEach((o) => {
-    const product = o.product_id ? productById.get(o.product_id) : undefined;
+    const product =
+      (o.product_id ? productsById.get(o.product_id) : undefined)
+      ?? productsByName.get(o.product_name);
     const provider = product?.game?.provider || 'manual';
     const existing = map.get(provider) || {
       provider,
@@ -329,7 +347,8 @@ export function computeSupplierPerformance(
     existing.revenue += toNumber(o.total_amount);
     if (o.status === 'completed') {
       existing.successful += 1;
-      existing.spend += toNumber(o.unit_cost_price) * (o.quantity || 1);
+      const unitCost = resolveOrderUnitCost(o, productsById, productsByName);
+      if (unitCost != null) existing.spend += unitCost * (o.quantity || 1);
     }
     if (o.status === 'failed') existing.failed += 1;
     map.set(provider, existing);
@@ -356,7 +375,10 @@ export interface CustomerInsight {
 export function computeCustomerInsights(
   orders: ReportOrder[],
   profiles: AdminReportData['profiles'],
+  products: ReportProduct[] = [],
 ): CustomerInsight[] {
+  const productsById = new Map(products.map((p) => [p.id, p]));
+  const productsByName = new Map(products.map((p) => [p.name, p]));
   const map = new Map<string, CustomerInsight>();
 
   orders
@@ -366,11 +388,12 @@ export function computeCustomerInsights(
       const profile = profiles.find((p) => p.id === o.user_id);
       const existing = map.get(o.user_id);
       const revenue = toNumber(o.total_amount);
-      const cost = o.status === 'completed' ? toNumber(o.unit_cost_price) * (o.quantity || 1) : 0;
+      const pl = o.status === 'completed' ? orderKnownGrossProfit(o, productsById, productsByName) : null;
+      const lineProfit = pl?.profit ?? 0;
       if (existing) {
         existing.orders += 1;
         existing.spent += revenue;
-        existing.profit += revenue - cost;
+        existing.profit += lineProfit;
         existing.lastOrder = o.created_at;
       } else {
         map.set(o.user_id, {
@@ -379,7 +402,7 @@ export function computeCustomerInsights(
           email: profile?.email || o.profiles?.email || '',
           orders: 1,
           spent: revenue,
-          profit: revenue - cost,
+          profit: lineProfit,
           firstOrder: o.created_at,
           lastOrder: o.created_at,
         });
@@ -401,9 +424,10 @@ export function computeRepeatMetrics(
   profiles: AdminReportData['profiles'],
   period: DashboardPeriod,
   reference: Date = new Date(),
+  products: ReportProduct[] = [],
 ): RepeatCustomerMetrics {
   const periodOrders = orders.filter((o) => isInPeriod(o.created_at, period, reference));
-  const insights = computeCustomerInsights(periodOrders, profiles);
+  const insights = computeCustomerInsights(periodOrders, profiles, products);
   const newCustomers = insights.filter((c) => c.orders === 1).length;
   const returningCustomers = insights.filter((c) => c.orders > 1).length;
   const totalCustomers = insights.length;
@@ -428,7 +452,7 @@ export function computePaymentMethodBreakdown(orders: ReportOrder[]): PaymentMet
   orders
     .filter((o) => o.status === 'completed' && isSaleOrderForAnalytics(o))
     .forEach((o) => {
-      const method = o.payment_method || 'Unknown';
+      const method = formatPaymentMethodLabel(o.payment_method || 'Unknown');
       const existing = map.get(method) || { method, orders: 0, revenue: 0 };
       existing.orders += 1;
       existing.revenue += toNumber(o.total_amount);
@@ -581,13 +605,19 @@ export function computeDashboardMetrics(
     (o) => (includeInternalOrders || !adminIds.has(o.user_id)) && isInPeriod(o.created_at, period, reference) && (!paymentMethod || o.payment_method === paymentMethod),
   );
 
+  const comparisonOrders = data.orders.filter(
+    (o) =>
+      (includeInternalOrders || !adminIds.has(o.user_id))
+      && (!paymentMethod || o.payment_method === paymentMethod),
+  );
+
   const financial = computeFinancials(periodOrders, { products: data.products });
-  const todayVsYesterday = computeTodayVsYesterday(periodOrders, reference);
+  const todayVsYesterday = computeTodayVsYesterday(comparisonOrders, reference, data.products);
   const productPerformance = computeProductPerformance(periodOrders, data.products);
   const gamePerformance = computeGamePerformance(periodOrders, data.products);
   const supplierPerformance = computeSupplierPerformance(periodOrders, data.products);
-  const customerInsights = computeCustomerInsights(periodOrders, data.profiles);
-  const repeatMetrics = computeRepeatMetrics(periodOrders, data.profiles, period, reference);
+  const customerInsights = computeCustomerInsights(periodOrders, data.profiles, data.products);
+  const repeatMetrics = computeRepeatMetrics(periodOrders, data.profiles, period, reference, data.products);
   const paymentMethods = computePaymentMethodBreakdown(periodOrders);
   const peakSales = computePeakSales(periodOrders);
   const processingTime = computeProcessingTime(periodOrders);
@@ -623,7 +653,7 @@ export function computeDashboardMetrics(
     Array.from({ length: days }, (_, i) => {
       const date = new Date(start.getTime() + i * 86_400_000);
       const key = dayKey(date);
-      const bucketOrders = periodOrders.filter((o) => dayKey(new Date(o.created_at)) === key);
+      const bucketOrders = periodOrders.filter((o) => localDayKey(o.created_at) === key);
       let revenue = 0;
       let profit = 0;
       bucketOrders.forEach((o) => {

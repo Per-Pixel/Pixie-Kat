@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 import clsx from 'clsx';
 import axios from 'axios';
 import api from '../../services/api';
+import { formatPaymentMethodLabel } from '../../utils/paymentMethodLabel';
 import { buildPixieKatOrderContext, openInChatGptWeb, type EnrichedOrderRow } from './ChatGptAssistantDrawer';
 import {
   DURATION,
@@ -285,7 +286,7 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
                   <DetailRow icon={ShoppingCart} label="Quantity" value={String(order.quantity)} />
                   <DetailRow icon={CreditCard} label="Amount" value={`${order.currency} ${Number(order.total_amount).toFixed(2)}`} />
                   {order.payment_method && (
-                    <DetailRow icon={CreditCard} label="Payment Method" value={order.payment_method} />
+                    <DetailRow icon={CreditCard} label="Payment Method" value={formatPaymentMethodLabel(order.payment_method)} />
                   )}
                   {order.payment_id && (
                     <DetailRow icon={Hash} label="Payment ID" value={order.payment_id} onCopy={() => copyToClipboard(order.payment_id!, 'Payment ID')} />

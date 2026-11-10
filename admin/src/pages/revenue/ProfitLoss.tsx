@@ -10,6 +10,7 @@ import { useAdminCurrency } from '../../lib/currency';
 import { exportToCsv } from '../../utils/dateRange';
 import type { ReportOrder, ReportProduct } from '../../services/reportingService';
 import { isWalletTopupOrder } from '../../utils/orderFinance';
+import { formatPaymentMethodLabel } from '../../utils/paymentMethodLabel';
 
 type PlPeriod = 'today' | '7d' | '30d' | '90d' | '1y' | 'all' | 'custom';
 
@@ -182,7 +183,7 @@ const ProfitLoss: React.FC = () => {
         customer: customerName,
         email: customerEmail,
         productName: order.product_name,
-        paymentMethod: order.payment_method || '—',
+        paymentMethod: formatPaymentMethodLabel(order.payment_method),
         status: order.status,
         currency: order.currency || currency,
         value: total,
@@ -328,11 +329,11 @@ const ProfitLoss: React.FC = () => {
               <select
                 value={paymentFilter}
                 onChange={(e) => { setPaymentFilter(e.target.value); setPage(1); }}
-                className="input h-9 text-xs !w-auto capitalize"
+                className="input h-9 text-xs !w-auto"
               >
                 <option value="all">All Payment Methods</option>
                 {paymentMethods.map((m) => (
-                  <option key={m} value={m}>{m}</option>
+                  <option key={m} value={m}>{formatPaymentMethodLabel(m)}</option>
                 ))}
               </select>
             </div>

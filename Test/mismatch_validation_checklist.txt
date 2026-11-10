@@ -1,0 +1,35 @@
+Validation checklist: provider price mismatch refund
+
+Server: main/server/index.js
+[ ] POST /api/fulfill-order with a SmileCoin createorder response containing price: 'BRL 3.90'
+    and product.metadata.expected_provider_price = 4.00
+    → calls adjust_wallet_balance with a positive refund amount
+    → stores provider_mismatch in order metadata with refund_status 'completed'
+[ ] POST /api/fulfill-order with no expected_provider_price set
+    → does NOT crash, logs a warning
+    → stores provider_mismatch with refund_status 'skipped_no_expected_price'
+[ ] POST /api/fulfill-order with price in data.price, product_price, amount, or total_amount
+    → extracts the price correctly in each case
+[ ] POST /api/fulfill-order with a string containing spaces/currency symbols
+    → normalizes to a number before comparison
+
+Admin: admin/src/pages/products/GameEditor.tsx
+[ ] Open a game editor, set Expected Provider Price on a product, save
+[ ] Re-open the product and confirm the value is shown
+[ ] Check in Supabase that products.metadata contains expected_provider_price (numeric)
+
+Main site: main/src/pages/games/GamePage.jsx
+[ ] Place a wallet order that triggers a mismatch
+[ ] Confirm the success screen shows the partial refund message and credited amount
+[ ] Place a wallet order where refund fails
+[ ] Confirm the success screen warns that the refund could not be credited
+
+Admin: admin/src/components/orders/OrderDrawer.tsx
+[ ] Open an order with provider_mismatch metadata
+[ ] Confirm the mismatch section shows expected/actual prices and refund status
+[ ] Click "Credit ... to wallet" on an order with a failed/skipped refund
+[ ] Confirm the wallet is credited and the order metadata updates to refund_status 'completed'
+
+Supabase: supabase/migrations/026_fix_mobilelegends_weekly_pass.sql
+[ ] Apply the migration to the target database
+[ ] Verify the Mobile Legends (Brazil) Weekly Pass product now has metadata.expected_provider_price = 4.00

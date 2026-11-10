@@ -21,6 +21,7 @@ import {
 import { toast } from 'react-hot-toast';
 import clsx from 'clsx';
 import api from '../../services/api';
+import { formatPaymentMethodLabel } from '../../utils/paymentMethodLabel';
 import {
   DURATION,
   EASE_OUT,
@@ -231,7 +232,7 @@ export function buildPixieKatOrderContext({
         `${idx + 1}. Order #${o.id.slice(0, 8).toUpperCase()} (id: ${o.id})`,
         `   - Game & Product: [${o.resolvedGameName || o.metadata?.game_name || 'Game'}] ${o.product_name} × ${o.quantity}`,
         `   - Fulfillment Mode: ${o.isManualOrder ? 'MANUAL' : `AUTO (${o.resolvedProvider || 'provider'})`} | Status: ${o.status.toUpperCase()}`,
-        `   - Amount: ${o.currency} ${Number(o.total_amount || 0).toFixed(2)}${o.unit_cost_price != null ? ` (Unit Cost: ${Number(o.unit_cost_price).toFixed(2)})` : ''} | Payment: ${o.payment_method || 'wallet'}${o.payment_id ? ` (${o.payment_id})` : ''}`,
+        `   - Amount: ${o.currency} ${Number(o.total_amount || 0).toFixed(2)}${o.unit_cost_price != null ? ` (Unit Cost: ${Number(o.unit_cost_price).toFixed(2)})` : ''} | Payment: ${formatPaymentMethodLabel(o.payment_method || 'wallet')}${o.payment_id ? ` (${o.payment_id})` : ''}`,
         `   - Placed: ${new Date(o.created_at).toISOString()}`,
       ];
 
