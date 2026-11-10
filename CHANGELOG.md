@@ -25,7 +25,7 @@
 - Saving a game no longer fails on `orders_product_id_fkey` once it has orders: package saves upsert with stable product ids instead of wipe-and-reinsert, and removing an order-referenced package — or deleting an order-referenced package/game outright — retires it to Inactive rather than erroring, so order history keeps a valid FK target.
 
 ### Storefront
-- Kagura Legend draw planner at `/event/kagura-legend` (day checklist, bill, routes, traps) with homepage Exclusive Offers promo using the Kagura splash art.
+- Kagura Legend draw planner at `/event/kagura-legend` (day checklist, bill, routes, traps); homepage promo is a `promotional_items` row editable under **Exclusive Offers** (`059_kagura_exclusive_offer.sql`).
 - Redesign the Kagura Legend planner with a connected lantern journey, milestone shortcuts, a responsive map and checklist layout, numbered sections, clearer cost and route comparisons, and coordinated motion with reduced-motion support.
 - Leaderboard now ranks by total monthly spend instead of completed-order count — podium, standings table, homepage teaser and account rank history all lead with ₹ spent (order count stays as secondary context), the admin panel shows spend-first standings, and winner emails announce the spend total. Requires migration `056_leaderboard_spend_metric.sql`.
 - Swap in new animated graphics across homepage slots (hero background, bento tiles, flip/contact cards, contact collage), lazy-load below-fold videos on approach (`LazyVideo` + IntersectionObserver), and preconnect to the media host so graphics load faster.
