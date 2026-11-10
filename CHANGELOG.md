@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Fixed
+- Kagura Legend now opens with artwork-aware lantern gates, uses Lenis wheel smoothing with native touch, and unfolds three illustrated overlapping bill frames on desktop; lanterns sway within stable controls, with app/OS reduced-motion and compact mobile fallbacks.
 - Unpaid Aluu/Razorpay checkouts older than 24 hours are auto-marked `failed` by the API (`expireStalePendingOrders`), with a last-chance Aluu status check so late payments still settle.
 - Kagura planner adds a scroll-driven savings narrative, animated route paths, crest progress meter, heading reveals, and trap answer feedback with reduced-motion support.
 - Aluu UPI/QR checkout no longer leaves paid orders stuck on `pending` when customers close the payment tab after scanning: storefront keeps polling, and the API runs a background Aluu reconcile + auto-fulfill worker (`aluu-settlement.js`, `order-jobs.js`). Requires **API** deploy (`eb deploy` from `main/server`).

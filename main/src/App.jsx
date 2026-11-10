@@ -141,7 +141,7 @@ function MainFrame({ isLoading, mainContentRef, children }) {
 
       ref={mainContentRef}
 
-      style={{ opacity: isLoading ? 0 : 1 }}
+      style={{ opacity: isLoading && location.pathname !== "/event/kagura-legend" ? 0 : 1 }}
 
     >
 
@@ -154,6 +154,14 @@ function MainFrame({ isLoading, mainContentRef, children }) {
 };
 
 
+
+function GlobalIntro({ isLoading, onComplete, mainContentRef }) {
+  const { pathname } = useLocation();
+  const isKagura = pathname === "/event/kagura-legend";
+  useEffect(() => { if (isKagura && isLoading) onComplete(); }, [isKagura, isLoading, onComplete]);
+  if (!isLoading || isKagura) return null;
+  return <Loading onComplete={onComplete} heroContainerRef={mainContentRef} heroRef={mainContentRef} />;
+}
 
 const LOADING_SESSION_KEY = "pixie_has_loaded";
 
@@ -229,21 +237,7 @@ function App() {
         <>
           <ScrollToTop />
 
-          {isLoading && (
-
-            <Loading
-
-              onComplete={handleLoadingComplete}
-
-              heroContainerRef={mainContentRef}
-
-              heroRef={mainContentRef}
-
-            />
-
-          )}
-
-
+          <GlobalIntro isLoading={isLoading} onComplete={handleLoadingComplete} mainContentRef={mainContentRef} />
 
           <MainFrame isLoading={isLoading} mainContentRef={mainContentRef}>
 

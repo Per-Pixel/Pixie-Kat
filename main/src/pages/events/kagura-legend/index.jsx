@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-gsap.registerPlugin(ScrollTrigger);
+import { useReducedMotion } from "../../../hooks/useReducedMotion";
+import { usePreferences } from "../../../contexts/PreferencesContext";
+import { KaguraLoader, CostFrames, useKaguraMotion } from "./KaguraMotion";
 import {
   CREST_TARGET,
   DEFAULT_TRICKS,
@@ -81,6 +81,15 @@ function presentView(view, today) {
 }
 
 export default function KaguraLegendPage() {
+  const reduced = useReducedMotion();
+  const { preferences } = usePreferences();
+  const [intro, setIntro] = useState(() => {
+    if (reduced || !preferences.intro) return false;
+    try { return sessionStorage.getItem("pixie_kagura_intro") !== "1"; } catch { return true; }
+  });
+  const [introOpening, setIntroOpening] = useState(false);
+  const revealIntro = useCallback(() => setIntroOpening(true), []);
+  const finishIntro = useCallback(() => setIntro(false), []);
   const days = useMemo(() => buildDays(), []);
   const today = useMemo(() => todayIso(), []);
   const railRef = useRef(null);
@@ -90,51 +99,8 @@ export default function KaguraLegendPage() {
   const [faqOpen, setFaqOpen] = useState(0);
   const [trapIndex, setTrapIndex] = useState(0);
 
-  useEffect(() => {
-    const nodes = document.querySelectorAll(".kl-block");
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      nodes.forEach((node) => node.classList.add("is-in"));
-      return undefined;
-    }
-    document.querySelector(".kl-page")?.classList.add("kl-motion");
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("is-in");
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0, rootMargin: "0px 0px -12% 0px" },
-    );
-    nodes.forEach((node) => observer.observe(node));
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const media = gsap.matchMedia();
-    media.add("(prefers-reduced-motion: no-preference)", () => {
-      const context = gsap.context(() => {
-        gsap.utils.toArray(".kl-block > h2").forEach((heading) => {
-          gsap.from(heading, { y: 24, opacity: 0, duration: .65, ease: "power3.out", scrollTrigger: { trigger: heading, start: "top 92%", once: true } });
-        });
-        const path = pageRef.current.querySelector(".kl-route-line path");
-        const length = path.getTotalLength();
-        gsap.fromTo(path, { strokeDasharray: length, strokeDashoffset: length }, { strokeDashoffset: 0, duration: 1.8, ease: "power2.inOut", delay: .3 });
-        gsap.utils.toArray(".kl-comparison-path path").forEach((route) => {
-          const routeLength = route.getTotalLength();
-          gsap.fromTo(route, { strokeDasharray: routeLength, strokeDashoffset: routeLength }, { strokeDashoffset: 0, duration: 1, ease: "power2.out", scrollTrigger: { trigger: route.closest("article"), start: "top 85%", once: true } });
-        });
-        gsap.utils.toArray(".kl-cost-step").forEach((step) => {
-          gsap.from(step, { y: 28, opacity: .2, duration: .6, scrollTrigger: { trigger: step, start: "top 85%", end: "top 55%", scrub: true } });
-        });
-        gsap.from(".kl-crest-meter", { y: 20, opacity: 0, duration: .7, scrollTrigger: { trigger: ".kl-crest-meter", start: "top 90%", once: true } });
-      }, pageRef);
-      return () => context.revert();
-    });
-    return () => media.revert();
-  }, []);
+  useKaguraMotion(pageRef, !intro, reduced);
+  useEffect(() => { if (reduced || !preferences.intro) setIntro(false); }, [reduced, preferences.intro]);
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -196,7 +162,9 @@ export default function KaguraLegendPage() {
   const viewComplete = view.tasks.length > 0 && doneCount === view.tasks.length;
 
   return (
-    <div className="kl-page" ref={pageRef}>
+    <div className="kl-page" ref={pageRef} data-reduced={reduced ? "true" : "false"} data-ready={intro && !introOpening ? "false" : "true"}>
+      {intro && <KaguraLoader onComplete={finishIntro} onReveal={revealIntro} reduced={reduced} />}
+      <div className="kl-content" inert={intro ? "" : undefined}>
       <header className="kl-nav">
         <Link to="/" className="kl-brand">
           PixieKat
@@ -263,7 +231,7 @@ export default function KaguraLegendPage() {
                 key={day.id}
                 type="button"
                 className="kl-node"
-                style={{ gridColumn: Math.floor(index / 7) % 2 ? 7 - index % 7 : index % 7 + 1, gridRow: Math.floor(index / 7) + 1, "--node-delay": `${Math.min(index * 25, 600)}ms` }}
+                style={{ gridColumn: Math.floor(index / 7) % 2 ? 7 - index % 7 : index % 7 + 1, gridRow: Math.floor(index / 7) + 1, "--node-delay": `${Math.min(index * 25, 600)}ms`, "--sway-delay": `${-index * .37}s` }}
                 data-day={day.id}
                 data-today={day.id === today ? "true" : "false"}
                 data-selected={selection === day.id ? "true" : "false"}
@@ -283,7 +251,7 @@ export default function KaguraLegendPage() {
                   event.currentTarget.parentElement?.querySelector(`[data-day="${next.id}"]`)?.focus();
                 }}
               >
-                <img src={`${ART}/lantern.png`} alt="" />
+                <span className="kl-lantern-art" aria-hidden="true"><img src={`${ART}/lantern.png`} alt="" /></span>
                 <span>{complete ? "✓" : day.number}</span>
                 <small>{day.id === today ? "Today" : day.shortLabel}</small>
               </button>
@@ -426,14 +394,7 @@ export default function KaguraLegendPage() {
           <p className="kl-lead">
             Pressing draw at 100 Diamonds until the shop opens is the higher number. Leave a step on to keep it off the bill. Tap it to put that cost back.
           </p>
-          <div className="kl-cost-story">
-            <div className="kl-cost-sticky"><p className="kl-eyebrow">Follow the Diamonds</p><h3>Same destination.<br />A lighter bill.</h3><p>Scroll through the plan, then adjust the steps below.</p><a href="#bill-controls">Adjust your bill ↓</a></div>
-            <div className="kl-cost-steps">
-              <article className="kl-cost-step"><span>01 / Full price</span><strong>{formatCount(bill.naive)}</strong><p>Diamonds if every draw costs 100. This is the starting comparison.</p></article>
-              <article className="kl-cost-step"><span>02 / Steps you keep</span><strong>−{formatCount(Math.max(0, bill.naive - bill.total))}</strong><p>Diamonds saved by your selected discounts, tokens and usable Promo Diamonds.</p></article>
-              <article className="kl-cost-step"><span>03 / Your planned spend</span><strong>{formatCount(bill.total)}</strong><p>Diamonds for {bill.draws} draws at your selected rate of {luck.rate} Crests per draw. Recharge requirements are separate.</p></article>
-            </div>
-          </div>
+          <CostFrames bill={bill} luck={luck} />
           <div className="kl-bill-layout" id="bill-controls">
             <div className="kl-lines">
               {bill.lines.map((lineItem) => (
@@ -661,6 +622,7 @@ export default function KaguraLegendPage() {
         </div>
         <p>Mobile Legends: Bang Bang and its characters belong to their owners. PixieKat is an independent top-up. This plan is an estimate.</p>
       </footer>
+      </div>
     </div>
   );
 }
