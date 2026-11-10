@@ -4,6 +4,7 @@
 
 ### Fixed
 - Unpaid Aluu/Razorpay checkouts older than 24 hours are auto-marked `failed` by the API (`expireStalePendingOrders`), with a last-chance Aluu status check so late payments still settle.
+- Kagura planner adds a scroll-driven savings narrative, animated route paths, crest progress meter, heading reveals, and trap answer feedback with reduced-motion support.
 - Aluu UPI/QR checkout no longer leaves paid orders stuck on `pending` when customers close the payment tab after scanning: storefront keeps polling, and the API runs a background Aluu reconcile + auto-fulfill worker (`aluu-settlement.js`, `order-jobs.js`). Requires **API** deploy (`eb deploy` from `main/server`).
 - Admin **Memberships** page loads and grants user plans again — list/insert used nonexistent `plan_id` instead of `membership_plan_id`, so the query failed silently and the table stayed empty.
 - Admin revenue and profit dashboards no longer treat Pixie Wallet top-ups as sales — they are balance deposits, so P&amp;L, dashboard trends, and `get_admin_analytics` exclude `metadata.wallet_topup` orders (apply `058_exclude_wallet_topup_from_analytics.sql`).
@@ -25,6 +26,7 @@
 
 ### Storefront
 - Kagura Legend draw planner at `/event/kagura-legend` (day checklist, bill, routes, traps) with homepage Exclusive Offers promo using the Kagura splash art.
+- Redesign the Kagura Legend planner with a connected lantern journey, milestone shortcuts, a responsive map and checklist layout, numbered sections, clearer cost and route comparisons, and coordinated motion with reduced-motion support.
 - Leaderboard now ranks by total monthly spend instead of completed-order count — podium, standings table, homepage teaser and account rank history all lead with ₹ spent (order count stays as secondary context), the admin panel shows spend-first standings, and winner emails announce the spend total. Requires migration `056_leaderboard_spend_metric.sql`.
 - Swap in new animated graphics across homepage slots (hero background, bento tiles, flip/contact cards, contact collage), lazy-load below-fold videos on approach (`LazyVideo` + IntersectionObserver), and preconnect to the media host so graphics load faster.
 - Homepage Promotions section is now data-driven from `promotional_items` (the three existing cards are seeded so they stay editable), every card links to a new `/promotions` index and `/promotions/:slug` detail page with the full offer text, end-date badge and Top Up CTA — nav dropdown and More-menu "Promo" entries now open it instead of "coming soon". Requires migration `047_promotions.sql`.

@@ -1,4 +1,4 @@
-# Last summary — Pixie-Kat
+# Last session summary
 
 ## 2026-11-10 — Merge `admin` → `main` (Kagura + admin fixes)
 
@@ -14,3 +14,11 @@
 
 ### Prior on `main`
 - `expireStalePendingOrders`: pending gateway checkouts >24h → `failed` (Aluu last-chance paid check).
+- Working on `admin` from the Kagura Legend planner commit; redesign and animation pass prepared for storefront release.
+- Replaced the horizontal day rail with a connected five-row lantern journey, milestone shortcuts, dates, and clear selected/completed/today states.
+- Desktop map and checklist sit side by side; mobile uses natural page flow instead of a 240vh scroll gate. Section hierarchy, cost summary, route comparison and trap layout were redesigned.
+- Added coordinated entrance, lantern, progress, checklist, FAQ and section motion with reduced-motion support. Day changes preserve the mounted checklist controls.
+- Production build and seven planner tests passed. Edge desktop and 390px mobile screenshots reviewed; mobile document width matched viewport. Preview-only intro bypass was restored after QA.
+
+- Added desktop sticky cost narrative (full price / savings / planned spend), compact mobile flow, GSAP heading and route path reveals, crest meter, correct glow and wrong-answer shake. Calculated values remain static and accurate; all timelines clean up and respect reduced motion. Build and seven planner tests pass.
+
