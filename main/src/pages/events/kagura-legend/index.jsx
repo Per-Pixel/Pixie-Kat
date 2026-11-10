@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+gsap.registerPlugin(ScrollTrigger);
 import {
   CREST_TARGET,
   DEFAULT_TRICKS,
@@ -81,46 +84,11 @@ export default function KaguraLegendPage() {
   const days = useMemo(() => buildDays(), []);
   const today = useMemo(() => todayIso(), []);
   const railRef = useRef(null);
-  const reelRef = useRef(null);
-  const frameRef = useRef(null);
+  const pageRef = useRef(null);
   const [log, setLog] = useLog();
   const [selection, setSelection] = useState(() => initialSelection(days, today));
   const [faqOpen, setFaqOpen] = useState(0);
   const [trapIndex, setTrapIndex] = useState(0);
-
-  useEffect(() => {
-    const node = railRef.current?.querySelector('[data-selected="true"]');
-    node?.scrollIntoView({ inline: "center", block: "nearest" });
-  }, [selection]);
-
-  useEffect(() => {
-    const reel = reelRef.current;
-    const label = frameRef.current;
-    if (!reel) return undefined;
-    const mobile = window.matchMedia("(max-width: 900px)");
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const paint = () => {
-      if (!mobile.matches || reduce.matches) {
-        reel.style.setProperty("--kl-frame", "1");
-        if (label) label.textContent = "04";
-        return;
-      }
-      const total = reel.offsetHeight - window.innerHeight;
-      const scrolled = Math.min(Math.max(-reel.getBoundingClientRect().top, 0), Math.max(total, 0));
-      const progress = total > 0 ? scrolled / total : 1;
-      reel.style.setProperty("--kl-frame", progress.toFixed(4));
-      if (label) label.textContent = String(Math.min(4, Math.floor(progress * 4) + 1)).padStart(2, "0");
-    };
-    paint();
-    window.addEventListener("scroll", paint, { passive: true });
-    window.addEventListener("resize", paint);
-    mobile.addEventListener?.("change", paint);
-    return () => {
-      window.removeEventListener("scroll", paint);
-      window.removeEventListener("resize", paint);
-      mobile.removeEventListener?.("change", paint);
-    };
-  }, []);
 
   useEffect(() => {
     const nodes = document.querySelectorAll(".kl-block");
@@ -142,6 +110,30 @@ export default function KaguraLegendPage() {
     );
     nodes.forEach((node) => observer.observe(node));
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const media = gsap.matchMedia();
+    media.add("(prefers-reduced-motion: no-preference)", () => {
+      const context = gsap.context(() => {
+        gsap.utils.toArray(".kl-block > h2").forEach((heading) => {
+          gsap.from(heading, { y: 24, opacity: 0, duration: .65, ease: "power3.out", scrollTrigger: { trigger: heading, start: "top 92%", once: true } });
+        });
+        const path = pageRef.current.querySelector(".kl-route-line path");
+        const length = path.getTotalLength();
+        gsap.fromTo(path, { strokeDasharray: length, strokeDashoffset: length }, { strokeDashoffset: 0, duration: 1.8, ease: "power2.inOut", delay: .3 });
+        gsap.utils.toArray(".kl-comparison-path path").forEach((route) => {
+          const routeLength = route.getTotalLength();
+          gsap.fromTo(route, { strokeDasharray: routeLength, strokeDashoffset: routeLength }, { strokeDashoffset: 0, duration: 1, ease: "power2.out", scrollTrigger: { trigger: route.closest("article"), start: "top 85%", once: true } });
+        });
+        gsap.utils.toArray(".kl-cost-step").forEach((step) => {
+          gsap.from(step, { y: 28, opacity: .2, duration: .6, scrollTrigger: { trigger: step, start: "top 85%", end: "top 55%", scrub: true } });
+        });
+        gsap.from(".kl-crest-meter", { y: 20, opacity: 0, duration: .7, scrollTrigger: { trigger: ".kl-crest-meter", start: "top 90%", once: true } });
+      }, pageRef);
+      return () => context.revert();
+    });
+    return () => media.revert();
   }, []);
 
   useEffect(() => {
@@ -204,7 +196,7 @@ export default function KaguraLegendPage() {
   const viewComplete = view.tasks.length > 0 && doneCount === view.tasks.length;
 
   return (
-    <div className="kl-page">
+    <div className="kl-page" ref={pageRef}>
       <header className="kl-nav">
         <Link to="/" className="kl-brand">
           PixieKat
@@ -222,17 +214,15 @@ export default function KaguraLegendPage() {
         </Link>
       </header>
 
-      <div className="kl-reel" id="plan" ref={reelRef}>
+      <div className="kl-reel" id="plan">
       <section className="kl-stage" aria-label="Kagura Legend draw plan">
         <div className="kl-scene" aria-hidden="true" />
-        <p className="kl-frame-index" aria-hidden="true">
-          <span ref={frameRef}>01</span> / 04
-        </p>
+        <div className="kl-embers" aria-hidden="true"><i /><i /><i /><i /><i /></div>
 
         <div className="kl-title">
           <img src={`${ART}/crest.jpg`} alt="" width={54} height={54} />
           <div>
-            <strong>Kagura Legend</strong>
+            <span className="kl-eyebrow">The lantern journey</span><strong>Kagura Legend</strong>
             <span>Nov 6 – Dec 6 · shop skin at 1,600 Crests</span>
           </div>
         </div>
@@ -255,7 +245,16 @@ export default function KaguraLegendPage() {
           </button>
         </div>
 
+        <div className="kl-journey">
+          <div className="kl-journey-heading"><div><p className="kl-eyebrow">01 / Your route</p><h2>One lantern. One day.</h2></div><span>31 days → 1,600 Crests</span></div>
+          <div className="kl-milestones" aria-label="Jump to a milestone">
+            <button type="button" onClick={() => setSelection("prep")}>Before you start</button>
+            <button type="button" onClick={() => setSelection("2026-11-13")}>Nov 13 · Supply I</button>
+            <button type="button" onClick={() => setSelection("2026-11-20")}>Nov 20 · Supply II</button>
+            <button type="button" onClick={() => setSelection("shop")}>Dec 7–8 · Shop</button>
+          </div>
         <div className="kl-map" ref={railRef} aria-label="Draw days">
+          <svg className="kl-route-line" viewBox="0 0 700 500" preserveAspectRatio="none" aria-hidden="true"><path d="M50 50 H650 Q690 50 690 100 V100 Q690 150 650 150 H50 Q10 150 10 200 V200 Q10 250 50 250 H650 Q690 250 690 300 V300 Q690 350 650 350 H50 Q10 350 10 400 V400 Q10 450 50 450 H250" /></svg>
           {days.map((day, index) => {
             const complete =
               day.tasks.length > 0 && day.tasks.every((item) => log.checks[taskKey(day.id, item.id)]);
@@ -264,6 +263,7 @@ export default function KaguraLegendPage() {
                 key={day.id}
                 type="button"
                 className="kl-node"
+                style={{ gridColumn: Math.floor(index / 7) % 2 ? 7 - index % 7 : index % 7 + 1, gridRow: Math.floor(index / 7) + 1, "--node-delay": `${Math.min(index * 25, 600)}ms` }}
                 data-day={day.id}
                 data-today={day.id === today ? "true" : "false"}
                 data-selected={selection === day.id ? "true" : "false"}
@@ -284,16 +284,18 @@ export default function KaguraLegendPage() {
                 }}
               >
                 <img src={`${ART}/lantern.png`} alt="" />
-                <span>{day.number}</span>
-                {day.id === today ? <small>Today</small> : null}
+                <span>{complete ? "✓" : day.number}</span>
+                <small>{day.id === today ? "Today" : day.shortLabel}</small>
               </button>
             );
           })}
         </div>
 
+        <div className="kl-map-legend"><span>◉ Selected</span><span>✓ Completed</span><span>Tap a lantern to open its checklist</span></div>
+        </div>
         <article className="kl-card" aria-live="polite">
           <p className="kl-kicker">{view.kicker}</p>
-          <div className="kl-card-heading">
+          <div key={view.id} className="kl-card-heading">
             <h1>{view.title}</h1>
             <p>{view.subtitle}</p>
           </div>
@@ -321,7 +323,7 @@ export default function KaguraLegendPage() {
             {view.tasks.map((item) => {
               const key = taskKey(view.id, item.id);
               return (
-                <li key={key} data-watch={item.watch ? "true" : "false"}>
+                <li key={key} data-done={log.checks[key] ? "true" : "false"} data-watch={item.watch ? "true" : "false"}>
                   <label>
                     <input
                       type="checkbox"
@@ -370,6 +372,11 @@ export default function KaguraLegendPage() {
           <p className="kl-lead">
             Each draw pays a different number of Crests. Pick a rate for the plan, or type the Crests already on your account.
           </p>
+          <div className="kl-crest-meter">
+            <img src={`${ART}/crest.jpg`} alt="" width="64" height="64" />
+            <div><p className="kl-eyebrow">Your progress to the shop</p><strong>{formatCount(crestCount)} <small>/ 1,600</small></strong>
+            <div className="kl-crest-track" role="progressbar" aria-label="Crests toward shop skin" aria-valuemin={0} aria-valuemax={CREST_TARGET} aria-valuenow={Math.min(crestCount, CREST_TARGET)}><span style={{ width: `${Math.min(100, crestCount / CREST_TARGET * 100)}%` }} /></div></div>
+          </div>
           <div className="kl-luck" role="radiogroup" aria-label="Crests per draw">
             {LUCKS.map((item) => (
               <label key={item.id} data-checked={log.luck === item.id ? "true" : "false"}>
@@ -419,7 +426,15 @@ export default function KaguraLegendPage() {
           <p className="kl-lead">
             Pressing draw at 100 Diamonds until the shop opens is the higher number. Leave a step on to keep it off the bill. Tap it to put that cost back.
           </p>
-          <div className="kl-bill-layout">
+          <div className="kl-cost-story">
+            <div className="kl-cost-sticky"><p className="kl-eyebrow">Follow the Diamonds</p><h3>Same destination.<br />A lighter bill.</h3><p>Scroll through the plan, then adjust the steps below.</p><a href="#bill-controls">Adjust your bill ↓</a></div>
+            <div className="kl-cost-steps">
+              <article className="kl-cost-step"><span>01 / Full price</span><strong>{formatCount(bill.naive)}</strong><p>Diamonds if every draw costs 100. This is the starting comparison.</p></article>
+              <article className="kl-cost-step"><span>02 / Steps you keep</span><strong>−{formatCount(Math.max(0, bill.naive - bill.total))}</strong><p>Diamonds saved by your selected discounts, tokens and usable Promo Diamonds.</p></article>
+              <article className="kl-cost-step"><span>03 / Your planned spend</span><strong>{formatCount(bill.total)}</strong><p>Diamonds for {bill.draws} draws at your selected rate of {luck.rate} Crests per draw. Recharge requirements are separate.</p></article>
+            </div>
+          </div>
+          <div className="kl-bill-layout" id="bill-controls">
             <div className="kl-lines">
               {bill.lines.map((lineItem) => (
                 <p key={lineItem.id}>
@@ -494,7 +509,7 @@ export default function KaguraLegendPage() {
             Both routes are aiming at the shop skin. The early one stops before Premium Supply. The patient one uses the steps you leave on.
           </p>
           <div className="kl-routes">
-            <article data-hot="true">
+            <article data-hot="true"><svg className="kl-comparison-path" viewBox="0 0 240 40" aria-hidden="true"><path d="M5 32 C65 32 65 8 120 8 S180 32 235 8" /></svg>
               <p>This plan</p>
               <strong>{formatCount(bill.total)}</strong>
               <span>{bill.draws} draws at {luck.rate} Crests</span>
@@ -507,7 +522,7 @@ export default function KaguraLegendPage() {
                 ))}
               </ul>
             </article>
-            <article>
+            <article><svg className="kl-comparison-path" viewBox="0 0 240 40" aria-hidden="true"><path d="M5 32 C65 32 65 8 120 8 S180 32 235 8" /></svg>
               <p>Finish before Nov 13</p>
               <strong>{formatCount(rush.total)}</strong>
               <span>{rush.draws} draws, without supply tokens</span>
