@@ -6,6 +6,13 @@ import { useAppearance } from "../../../contexts/AppearanceContext";
 import { usePromoSection } from "../../../hooks/usePromoSection";
 import { useJjkCheaperPlacement } from "../../../hooks/useJjkCheaperPlacement";
 
+const KAGURA_LEGEND_PROMO = {
+  title: "Kagura Legend · draw plan",
+  image: publicMediaUrl("/img/events/kagura/home-exclusive.jpg"),
+  link: "/event/kagura-legend",
+  flag: "EVENT",
+};
+
 const fallbackExclusiveOffers = [
   {
     title: "Hayabusa Starlight Pass",
@@ -104,7 +111,11 @@ const ExclusiveOffers = () => {
           image: siteGraphicUrl(appearance, `exclusive_fallback_${index + 1}`, offer.image),
         }));
 
-  const offers = jjkPromo ? [jjkPromo, ...exclusiveOffers] : exclusiveOffers;
+  const offers = [
+    KAGURA_LEGEND_PROMO,
+    ...(jjkPromo ? [jjkPromo] : []),
+    ...exclusiveOffers,
+  ];
 
   return (
     <section className="bg-[#dfdff0] px-2 py-12 md:px-8 md:py-16">
