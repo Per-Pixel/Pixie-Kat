@@ -33,7 +33,7 @@ import { supabase } from '../lib/supabase';
 import axios from 'axios';
 import api from '../services/api';
 import { formatPaymentMethodLabel } from '../utils/paymentMethodLabel';
-import { explainOrderPayment } from '../utils/orderPaymentStory';
+import { explainOrderPayment, isAbandonedUnpaidCheckout } from '../utils/orderPaymentStory';
 import OrderDrawer from '../components/orders/OrderDrawer';
 import ChatGptAssistantDrawer, {
   type EnrichedOrderRow,
@@ -683,7 +683,14 @@ const ManualOrders: React.FC<ManualOrdersProps> = ({ mode = 'manual' }) => {
     const term = search.trim().toLowerCase();
 
     return orders.filter((o) => {
-      // Folder filter
+      if (
+        isAbandonedUnpaidCheckout(o)
+        && !term
+        && statusFilter === 'all'
+        && activeTab !== 'refunded_failed'
+      ) {
+        return false;
+      }
       if (activeFolder === 'queue') {
         const inQueue =
           (['pending', 'processing', 'on_hold'].includes(o.status) && o.isManualOrder) ||

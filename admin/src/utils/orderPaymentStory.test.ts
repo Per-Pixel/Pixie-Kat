@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { explainOrderPayment } from './orderPaymentStory';
+import { explainOrderPayment, isAbandonedUnpaidCheckout } from './orderPaymentStory';
 
 describe('explainOrderPayment', () => {
   it('treats a pending UPI checkout as unpaid', () => {
@@ -37,5 +37,13 @@ describe('explainOrderPayment', () => {
     });
     expect(story.verdict).toBe('paid');
     expect(story.title).toMatch(/not delivered/i);
+  });
+
+  it('treats a failed UPI row with no payment as an unpaid attempt', () => {
+    const story = explainOrderPayment({ status: 'failed', payment_method: 'aluu' });
+    expect(story.verdict).toBe('unpaid');
+    expect(story.title).toBe('Unpaid attempt');
+    expect(isAbandonedUnpaidCheckout({ status: 'failed', payment_method: 'aluu' })).toBe(true);
+    expect(isAbandonedUnpaidCheckout({ status: 'completed', payment_method: 'aluu', payment_id: 'utr' })).toBe(false);
   });
 });

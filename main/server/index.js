@@ -72,12 +72,13 @@ import * as notifications from './notifications.js';
 import {
   aluuStatusCompleted,
   aluuStatusFailed,
-  externalAluuOrderKey,
+  aluuLookupId,
   settleAluuCartGroupPaid,
   settleAluuOrderPaid,
   markAluuOrderFailed,
   startAluuReconcileWorker,
 } from './aluu-settlement.js';
+import { canReusePaymentUrl, nextAluuExternalId, sameUnpaidAttempt } from './checkout-attempt.js';
 import { startExpirePendingWorker, startProvisionWorker } from './order-jobs.js';
 
 const app = express();
@@ -2174,21 +2175,72 @@ app.post('/api/place-order', placeOrderLimiter, async (req, res) => {
       if (!Number.isFinite(totalAmount) || totalAmount <= 0) throw new Error('Payment amount must be greater than zero.');
       const orderMetadata = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
       let orderId = null;
+      let reused = false;
 
       try {
-        const { data, error: rpcError } = await supabaseAdmin.rpc('place_pending_order', {
-          p_user_id: user.id,
-          p_product_id: product.id,
-          p_product_name: product.name,
-          p_total_amount: totalAmount,
-          p_currency: productCurrency,
-          p_payment_method: 'aluu',
-          p_metadata: orderMetadata,
-        });
-        if (rpcError) throw rpcError;
-        orderId = data;
+        const since = new Date(Date.now() - 6 * 3_600_000).toISOString();
+        const { data: recentAttempts, error: recentError } = await supabaseAdmin
+          .from('orders')
+          .select('id, status, product_id, total_amount, payment_id, aluu_order_id, metadata, created_at, updated_at')
+          .eq('user_id', user.id)
+          .eq('product_id', product.id)
+          .eq('payment_method', 'aluu')
+          .in('status', ['pending', 'failed'])
+          .is('payment_id', null)
+          .gte('created_at', since)
+          .order('created_at', { ascending: false })
+          .limit(8);
+        if (recentError) throw recentError;
+        const reusable = (recentAttempts || []).find((row) => sameUnpaidAttempt(row, {
+          productId: product.id,
+          totalAmount,
+          metadata: orderMetadata,
+        }));
 
-        // Use orderId as external order_id for Aluu — guarantees uniqueness
+        if (reusable && canReusePaymentUrl(reusable)) {
+          return res.json({
+            ok: true,
+            orderId: reusable.id,
+            reused: true,
+            aluu: {
+              paymentUrl: reusable.metadata.aluu_payment_url,
+              providerOrderId: reusable.aluu_order_id || reusable.metadata.aluu_order_id,
+            },
+          });
+        }
+
+        if (reusable) {
+          orderId = reusable.id;
+          reused = true;
+          const { error: reopenError } = await supabaseAdmin
+            .from('orders')
+            .update({
+              status: 'pending',
+              updated_at: new Date().toISOString(),
+              metadata: {
+                ...(reusable.metadata || {}),
+                ...orderMetadata,
+                reopened_at: new Date().toISOString(),
+              },
+            })
+            .eq('id', orderId)
+            .is('payment_id', null)
+            .in('status', ['pending', 'failed']);
+          if (reopenError) throw reopenError;
+        } else {
+          const { data, error: rpcError } = await supabaseAdmin.rpc('place_pending_order', {
+            p_user_id: user.id,
+            p_product_id: product.id,
+            p_product_name: product.name,
+            p_total_amount: totalAmount,
+            p_currency: productCurrency,
+            p_payment_method: 'aluu',
+            p_metadata: orderMetadata,
+          });
+          if (rpcError) throw rpcError;
+          orderId = data;
+        }
+
         const contactMeta = isPlainObject(orderMetadata.contact) ? orderMetadata.contact : {};
         const customerMobile = aluu.normalizeIndianMobile(
           orderMetadata.customer_mobile,
@@ -2200,10 +2252,11 @@ app.post('/api/place-order', placeOrderLimiter, async (req, res) => {
         const frontendBase = config.frontendUrl
           || String(req.headers.origin || req.headers.referer || 'http://localhost:5173').replace(/\/+$/, '');
         const redirectUrl = buildAluuRedirectUrl(frontendBase, { orderId });
+        const providerExternalId = reused ? nextAluuExternalId(orderId) : orderId;
 
         const providerOrder = await aluu.createOrder({
           amount: totalAmount,
-          orderId,
+          orderId: providerExternalId,
           customerMobile,
           redirectUrl,
           remark1: `PixieKat order ${orderId}`,
@@ -2213,17 +2266,20 @@ app.post('/api/place-order', placeOrderLimiter, async (req, res) => {
         const { error: updateError } = await supabaseAdmin
           .from('orders')
           .update({
+            status: 'pending',
             aluu_order_id: providerOrder.orderId,
-            metadata: { ...orderMetadata, aluu_order_id: providerOrder.orderId, aluu_payment_url: providerOrder.paymentUrl },
+            metadata: { ...orderMetadata, aluu_order_id: providerOrder.orderId, aluu_payment_url: providerOrder.paymentUrl, reopened_at: reused ? new Date().toISOString() : undefined },
             updated_at: new Date().toISOString(),
           })
           .eq('id', orderId)
-          .eq('status', 'pending');
+          .is('payment_id', null)
+          .in('status', ['pending', 'failed']);
         if (updateError) throw updateError;
 
         return res.json({
           ok: true,
           orderId,
+          reused,
           aluu: {
             paymentUrl: providerOrder.paymentUrl,
             providerOrderId: providerOrder.orderId,
@@ -2907,7 +2963,7 @@ app.post('/api/aluu/check-payment', aluuCheckPaymentLimiter, async (req, res) =>
     }
 
     // Poll Aluu for current status — use our orderId as the external order_id
-    const statusResult = await aluu.checkOrderStatus(orderId);
+    const statusResult = await aluu.checkOrderStatus(aluuLookupId(order));
 
     if (aluuStatusCompleted(statusResult)) {
       const settled = await settleAluuOrderPaid(supabaseAdmin, order, statusResult, 'check_payment');
