@@ -10,7 +10,7 @@ import OrderDrawer from '../components/orders/OrderDrawer';
 import clsx from 'clsx';
 import { DURATION, EASE_OUT, fadeUp, pop, staggerDelay } from '../lib/motion';
 import { formatPaymentMethodLabel } from '../utils/paymentMethodLabel';
-import { explainOrderPayment } from '../utils/orderPaymentStory';
+import { explainOrderPayment, isAbandonedUnpaidCheckout } from '../utils/orderPaymentStory';
 
 type OrderStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'refunded' | 'cancelled' | 'on_hold';
 type SortField = 'created_at' | 'total_amount' | 'status' | 'product_name';
@@ -142,6 +142,7 @@ const Orders: React.FC = () => {
   const [customEnd, setCustomEnd] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [includeInternal, setIncludeInternal] = useState(true);
+  const [showAbandoned, setShowAbandoned] = useState(false);
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [page, setPage] = useState(1);
@@ -200,6 +201,7 @@ const Orders: React.FC = () => {
     let list = orders.filter((o) => {
       const prof = getProfile(o.profiles);
       if (!includeInternal && prof.role === 'admin') return false;
+      if (!showAbandoned && status === 'all' && !term && isAbandonedUnpaidCheckout(o)) return false;
       if (status !== 'all' && o.status !== status) return false;
       if (paymentFilter !== 'all' && (o.payment_method ?? '') !== paymentFilter) return false;
       if (!matchesOrderPeriod(o.created_at, period, customStart, customEnd)) return false;
@@ -225,7 +227,7 @@ const Orders: React.FC = () => {
       return 0;
     });
     return list;
-  }, [orders, search, status, paymentFilter, period, customStart, customEnd, includeInternal, sortField, sortDir]);
+  }, [orders, search, status, paymentFilter, period, customStart, customEnd, includeInternal, showAbandoned, sortField, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -346,15 +348,25 @@ const Orders: React.FC = () => {
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={() => { setIncludeInternal((v) => !v); setPage(1); }}
-            className={clsx('btn btn-sm flex items-center gap-1.5 text-xs', includeInternal ? 'btn-primary' : 'btn-outline')}
-            title="Toggle orders placed by admin accounts"
-          >
-            <UserCog className="w-3.5 h-3.5" />
-            {includeInternal ? `Internal shown (${internalCount})` : 'Internal hidden'}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { setShowAbandoned((v) => !v); setPage(1); }}
+              className={clsx('btn btn-sm flex items-center gap-1.5 text-xs', showAbandoned ? 'btn-primary' : 'btn-outline')}
+              title="Unpaid UPI retries are not a second purchase"
+            >
+              {showAbandoned ? 'Unpaid attempts shown' : `Unpaid attempts hidden (${orders.filter(isAbandonedUnpaidCheckout).length})`}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setIncludeInternal((v) => !v); setPage(1); }}
+              className={clsx('btn btn-sm flex items-center gap-1.5 text-xs', includeInternal ? 'btn-primary' : 'btn-outline')}
+              title="Toggle orders placed by admin accounts"
+            >
+              <UserCog className="w-3.5 h-3.5" />
+              {includeInternal ? `Internal shown (${internalCount})` : 'Internal hidden'}
+            </button>
+          </div>
         </div>
 
         {period === 'custom' && (

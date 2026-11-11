@@ -35,6 +35,17 @@ function hasPaymentRecord(order: OrderLike): boolean {
   return Boolean(order.payment_id && String(order.payment_id).trim());
 }
 
+export function isAbandonedUnpaidCheckout(order: OrderLike): boolean {
+  const status = String(order.status || '').toLowerCase();
+  if (status !== 'failed' && status !== 'cancelled') return false;
+  if (order.payment_id && String(order.payment_id).trim()) return false;
+  const method = String(order.payment_method || '').toLowerCase();
+  if (!['aluu', 'upi', 'razorpay'].includes(method)) return false;
+  const data = meta(order);
+  if (typeof data.fulfill_error === 'string' && data.fulfill_error.trim()) return false;
+  return true;
+}
+
 /**
  * Plain-language read of whether this order was paid, for the admin order lists.
  * Status alone is not enough: `failed` can mean "never paid" or "paid, then delivery broke".
@@ -103,6 +114,13 @@ export function explainOrderPayment(order: OrderLike): OrderPaymentStory {
         verdict: 'paid',
         title: 'Paid — order then failed',
         detail: `A ${how} payment is on file, then the order was marked failed. Check the note before refunding or resending.`,
+      };
+    }
+    if (!hasPaymentRecord(order) && !isWallet(order.payment_method)) {
+      return {
+        verdict: 'unpaid',
+        title: 'Unpaid attempt',
+        detail: `No money arrived on this row. If another row for this pack says Paid, that one is the real order — this attempt was left unfinished.`,
       };
     }
     return {

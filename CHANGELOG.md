@@ -3,7 +3,7 @@
 ## [Unreleased]
 
 ### Fixed
-- Checkout tells UPI customers to save the QR, pay in their app, and stay on the PixieKat page so the order is not delayed. Game, cart, and wallet top-up show that note in amber while payment is open.
+- Checkout reuses an unpaid UPI attempt for the same player and pack instead of inserting a second order, and the admin orders list hides those unpaid attempts unless you turn them on.
 - Admin **Orders**, **Manual Orders**, and the order drawer now say whether money arrived: “Not paid yet”, “Failed — never paid”, “Paid — not delivered yet”, or “Paid — delivery failed”, with one sentence on why.
 - Storefront static media (images, video, audio) now serves from the **Amplify CDN** (`VITE_PUBLIC_MEDIA_ORIGIN=site`) instead of Supabase Storage, cutting **cached egress** on the free tier; legacy Supabase object URLs in CMS values rewrite to the same paths. Main builds sync the `public-media` bucket into `main/public/` via `scripts/sync-public-media-from-supabase.mjs` when Amplify has `SUPABASE_SERVICE_ROLE_KEY`; SPA rewrite rules allow `webp`, `mp4`, `webm`, and related asset extensions.
 - Kagura Legend now opens with artwork-aware lantern gates, uses Lenis wheel smoothing with native touch, and unfolds three illustrated overlapping bill frames on desktop; lanterns sway within stable controls, with app/OS reduced-motion and compact mobile fallbacks.

@@ -1,8 +1,6 @@
 # Last summary — Pixie-Kat
 
-## 2026-11-11 — Shipped Amplify media cutover
+## 2026-11-11 — Unpaid UPI attempts are not a second order
 
-- Pushed `admin` `ae29f34` and `main` `b454688`. Amplify jobs main **125** and admin **59** both succeeded. Build synced **100** `public-media` objects. Live storefront serves `/img/logo.png`, `/videos/hero-1.mp4`, and webp from CloudFront (200, real content-types), not Supabase.
-- Amplify app env has `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. App-level rewrite rules allow mp4/webp/webm.
-- Supabase project `itwwickxmqpvnssoapuw` still answers (auth 200, orders readable, buckets `avatars`, `media`, `public-media`). The 14 GB cached-egress bill for this period does not reset; restriction date is still 13 Nov unless the plan is upgraded.
-- No API deploy. Admin orders now say whether a checkout was paid.
+- A repeat Pay click for the same player and pack reopens the unpaid UPI row instead of inserting another order. Admin Orders hides those unpaid attempts until “Unpaid attempts” is turned on. #8215E222 is the paid 5 Diamonds order; #66B821A2 is the attempt with no payment.
+- Supabase Pro can be used for a month and switched back to Free immediately. Unused Pro time becomes credits, not a card refund. Downgrade still bills overage from that cycle. Do not upgrade unless asked.

@@ -32,6 +32,15 @@ export function externalAluuOrderKey(order) {
   return String(meta.payment_group_id || order.id);
 }
 
+/** Id Aluu was given for this checkout. Retries use a new provider id on the same row. */
+export function aluuLookupId(order) {
+  const meta = order?.metadata && typeof order.metadata === 'object' ? order.metadata : {};
+  if (meta.payment_group_id) return String(meta.payment_group_id);
+  if (order?.aluu_order_id) return String(order.aluu_order_id);
+  if (meta.aluu_order_id) return String(meta.aluu_order_id);
+  return String(order?.id || '');
+}
+
 export function statusOrderIdMatches(statusResult, externalKey, order) {
   const got = String(statusResult?.orderId || '');
   if (!got) return true;
@@ -199,7 +208,7 @@ export async function reconcilePendingAluuPayments(supabaseAdmin, { maxAgeHours 
     await handleStatus(orders, groupId);
   }
   for (const order of singles) {
-    await handleStatus([order], order.id);
+    await handleStatus([order], aluuLookupId(order));
   }
 
   if (settled || failed) {
