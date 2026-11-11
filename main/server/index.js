@@ -43,7 +43,7 @@
  *   POST   /api/membership/purchase            Buy a membership plan (wallet / Razorpay / Aluu)
  *
  * Proxied RPCs (service_role only — functions no longer callable by anon/authenticated):
- *   POST   /api/track-visit                   Record one storefront landing (Meta fbclid / utm)
+ *   POST   /api/track-visit                   Record one storefront visitor (device + place)
  *   POST   /api/admin/analytics                Get admin analytics dashboard data
  *
  * Leaderboard:
@@ -80,7 +80,7 @@ import {
   startAluuReconcileWorker,
 } from './aluu-settlement.js';
 import { canReusePaymentUrl, nextAluuExternalId, sameUnpaidAttempt } from './checkout-attempt.js';
-import { classifyVisit, cleanPath, cleanUtm, referrerHost } from './visit-track.js';
+import { cleanPath, cleanVisitorKey, deviceFromUserAgent, lookupPlace } from './visit-track.js';
 import { startExpirePendingWorker, startProvisionWorker } from './order-jobs.js';
 
 const app = express();
@@ -291,23 +291,18 @@ app.post('/api/track-visit', trackVisitLimiter, async (req, res) => {
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const path = cleanPath(body.path);
-    const utmSource = cleanUtm(body.utm_source);
-    const utmMedium = cleanUtm(body.utm_medium);
-    const utmCampaign = cleanUtm(body.utm_campaign);
-    const host = referrerHost(body.referrer);
-    const hasFbclid = body.has_fbclid === true;
-    const source = classifyVisit({ utmSource, referrerHost: host, hasFbclid });
+    const visitorKey = cleanVisitorKey(body.visitor_key);
+    const device = deviceFromUserAgent(req.get('user-agent'));
+    const location = await lookupPlace(getClientIp(req));
     const { error } = await supabaseAdmin.from('site_visits').insert({
       path,
-      source,
-      utm_source: utmSource,
-      utm_medium: utmMedium,
-      utm_campaign: utmCampaign,
-      referrer_host: host,
-      has_fbclid: hasFbclid,
+      source: 'site',
+      visitor_key: visitorKey,
+      device,
+      location,
     });
     if (error) throw error;
-    res.json({ ok: true, source });
+    res.json({ ok: true });
   } catch (err) {
     console.error('[track-visit]', err.message);
     res.status(400).json({ ok: false, error: 'Could not record this visit.' });
