@@ -3,7 +3,7 @@
 ## [Unreleased]
 
 ### Fixed
-- Admin dashboard shows how many people opened the site, which device they used, and their region. The same browser counts once. Apply `061_visit_people_device_place.sql` and deploy the API. Visits from before this have no device or place.
+- Admin **Dashboard** and **Analytics** show website visitors (people, devices, locations) in a shared blue card at the top. Apply migrations through `063` if stats fail to load.
 - Checkout reuses an unpaid UPI attempt for the same player and pack instead of inserting a second order, and the admin orders list hides those unpaid attempts unless you turn them on.
 - Admin **Orders**, **Manual Orders**, and the order drawer now say whether money arrived: “Not paid yet”, “Failed — never paid”, “Paid — not delivered yet”, or “Paid — delivery failed”, with one sentence on why.
 - Storefront static media (images, video, audio) now serves from the **Amplify CDN** (`VITE_PUBLIC_MEDIA_ORIGIN=site`) instead of Supabase Storage, cutting **cached egress** on the free tier; legacy Supabase object URLs in CMS values rewrite to the same paths. Main builds sync the `public-media` bucket into `main/public/` via `scripts/sync-public-media-from-supabase.mjs` when Amplify has `SUPABASE_SERVICE_ROLE_KEY`; SPA rewrite rules allow `webp`, `mp4`, `webm`, and related asset extensions.
