@@ -18,6 +18,7 @@ import {
   Gamepad2,
   LayoutDashboard,
   MessageSquare,
+  MousePointerClick,
   Package,
   PackageX,
   Plug,
@@ -37,7 +38,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAdminReport } from '../hooks/useAdminReport';
 import { useAdminCurrency } from '../lib/currency';
-import { ADMIN_PERIOD_OPTIONS, AdminPeriod, exportToCsv, matchesAdminPeriod } from '../utils/dateRange';
+import { ADMIN_PERIOD_OPTIONS, AdminPeriod, adminPeriodBounds, exportToCsv, matchesAdminPeriod } from '../utils/dateRange';
 import { fetchSmileOneStatus, SmileOneStatus } from '../services/providerService';
 import { yokcash, YcHealthResponse } from '../services/yokcashService';
 import OrderDrawer from '../components/orders/OrderDrawer';
@@ -168,6 +169,8 @@ const Dashboard: React.FC = () => {
   const [customEnd, setCustomEnd] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [includeInternal, setIncludeInternal] = useState(false);
+  const [visits, setVisits] = useState<{ total: number; meta: number; other: number; campaigns: Array<{ campaign: string; visits: number }> } | null>(null);
+  const [visitsNote, setVisitsNote] = useState<string | null>(null);
 
   const apiPayment = paymentFilter === 'all' ? null : paymentFilter;
   const {
@@ -181,6 +184,28 @@ const Dashboard: React.FC = () => {
     yesterday: yesterdayAnalytics,
     refresh: refreshDayAnalytics,
   } = useTodayYesterdayAnalytics(apiPayment);
+
+  useEffect(() => {
+    let cancelled = false;
+    const { start, end } = adminPeriodBounds(period, customStart, customEnd);
+    supabase.rpc('get_visit_summary', { p_start: start, p_end: end }).then(({ data: summary, error: rpcError }) => {
+      if (cancelled) return;
+      if (rpcError) {
+        setVisits(null);
+        setVisitsNote('Visit tracking is not available yet.');
+        return;
+      }
+      const row = (summary ?? {}) as { total?: number; meta?: number; other?: number; campaigns?: Array<{ campaign: string; visits: number }> };
+      setVisits({
+        total: Number(row.total) || 0,
+        meta: Number(row.meta) || 0,
+        other: Number(row.other) || 0,
+        campaigns: Array.isArray(row.campaigns) ? row.campaigns : [],
+      });
+      setVisitsNote(null);
+    });
+    return () => { cancelled = true; };
+  }, [period, customStart, customEnd]);
 
   // Live supplier health & open support tickets
   const [smileStatus, setSmileStatus] = useState<SmileOneStatus | null>(null);
@@ -596,6 +621,49 @@ const Dashboard: React.FC = () => {
           </motion.div>
         ))}
       </motion.div>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+            <MousePointerClick className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-semibold text-gray-900">Meta ad visits ({periodLabel})</h2>
+            <p className="mt-1 text-xs text-gray-500">
+              People who opened the site from a Meta link. Ads Manager counts the tap even when the page never loads, and visits from before this tracker are not included.
+            </p>
+          </div>
+        </div>
+        {visitsNote ? (
+          <p className="mt-3 text-sm text-gray-500">{visitsNote}</p>
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div>
+              <p className="text-xs text-gray-400">From Meta</p>
+              <p className="text-2xl font-bold tabular-nums text-gray-900">{visits ? visits.meta.toLocaleString() : '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Other visits</p>
+              <p className="text-2xl font-bold tabular-nums text-gray-900">{visits ? visits.other.toLocaleString() : '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Top Meta campaigns</p>
+              {visits && visits.campaigns.length > 0 ? (
+                <ul className="mt-1 space-y-1">
+                  {visits.campaigns.map((row) => (
+                    <li key={row.campaign} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="truncate text-gray-700">{row.campaign}</span>
+                      <span className="font-semibold tabular-nums text-gray-900">{Number(row.visits).toLocaleString()}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-sm text-gray-500">None in this period yet. Add utm_campaign to the ad link to name them.</p>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* Trend + attention rail */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">

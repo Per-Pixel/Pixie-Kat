@@ -45,6 +45,38 @@ export function matchesAdminPeriod(
   return true;
 }
 
+/** Inclusive start and end for a dashboard period. Null means unbounded. */
+export function adminPeriodBounds(
+  period: AdminPeriod,
+  customStart = '',
+  customEnd = '',
+  now = new Date()
+): { start: string | null; end: string | null } {
+  if (period === 'all') return { start: null, end: null };
+  if (period === 'today') {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return { start: start.toISOString(), end: null };
+  }
+  if (period === '7d') return { start: new Date(now.getTime() - 7 * 86_400_000).toISOString(), end: null };
+  if (period === '30d') return { start: new Date(now.getTime() - 30 * 86_400_000).toISOString(), end: null };
+  if (period === '90d') return { start: new Date(now.getTime() - 90 * 86_400_000).toISOString(), end: null };
+  if (period === '6m') {
+    const start = new Date(now);
+    start.setMonth(start.getMonth() - 6);
+    return { start: start.toISOString(), end: null };
+  }
+  if (period === '1y') {
+    return { start: new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).toISOString(), end: null };
+  }
+  if (period === 'custom') {
+    return {
+      start: customStart ? new Date(`${customStart}T00:00:00`).toISOString() : null,
+      end: customEnd ? new Date(`${customEnd}T23:59:59.999`).toISOString() : null,
+    };
+  }
+  return { start: null, end: null };
+}
+
 export function exportToCsv(
   filenamePrefix: string,
   headers: string[],
