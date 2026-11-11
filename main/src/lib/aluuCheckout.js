@@ -8,12 +8,24 @@ const ALUU_PAYMENT_WINDOW_NAME = "pixiekat_aluu_payment";
 export const ALUU_PAYMENT_DISMISSED =
   "Payment was not completed. You can try again when you're ready — nothing was charged.";
 
+/** Shown next to the UPI option before they leave for the QR. */
+export const ALUU_QR_SAVE_HINT =
+  "Save the QR in your UPI app and pay it, then come back to this page and stay until it confirms. If you leave, we cannot see the payment right away and your order is delayed.";
+
 export const ALUU_PAYMENT_WAITING =
-  "Waiting for UPI payment confirmation… Complete payment in the opened window.";
+  "Save the QR, pay in your UPI app, then come back to this page. Stay here until it confirms — leaving now delays the order.";
 
 /** After the customer scans a shared QR and pays in GPay/PhonePe, the payment tab is often closed. */
 export const ALUU_PAYMENT_QR_WAITING =
-  "Complete payment in your UPI app — we'll confirm automatically. You can close the payment window after scanning the QR.";
+  "Payment window closed. If you saved the QR, pay it in your UPI app and stay on this page. We'll confirm here — leaving now delays the order.";
+
+export function isAluuGuidanceMessage(message) {
+  return (
+    message === ALUU_QR_SAVE_HINT ||
+    message === ALUU_PAYMENT_WAITING ||
+    message === ALUU_PAYMENT_QR_WAITING
+  );
+}
 
 function matchesReturnPayload(data, { orderId, groupId } = {}) {
   if (!data || data.type !== ALUU_RETURN_MESSAGE) return false;

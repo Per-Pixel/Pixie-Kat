@@ -9,6 +9,12 @@ frontend:
           # Force relative API URLs so the Amplify proxy handles /api/* (avoids mixed content)
           export VITE_API_BASE_URL=""
           if [ "$AWS_BRANCH" = "admin" ]; then export VITE_API_BASE_URL="/api"; fi
+          # Storefront media from Amplify CDN (not Supabase storage egress)
+          if [ "$AWS_BRANCH" != "admin" ]; then export VITE_PUBLIC_MEDIA_ORIGIN=site; fi
+          if [ "$AWS_BRANCH" != "admin" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            (cd main/server && npm ci)
+            node scripts/sync-public-media-from-supabase.mjs
+          fi
           (cd "$APP_ROOT" && npm ci)
     build:
       commands:
@@ -18,6 +24,7 @@ frontend:
           # Force relative API URLs so the Amplify proxy handles /api/* (avoids mixed content)
           export VITE_API_BASE_URL=""
           if [ "$AWS_BRANCH" = "admin" ]; then export VITE_API_BASE_URL="/api"; fi
+          if [ "$AWS_BRANCH" != "admin" ]; then export VITE_PUBLIC_MEDIA_ORIGIN=site; fi
           (cd "$APP_ROOT" && npm run build)
           rm -rf dist
           mv "$APP_ROOT/dist" dist
@@ -32,6 +39,6 @@ frontend:
     - source: /api/<*>
       target: https://c4pmcbw502.execute-api.ap-south-1.amazonaws.com/prod/api/<*>
       status: 200
-    - source: </^[^.]+$|[.](?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json)$)([^.]+$)/>
+    - source: </^[^.]+$|[.](?!(css|gif|ico|jpg|jpeg|js|json|map|mp3|mp4|ogg|opus|png|svg|txt|wav|webm|webp|woff|woff2|ttf)$)([^.]+$)/>
       target: /index.html
       status: 200

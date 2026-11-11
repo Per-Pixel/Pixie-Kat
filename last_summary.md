@@ -1,6 +1,7 @@
 # Last summary — Pixie-Kat
 
-## 2026-11-10 — Preview meta (index.html)
+## 2026-11-11 — Amplify media cutover + order payment copy
 
-- Root cause: `main/index.html` still had old **PixieKat System** dummy-site `<title>` and `<meta name="description">`; crawlers and deployment previews use that static HTML, not the React storefront.
-- Updated title/description and basic Open Graph tags to match storefront (Instant Gaming Credits).
+- Pushed `admin` (`ae29f34`) and merging to `main` so both Amplify branches build. App env now has `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for the public-media sync. Live custom rules allow webp/mp4/webm instead of rewriting them to `index.html`.
+- Storefront serves `/img`, `/videos`, `/audio` from Amplify. Admin orders explain paid vs unpaid.
+- API did not change, so no Elastic Beanstalk deploy.

@@ -10,6 +10,7 @@ import OrderDrawer from '../components/orders/OrderDrawer';
 import clsx from 'clsx';
 import { DURATION, EASE_OUT, fadeUp, pop, staggerDelay } from '../lib/motion';
 import { formatPaymentMethodLabel } from '../utils/paymentMethodLabel';
+import { explainOrderPayment } from '../utils/orderPaymentStory';
 
 type OrderStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'refunded' | 'cancelled' | 'on_hold';
 type SortField = 'created_at' | 'total_amount' | 'status' | 'product_name';
@@ -498,8 +499,24 @@ const Orders: React.FC = () => {
                           {order.status.replace('_', ' ')}
                         </motion.span>
                       </td>
-                      <td className="px-4 py-3.5 whitespace-nowrap text-sm text-gray-600">
-                        {formatPaymentMethodLabel(order.payment_method)}
+                      <td className="px-4 py-3.5 text-sm text-gray-600 max-w-[240px]">
+                        {(() => {
+                          const story = explainOrderPayment(order);
+                          return (
+                            <>
+                              <p className="font-medium text-gray-800">{formatPaymentMethodLabel(order.payment_method)}</p>
+                              <p className={clsx(
+                                'text-xs font-semibold',
+                                story.verdict === 'paid' && 'text-emerald-700',
+                                story.verdict === 'unpaid' && 'text-amber-800',
+                                story.verdict === 'refunded' && 'text-sky-800',
+                              )}>
+                                {story.title}
+                              </p>
+                              <p className="mt-0.5 text-[11px] leading-snug text-gray-500 whitespace-normal">{story.detail}</p>
+                            </>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap text-sm text-gray-500">{formatDate(order.created_at)}</td>
                       <td className="px-4 py-3.5 whitespace-nowrap text-sm font-medium">

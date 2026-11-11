@@ -11,6 +11,7 @@ import clsx from 'clsx';
 import axios from 'axios';
 import api from '../../services/api';
 import { formatPaymentMethodLabel } from '../../utils/paymentMethodLabel';
+import { explainOrderPayment } from '../../utils/orderPaymentStory';
 import { buildPixieKatOrderContext, openInChatGptWeb, type EnrichedOrderRow } from './ChatGptAssistantDrawer';
 import {
   DURATION,
@@ -272,6 +273,14 @@ const OrderDrawer: React.FC<OrderDrawerProps> = ({ order, isOpen, onClose, onSta
                     <div>
                       <p className={clsx('text-sm font-semibold', cfg.color)}>Status: {cfg.label}</p>
                       <p className={clsx('text-xs opacity-75', cfg.color)}>Updated {formatDate(order.updated_at)}</p>
+                      {(() => {
+                        const story = explainOrderPayment(order);
+                        return (
+                          <p className={clsx('mt-1 text-xs font-medium leading-snug', cfg.color)}>
+                            {story.title}. {story.detail}
+                          </p>
+                        );
+                      })()}
                     </div>
                   </motion.div>
                 </AnimatePresence>

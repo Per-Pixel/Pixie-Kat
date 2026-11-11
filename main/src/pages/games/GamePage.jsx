@@ -26,6 +26,8 @@ import { sanitizeRichText } from "../../utils/sanitizeRichText";
 import { loadRazorpayCheckout } from "../../lib/razorpay";
 import {
   ALUU_PAYMENT_QR_WAITING,
+  ALUU_QR_SAVE_HINT,
+  isAluuGuidanceMessage,
   ALUU_PAYMENT_WAITING,
   openAluuPaymentWindow,
   sleepUntilInterrupt,
@@ -1299,7 +1301,7 @@ const GamePage = () => {
               </div>
             )}
             {checkoutError ? (
-              <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{checkoutError}</p>
+              <p className={`mb-4 rounded-lg px-4 py-3 text-sm font-bold ${isAluuGuidanceMessage(checkoutError) ? "border border-amber-200 bg-amber-50 text-amber-950" : "border border-red-200 bg-red-50 text-red-600"}`}>{checkoutError}</p>
             ) : null}
             <div className="flex gap-3">
               <button type="button" onClick={() => (isYokcash && confirmStep === 2 ? setConfirmStep(1) : setShowCartReview(false))} className="h-12 flex-1 rounded-xl border border-[#dfe4ec] text-sm font-bold text-[#4b5563]">
@@ -1688,9 +1690,11 @@ const GamePage = () => {
               })}
             </div>
 
-            <p className="mt-3 text-xs font-semibold text-[#6d7480]">
-              Online payments are temporarily unavailable — orders run on Pixie Wallet balance only.
-            </p>
+            {selectedPaymentId === "aluu" ? (
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-950">
+                {ALUU_QR_SAVE_HINT}
+              </p>
+            ) : null}
 
             <div className="mt-4 rounded-lg border border-[#c8baff] bg-[#f3efff] px-5 py-4 text-sm font-bold text-[#3f4654]">
               <Lightbulb className="mr-2 inline size-4 text-[#f0b429]" />
@@ -1729,7 +1733,7 @@ const GamePage = () => {
             </div>
 
             {checkoutError ? (
-              <p id="checkout-error" className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{checkoutError}</p>
+              <p id="checkout-error" className={`mt-4 rounded-lg px-4 py-3 text-sm font-bold ${isAluuGuidanceMessage(checkoutError) ? "border border-amber-200 bg-amber-50 text-amber-950" : "border border-red-200 bg-red-50 text-red-600"}`}>{checkoutError}</p>
             ) : null}
 
             <div className="mt-6 border-t border-[#dfe4ec] pt-6">
@@ -1803,7 +1807,7 @@ const GamePage = () => {
 
       {checkoutError && (!isMobileLegends || activeMobileView === "buy") ? (
         <div className="fixed inset-x-0 bottom-44 z-[95] mx-auto max-w-md px-4 md:hidden">
-          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600 shadow-lg">
+          <div className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-bold shadow-lg ${isAluuGuidanceMessage(checkoutError) ? "border border-amber-200 bg-amber-50 text-amber-950" : "border border-red-200 bg-red-50 text-red-600"}`}>
             <AlertCircle className="size-4 shrink-0" />
             <span className="min-w-0">{checkoutError}</span>
           </div>
