@@ -18,7 +18,6 @@ import {
   Gamepad2,
   LayoutDashboard,
   MessageSquare,
-  MousePointerClick,
   Package,
   PackageX,
   Plug,
@@ -42,6 +41,8 @@ import { ADMIN_PERIOD_OPTIONS, AdminPeriod, adminPeriodBounds, exportToCsv, matc
 import { fetchSmileOneStatus, SmileOneStatus } from '../services/providerService';
 import { yokcash, YcHealthResponse } from '../services/yokcashService';
 import OrderDrawer from '../components/orders/OrderDrawer';
+import WebsiteVisitorsPanel from '../components/analytics/WebsiteVisitorsPanel';
+import { useWebsiteVisitors } from '../hooks/useWebsiteVisitors';
 import { DURATION, EASE_OUT, springSoft, staggerDelay, staggerItem, staggerParent } from '../lib/motion';
 import {
   computeDashboardMetrics,
@@ -169,10 +170,8 @@ const Dashboard: React.FC = () => {
   const [customEnd, setCustomEnd] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [includeInternal, setIncludeInternal] = useState(false);
-  const [visits, setVisits] = useState<{ people: number; devices: Array<{ name: string; people: number }>; places: Array<{ name: string; people: number }> } | null>(null);
-  const [visitsNote, setVisitsNote] = useState<string | null>(null);
-
   const apiPayment = paymentFilter === 'all' ? null : paymentFilter;
+  const { visits, visitsNote, loading: visitsLoading } = useWebsiteVisitors(period, customStart, customEnd);
   const {
     data: periodAnalytics,
     loading: periodAnalyticsLoading,
@@ -184,35 +183,6 @@ const Dashboard: React.FC = () => {
     yesterday: yesterdayAnalytics,
     refresh: refreshDayAnalytics,
   } = useTodayYesterdayAnalytics(apiPayment);
-
-  useEffect(() => {
-    let cancelled = false;
-    const { start, end } = adminPeriodBounds(period, customStart, customEnd);
-    supabase.rpc('get_visit_summary', { p_start: start, p_end: end }).then(({ data: summary, error: rpcError }) => {
-      if (cancelled) return;
-      if (rpcError) {
-        setVisits(null);
-        setVisitsNote(`Could not load visitor stats. Hard-refresh the page (Ctrl+Shift+R). If it persists: ${rpcError.message}`);
-        return;
-      }
-      const row = (summary ?? {}) as {
-        people?: number;
-        devices?: Array<{ name?: string; people?: number }>;
-        places?: Array<{ name?: string; people?: number }>;
-      };
-      const slices = (rows: Array<{ name?: string; people?: number }> | undefined) =>
-        (Array.isArray(rows) ? rows : [])
-          .map((item) => ({ name: String(item?.name || 'Unknown'), people: Number(item?.people) || 0 }))
-          .filter((item) => item.people > 0);
-      setVisits({
-        people: Number(row.people) || 0,
-        devices: slices(row.devices),
-        places: slices(row.places),
-      });
-      setVisitsNote(null);
-    });
-    return () => { cancelled = true; };
-  }, [period, customStart, customEnd]);
 
   // Live supplier health & open support tickets
   const [smileStatus, setSmileStatus] = useState<SmileOneStatus | null>(null);
@@ -312,32 +282,47 @@ const Dashboard: React.FC = () => {
     }));
   }, [periodAnalytics, period]);
 
+  const periodLabel =
+    period === 'custom'
+      ? 'Custom'
+      : ADMIN_PERIOD_OPTIONS.find((opt) => opt.value === period)?.label ?? '7 Days';
+
+  const visitorPanel = (
+    <WebsiteVisitorsPanel
+      periodLabel={periodLabel}
+      visits={visits}
+      visitsNote={visitsNote}
+      loading={visitsLoading}
+    />
+  );
+
   if (loading && !data) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: 'linear-gradient(135deg,#7c3aed,#5b21b6)' }}>
-          <RefreshCw className="h-7 w-7 animate-spin text-white" />
+      <div className="space-y-6">
+        {visitorPanel}
+        <div className="flex flex-col items-center justify-center py-32 gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: 'linear-gradient(135deg,#7c3aed,#5b21b6)' }}>
+            <RefreshCw className="h-7 w-7 animate-spin text-white" />
+          </div>
+          <p className="text-sm font-medium text-gray-400">Loading dashboard data…</p>
         </div>
-        <p className="text-sm font-medium text-gray-400">Loading dashboard data…</p>
       </div>
     );
   }
 
   if (error || !periodReport || !data) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
-        <AlertCircle className="h-5 w-5 mb-2" />
-        <p className="font-medium">Could not load dashboard data</p>
-        <p className="mt-1 text-sm">{error}</p>
-        <button onClick={handleRefreshAll} className="btn btn-outline btn-sm mt-4">Retry</button>
+      <div className="space-y-6">
+        {visitorPanel}
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
+          <AlertCircle className="h-5 w-5 mb-2" />
+          <p className="font-medium">Could not load dashboard data</p>
+          <p className="mt-1 text-sm">{error}</p>
+          <button onClick={handleRefreshAll} className="btn btn-outline btn-sm mt-4">Retry</button>
+        </div>
       </div>
     );
   }
-
-  const periodLabel =
-    period === 'custom'
-      ? 'Custom'
-      : ADMIN_PERIOD_OPTIONS.find((opt) => opt.value === period)?.label ?? '7 Days';
 
   const {
     financial,
@@ -523,6 +508,8 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {visitorPanel}
+
       {/* Period Filter Bar + Supplier Live Status Strip */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -609,60 +596,6 @@ const Dashboard: React.FC = () => {
           </label>
         </div>
       )}
-
-      <section id="website-visitors" className="rounded-xl border border-blue-200 bg-white p-4 shadow-sm">
-        <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-            <MousePointerClick className="h-4 w-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-semibold text-gray-900">Website visitors ({periodLabel})</h2>
-            <p className="mt-1 text-xs text-gray-500">
-              How many people opened the shop, and what device and place we saw. Customers never see this block — only here on Dashboard.
-            </p>
-          </div>
-        </div>
-        {visitsNote ? (
-          <p className="mt-3 text-sm text-amber-700">{visitsNote}</p>
-        ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
-            <div>
-              <p className="text-xs text-gray-400">People</p>
-              <p className="text-2xl font-bold tabular-nums text-gray-900">{visits ? visits.people.toLocaleString() : '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400">Devices</p>
-              {visits && visits.devices.length > 0 ? (
-                <ul className="mt-1 space-y-1">
-                  {visits.devices.map((row) => (
-                    <li key={row.name} className="flex items-center justify-between gap-3 text-sm">
-                      <span className="truncate text-gray-700">{row.name}</span>
-                      <span className="font-semibold tabular-nums text-gray-900">{row.people.toLocaleString()}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-1 text-sm text-gray-500">{visits && visits.people > 0 ? 'Unknown device' : 'No visits in this period yet.'}</p>
-              )}
-            </div>
-            <div>
-              <p className="text-xs text-gray-400">Locations</p>
-              {visits && visits.places.length > 0 ? (
-                <ul className="mt-1 space-y-1">
-                  {visits.places.map((row) => (
-                    <li key={row.name} className="flex items-center justify-between gap-3 text-sm">
-                      <span className="truncate text-gray-700">{row.name}</span>
-                      <span className="font-semibold tabular-nums text-gray-900">{row.people.toLocaleString()}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-1 text-sm text-gray-500">{visits && visits.people > 0 ? 'Unknown location' : 'No visits in this period yet.'}</p>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
 
       {/* Today KPI row */}
       <motion.div variants={staggerParent} initial="initial" animate="animate" className="grid grid-cols-2 gap-4 xl:grid-cols-4">

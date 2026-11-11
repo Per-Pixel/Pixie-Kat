@@ -15,6 +15,8 @@ import { AdminAnalytics, AnalyticsPeriod, getAdminAnalytics } from '../services/
 import { useAdminReport } from '../hooks/useAdminReport';
 import { useAdminCurrency } from '../lib/currency';
 import { AdminPeriod, exportToCsv, matchesAdminPeriod } from '../utils/dateRange';
+import WebsiteVisitorsPanel from '../components/analytics/WebsiteVisitorsPanel';
+import { useWebsiteVisitors } from '../hooks/useWebsiteVisitors';
 import { DURATION, EASE_OUT, staggerDelay } from '../lib/motion';
 import {
   computeDashboardMetrics,
@@ -127,6 +129,11 @@ const Analytics: React.FC = () => {
   }, [reportData, filteredOrders]);
 
   const periodLabel = period === 'custom' ? 'Custom range' : (periods.find((p) => p.value === period)?.label ?? period);
+  const { visits, visitsNote, loading: visitsLoading } = useWebsiteVisitors(
+    period as AdminPeriod,
+    customStart,
+    customEnd
+  );
 
   const handleExportSection = () => {
     if (!report) return;
@@ -165,16 +172,31 @@ const Analytics: React.FC = () => {
     }
   };
 
+  const visitorPanel = (
+    <WebsiteVisitorsPanel
+      periodLabel={periodLabel}
+      visits={visits}
+      visitsNote={visitsNote}
+      loading={visitsLoading}
+    />
+  );
+
   if (loading && !report) return (
-    <div className="py-24 text-center text-gray-400">
-      <RefreshCw className="w-7 h-7 animate-spin mx-auto mb-3" />
-      Loading analytics...
+    <div className="space-y-6">
+      {visitorPanel}
+      <div className="py-24 text-center text-gray-400">
+        <RefreshCw className="w-7 h-7 animate-spin mx-auto mb-3" />
+        Loading sales analytics…
+      </div>
     </div>
   );
   if (error || !report) return (
-    <div className="p-6 rounded-xl bg-red-50 border border-red-200 text-red-700">
-      <AlertCircle className="w-5 h-5 mb-2" />{error}
-      <button onClick={() => void refresh()} className="btn btn-outline btn-sm ml-4">Retry</button>
+    <div className="space-y-6">
+      {visitorPanel}
+      <div className="p-6 rounded-xl bg-red-50 border border-red-200 text-red-700">
+        <AlertCircle className="w-5 h-5 mb-2" />{error}
+        <button onClick={() => void refresh()} className="btn btn-outline btn-sm ml-4">Retry</button>
+      </div>
     </div>
   );
 
@@ -254,6 +276,8 @@ const Analytics: React.FC = () => {
             </label>
           </div>
         )}
+
+        {visitorPanel}
 
         {/* Section tabs */}
         <div className="flex gap-1 border-b border-gray-200 -mb-px overflow-x-auto">
