@@ -1,7 +1,7 @@
 # Last summary — Pixie-Kat
 
-## 2026-11-11 — Unpaid UPI attempts are not a second order
+## 2026-11-11 — Meta ad visit tracker
 
-- A repeat Pay click for the same player and pack reopens the unpaid UPI row instead of inserting another order. Admin Orders hides those unpaid attempts until “Unpaid attempts” is turned on. #8215E222 is the paid 5 Diamonds order; #66B821A2 is the attempt with no payment.
-- Supabase Pro can be used for a month and switched back to Free immediately. Unused Pro time becomes credits, not a card refund. Downgrade still bills overage from that cycle. Do not upgrade unless asked.
-- API reuse ships only after `eb deploy` from `main/server`. Admin list hide ships with the Amplify `admin` build.
+- Dashboard card “Meta ad visits” counts storefront landings with `fbclid` or a Facebook/Instagram campaign. Ads Manager’s earlier taps are not in the database.
+- `060_site_visits.sql` is applied. API `POST /api/track-visit` is deployed. Storefront beacon ships with the Amplify `main` build; the card ships with `admin`.
+- Name campaigns with `utm_source=meta&utm_campaign=...` on the ad URL.

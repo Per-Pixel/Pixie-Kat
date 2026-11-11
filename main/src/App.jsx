@@ -10,6 +10,7 @@ import { PreferencesProvider } from "./contexts/PreferencesContext";
 import { CartProvider } from "./contexts/CartContext";
 import { readPreferences } from "./lib/preferences";
 import ScrollToTop from "./components/common/ScrollToTop";
+import { trackLandingOnce } from "./lib/trackVisit";
 
 import Loading from "./components/common/Loading";
 
@@ -165,6 +166,13 @@ function GlobalIntro({ isLoading, onComplete, mainContentRef }) {
 
 const LOADING_SESSION_KEY = "pixie_has_loaded";
 
+function VisitBeacon() {
+  useEffect(() => {
+    trackLandingOnce();
+  }, []);
+  return null;
+}
+
 function App() {
 
   const [isLoading, setIsLoading] = useState(() => {
@@ -236,6 +244,7 @@ function App() {
 
         <>
           <ScrollToTop />
+          <VisitBeacon />
 
           <GlobalIntro isLoading={isLoading} onComplete={handleLoadingComplete} mainContentRef={mainContentRef} />
 
