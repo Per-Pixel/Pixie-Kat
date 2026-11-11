@@ -192,7 +192,7 @@ const Dashboard: React.FC = () => {
       if (cancelled) return;
       if (rpcError) {
         setVisits(null);
-        setVisitsNote('Visit tracking is not available yet.');
+        setVisitsNote(`Could not load visitor stats. Hard-refresh the page (Ctrl+Shift+R). If it persists: ${rpcError.message}`);
         return;
       }
       const row = (summary ?? {}) as {
@@ -610,26 +610,7 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Today KPI row */}
-      <motion.div variants={staggerParent} initial="initial" animate="animate" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        {kpis.map((kpi) => <KpiCard key={kpi.label} {...kpi} />)}
-      </motion.div>
-
-      {/* QuickStats strip */}
-      <motion.div variants={staggerParent} initial="initial" animate="animate" className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        {quickStats.map(({ label, value, icon: Icon, sub }) => (
-          <motion.div key={label} variants={staggerItem} transition={{ duration: DURATION.base, ease: EASE_OUT }} className="rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm">
-            <div className="flex items-center gap-2 text-gray-400">
-              <Icon className="h-3.5 w-3.5" />
-              <p className="truncate text-xs">{label}</p>
-            </div>
-            <p className="mt-1.5 truncate text-lg font-bold text-gray-900 tabular-nums">{value}</p>
-            {sub && <div className="mt-1">{sub}</div>}
-          </motion.div>
-        ))}
-      </motion.div>
-
-      <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <section id="website-visitors" className="rounded-xl border border-blue-200 bg-white p-4 shadow-sm">
         <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
             <MousePointerClick className="h-4 w-4" />
@@ -637,12 +618,12 @@ const Dashboard: React.FC = () => {
           <div className="min-w-0 flex-1">
             <h2 className="text-sm font-semibold text-gray-900">Website visitors ({periodLabel})</h2>
             <p className="mt-1 text-xs text-gray-500">
-              Different browsers that opened the site, plus the device and place we saw. The same person coming back counts once. Visits from before this change have no device or place.
+              How many people opened the shop, and what device and place we saw. Customers never see this block — only here on Dashboard.
             </p>
           </div>
         </div>
         {visitsNote ? (
-          <p className="mt-3 text-sm text-gray-500">{visitsNote}</p>
+          <p className="mt-3 text-sm text-amber-700">{visitsNote}</p>
         ) : (
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
             <div>
@@ -661,7 +642,7 @@ const Dashboard: React.FC = () => {
                   ))}
                 </ul>
               ) : (
-                <p className="mt-1 text-sm text-gray-500">No visits in this period yet.</p>
+                <p className="mt-1 text-sm text-gray-500">{visits && visits.people > 0 ? 'Unknown device' : 'No visits in this period yet.'}</p>
               )}
             </div>
             <div>
@@ -676,12 +657,31 @@ const Dashboard: React.FC = () => {
                   ))}
                 </ul>
               ) : (
-                <p className="mt-1 text-sm text-gray-500">No visits in this period yet.</p>
+                <p className="mt-1 text-sm text-gray-500">{visits && visits.people > 0 ? 'Unknown location' : 'No visits in this period yet.'}</p>
               )}
             </div>
           </div>
         )}
       </section>
+
+      {/* Today KPI row */}
+      <motion.div variants={staggerParent} initial="initial" animate="animate" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        {kpis.map((kpi) => <KpiCard key={kpi.label} {...kpi} />)}
+      </motion.div>
+
+      {/* QuickStats strip */}
+      <motion.div variants={staggerParent} initial="initial" animate="animate" className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        {quickStats.map(({ label, value, icon: Icon, sub }) => (
+          <motion.div key={label} variants={staggerItem} transition={{ duration: DURATION.base, ease: EASE_OUT }} className="rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm">
+            <div className="flex items-center gap-2 text-gray-400">
+              <Icon className="h-3.5 w-3.5" />
+              <p className="truncate text-xs">{label}</p>
+            </div>
+            <p className="mt-1.5 truncate text-lg font-bold text-gray-900 tabular-nums">{value}</p>
+            {sub && <div className="mt-1">{sub}</div>}
+          </motion.div>
+        ))}
+      </motion.div>
 
       {/* Trend + attention rail */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
