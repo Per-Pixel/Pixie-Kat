@@ -33,6 +33,7 @@ import { supabase } from '../lib/supabase';
 import axios from 'axios';
 import api from '../services/api';
 import { formatPaymentMethodLabel } from '../utils/paymentMethodLabel';
+import { explainOrderPayment } from '../utils/orderPaymentStory';
 import OrderDrawer from '../components/orders/OrderDrawer';
 import ChatGptAssistantDrawer, {
   type EnrichedOrderRow,
@@ -1785,20 +1786,36 @@ const ManualOrders: React.FC<ManualOrdersProps> = ({ mode = 'manual' }) => {
                           </td>
 
                           {/* Status */}
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <motion.span
-                              key={order.status}
-                              variants={pop}
-                              initial="initial"
-                              animate="animate"
-                              className={clsx(
-                                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border',
-                                badge.pill
-                              )}
-                            >
-                              <span className={clsx('w-1.5 h-1.5 rounded-full', badge.dot)} />
-                              {badge.label}
-                            </motion.span>
+                          <td className="px-4 py-4 max-w-[220px]">
+                            {(() => {
+                              const story = explainOrderPayment(order);
+                              return (
+                                <>
+                                  <motion.span
+                                    key={order.status}
+                                    variants={pop}
+                                    initial="initial"
+                                    animate="animate"
+                                    className={clsx(
+                                      'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border',
+                                      badge.pill
+                                    )}
+                                  >
+                                    <span className={clsx('w-1.5 h-1.5 rounded-full', badge.dot)} />
+                                    {badge.label}
+                                  </motion.span>
+                                  <p className={clsx(
+                                    'mt-1 text-[11px] font-semibold leading-snug',
+                                    story.verdict === 'paid' && 'text-emerald-700',
+                                    story.verdict === 'unpaid' && 'text-amber-800',
+                                    story.verdict === 'refunded' && 'text-sky-800',
+                                  )}>
+                                    {story.title}
+                                  </p>
+                                  <p className="text-[11px] leading-snug text-gray-500 whitespace-normal">{story.detail}</p>
+                                </>
+                              );
+                            })()}
                           </td>
 
                           {/* Date */}

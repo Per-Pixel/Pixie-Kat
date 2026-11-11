@@ -28,6 +28,8 @@ import { supabase } from "../../lib/supabase";
 import { loadRazorpayCheckout } from "../../lib/razorpay";
 import {
   ALUU_PAYMENT_QR_WAITING,
+  ALUU_QR_SAVE_HINT,
+  isAluuGuidanceMessage,
   ALUU_PAYMENT_WAITING,
   openAluuPaymentWindow,
   sleepUntilInterrupt,
@@ -864,9 +866,11 @@ const CartPage = () => {
                       );
                     })}
                   </div>
-                  <p className="mt-2 font-circular-web text-[11px] text-white/50">
-                    Online payments are temporarily unavailable — wallet balance only.
-                  </p>
+                  {paymentMethod === "aluu" ? (
+                    <p className="mt-3 rounded-md border border-yellow-300/40 bg-yellow-300/15 px-3 py-2 font-circular-web text-xs text-yellow-100">
+                      {ALUU_QR_SAVE_HINT}
+                    </p>
+                  ) : null}
 
                   {/* contact */}
                   <div className="mt-6 space-y-3">
@@ -904,7 +908,7 @@ const CartPage = () => {
                   ) : null}
 
                   {checkoutError ? (
-                    <p className="mt-4 rounded-md border border-red-300/40 bg-red-400/10 px-3 py-2 font-circular-web text-xs text-red-200">
+                    <p className={`mt-4 rounded-md px-3 py-2 font-circular-web text-xs ${isAluuGuidanceMessage(checkoutError) ? "border border-yellow-300/40 bg-yellow-300/15 text-yellow-100" : "border border-red-300/40 bg-red-400/10 text-red-200"}`}>
                       {checkoutError}
                     </p>
                   ) : null}

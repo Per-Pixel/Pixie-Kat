@@ -79,7 +79,13 @@ Create an Amplify app for `main`.
 AMPLIFY_MONOREPO_APP_ROOT=main
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
+# Syncs public-media into the build so images/video/audio are not served from Supabase (saves cached egress)
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+VITE_PUBLIC_MEDIA_ORIGIN=site
 ```
+
+`amplify.yml` already sets `VITE_PUBLIC_MEDIA_ORIGIN=site` on the main branch. Add `SUPABASE_SERVICE_ROLE_KEY` (secret) so each build copies bucket assets into `main/public/` before `vite build`.
 
 Build command: `npm run build`
 

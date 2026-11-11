@@ -1,6 +1,7 @@
 # Last summary — Pixie-Kat
 
-## 2026-11-10 — Preview meta (index.html)
+## 2026-11-11 — Order payment clarity + UPI QR copy
 
-- Root cause: `main/index.html` still had old **PixieKat System** dummy-site `<title>` and `<meta name="description">`; crawlers and deployment previews use that static HTML, not the React storefront.
-- Updated title/description and basic Open Graph tags to match storefront (Instant Gaming Credits).
+- Admin Orders, Manual Orders, and the order drawer now explain payment in plain language (`explainOrderPayment`): unpaid checkout vs paid-but-not-delivered vs paid-then-delivery-failed vs 24h auto-close.
+- Storefront UPI (game, cart, add-money) shows a note to save the QR, pay, and stay on the page. Waiting copy is amber, not a red error. Removed the stale “online payments unavailable” line on game checkout and cart.
+- Supabase egress cutover from earlier today is still unpushed: Amplify needs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` on main.

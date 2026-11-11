@@ -5,7 +5,7 @@
     "status": "200"
   },
   {
-    "source": "</^[^.]+$|[.](?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json)$)([^.]+$)/>",
+    "source": "</^[^.]+$|[.](?!(css|gif|ico|jpg|jpeg|js|json|map|mp3|mp4|ogg|opus|png|svg|txt|wav|webm|webp|woff|woff2|ttf)$)([^.]+$)/>",
     "target": "/index.html",
     "status": "200"
   }

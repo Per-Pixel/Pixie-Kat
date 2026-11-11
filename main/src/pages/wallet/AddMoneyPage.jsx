@@ -18,6 +18,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import { loadRazorpayCheckout } from "../../lib/razorpay";
 import {
   ALUU_PAYMENT_QR_WAITING,
+  ALUU_QR_SAVE_HINT,
+  isAluuGuidanceMessage,
   openAluuPaymentWindow,
   sleepUntilInterrupt,
   trackAluuPaymentWindow,
@@ -453,7 +455,7 @@ const AddMoneyPage = () => {
           ) : null}
 
           {error ? (
-            <p className="mb-6 rounded-[18px] border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</p>
+            <p className={`mb-6 rounded-[18px] p-4 text-sm font-semibold ${isAluuGuidanceMessage(error) ? "border border-amber-200 bg-amber-50 text-amber-950" : "border border-red-200 bg-red-50 text-red-700"}`}>{error}</p>
           ) : null}
 
           <div className="space-y-7">
@@ -530,6 +532,11 @@ const AddMoneyPage = () => {
                   );
                 })}
               </div>
+              {method === "aluu" && !paymentsDisabled ? (
+                <p className="mt-4 rounded-[18px] border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-950">
+                  {ALUU_QR_SAVE_HINT}
+                </p>
+              ) : null}
             </section>
 
             <motion.button
