@@ -1,9 +1,22 @@
 import { API_BASE } from "./apiBase";
 
 const SESSION_KEY = "pixiekat_visit_logged";
+const VISITOR_KEY = "pixiekat_visitor";
 let sent = false;
 
-/** One landing per browser tab. Meta adds fbclid on ad link clicks. */
+function visitorKey() {
+  try {
+    const existing = localStorage.getItem(VISITOR_KEY);
+    if (existing && /^[0-9a-f-]{36}$/i.test(existing)) return existing;
+    const id = crypto.randomUUID();
+    localStorage.setItem(VISITOR_KEY, id);
+    return id;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
+
+/** One landing per browser tab. The visitor id stays so repeat visits count as one person. */
 export function trackLandingOnce() {
   if (sent) return;
   try {
@@ -16,14 +29,9 @@ export function trackLandingOnce() {
   }
 
   sent = true;
-  const params = new URLSearchParams(window.location.search);
   const body = {
     path: window.location.pathname,
-    utm_source: params.get("utm_source"),
-    utm_medium: params.get("utm_medium"),
-    utm_campaign: params.get("utm_campaign"),
-    referrer: document.referrer,
-    has_fbclid: params.has("fbclid"),
+    visitor_key: visitorKey(),
   };
 
   fetch(`${API_BASE}/track-visit`, {

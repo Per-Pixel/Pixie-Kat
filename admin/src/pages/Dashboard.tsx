@@ -169,7 +169,7 @@ const Dashboard: React.FC = () => {
   const [customEnd, setCustomEnd] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [includeInternal, setIncludeInternal] = useState(false);
-  const [visits, setVisits] = useState<{ total: number; meta: number; other: number; campaigns: Array<{ campaign: string; visits: number }> } | null>(null);
+  const [visits, setVisits] = useState<{ people: number; devices: Array<{ name: string; people: number }>; places: Array<{ name: string; people: number }> } | null>(null);
   const [visitsNote, setVisitsNote] = useState<string | null>(null);
 
   const apiPayment = paymentFilter === 'all' ? null : paymentFilter;
@@ -195,12 +195,19 @@ const Dashboard: React.FC = () => {
         setVisitsNote('Visit tracking is not available yet.');
         return;
       }
-      const row = (summary ?? {}) as { total?: number; meta?: number; other?: number; campaigns?: Array<{ campaign: string; visits: number }> };
+      const row = (summary ?? {}) as {
+        people?: number;
+        devices?: Array<{ name?: string; people?: number }>;
+        places?: Array<{ name?: string; people?: number }>;
+      };
+      const slices = (rows: Array<{ name?: string; people?: number }> | undefined) =>
+        (Array.isArray(rows) ? rows : [])
+          .map((item) => ({ name: String(item?.name || 'Unknown'), people: Number(item?.people) || 0 }))
+          .filter((item) => item.people > 0);
       setVisits({
-        total: Number(row.total) || 0,
-        meta: Number(row.meta) || 0,
-        other: Number(row.other) || 0,
-        campaigns: Array.isArray(row.campaigns) ? row.campaigns : [],
+        people: Number(row.people) || 0,
+        devices: slices(row.devices),
+        places: slices(row.places),
       });
       setVisitsNote(null);
     });
@@ -628,37 +635,48 @@ const Dashboard: React.FC = () => {
             <MousePointerClick className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-semibold text-gray-900">Meta ad visits ({periodLabel})</h2>
+            <h2 className="text-sm font-semibold text-gray-900">Website visitors ({periodLabel})</h2>
             <p className="mt-1 text-xs text-gray-500">
-              People who opened the site from a Meta link. Ads Manager counts the tap even when the page never loads, and visits from before this tracker are not included.
+              Different browsers that opened the site, plus the device and place we saw. The same person coming back counts once. Visits from before this change have no device or place.
             </p>
           </div>
         </div>
         {visitsNote ? (
           <p className="mt-3 text-sm text-gray-500">{visitsNote}</p>
         ) : (
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
             <div>
-              <p className="text-xs text-gray-400">From Meta</p>
-              <p className="text-2xl font-bold tabular-nums text-gray-900">{visits ? visits.meta.toLocaleString() : '—'}</p>
+              <p className="text-xs text-gray-400">People</p>
+              <p className="text-2xl font-bold tabular-nums text-gray-900">{visits ? visits.people.toLocaleString() : '—'}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-400">Other visits</p>
-              <p className="text-2xl font-bold tabular-nums text-gray-900">{visits ? visits.other.toLocaleString() : '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400">Top Meta campaigns</p>
-              {visits && visits.campaigns.length > 0 ? (
+              <p className="text-xs text-gray-400">Devices</p>
+              {visits && visits.devices.length > 0 ? (
                 <ul className="mt-1 space-y-1">
-                  {visits.campaigns.map((row) => (
-                    <li key={row.campaign} className="flex items-center justify-between gap-3 text-sm">
-                      <span className="truncate text-gray-700">{row.campaign}</span>
-                      <span className="font-semibold tabular-nums text-gray-900">{Number(row.visits).toLocaleString()}</span>
+                  {visits.devices.map((row) => (
+                    <li key={row.name} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="truncate text-gray-700">{row.name}</span>
+                      <span className="font-semibold tabular-nums text-gray-900">{row.people.toLocaleString()}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-1 text-sm text-gray-500">None in this period yet. Add utm_campaign to the ad link to name them.</p>
+                <p className="mt-1 text-sm text-gray-500">No visits in this period yet.</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Locations</p>
+              {visits && visits.places.length > 0 ? (
+                <ul className="mt-1 space-y-1">
+                  {visits.places.map((row) => (
+                    <li key={row.name} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="truncate text-gray-700">{row.name}</span>
+                      <span className="font-semibold tabular-nums text-gray-900">{row.people.toLocaleString()}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-sm text-gray-500">No visits in this period yet.</p>
               )}
             </div>
           </div>
