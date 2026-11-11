@@ -183,20 +183,20 @@ const Analytics: React.FC = () => {
 
   if (loading && !report) return (
     <div className="space-y-6">
-      {visitorPanel}
       <div className="py-24 text-center text-gray-400">
         <RefreshCw className="w-7 h-7 animate-spin mx-auto mb-3" />
         Loading sales analytics…
       </div>
+      {visitorPanel}
     </div>
   );
   if (error || !report) return (
     <div className="space-y-6">
-      {visitorPanel}
       <div className="p-6 rounded-xl bg-red-50 border border-red-200 text-red-700">
         <AlertCircle className="w-5 h-5 mb-2" />{error}
         <button onClick={() => void refresh()} className="btn btn-outline btn-sm ml-4">Retry</button>
       </div>
+      {visitorPanel}
     </div>
   );
 
@@ -276,8 +276,6 @@ const Analytics: React.FC = () => {
             </label>
           </div>
         )}
-
-        {visitorPanel}
 
         {/* Section tabs */}
         <div className="flex gap-1 border-b border-gray-200 -mb-px overflow-x-auto">
@@ -853,6 +851,8 @@ const Analytics: React.FC = () => {
         </motion.div>
       )}
       </AnimatePresence>
+
+      {visitorPanel}
     </div>
   );
 };

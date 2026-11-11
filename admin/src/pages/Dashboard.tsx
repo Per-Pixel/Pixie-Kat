@@ -299,13 +299,13 @@ const Dashboard: React.FC = () => {
   if (loading && !data) {
     return (
       <div className="space-y-6">
-        {visitorPanel}
         <div className="flex flex-col items-center justify-center py-32 gap-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: 'linear-gradient(135deg,#7c3aed,#5b21b6)' }}>
             <RefreshCw className="h-7 w-7 animate-spin text-white" />
           </div>
           <p className="text-sm font-medium text-gray-400">Loading dashboard data…</p>
         </div>
+        {visitorPanel}
       </div>
     );
   }
@@ -313,13 +313,13 @@ const Dashboard: React.FC = () => {
   if (error || !periodReport || !data) {
     return (
       <div className="space-y-6">
-        {visitorPanel}
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
           <AlertCircle className="h-5 w-5 mb-2" />
           <p className="font-medium">Could not load dashboard data</p>
           <p className="mt-1 text-sm">{error}</p>
           <button onClick={handleRefreshAll} className="btn btn-outline btn-sm mt-4">Retry</button>
         </div>
+        {visitorPanel}
       </div>
     );
   }
@@ -507,8 +507,6 @@ const Dashboard: React.FC = () => {
           </Link>
         </div>
       </div>
-
-      {visitorPanel}
 
       {/* Period Filter Bar + Supplier Live Status Strip */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm">
@@ -960,6 +958,8 @@ const Dashboard: React.FC = () => {
           )}
         </div>
       )}
+
+      {visitorPanel}
 
       <p className="text-xs text-gray-400">
         Revenue and profit exclude orders placed by admin accounts unless Internal is enabled above. Per-order P&amp;L lives under <Link to="/revenue/profit-loss" className="text-primary-600 hover:underline">Revenue → Profit &amp; Loss</Link>.
