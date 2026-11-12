@@ -1,4 +1,5 @@
 import { api } from './api';
+import { adminPeriodWindow, type AdminPeriod } from '../utils/dateRange';
 
 export type AnalyticsPeriod = 'today' | '7d' | '30d' | '90d' | '6m' | '1y' | 'all' | 'custom';
 
@@ -39,17 +40,7 @@ export interface AdminAnalytics {
 }
 
 export function analyticsRange(period: AnalyticsPeriod, customStart?: string, customEnd?: string) {
-  const end = customEnd && period === 'custom' ? new Date(`${customEnd}T23:59:59.999`) : new Date();
-  let start: Date | null = null;
-
-  if (period === 'custom' && customStart) start = new Date(`${customStart}T00:00:00`);
-  if (period === 'today') start = new Date(new Date().setHours(0, 0, 0, 0));
-  if (period === '7d') start = new Date(Date.now() - 6 * 86_400_000);
-  if (period === '30d') start = new Date(Date.now() - 29 * 86_400_000);
-  if (period === '90d') start = new Date(Date.now() - 89 * 86_400_000);
-  if (period === '6m') start = new Date(new Date().setMonth(new Date().getMonth() - 6));
-  if (period === '1y') start = new Date(new Date().setFullYear(new Date().getFullYear() - 1));
-
+  const { start, end } = adminPeriodWindow(period as AdminPeriod, customStart ?? '', customEnd ?? '');
   const bucket = period === '6m' || period === '1y' || period === 'all' ? 'month' : 'day';
   return { start, end, bucket };
 }

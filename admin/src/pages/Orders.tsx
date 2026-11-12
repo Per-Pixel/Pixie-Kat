@@ -11,6 +11,8 @@ import clsx from 'clsx';
 import { DURATION, EASE_OUT, fadeUp, pop, staggerDelay } from '../lib/motion';
 import { formatPaymentMethodLabel } from '../utils/paymentMethodLabel';
 import { explainOrderPayment, isAbandonedUnpaidCheckout } from '../utils/orderPaymentStory';
+import { matchesAdminPeriod, type AdminPeriod } from '../utils/dateRange';
+import { isSaleOrderForAnalytics } from '../utils/orderFinance';
 
 type OrderStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'refunded' | 'cancelled' | 'on_hold';
 type SortField = 'created_at' | 'total_amount' | 'status' | 'product_name';
@@ -60,27 +62,6 @@ interface OrderRow {
 function getProfile(profiles: OrderRow['profiles']): OrderProfile {
   if (!profiles) return {};
   return Array.isArray(profiles) ? (profiles[0] ?? {}) : profiles;
-}
-
-function matchesOrderPeriod(ts: string, period: OrderPeriod, customStart: string, customEnd: string): boolean {
-  if (period === 'all') return true;
-  const date = new Date(ts);
-  if (Number.isNaN(date.getTime())) return false;
-  const now = new Date();
-  if (period === 'today') {
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    return date >= start;
-  }
-  if (period === '7d') return date >= new Date(now.getTime() - 7 * 86_400_000);
-  if (period === '30d') return date >= new Date(now.getTime() - 30 * 86_400_000);
-  if (period === '90d') return date >= new Date(now.getTime() - 90 * 86_400_000);
-  if (period === '1y') return date >= new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-  if (period === 'custom') {
-    if (customStart && date < new Date(`${customStart}T00:00:00`)) return false;
-    if (customEnd && date > new Date(`${customEnd}T23:59:59.999`)) return false;
-    return true;
-  }
-  return true;
 }
 
 const statusStyles: Record<OrderStatus, string> = {
@@ -204,7 +185,7 @@ const Orders: React.FC = () => {
       if (!showAbandoned && status === 'all' && !term && isAbandonedUnpaidCheckout(o)) return false;
       if (status !== 'all' && o.status !== status) return false;
       if (paymentFilter !== 'all' && (o.payment_method ?? '') !== paymentFilter) return false;
-      if (!matchesOrderPeriod(o.created_at, period, customStart, customEnd)) return false;
+      if (!matchesAdminPeriod(o.created_at, period as AdminPeriod, customStart, customEnd)) return false;
       if (!term) return true;
       return [
         o.id,
@@ -240,7 +221,9 @@ const Orders: React.FC = () => {
     total: filtered.length,
     pending: filtered.filter((o) => o.status === 'pending').length,
     processing: filtered.filter((o) => o.status === 'processing').length,
-    revenue: filtered.filter((o) => o.status === 'completed').reduce((s, o) => s + Number(o.total_amount || 0), 0),
+    revenue: filtered
+      .filter((o) => o.status === 'completed' && isSaleOrderForAnalytics(o))
+      .reduce((s, o) => s + Number(o.total_amount || 0), 0),
   }), [filtered]);
 
   const SortIcon = ({ field }: { field: SortField }) => {

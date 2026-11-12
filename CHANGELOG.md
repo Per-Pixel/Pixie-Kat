@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Fixed
+- **Dashboard**, **Analytics**, and **Sales overview** revenue now use the same order rollups as **Revenue → Orders** (completed product sales, wallet top-ups excluded, **Internal** toggle respected). Removed the old server-only SQL totals that always hid admin orders.
+- Admin **Product revenue** defaults to **30 days**, **active** catalog, and only lines with completed sales (toggle **Full catalog** for every SKU). Client period windows now match **Dashboard / Analytics** SQL (`7d` = 7 calendar days, not 8).
+- **Orders** completed-revenue stat excludes wallet top-ups and uses the same period math as analytics.
 - Admin **Dashboard** and **Analytics** show website visitors (people, devices, locations) in a shared blue card at the top. Apply migrations through `063` if stats fail to load.
 - Checkout reuses an unpaid UPI attempt for the same player and pack instead of inserting a second order, and the admin orders list hides those unpaid attempts unless you turn them on.
 - Admin **Orders**, **Manual Orders**, and the order drawer now say whether money arrived: “Not paid yet”, “Failed — never paid”, “Paid — not delivered yet”, or “Paid — delivery failed”, with one sentence on why.
