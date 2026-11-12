@@ -20,13 +20,14 @@ const RevenueProducts: React.FC = () => {
   const { data, loading, error, refresh } = useAdminReport();
   const { formatMoney } = useAdminCurrency();
 
-  const [period, setPeriod] = useState<AdminPeriod>('all');
+  const [period, setPeriod] = useState<AdminPeriod>('30d');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [search, setSearch] = useState('');
   const [gameFilter, setGameFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [includeInternal, setIncludeInternal] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('active');
+  const [showFullCatalog, setShowFullCatalog] = useState(false);
+  const [includeInternal, setIncludeInternal] = useState(true);
   const [walletOnly, setWalletOnly] = useState(false);
   const [sortField, setSortField] = useState<SortField>('revenue');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -91,14 +92,16 @@ const RevenueProducts: React.FC = () => {
         };
       });
 
-    return list.sort((a, b) => {
+    const visible = showFullCatalog ? list : list.filter((row) => row.orders > 0);
+
+    return visible.sort((a, b) => {
       const av = sortField === 'name' ? a.name.toLowerCase() : Number(a[sortField] ?? 0);
       const bv = sortField === 'name' ? b.name.toLowerCase() : Number(b[sortField] ?? 0);
       if (av < bv) return sortDir === 'asc' ? -1 : 1;
       if (av > bv) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [data, search, gameFilter, statusFilter, includeInternal, walletOnly, period, customStart, customEnd, adminIds, sortField, sortDir]);
+  }, [data, search, gameFilter, statusFilter, showFullCatalog, includeInternal, walletOnly, period, customStart, customEnd, adminIds, sortField, sortDir]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -158,7 +161,9 @@ const RevenueProducts: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Product Revenue</h1>
-          <p className="text-sm text-gray-500 mt-1">Completed-order revenue, COGS, and margin by catalog product</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Active catalog lines with completed sales in the selected period (same sale rules as Dashboard / Analytics). Use filters for inactive catalog or full catalog.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -178,6 +183,12 @@ const RevenueProducts: React.FC = () => {
           <button onClick={handleExport} disabled={!rows.length} className="btn btn-outline btn-sm">
             <Download className="w-4 h-4 mr-1.5" />
             Export CSV
+          </button>
+          <button
+            onClick={() => { setShowFullCatalog((v) => !v); setPage(1); }}
+            className={clsx('btn btn-sm', showFullCatalog ? 'btn-primary' : 'btn-outline')}
+          >
+            {showFullCatalog ? 'Sold in period' : 'Full catalog'}
           </button>
           <button onClick={() => navigate('/products')} className="btn btn-primary btn-sm">
             <Package className="w-4 h-4 mr-1.5" />

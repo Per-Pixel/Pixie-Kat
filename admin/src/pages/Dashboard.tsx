@@ -47,11 +47,12 @@ import { DURATION, EASE_OUT, springSoft, staggerDelay, staggerItem, staggerParen
 import {
   computeDashboardMetrics,
   computeCustomerInsights,
+  computeTodayVsYesterday,
   percentChange,
   toNumber,
 } from '../utils/dashboardMetrics';
+import { buildRevenueProfitTrend } from '../utils/trendSeries';
 import { formatPaymentMethodLabel } from '../utils/paymentMethodLabel';
-import { useAdminPeriodAnalytics, useTodayYesterdayAnalytics } from '../hooks/useAdminPeriodAnalytics';
 import type { ReportProduct } from '../services/reportingService';
 import type { ReportOrder } from '../services/reportingService';
 
@@ -169,20 +170,8 @@ const Dashboard: React.FC = () => {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
-  const [includeInternal, setIncludeInternal] = useState(false);
-  const apiPayment = paymentFilter === 'all' ? null : paymentFilter;
+  const [includeInternal, setIncludeInternal] = useState(true);
   const { visits, visitsNote, loading: visitsLoading } = useWebsiteVisitors(period, customStart, customEnd);
-  const {
-    data: periodAnalytics,
-    loading: periodAnalyticsLoading,
-    error: periodAnalyticsError,
-    refresh: refreshPeriodAnalytics,
-  } = useAdminPeriodAnalytics(period, customStart, customEnd, apiPayment);
-  const {
-    today: todayAnalytics,
-    yesterday: yesterdayAnalytics,
-    refresh: refreshDayAnalytics,
-  } = useTodayYesterdayAnalytics(apiPayment);
 
   // Live supplier health & open support tickets
   const [smileStatus, setSmileStatus] = useState<SmileOneStatus | null>(null);
@@ -223,8 +212,6 @@ const Dashboard: React.FC = () => {
 
   const handleRefreshAll = () => {
     void refresh();
-    void refreshPeriodAnalytics();
-    void refreshDayAnalytics();
     void loadOperationalExtras();
   };
 
@@ -268,19 +255,34 @@ const Dashboard: React.FC = () => {
   }, [data, periodScopedOrders, includeInternal]);
 
   const trend = useMemo(() => {
-    if (!periodAnalytics?.trend?.length) return [];
-    const monthly = period === '6m' || period === '1y' || period === 'all';
-    return periodAnalytics.trend.map((item) => ({
-      label: new Date(item.bucket).toLocaleDateString(undefined, {
-        month: 'short',
-        day: monthly ? undefined : 'numeric',
-        year: period === '1y' || period === 'all' ? '2-digit' : undefined,
-      }),
-      revenue: Number(item.revenue),
-      profit: Number(item.profit),
-      orders: Number(item.orders),
-    }));
-  }, [periodAnalytics, period]);
+    if (!data) return [];
+    return buildRevenueProfitTrend(
+      periodScopedOrders,
+      data.products,
+      period,
+      customStart,
+      customEnd,
+    );
+  }, [data, periodScopedOrders, period, customStart, customEnd]);
+
+  const dayComparison = useMemo(() => {
+    if (!data) return null;
+    return computeTodayVsYesterday(baseScopedOrders, new Date(), data.products);
+  }, [data, baseScopedOrders]);
+
+  const periodLabel =
+    period === 'custom'
+      ? 'Custom'
+      : ADMIN_PERIOD_OPTIONS.find((opt) => opt.value === period)?.label ?? '7 Days';
+
+  const visitorPanel = (
+    <WebsiteVisitorsPanel
+      periodLabel={periodLabel}
+      visits={visits}
+      visitsNote={visitsNote}
+      loading={visitsLoading}
+    />
+  );
 
   const periodLabel =
     period === 'custom'
@@ -334,19 +336,14 @@ const Dashboard: React.FC = () => {
     processingTime,
   } = periodReport;
 
-  const apiMetrics = periodAnalytics?.metrics;
-  const todayRevenue = Number(todayAnalytics?.metrics.revenue ?? 0);
-  const yesterdayRevenue = Number(yesterdayAnalytics?.metrics.revenue ?? 0);
-  const todayProfit = Number(todayAnalytics?.metrics.known_profit ?? 0);
-  const yesterdayProfit = Number(yesterdayAnalytics?.metrics.known_profit ?? 0);
-  const periodRevenue = apiMetrics ? Number(apiMetrics.revenue) : financial.revenue;
-  const periodGrossProfit = apiMetrics ? Number(apiMetrics.known_profit) : financial.grossProfit;
-  const periodProfitMargin = periodRevenue > 0 && apiMetrics
-    ? (periodGrossProfit / periodRevenue) * 100
-    : financial.profitMargin;
-  const periodAov = apiMetrics && apiMetrics.completed_orders
-    ? periodRevenue / apiMetrics.completed_orders
-    : financial.aov;
+  const periodRevenue = financial.revenue;
+  const periodGrossProfit = financial.grossProfit;
+  const periodProfitMargin = financial.profitMargin;
+  const periodAov = financial.aov;
+  const todayRevenue = dayComparison?.revenue.today ?? 0;
+  const yesterdayRevenue = dayComparison?.revenue.yesterday ?? 0;
+  const todayProfit = dayComparison?.profit.today ?? 0;
+  const yesterdayProfit = dayComparison?.profit.yesterday ?? 0;
 
   const totalOrdersAllTime = baseScopedOrders.length;
   const pendingOrdersCount = baseScopedOrders.filter((o) => ['pending', 'processing', 'on_hold'].includes(o.status)).length;
@@ -391,7 +388,7 @@ const Dashboard: React.FC = () => {
       value: <AnimatedNumber value={periodRevenue} format={money} />,
       icon: DollarSign,
       tone: 'bg-blue-50 text-blue-600',
-      sub: <p className="text-xs text-gray-400">Same totals as Analytics for this range</p>,
+      sub: <p className="text-xs text-gray-400">Same rules as Revenue → Orders completed revenue</p>,
     },
     {
       label: `${periodLabel} Profit`,
@@ -625,14 +622,10 @@ const Dashboard: React.FC = () => {
           <SectionHeader
             icon={TrendingUp}
             title={`Revenue, Profit & Orders (${periodLabel})`}
-            hint={`Customer orders (same source as Analytics) · ${periodScopedOrders.length.toLocaleString()} rows in table filters`}
+            hint={`Order rollups · Internal ${includeInternal ? 'on' : 'off'} · ${periodScopedOrders.length.toLocaleString()} rows in period`}
           />
           <div className="mt-4">
-            {periodAnalyticsLoading ? (
-              <p className="py-16 text-center text-sm text-gray-400">Loading revenue &amp; profit…</p>
-            ) : periodAnalyticsError ? (
-              <p className="py-16 text-center text-sm text-red-600">{periodAnalyticsError}</p>
-            ) : trend.some((t) => t.revenue > 0 || t.profit > 0 || t.orders > 0) ? (
+            {trend.some((t) => t.revenue > 0 || t.profit > 0 || t.orders > 0) ? (
               <ResponsiveContainer width="100%" height={260}>
                 <ComposedChart data={trend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />

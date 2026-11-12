@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
@@ -11,7 +11,7 @@ import {
   Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import clsx from 'clsx';
-import { AdminAnalytics, AnalyticsPeriod, getAdminAnalytics } from '../services/adminAnalyticsService';
+import type { AnalyticsPeriod } from '../services/adminAnalyticsService';
 import { useAdminReport } from '../hooks/useAdminReport';
 import { useAdminCurrency } from '../lib/currency';
 import { AdminPeriod, exportToCsv, matchesAdminPeriod } from '../utils/dateRange';
@@ -23,7 +23,9 @@ import {
   computeSupplierPerformance,
   computePaymentMethodBreakdown,
   computePeakSales,
+  rollupOrderMetrics,
 } from '../utils/dashboardMetrics';
+import { buildRevenueProfitTrend } from '../utils/trendSeries';
 
 const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#64748b', '#06b6d4', '#ec4899'];
 const periods: Array<{ value: AnalyticsPeriod; label: string }> = [
@@ -48,30 +50,12 @@ const Analytics: React.FC = () => {
   const [period, setPeriod] = useState<AnalyticsPeriod>('30d');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
-  const [report, setReport] = useState<AdminAnalytics | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<SectionTab>('financial');
   const [walletOnly, setWalletOnly] = useState(false);
-  const [includeInternal, setIncludeInternal] = useState(false);
+  const [includeInternal, setIncludeInternal] = useState(true);
   const reduceMotion = useReducedMotion();
 
-  const { data: reportData, loading: reportLoading } = useAdminReport();
-
-  const refresh = useCallback(async () => {
-    if (period === 'custom' && (!customStart || !customEnd)) return;
-    setLoading(true);
-    setError(null);
-    try {
-      setReport(await getAdminAnalytics(period, customStart, customEnd, walletOnly ? 'wallet' : null));
-    } catch (err) {
-      setError((err as Error).message || 'Failed to load analytics');
-    } finally {
-      setLoading(false);
-    }
-  }, [period, customStart, customEnd, walletOnly]);
-
-  useEffect(() => { void refresh(); }, [refresh]);
+  const { data: reportData, loading: reportLoading, error: reportError, refresh } = useAdminReport();
 
   const adminIds = useMemo(
     () => new Set(reportData?.profiles.filter((p) => p.role === 'admin').map((p) => p.id) ?? []),
@@ -128,6 +112,65 @@ const Analytics: React.FC = () => {
     return computePeakSales(filteredOrders);
   }, [reportData, filteredOrders]);
 
+  const salesMetrics = useMemo(() => {
+    if (!reportData) return null;
+    return rollupOrderMetrics(filteredOrders, reportData.products);
+  }, [reportData, filteredOrders]);
+
+  const trend = useMemo(() => {
+    if (!reportData) return [];
+    return buildRevenueProfitTrend(
+      filteredOrders,
+      reportData.products,
+      period as AdminPeriod,
+      customStart,
+      customEnd,
+    );
+  }, [reportData, filteredOrders, period, customStart, customEnd]);
+
+  const statusData = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredOrders.forEach((o) => counts.set(o.status, (counts.get(o.status) ?? 0) + 1));
+    return Array.from(counts.entries()).map(([status, count], index) => ({
+      status,
+      count,
+      color: COLORS[index % COLORS.length],
+    }));
+  }, [filteredOrders]);
+
+  const walletPeriod = useMemo(() => {
+    if (!reportData) return { wallet_spend: 0, wallet_credits: 0, wallet_refunds: 0 };
+    let wallet_spend = 0;
+    let wallet_credits = 0;
+    let wallet_refunds = 0;
+    reportData.walletTransactions.forEach((tx) => {
+      if (!includeInternal && adminIds.has(tx.user_id)) return;
+      if (!matchesAdminPeriod(tx.created_at, period as AdminPeriod, customStart, customEnd)) return;
+      const amount = Number(tx.amount || 0);
+      if (tx.type === 'purchase') wallet_spend += Math.abs(amount);
+      if (tx.type === 'credit') wallet_credits += amount;
+      if (tx.type === 'refund') wallet_refunds += amount;
+    });
+    return { wallet_spend, wallet_credits, wallet_refunds };
+  }, [reportData, adminIds, includeInternal, period, customStart, customEnd]);
+
+  const customerSummary = useMemo(() => {
+    if (!reportData) return null;
+    const customers = reportData.profiles.filter(
+      (p) => p.role !== 'admin' && (includeInternal || !adminIds.has(p.id)),
+    );
+    const newCustomers = customers.filter((p) =>
+      matchesAdminPeriod(p.created_at, period as AdminPeriod, customStart, customEnd),
+    ).length;
+    const customer_wallet_balance = customers.reduce((sum, p) => sum + Number(p.wallet_balance || 0), 0);
+    return {
+      total_customers: customers.length,
+      new_customers: newCustomers,
+      returning: periodMetrics?.repeatMetrics.returningCustomers ?? 0,
+      customer_wallet_balance,
+    };
+  }, [reportData, adminIds, includeInternal, period, customStart, customEnd, periodMetrics]);
+
   const periodLabel = period === 'custom' ? 'Custom range' : (periods.find((p) => p.value === period)?.label ?? period);
   const { visits, visitsNote, loading: visitsLoading } = useWebsiteVisitors(
     period as AdminPeriod,
@@ -136,12 +179,12 @@ const Analytics: React.FC = () => {
   );
 
   const handleExportSection = () => {
-    if (!report) return;
+    if (!reportData) return;
     if (activeSection === 'financial') {
       exportToCsv(
         `analytics-financial-${period}`,
         ['Bucket', 'Orders', 'Revenue', 'Known Profit'],
-        report.trend.map((t) => [t.bucket, t.orders, t.revenue, t.profit])
+        trend.map((t) => [t.label, t.orders, t.revenue, t.profit])
       );
     } else if (activeSection === 'products') {
       const list = periodMetrics?.productPerformance ?? [];
@@ -181,7 +224,7 @@ const Analytics: React.FC = () => {
     />
   );
 
-  if (loading && !report) return (
+  if (reportLoading && !reportData) return (
     <div className="space-y-6">
       <div className="py-24 text-center text-gray-400">
         <RefreshCw className="w-7 h-7 animate-spin mx-auto mb-3" />
@@ -190,28 +233,22 @@ const Analytics: React.FC = () => {
       {visitorPanel}
     </div>
   );
-  if (error || !report) return (
+  if (reportError || !reportData || !salesMetrics || !customerSummary) return (
     <div className="space-y-6">
       <div className="p-6 rounded-xl bg-red-50 border border-red-200 text-red-700">
-        <AlertCircle className="w-5 h-5 mb-2" />{error}
+        <AlertCircle className="w-5 h-5 mb-2" />{reportError ?? 'Could not load order data'}
         <button onClick={() => void refresh()} className="btn btn-outline btn-sm ml-4">Retry</button>
       </div>
       {visitorPanel}
     </div>
   );
 
-  const { metrics, customers, wallet } = report;
+  const metrics = salesMetrics;
+  const customers = customerSummary;
+  const wallet = walletPeriod;
   const completionRate = metrics.total_orders ? (metrics.completed_orders / metrics.total_orders) * 100 : 0;
   const averageOrder = metrics.completed_orders ? metrics.revenue / metrics.completed_orders : 0;
-  const statusData = report.statuses.map((item, index) => ({ ...item, count: Number(item.count), color: COLORS[index % COLORS.length] }));
-  const trend = report.trend.map((item) => ({
-    ...item,
-    label: new Date(item.bucket).toLocaleDateString(undefined, {
-      month: 'short',
-      day: period === '6m' || period === '1y' || period === 'all' ? undefined : 'numeric',
-      year: period === '1y' || period === 'all' ? '2-digit' : undefined,
-    }),
-  }));
+  const topProductRows = (periodMetrics?.productPerformance ?? []).slice(0, 10);
 
   return (
     <div className="space-y-6">
@@ -252,7 +289,7 @@ const Analytics: React.FC = () => {
               Export CSV
             </button>
             <button onClick={() => void refresh()} className="btn btn-outline btn-sm">
-              <RefreshCw className={clsx('h-4 w-4', loading && 'animate-spin')} />
+              <RefreshCw className={clsx('h-4 w-4', reportLoading && 'animate-spin')} />
             </button>
           </div>
         </div>
@@ -306,8 +343,8 @@ const Analytics: React.FC = () => {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[
               { label: 'Revenue', value: formatMoney(metrics.revenue), icon: DollarSign, tone: 'bg-blue-50 text-blue-600' },
-              { label: 'Known Gross Profit', value: formatMoney(metrics.known_profit), icon: TrendingUp, tone: 'bg-emerald-50 text-emerald-600' },
-              { label: 'Known Cost (COGS)', value: formatMoney(metrics.known_cost), icon: CircleDollarSign, tone: 'bg-violet-50 text-violet-600' },
+              { label: 'Known Gross Profit', value: formatMoney(metrics.grossProfit), icon: TrendingUp, tone: 'bg-emerald-50 text-emerald-600' },
+              { label: 'Known Cost (COGS)', value: formatMoney(metrics.cogs), icon: CircleDollarSign, tone: 'bg-violet-50 text-violet-600' },
               { label: 'Refunded Value', value: formatMoney(metrics.refunds), icon: RotateCcw, tone: 'bg-red-50 text-red-600' },
               { label: 'Total Orders', value: metrics.total_orders.toLocaleString(), icon: ShoppingCart, tone: 'bg-cyan-50 text-cyan-600' },
               { label: 'Ordering Customers', value: metrics.ordering_customers.toLocaleString(), icon: Users, tone: 'bg-purple-50 text-purple-600' },
@@ -332,10 +369,10 @@ const Analytics: React.FC = () => {
             ))}
           </div>
 
-          {metrics.profit_unknown_orders > 0 && (
+          {metrics.profitUnknownOrders > 0 && (
             <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
               <AlertCircle className="h-5 w-5 shrink-0" />
-              <span>Profit excludes {metrics.profit_unknown_orders.toLocaleString()} completed historical orders with no cost snapshot.</span>
+              <span>Profit excludes {metrics.profitUnknownOrders.toLocaleString()} completed historical orders with no cost snapshot.</span>
             </div>
           )}
 
@@ -444,9 +481,9 @@ const Analytics: React.FC = () => {
             {/* Top products by revenue (server-side, filtered by period) */}
             <div className="rounded-xl border bg-white p-5">
               <h2 className="mb-4 font-semibold flex items-center gap-2"><Package className="w-4 h-4 text-blue-500" /> Top Products by Revenue ({periodLabel})</h2>
-              {report.products.length ? (
+              {topProductRows.length ? (
                 <ResponsiveContainer width="100%" height={320}>
-                  <BarChart data={report.products.slice(0, 10)} layout="vertical">
+                  <BarChart data={topProductRows} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" tick={{ fontSize: 11 }} />
                     <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 11 }} />

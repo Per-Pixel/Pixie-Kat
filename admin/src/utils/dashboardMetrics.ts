@@ -80,6 +80,38 @@ export interface FinancialSnapshot {
   avgProfitPerOrder: number;
 }
 
+/** Same completed-sale revenue rules as Revenue → Orders (excludes wallet top-ups). */
+export function rollupOrderMetrics(
+  orders: ReportOrder[],
+  products: ReportProduct[] = [],
+): FinancialSnapshot & {
+  total_orders: number;
+  ordering_customers: number;
+  completed_orders: number;
+  failed_orders: number;
+  pending_orders: number;
+  processing_orders: number;
+  cancelled_orders: number;
+  refunded_orders: number;
+  units_sold: number;
+} {
+  const fin = computeFinancials(orders, { products });
+  return {
+    ...fin,
+    total_orders: orders.length,
+    ordering_customers: new Set(orders.map((o) => o.user_id)).size,
+    completed_orders: fin.successfulOrders,
+    failed_orders: orders.filter((o) => o.status === 'failed').length,
+    pending_orders: orders.filter((o) => o.status === 'pending').length,
+    processing_orders: orders.filter((o) => o.status === 'processing').length,
+    cancelled_orders: orders.filter((o) => o.status === 'cancelled').length,
+    refunded_orders: fin.refundedOrders,
+    units_sold: orders
+      .filter((o) => o.status === 'completed' && isSaleOrderForAnalytics(o))
+      .reduce((sum, o) => sum + (o.quantity || 1), 0),
+  };
+}
+
 export function computeFinancials(
   orders: ReportOrder[],
   options: {

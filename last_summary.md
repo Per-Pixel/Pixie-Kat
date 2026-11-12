@@ -1,7 +1,7 @@
 # Last summary — Pixie-Kat
 
-## 2026-11-11 — Website visitors, devices, places
+## 2026-11-12 — Revenue matches Orders page
 
-- The dashboard card is now “Website visitors”: distinct people, device (iPhone, Android, Windows, Mac, and so on), and region. The Meta campaign breakdown is gone.
-- A browser keeps a random id in localStorage so a return visit counts as the same person. The API reads the device from the User-Agent and the region from the IP. The IP itself is not stored.
-- Apply `061_visit_people_device_place.sql` on PixieKat, deploy the API (`eb deploy` from `main/server`), and ship storefront `main` plus admin. Counts start when that is live. Older visits have no device or place.
+- **User truth**: Revenue → **Orders** (completed sales, Internal toggle) is the reference; SQL `get_admin_analytics` always excluded admin orders and ignored Internal.
+- **Change**: Dashboard, Analytics, Sales overview now use `rollupOrderMetrics` on the same order list + filters (defaults **Internal: On** like Orders). Dashboard dropped the separate analytics API for headline KPIs/trends.
+- **Still align manually**: Orders defaults **Lifetime** period; Dashboard **7d**, Analytics/Sales **30d** — pick the same period on each page when comparing totals.
