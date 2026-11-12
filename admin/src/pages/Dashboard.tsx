@@ -284,20 +284,6 @@ const Dashboard: React.FC = () => {
     />
   );
 
-  const periodLabel =
-    period === 'custom'
-      ? 'Custom'
-      : ADMIN_PERIOD_OPTIONS.find((opt) => opt.value === period)?.label ?? '7 Days';
-
-  const visitorPanel = (
-    <WebsiteVisitorsPanel
-      periodLabel={periodLabel}
-      visits={visits}
-      visitsNote={visitsNote}
-      loading={visitsLoading}
-    />
-  );
-
   if (loading && !data) {
     return (
       <div className="space-y-6">
