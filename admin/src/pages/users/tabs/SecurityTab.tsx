@@ -140,7 +140,7 @@ export default function SecurityTab({ data, refetch }: Props) {
 
         <div className="bg-white rounded-lg border border-gray-200 p-5">
           <h3 className="text-sm font-semibold text-gray-700 mb-3">Email Verification</h3>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-gray-900">{profile.email}</p>
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
               profile.email_verified
@@ -150,6 +150,19 @@ export default function SecurityTab({ data, refetch }: Props) {
               {profile.email_verified ? 'Verified' : 'Unverified'}
             </span>
           </div>
+          <p className="mt-3 text-xs text-gray-500">
+            Verifying does not gate the account. It locks their username so nobody else can take it.
+          </p>
+          {!profile.email_verified && (
+            <button
+              type="button"
+              onClick={() => handleAction('verify-email')}
+              disabled={working === 'verify-email'}
+              className="btn btn-primary btn-sm mt-3"
+            >
+              {working === 'verify-email' ? 'Verifying…' : 'Mark email verified'}
+            </button>
+          )}
         </div>
       </div>
 

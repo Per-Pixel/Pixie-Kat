@@ -18,7 +18,7 @@
 - Admin revenue and profit dashboards no longer treat Pixie Wallet top-ups as sales — they are balance deposits, so P&amp;L, dashboard trends, and `get_admin_analytics` exclude `metadata.wallet_topup` orders (apply `058_exclude_wallet_topup_from_analytics.sql`).
 - Aluu UPI on game checkout now sends the customer’s WhatsApp number to the gateway (read from `metadata.contact.whatsapp`) instead of a placeholder `0000000000`, which was causing invalid QR codes on Aluu’s payment page.
 - Order email is one message when the outcome is known: delivered, or failed, with refunded yes or no on that same message. "Payment received" and "processing" mail is no longer sent. A cart sends one receipt listing every item once the whole cart has finished, instead of one email per item. The receipt is a PixieKat ticket (lavender page, night header, yellow stub) that reads cleanly in Gmail. Deploy the API before applying `057_order_outcome_emails.sql` — an older API would skip the new cart rows.
-- Registration with email confirmation enabled stays on the sign-up page and asks you to confirm before signing in, instead of navigating away as if you were already logged in. Post-login redirects only follow same-site paths.
+- Registration no longer waits on an email click. A finished account can sign in immediately. Verifying later only locks the username so nobody else can take it — from Security the customer can email themselves a link (check spam) or ask support / WhatsApp. Staff can mark the same lock from the user Security tab. Apply `064_optional_email_verify.sql` and deploy the API. Post-login redirects still only follow same-site paths.
 - Aluu UPI checkout opens a named popup and uses a `/payments/aluu/return` bridge (BroadcastChannel + localStorage + postMessage) so cancel or pay refocuses the checkout tab and clears the “waiting for payment” message instead of leaving it stuck.
 
 ### Security
@@ -28,11 +28,13 @@
 - `055_lock_order_admin_updates.sql` (applied to prod) pins money/identity/payment columns on the admin order-update RLS policy (status/metadata stay writable) and drops the stale `orders: admin updates any` policy that survived from migration 001 — prod had drifted and the 010 drop never landed, so any admin could previously rewrite an order's owner, product, amount and payment linkage via PostgREST.
 
 ### Admin
+- User Security can mark an email verified. That locks the customer's username and does not decide whether they can sign in.
 - Promotions become a first-class CMS section (`/pages/promotions`, `047_promotions.sql`): rich promo cards get slug, description, rich-text details, discount badge and `starts_at`/`ends_at` scheduling — items self-publish and self-hide, the list shows Active/Scheduled/Ended/Hidden badges, and a one-click Duplicate copies any item as a hidden draft.
 - Mobile admin gains an app-style bottom tab bar (Home/Orders/Add/Messages/More) with a spring quick-add sheet for one-tap New Promotion, product, game or message, safe-area padding, and fade page transitions.
 - Saving a game no longer fails on `orders_product_id_fkey` once it has orders: package saves upsert with stable product ids instead of wipe-and-reinsert, and removing an order-referenced package — or deleting an order-referenced package/game outright — retires it to Inactive rather than erroring, so order history keeps a valid FK target.
 
 ### Storefront
+- Email verification is optional after signup. The account works immediately; verifying locks the username. Security explains that the link may be in spam, and offers support or WhatsApp as the other way to verify.
 - Kagura Legend draw planner at `/event/kagura-legend` (day checklist, bill, routes, traps); homepage promo is a `promotional_items` row editable under **Exclusive Offers** (`059_kagura_exclusive_offer.sql`).
 - Redesign the Kagura Legend planner with a connected lantern journey, milestone shortcuts, a responsive map and checklist layout, numbered sections, clearer cost and route comparisons, and coordinated motion with reduced-motion support.
 - Leaderboard now ranks by total monthly spend instead of completed-order count — podium, standings table, homepage teaser and account rank history all lead with ₹ spent (order count stays as secondary context), the admin panel shows spend-first standings, and winner emails announce the spend total. Requires migration `056_leaderboard_spend_metric.sql`.

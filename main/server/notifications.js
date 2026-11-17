@@ -739,6 +739,21 @@ export async function processPending(supabase, sendMail) {
   return sent;
 }
 
+export async function sendDirectMail({ to, subject, html, text }) {
+  if (!isMailerConfigured()) {
+    const err = new Error('Email is not configured');
+    err.code = 'mailer_unconfigured';
+    throw err;
+  }
+  await getTransporter().sendMail({
+    from: sender(),
+    to,
+    subject,
+    html,
+    text,
+  });
+}
+
 export function startWorker(supabase) {
   const send = (msg) => getTransporter().sendMail(msg);
   const tick = () => processPending(supabase, send).catch((e) => console.error('[notify] worker error:', e));

@@ -28,6 +28,8 @@ import { useUserOrders } from "../../hooks/useUserOrders";
 import AvatarFrame from "../../components/common/AvatarFrame";
 import { currentPeriod, fetchMyRankHistory, periodLabel, rankForPeriod } from "../../lib/leaderboard";
 import { RewardsPanel } from "./DesktopAccountView";
+import AccountBroadcastAlerts from "../../components/account/AccountBroadcastAlerts";
+import UsernameLockNote from "../../components/account/UsernameLockNote";
 
 const toCardOrder = (order) => {
   const fields = order.metadata?.account_fields ?? {};
@@ -746,6 +748,8 @@ const DashboardScreen = ({ profile, onLogout }) => {
   return (
     <MobilePageScaffold>
       <ProfileHero profile={profile} />
+      <UsernameLockNote verified={profile.emailVerified} className="mt-3 px-1" />
+      <AccountBroadcastAlerts className="mt-3" />
       <StatsCard navigate={navigate} profile={profile} />
       <RankStrip />
       <DashboardPanel navigate={navigate} />

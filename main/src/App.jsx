@@ -44,6 +44,8 @@ const Auth = lazy(() => import("./pages/auth"));
 
 const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage"));
 
+const VerifyEmailPage = lazy(() => import("./pages/auth/VerifyEmailPage"));
+
 const AddMoneyPage = lazy(() => import("./pages/wallet/AddMoneyPage"));
 
 const AccountPage = lazy(() => import("./pages/account"));
@@ -283,6 +285,8 @@ function App() {
                   <Route path="/register" element={<Auth />} />
 
                   <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+                  <Route path="/verify-email" element={<VerifyEmailPage />} />
 
                   <Route path="/account/*" element={<AccountPage />} />
 

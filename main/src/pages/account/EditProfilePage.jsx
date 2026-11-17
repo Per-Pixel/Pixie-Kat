@@ -27,6 +27,12 @@ const getAvatarErrorMessage = (err) => {
   if (message.toLowerCase().includes("bucket not found")) {
     return "Profile picture storage is not set up yet. Please run supabase/migrations/003_avatar_storage.sql in Supabase.";
   }
+  if (/username is locked/i.test(message)) {
+    return "Your username is locked because your email is verified.";
+  }
+  if (/duplicate key|unique constraint/i.test(message) && /username/i.test(message)) {
+    return "That username is already taken.";
+  }
   return message || "Failed to save profile. Please try again.";
 };
 
@@ -34,6 +40,7 @@ const EditProfilePage = ({ profile }) => {
   const navigate = useNavigate();
   const { user, refreshProfile } = useAuth();
   const fileInputRef = useRef(null);
+  const usernameLocked = Boolean(profile?.emailVerified && profile?.username);
 
   const [formData, setFormData] = useState({
     name: profile?.displayName || "",
@@ -242,10 +249,18 @@ const EditProfilePage = ({ profile }) => {
                       name="username"
                       value={formData.username}
                       onChange={handleChange}
-                      className="h-14 w-full rounded-2xl border border-white/50 bg-white/60 pl-12 pr-4 text-base font-medium text-slate-900 outline-none transition focus:border-[#8b6dff] focus:bg-white focus:ring-4 focus:ring-[#8b6dff]/10"
+                      readOnly={usernameLocked}
+                      className={`h-14 w-full rounded-2xl border border-white/50 bg-white/60 pl-12 pr-4 text-base font-medium text-slate-900 outline-none transition focus:border-[#8b6dff] focus:bg-white focus:ring-4 focus:ring-[#8b6dff]/10 ${usernameLocked ? "cursor-not-allowed text-slate-500" : ""}`}
                       placeholder="Choose a username"
                     />
                   </div>
+                  <p className="text-xs leading-relaxed text-slate-500">
+                    {usernameLocked
+                      ? "Locked. This name is yours and nobody else can take it."
+                      : profile?.emailVerified
+                        ? "Saving a username locks it. Nobody else can take it after that."
+                        : "You can still change this until you verify your email. Verifying locks it so nobody else can take it."}
+                  </p>
                 </div>
 
                 {/* Mobile Number */}

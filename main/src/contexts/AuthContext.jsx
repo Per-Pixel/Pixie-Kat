@@ -1,6 +1,23 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { API_BASE } from '../lib/apiBase';
 import { recordLoginSession } from '../utils/sessionTelemetry';
+
+function isUnconfirmedLoginError(message) {
+  return /email not confirmed/i.test(message || '');
+}
+
+async function postAccount(path, body, token) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => ({}));
+  return { response, payload };
+}
 
 const AuthContext = createContext();
 
@@ -102,13 +119,24 @@ export const AuthProvider = ({ children }) => {
     };
   }, [user?.id]);
 
-  const login = useCallback(async (email, password) => {
+  const login = useCallback(async (email, password, options = {}) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
 
     if (error) {
+      if (!options.retried && isUnconfirmedLoginError(error.message)) {
+        try {
+          const { response } = await postAccount('/auth/open-account', {
+            email: email.trim(),
+            password,
+          });
+          if (response.ok) return login(email, password, { retried: true });
+        } catch {
+          // The account stays gated until the API can open it.
+        }
+      }
       const msg = error.message === 'Invalid login credentials'
         ? 'Invalid email or password'
         : error.message;
@@ -119,28 +147,36 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const register = useCallback(async ({ name, email, password }) => {
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: { name: name.trim() },
-      },
-    });
+    const legacySignUp = async () => {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: { name: name.trim() },
+        },
+      });
 
-    if (error) {
-      return { success: false, error: error.message };
+      if (error) return { success: false, error: error.message };
+      if (data.user && !data.session) {
+        return { success: true, requiresEmailVerification: true, user: data.user };
+      }
+      return { success: true, user: data.user };
+    };
+
+    try {
+      const { response, payload } = await postAccount('/auth/register', {
+        name: name.trim(),
+        email: email.trim(),
+        password,
+      });
+      // Older API builds do not have this route. Keep signup working until it is deployed.
+      if (response.status === 404) return legacySignUp();
+      if (!response.ok) return { success: false, error: payload.message || 'Registration failed' };
+      return login(email, password);
+    } catch {
+      return legacySignUp();
     }
-
-    if (data.user && !data.session) {
-      return {
-        success: true,
-        requiresEmailVerification: true,
-        user: data.user,
-      };
-    }
-
-    return { success: true, user: data.user };
-  }, []);
+  }, [login]);
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
