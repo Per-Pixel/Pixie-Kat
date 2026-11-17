@@ -129,7 +129,7 @@ In **Authentication → Settings** (and **Authentication → URL Configuration**
 |---|---|
 | Site URL | `http://localhost:5173` |
 | Redirect URLs | `http://localhost:5173/**` |
-| Enable email confirmations | Yes |
+| Enable email confirmations | Can stay on. Signup still signs the person in; verification only locks the username. |
 | Minimum password length | 8 |
 | JWT expiry | 3600 (1 hour) |
 | Leaked Password Protection | Enabled (dashboard-only — cannot be toggled via SQL) |
@@ -140,7 +140,7 @@ In **Authentication → Settings** (and **Authentication → URL Configuration**
 |---|---|
 | Site URL | `https://pixiekat.store` |
 | Redirect URLs | `https://pixiekat.store/**`, `https://admin.pixiekat.store/**` (admin host if used), plus `http://localhost:5173/**` for local dev |
-| Enable email confirmations | On or off — if **on**, the storefront register page stays put and asks the user to confirm email before signing in |
+| Enable email confirmations | Can stay **on**. The API creates new accounts already confirmed, so signup signs them in. `profiles.email_verified` stays false until they open a username-lock link or staff marks them verified. |
 | Minimum password length | 8 or higher (storefront UI also requires upper, lower, a number, and a special character; the dashboard is what actually blocks weak passwords sent straight to the Auth API) |
 | Leaked Password Protection | Enabled |
 | JWT expiry | 3600 (1 hour), unless you deliberately choose another value |
@@ -155,8 +155,8 @@ In **Authentication → Settings** (and **Authentication → URL Configuration**
 
 ### Verification checklist (manual)
 
-1. Sign up on `https://pixiekat.store/register`. If email confirmation is on, you stay on the page with a “check your email” message and are not treated as logged in.
-2. Open the confirmation link, then sign in.
+1. Sign up on `https://pixiekat.store/register`. The account is usable immediately. Verification is optional and only locks the username.
+2. From Account → Security, send a verification link (it may land in spam) or ask support / WhatsApp to mark the email verified. Opening `/verify-email` locks the username.
 3. Use **Forgot password**. The reset link must land on `/reset-password` on the same origin.
 4. On an account with authenticator 2FA, login history and the login-alert email should appear only after the TOTP code succeeds (`used_2fa` true). Accounts without 2FA record one row with `used_2fa` false.
 

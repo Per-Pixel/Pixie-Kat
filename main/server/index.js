@@ -51,6 +51,13 @@
  *   GET    /api/leaderboard/me                 Signed-in user's rank history
  *   GET    /api/admin/leaderboard/preview      Admin preview incl. excluded users
  *   POST   /api/admin/leaderboard/finalize     Freeze month, grant perks + prizes
+ *
+ * Accounts:
+ *   POST   /api/auth/register                  Create an account that can sign in immediately
+ *   POST   /api/auth/open-account              Let an unconfirmed account sign in without verifying
+ *   POST   /api/auth/send-verification         Email a link that only locks the username
+ *   POST   /api/auth/verify-email              Open that link
+ *   POST   /api/admin/users/:id/verify-email   Staff mark the same username lock
  */
 
 import process from 'node:process';
@@ -82,6 +89,13 @@ import {
 import { canReusePaymentUrl, nextAluuExternalId, sameUnpaidAttempt } from './checkout-attempt.js';
 import { cleanPath, cleanVisitorKey, deviceFromUserAgent, lookupPlace } from './visit-track.js';
 import { startExpirePendingWorker, startProvisionWorker } from './order-jobs.js';
+import {
+  createOpenAccount,
+  releaseUnconfirmedLogin,
+  markProfileEmailVerified,
+  readEmailVerifyToken,
+  sendUsernameLockEmail,
+} from './email-verify.js';
 
 const app = express();
 const PORT = config.port;
@@ -154,6 +168,19 @@ const pinterestLimiter = rateLimit({
   message: { ok: false, error: 'Too many Pinterest requests. Please wait a minute.' },
 });
 
+const authAccountLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many attempts. Please wait and try again.' },
+});
+
+const emailVerifySecret = crypto
+  .createHmac('sha256', config.supabaseServiceRoleKey)
+  .update('pixiekat-email-verify-v1')
+  .digest('hex');
+
 // Auth middleware — verifies Supabase JWT and checks active roles.
 const requireUser = async (req, res, next) => {
   const { error, user, profile } = await verifyUserRequest(req.headers.authorization);
@@ -188,6 +215,69 @@ const requireSuperAdmin = async (req, res, next) => {
   req.adminProfile = profile;
   next();
 };
+
+const requireStaff = async (req, res, next) => {
+  const { error, profile } = await verifyAdminRequest(req.headers.authorization);
+  if (error) {
+    const status = error.startsWith('Access denied') ? 403 : 401;
+    return res.status(status).json({ success: false, message: error });
+  }
+  req.adminProfile = profile;
+  next();
+};
+
+async function passwordGrant(email, password) {
+  const res = await fetch(`${config.supabaseUrl}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: {
+      apikey: config.supabaseServiceRoleKey,
+      Authorization: `Bearer ${config.supabaseServiceRoleKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (res.ok && body.access_token) {
+    await fetch(`${config.supabaseUrl}/auth/v1/logout`, {
+      method: 'POST',
+      headers: {
+        apikey: config.supabaseServiceRoleKey,
+        Authorization: `Bearer ${body.access_token}`,
+      },
+    }).catch(() => {});
+    return { ok: true };
+  }
+  return {
+    ok: false,
+    error: {
+      message: body.msg || body.error_description || body.message || body.error || '',
+      code: body.error_code || body.error || '',
+    },
+  };
+}
+
+async function findProfileByEmail(email) {
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .select('id, email_verified')
+    .ilike('email', email)
+    .limit(1);
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
+async function confirmAuthUser(id) {
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(id, { email_confirm: true });
+  if (error) throw error;
+}
+
+async function setEmailVerifiedFlag(id, value) {
+  const { error } = await supabaseAdmin
+    .from('profiles')
+    .update({ email_verified: value, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
 
 // Fire-and-forget audit log — failures must never abort a successful primary operation
 function fireLog(params) {
@@ -417,6 +507,111 @@ app.post('/api/auth/login-session', requireUser, async (req, res) => {
   } catch (err) {
     console.error('login-session error:', err);
     res.status(500).json({ success: false, message: 'Failed to record login session' });
+  }
+});
+
+app.post('/api/auth/register', authAccountLimiter, async (req, res) => {
+  try {
+    const result = await createOpenAccount({
+      name: req.body?.name,
+      email: req.body?.email,
+      password: req.body?.password,
+      createUser: async ({ email, password, name }) => {
+        const { data, error } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: { name },
+        });
+        if (error || !data?.user?.id) return { ok: false, error };
+        return { ok: true, userId: data.user.id };
+      },
+      setEmailVerified: setEmailVerifiedFlag,
+      deleteUser: (id) => supabaseAdmin.auth.admin.deleteUser(id),
+    });
+    if (!result.ok) return res.status(result.status).json({ success: false, message: result.message });
+    res.status(201).json({ success: true });
+  } catch (err) {
+    console.error('[auth/register]', err?.message || 'failed');
+    res.status(500).json({ success: false, message: 'Could not create the account. Try again.' });
+  }
+});
+
+app.post('/api/auth/open-account', authAccountLimiter, async (req, res) => {
+  try {
+    const result = await releaseUnconfirmedLogin({
+      email: req.body?.email,
+      password: req.body?.password,
+      passwordGrant,
+      findProfile: findProfileByEmail,
+      confirmAuthUser,
+      setEmailVerified: setEmailVerifiedFlag,
+    });
+    if (!result.ok) return res.status(result.status).json({ success: false, message: result.message });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[auth/open-account]', err?.message || 'failed');
+    res.status(500).json({ success: false, message: 'Could not open this account. Try again.' });
+  }
+});
+
+app.post('/api/auth/send-verification', authAccountLimiter, requireUser, async (req, res) => {
+  try {
+    const result = await sendUsernameLockEmail({
+      supabaseAdmin,
+      userId: req.user.id,
+      secret: emailVerifySecret,
+      storeBase: config.frontendUrl || 'https://pixiekat.store',
+      sendMail: (message) => notifications.sendDirectMail(message),
+    });
+    if (!result.ok) return res.status(result.status).json({ success: false, message: result.message });
+    res.json({ success: true, message: result.message, already: result.already === true });
+  } catch (err) {
+    console.error('[auth/send-verification]', err?.message || 'failed');
+    res.status(500).json({ success: false, message: 'Could not send the verification email. Try again, or ask support.' });
+  }
+});
+
+app.post('/api/auth/verify-email', authAccountLimiter, async (req, res) => {
+  try {
+    const parsed = readEmailVerifyToken(String(req.body?.token || ''), emailVerifySecret);
+    if (parsed.error) return res.status(400).json({ success: false, message: parsed.error });
+    const result = await markProfileEmailVerified(supabaseAdmin, parsed.userId);
+    if (!result.ok) return res.status(result.status).json({ success: false, message: result.message });
+    if (!result.already) {
+      fireLog({
+        p_user_id: parsed.userId,
+        p_action: 'profile_update',
+        p_description: 'Email verified from link — username locked',
+      });
+    }
+    res.json({ success: true, message: result.message, already: result.already === true });
+  } catch (err) {
+    console.error('[auth/verify-email]', err?.message || 'failed');
+    res.status(500).json({ success: false, message: 'Could not verify this email. Try again.' });
+  }
+});
+
+app.post('/api/admin/users/:id/verify-email', requireStaff, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!UUID_PATTERN.test(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid user id' });
+    }
+    const result = await markProfileEmailVerified(supabaseAdmin, id);
+    if (!result.ok) return res.status(result.status).json({ success: false, message: result.message });
+    if (!result.already) {
+      fireLog({
+        p_user_id: id,
+        p_action: 'profile_update',
+        p_description: 'Email verified by staff — username locked',
+        p_actor_id: req.adminProfile.id,
+      });
+    }
+    res.json({ success: true, message: result.message, already: result.already === true });
+  } catch (err) {
+    console.error('[admin/verify-email]', err?.message || 'failed');
+    res.status(500).json({ success: false, message: 'Could not verify this email' });
   }
 });
 

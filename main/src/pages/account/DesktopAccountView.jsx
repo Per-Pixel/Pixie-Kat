@@ -27,6 +27,8 @@ import { useUserOrders } from "../../hooks/useUserOrders";
 import AvatarFrame from "../../components/common/AvatarFrame";
 import LeaderboardAvatar from "../../components/leaderboard/LeaderboardAvatar";
 import { currentPeriod, fetchMyRankHistory, frameStyle, periodLabel, rankForPeriod } from "../../lib/leaderboard";
+import AccountBroadcastAlerts from "../../components/account/AccountBroadcastAlerts";
+import UsernameLockNote from "../../components/account/UsernameLockNote";
 
 const sectionItems = [
   { id: "profile", label: "My Profile", icon: UserRound },
@@ -152,7 +154,12 @@ const ProfilePanel = ({ profile }) => {
           <div>
             <h2 className="text-2xl font-bold text-slate-950">{profile.displayName}</h2>
             {profile.username && (
-              <p className="mt-0.5 text-sm text-slate-400">@{profile.username}</p>
+              <p className="mt-0.5 text-sm text-slate-400">
+                @{profile.username}
+                {profile.emailVerified && (
+                  <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">Locked</span>
+                )}
+              </p>
             )}
             <div className="mt-3 space-y-2 text-slate-600">
               <div className="flex items-center gap-2">
@@ -162,6 +169,7 @@ const ProfilePanel = ({ profile }) => {
                   <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">Verified</span>
                 )}
               </div>
+              <UsernameLockNote verified={profile.emailVerified} />
               {profile.phone ? (
                 <div className="flex items-center gap-2">
                   <Phone className="size-4 text-emerald-500" />
@@ -880,6 +888,7 @@ const DesktopAccountView = ({ profile, onLogout }) => {
 
           <div className="min-w-0">
             <MobileSectionTabs currentSection={currentSection} />
+            <AccountBroadcastAlerts className="mb-5" />
             {renderSection()}
             <div className="mt-7">
               <QuickActions />

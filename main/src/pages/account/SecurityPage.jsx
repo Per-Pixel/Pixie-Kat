@@ -5,6 +5,8 @@ import { ArrowLeft, Key, Shield, Smartphone, Clock, ChevronRight, CheckCircle2, 
 import { pageBackground } from "./accountShared";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { API_BASE } from "../../lib/apiBase";
+import { buildWhatsAppUrl, fetchContactSettings } from "../../lib/storeContent";
 
 function SecurityCard({ icon: Icon, title, description, badge, badgeColor, onClick }) {
   return (
@@ -36,21 +38,51 @@ function SecurityCard({ icon: Icon, title, description, badge, badgeColor, onCli
 
 const SecurityPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile, session } = useAuth();
   const [twoFactor, setTwoFactor] = useState(null);
   const [loginHistory, setLoginHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [verifySending, setVerifySending] = useState(false);
   const [verifyNote, setVerifyNote] = useState("");
+  const [whatsappUrl, setWhatsappUrl] = useState("");
+  const emailVerified = Boolean(profile?.email_verified);
 
   const resendVerification = async () => {
-    if (!user?.email || user?.email_confirmed_at) return;
+    if (!session?.access_token || emailVerified) return;
     setVerifySending(true);
     setVerifyNote("");
-    const { error } = await supabase.auth.resend({ type: "signup", email: user.email });
-    setVerifySending(false);
-    setVerifyNote(error ? "Could not resend — try again later." : "Verification email sent — check your inbox.");
+    try {
+      const response = await fetch(`${API_BASE}/auth/send-verification`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const payload = await response.json().catch(() => ({}));
+      setVerifyNote(payload.message || (response.ok
+        ? "Verification email sent. Check your inbox, and spam if it is not there."
+        : "Could not send the email. Ask us on support or WhatsApp."));
+    } catch {
+      setVerifyNote("Could not send the email. Ask us on support or WhatsApp.");
+    } finally {
+      setVerifySending(false);
+    }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchContactSettings()
+      .then((contact) => {
+        if (cancelled) return;
+        const url = buildWhatsAppUrl(
+          contact.whatsapp,
+          `Hi PixieKat, please verify my account email${user?.email ? `: ${user.email}` : ""}.`,
+        );
+        setWhatsappUrl(url.startsWith("http") ? url : "");
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.email]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -121,26 +153,62 @@ const SecurityPage = () => {
               }
               onClick={() => navigate("/account/security/two-factor")}
             />
-            <SecurityCard
-              icon={Shield}
-              title="Email Verification"
-              description={
-                user?.email_confirmed_at
-                  ? "Your email address is verified."
-                  : verifySending
-                    ? "Sending verification email…"
-                    : "Your email is not verified. Tap to resend the link."
-              }
-              badge={user?.email_confirmed_at ? "Verified" : "Unverified"}
-              badgeColor={user?.email_confirmed_at
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-amber-100 text-amber-700"
-              }
-              onClick={resendVerification}
-            />
-            {verifyNote && (
-              <p className="px-2 pt-1 text-xs font-medium text-slate-500">{verifyNote}</p>
-            )}
+            <div className="rounded-[22px] border border-white/60 bg-white/80 p-6 shadow-[0_10px_30px_rgba(91,79,118,0.10)] backdrop-blur-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-5">
+                  <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#6c49ff]/10 to-[#8b6dff]/10">
+                    <Shield className="size-5 text-[#6c49ff]" />
+                  </div>
+                  <div>
+                    <p className="text-base font-bold text-slate-900">Email verification</p>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                      {emailVerified
+                        ? "Verified. Your username is locked, so it stays yours and nobody else can take it."
+                        : "Your account already works. Verifying does one thing: it locks your username so it is yours alone and nobody else can take it."}
+                    </p>
+                  </div>
+                </div>
+                <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+                  emailVerified ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                }`}>
+                  {emailVerified ? "Verified" : "Optional"}
+                </span>
+              </div>
+              {!emailVerified && (
+                <div className="mt-5 space-y-3">
+                  <button
+                    type="button"
+                    onClick={resendVerification}
+                    disabled={verifySending}
+                    className="inline-flex h-11 items-center rounded-full bg-gradient-to-r from-[#6c49ff] to-[#8b6dff] px-5 text-sm font-bold text-white disabled:opacity-60"
+                  >
+                    {verifySending ? "Sending…" : "Email me a verification link"}
+                  </button>
+                  <p className="text-sm text-slate-500">
+                    Check spam if it does not show up in your inbox. Or ask us to verify you on{" "}
+                    <button
+                      type="button"
+                      onClick={() => navigate("/support/contact-us")}
+                      className="font-semibold text-[#6c49ff] hover:underline"
+                    >
+                      support
+                    </button>
+                    {whatsappUrl ? (
+                      <>
+                        {" "}or{" "}
+                        <a href={whatsappUrl} target="_blank" rel="noreferrer" className="font-semibold text-[#6c49ff] hover:underline">
+                          WhatsApp
+                        </a>
+                      </>
+                    ) : null}
+                    .
+                  </p>
+                </div>
+              )}
+              {verifyNote && (
+                <p className="mt-3 text-sm font-medium text-slate-600">{verifyNote}</p>
+              )}
+            </div>
           </div>
 
           {/* Recent activity */}

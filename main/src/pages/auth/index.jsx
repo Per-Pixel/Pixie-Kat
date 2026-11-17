@@ -20,7 +20,6 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [resetSent, setResetSent] = useState(false);
-  const [verificationSent, setVerificationSent] = useState(false);
   const [mfaFactor, setMfaFactor] = useState(null);
   const [mfaCode, setMfaCode] = useState('');
 
@@ -35,7 +34,7 @@ const Auth = () => {
   const helperText = forgotMode
     ? 'We\'ll email you a link to set a new password'
     : isRegisterRoute
-      ? 'Create your account'
+      ? 'Create your account — you can use it right away'
       : 'Log in with email';
 
   useEffect(() => {
@@ -47,7 +46,6 @@ const Auth = () => {
   useEffect(() => {
     setForgotMode(false);
     setResetSent(false);
-    setVerificationSent(false);
     setError('');
   }, [location.pathname]);
 
@@ -128,7 +126,7 @@ const Auth = () => {
         });
 
         if (result.success && result.requiresEmailVerification) {
-          setVerificationSent(true);
+          setError('Check your email to finish an older confirmation, then sign in. New accounts can sign in right away.');
         } else if (result.success) {
           navigate(from, { replace: true });
         } else {
@@ -452,14 +450,6 @@ const Auth = () => {
                 <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
                   <p className="text-sm text-emerald-300">
                     Reset link sent — check your inbox and spam folder. The link opens a page to set a new password.
-                  </p>
-                </div>
-              ) : null}
-
-              {verificationSent ? (
-                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
-                  <p className="text-sm text-emerald-300">
-                    Check your email to confirm your account, then sign in. Your email stays unverified until you open that link.
                   </p>
                 </div>
               ) : null}
