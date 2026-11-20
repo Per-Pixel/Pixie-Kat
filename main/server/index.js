@@ -1468,20 +1468,33 @@ app.post('/api/webhooks/yokcash', async (req, res) => {
   const { id, idtrx, status, keterangan } = req.body || {};
   console.log(`[yokcash/webhook] idtrx=${idtrx} invoice=${id} status=${status}`);
 
-  // idtrx is our order id — attach the callback to the order's metadata.
+  // idtrx is our order id. A combined SKU's second line uses `${orderId}:2`
+  // so Yokcash still dedupes each line, and we strip that suffix here.
   // Only metadata is written: order.status transitions stay owned by the
   // fulfillment flow until Yokcash callbacks are proven in production.
   if (idtrx) {
     try {
-      const { data: order } = await supabaseAdmin
-        .from('orders')
-        .select('id, metadata')
-        .eq('id', String(idtrx))
-        .maybeSingle();
+      const orderId = orderIdFromYokcashIdtrx(idtrx);
+      const { data: order } = orderId
+        ? await supabaseAdmin
+          .from('orders')
+          .select('id, metadata')
+          .eq('id', orderId)
+          .maybeSingle()
+        : { data: null };
       if (order) {
+        const entry = { id, status, keterangan, received_at: new Date().toISOString() };
+        const callbacks = { ...(order.metadata?.yokcash_callbacks || {}), [String(idtrx)]: entry };
+        const primary = callbacks[order.id] || (String(idtrx) === order.id ? entry : order.metadata?.yokcash_callback);
         await supabaseAdmin
           .from('orders')
-          .update({ metadata: { ...(order.metadata || {}), yokcash_callback: { id, status, keterangan, received_at: new Date().toISOString() } } })
+          .update({
+            metadata: {
+              ...(order.metadata || {}),
+              ...(primary ? { yokcash_callback: primary } : {}),
+              yokcash_callbacks: callbacks,
+            },
+          })
           .eq('id', order.id);
       } else {
         console.warn(`[yokcash/webhook] no local order matches idtrx=${idtrx}`);
@@ -1527,16 +1540,79 @@ async function resolveScProductId(product) {
 
 // ── Fulfillment guards (pure, mirrored in tests/fulfill-order.price.test.js) ──
 
-// Resolve the exact provider product id for an order. Never falls back to the
-// lowest productlist SKU — returns null when unconfigured so the caller can fail
-// the order instead of silently delivering a cheaper denomination than sold.
-function resolveOrderProductId(product) {
-  const id = String(
-    product?.metadata?.secondary_provider_product_id ||
-    product?.provider_product_id ||
-    product?.sku || ''
-  ).trim();
+// '1' is the admin placeholder, not a real provider SKU.
+function normalizeProviderProductId(value) {
+  const id = String(value ?? '').trim();
   return (!id || id === '1') ? null : id;
+}
+
+// Provider ids for one customer purchase, primary first. A Combined SKU adds
+// metadata.secondary_provider_product_id only when it is a different id —
+// identical codes must not be delivered twice. Never falls back to the lowest
+// productlist SKU; an empty list means the caller should fail the order.
+function resolveOrderProductIds(product) {
+  const primary = normalizeProviderProductId(product?.provider_product_id)
+    || normalizeProviderProductId(product?.sku);
+  const secondary = normalizeProviderProductId(product?.metadata?.secondary_provider_product_id);
+  const ids = [];
+  if (primary) ids.push(primary);
+  if (secondary && secondary !== primary) ids.push(secondary);
+  return ids;
+}
+
+function resolveOrderProductId(product) {
+  return resolveOrderProductIds(product)[0] ?? null;
+}
+
+// SKUs already booked on an earlier attempt of this same order. A retry must
+// skip them — SmileCoin createorder has no client idempotency key.
+function bookedCombinedSkus(metadata, productIds) {
+  const rows = Array.isArray(metadata?.combined_sku_results) ? metadata.combined_sku_results : [];
+  const allowed = new Set(productIds.map((id) => String(id)));
+  const booked = [];
+  const seen = new Set();
+  for (const row of rows) {
+    const productid = String(row?.productid ?? '').trim();
+    if (!allowed.has(productid) || seen.has(productid) || row?.result == null) continue;
+    booked.push({ productid, result: row.result, at: row.at || null });
+    seen.add(productid);
+  }
+  return booked;
+}
+
+// First line reuses the order uuid so existing dedupe/webhook behavior holds.
+// Later lines add a stable suffix. UUIDs contain no colon.
+function yokcashIdtrx(orderId, index) {
+  return index === 0 ? String(orderId) : `${orderId}:${index + 1}`;
+}
+
+function orderIdFromYokcashIdtrx(idtrx) {
+  const raw = String(idtrx || '').trim();
+  if (!raw) return null;
+  const head = raw.split(':')[0];
+  return head || null;
+}
+
+// SmileOne's primary line keeps sku and pid as two fields of one item.
+// A combined SKU appends the second provider id as its own line.
+function smileOneOrderItems(product) {
+  const ids = resolveOrderProductIds(product);
+  if (!ids.length) return [];
+  const primaryPid = normalizeProviderProductId(product?.provider_product_id);
+  const primarySku = normalizeProviderProductId(product?.sku);
+  return ids.map((id, index) => {
+    if (index === 0) {
+      return { sku: primarySku || primaryPid || id, qty: 1, pid: primaryPid || primarySku || id };
+    }
+    return { sku: id, qty: 1, pid: id };
+  });
+}
+
+function sumProviderCharges(prices) {
+  if (!Array.isArray(prices) || prices.length === 0 || prices.some((price) => price == null || !Number.isFinite(price))) {
+    return null;
+  }
+  return Math.round(prices.reduce((sum, price) => sum + price, 0) * 100) / 100;
 }
 
 // Parse the merchant Smile Points balance from a querypoints response.
@@ -1599,6 +1675,36 @@ function resolvePointsCost(product, skus, productid) {
   return NaN;
 }
 
+// Bundle cost. An admin expected price is the total for every SKU in the
+// package. Otherwise sum each SKU's Smile Points, and return NaN if any
+// line has no points field so we don't preflight against a partial sum.
+function resolveBundlePointsCost(product, skus, productIds) {
+  if (product?.metadata?.expected_provider_price != null) {
+    const n = Number(product.metadata.expected_provider_price);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  const ids = (Array.isArray(productIds) ? productIds : [productIds])
+    .map((id) => String(id ?? '').trim())
+    .filter(Boolean);
+  if (!ids.length) return NaN;
+  let total = 0;
+  for (const id of ids) {
+    const pts = extractSkuPoints(skus, id);
+    if (!Number.isFinite(pts) || pts <= 0) return NaN;
+    total += pts;
+  }
+  return total;
+}
+
+async function checkpointCombinedSkus(orderId, metadata) {
+  const { error } = await supabaseAdmin
+    .from('orders')
+    .update({ metadata, updated_at: new Date().toISOString() })
+    .eq('id', orderId)
+    .eq('status', 'processing');
+  if (error) console.error('[fulfill-order] combined SKU checkpoint failed:', error.message);
+}
+
 // Generic provider-balance deficiency check. Returns an error message when the
 // merchant can't afford the order, else null. Fail-open (null) when balance
 // can't be determined; fail-closed when the balance is zero or provably below
@@ -1658,6 +1764,9 @@ function extractProviderOrderId(body) {
 // Smile Points cost (from product.metadata or provider points fields).
 // When cost is unknown (NaN), pointsDeficiency only enforces balance > 0.
 async function preFlightPointsCheck(productCode, productid, product = null) {
+  const ids = (Array.isArray(productid) ? productid : [productid])
+    .map((id) => String(id ?? '').trim())
+    .filter(Boolean);
   let balance = NaN;
   let pointsCost = NaN;
   try {
@@ -1665,7 +1774,7 @@ async function preFlightPointsCheck(productCode, productid, product = null) {
     balance = extractPointsBalance(ptsBody);
     const listBody = await smileCoin.callSmileCoin('productlist', { product: productCode });
     const skus = listBody?.data?.product ?? listBody?.productList ?? listBody?.list ?? listBody?.skus ?? listBody?.product ?? [];
-    pointsCost = resolvePointsCost(product, skus, productid);
+    pointsCost = resolveBundlePointsCost(product, skus, ids);
   } catch (err) {
     console.warn('[fulfill-order] Points pre-flight query failed; proceeding to createorder:', err.message);
     return { balance: NaN, pointsCost: NaN };
@@ -1675,7 +1784,7 @@ async function preFlightPointsCheck(productCode, productid, product = null) {
     console.warn(`[fulfill-order] ${deficiency}`);
     throw new Error(deficiency);
   }
-  console.log(`[fulfill-order] Points pre-flight OK: balance ${balance}, SKU ${productid} cost ${Number.isFinite(pointsCost) ? pointsCost : 'unknown'}`);
+  console.log(`[fulfill-order] Points pre-flight OK: balance ${balance}, SKU ${ids.join('+') || 'unknown'} cost ${Number.isFinite(pointsCost) ? pointsCost : 'unknown'}`);
   return { balance, pointsCost };
 }
 
@@ -2056,8 +2165,8 @@ app.post('/api/batch-validate', batchValidateLimiter, async (req, res) => {
       const scProduct = game?.metadata?.smile_coin_product;
 
       if (scProduct && smileCoin.isConfigured()) {
-        const productid = resolveOrderProductId(product);
-        if (!productid) {
+        const productIds = resolveOrderProductIds(product);
+        if (!productIds.length) {
           error = 'No valid Provider Product ID for this product';
           pointsOk = false;
         } else {
@@ -2079,7 +2188,7 @@ app.post('/api/batch-validate', batchValidateLimiter, async (req, res) => {
             // claim "Provider points OK" on an unanswered query.
             pointsOk = null;
           } else {
-            const pointsCost = resolvePointsCost(product, snapshot.skus, productid);
+            const pointsCost = resolveBundlePointsCost(product, snapshot.skus, productIds);
             const deficiency = pointsDeficiency(snapshot.balance, pointsCost);
             if (deficiency) {
               pointsOk = false;
@@ -2091,8 +2200,8 @@ app.post('/api/batch-validate', batchValidateLimiter, async (req, res) => {
           }
         }
       } else if (game?.provider === 'yokcash' && yokcash.isConfigured()) {
-        const serviceId = resolveOrderProductId(product);
-        if (!serviceId) {
+        const serviceIds = resolveOrderProductIds(product);
+        if (!serviceIds.length) {
           error = 'No valid Yokcash service_id for this product';
           pointsOk = false;
         } else {
@@ -4015,116 +4124,205 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
 
     if (scProduct && smileCoin.isConfigured()) {
       // Fulfillment must use the exact provider product the customer paid for.
-      // Never fall back to the first (lowest) SKU from the productlist — that
+      // A Combined SKU places the primary id and then the secondary id. Never
+      // fall back to the first (lowest) SKU from the productlist — that
       // silently delivers a cheaper denomination than what was sold. If no valid
       // provider product id is configured, fail the order (auto-refund) so the
       // admin can fix the product config and the customer can re-order.
-      const productid = resolveOrderProductId(product);
-      if (!productid) {
+      const productIds = resolveOrderProductIds(product);
+      if (!productIds.length) {
         throw new Error(
           'No valid Provider Product ID for this product (set provider_product_id in admin GameEditor). ' +
           'Order refunded — fix the product config, then have the customer re-order.'
         );
       }
 
-      // Pre-flight: block the order when the merchant Smile Points balance can't
-      // cover this SKU (e.g. balance is 0 or below the SKU's point cost).
-      await preFlightPointsCheck(scProduct, productid, product);
-
-      const createParams = {
-        userid:    String(userId),
-        zoneid:    String(zoneId || userId),
-        product:   scProduct,
-        productid,
-      };
-      console.log('[fulfill-order] createorder params:', JSON.stringify(createParams));
-
-      let body;
-      try {
-        body = await smileCoin.callSmileCoin('createorder', createParams);
-      } catch (scErr) {
-        // If createorder throws (timeout, non-JSON, network error), the order
-        // may still have been processed on SmileOne's side. Mark as uncertain.
-        console.error(`[fulfill-order] SmileCoin createorder threw but order may have been processed: ${scErr.message}`);
-        fulfillResult = { uncertain: true, error: scErr.message };
-        throw scErr;
+      const booked = bookedCombinedSkus(order.metadata, productIds);
+      // Pre-flight only before the first line. A retry after a crash has
+      // already spent points on the booked SKU; checking the full bundle cost
+      // again would throw, and the catch would refund a delivery that happened.
+      if (booked.length === 0) {
+        await preFlightPointsCheck(scProduct, productIds, product);
       }
-      console.log('[fulfill-order] createorder response:', JSON.stringify(body).slice(0, 500));
+      const done = new Set(booked.map((row) => row.productid));
+      let partialError = null;
 
-      // Accept both numeric and string status, and ok:true. A provider order
-      // id also proves the order was booked + charged even when the status is
-      // off-nominal (e.g. 201 "award failure" — money spent, delivery state
-      // unknown), so it counts as delivered for refund purposes.
-      const statusOk = Number(body.status) === 200 || body.ok === true;
-      const providerOrderId = extractProviderOrderId(body);
+      for (const productid of productIds) {
+        if (done.has(String(productid))) continue;
+        const createParams = {
+          userid:    String(userId),
+          zoneid:    String(zoneId || userId),
+          product:   scProduct,
+          productid,
+        };
+        console.log('[fulfill-order] createorder params:', JSON.stringify(createParams));
 
-      if (!statusOk && !providerOrderId) {
-        // Definitive rejection (insufficient balance, bad target, upstream
-        // failure) — nothing was booked or charged. Do NOT set fulfillResult:
-        // the catch must take the refund path, not "provider delivered".
-        throw new Error(body.message || body.msg || `SmileCoin order rejected (status ${body.status})`);
+        let body;
+        try {
+          body = await smileCoin.callSmileCoin('createorder', createParams);
+        } catch (scErr) {
+          // If createorder throws (timeout, non-JSON, network error), the order
+          // may still have been processed on SmileOne's side. Mark as uncertain.
+          // Once an earlier SKU in this package has booked, do not throw: a throw
+          // with no fulfillResult refunds the whole order, including the part
+          // already delivered.
+          console.error(`[fulfill-order] SmileCoin createorder threw but order may have been processed: ${scErr.message}`);
+          const remaining = productIds.filter((id) => !done.has(String(id)));
+          if (booked.length === 0) {
+            fulfillResult = {
+              uncertain: true,
+              error: scErr.message,
+              ...(productIds.length > 1 ? { combined: true, product_ids: productIds, remaining_product_ids: remaining } : {}),
+            };
+            throw scErr;
+          }
+          partialError = scErr.message;
+          providerDeliveryUncertain = `Combined SKU booked ${booked.map((row) => row.productid).join('+')}. ${productid} may have been sent but the response failed (${scErr.message}). Not attempted after that: ${remaining.filter((id) => String(id) !== String(productid)).join(', ') || 'none'}. Confirm with the provider before retrying the missing SKU.`;
+          break;
+        }
+        console.log('[fulfill-order] createorder response:', JSON.stringify(body).slice(0, 500));
+
+        // Accept both numeric and string status, and ok:true. A provider order
+        // id also proves the order was booked + charged even when the status is
+        // off-nominal (e.g. 201 "award failure" — money spent, delivery state
+        // unknown), so it counts as delivered for refund purposes.
+        const statusOk = Number(body.status) === 200 || body.ok === true;
+        const providerOrderId = extractProviderOrderId(body);
+
+        if (!statusOk && !providerOrderId) {
+          // Definitive rejection (insufficient balance, bad target, upstream
+          // failure). Nothing was booked for THIS line. Refund only when no
+          // earlier line in the package has booked.
+          const message = body.message || body.msg || `SmileCoin order rejected (status ${body.status})`;
+          if (booked.length === 0) throw new Error(message);
+          partialError = message;
+          providerDeliveryUncertain = `Combined SKU booked ${booked.map((row) => row.productid).join('+')} but ${productid} was rejected (${message}). Missing: ${productIds.filter((id) => !done.has(String(id))).join(', ')}. Not refunded — the first SKU was already delivered.`;
+          break;
+        }
+
+        if (!statusOk) {
+          const note = `SmileCoin status ${body.status}: ${body.message || body.msg || 'delivery unconfirmed'}`;
+          providerDeliveryUncertain = providerDeliveryUncertain ? `${providerDeliveryUncertain} ${note}` : note;
+          console.warn(`[fulfill-order] order ${orderId} booked (id ${providerOrderId}) but ${note}`);
+        }
+
+        booked.push({ productid: String(productid), result: body, at: new Date().toISOString() });
+        done.add(String(productid));
+        order.metadata = { ...(order.metadata || {}), combined_sku_results: booked };
+        orderMetadata = order.metadata;
+        await checkpointCombinedSkus(orderId, order.metadata);
       }
 
       // IMPORTANT: fulfillResult must only be set once the provider has
       // provably booked the order — it is the "never auto-refund" signal in
-      // the catch block.
-      fulfillResult = body;
-      if (!statusOk) {
-        providerDeliveryUncertain = `SmileCoin status ${body.status}: ${body.message || body.msg || 'delivery unconfirmed'}`;
-        console.warn(`[fulfill-order] order ${orderId} booked (id ${providerOrderId}) but ${providerDeliveryUncertain}`);
+      // the catch block. A single SKU keeps the raw createorder body so the
+      // price check is unchanged. A bundle carries every booked body.
+      if (productIds.length === 1 && booked.length === 1 && !partialError) {
+        fulfillResult = booked[0].result;
+      } else {
+        fulfillResult = {
+          combined: true,
+          orders: booked.map((row) => row.result),
+          product_ids: productIds,
+          booked_product_ids: booked.map((row) => row.productid),
+          ...(partialError ? { partial_error: partialError } : {}),
+        };
       }
     } else if (game.provider === 'yokcash' && yokcash.isConfigured()) {
       // Yokcash: product.provider_product_id holds the service code (e.g. "ML5PH").
       // idtrx is the Pixie-Kat order id — Yokcash dedupes on it, so retries of
       // the same order can never double-deliver, and the status webhook looks
-      // orders up by it.
-      const serviceId = resolveOrderProductId(product);
-      if (!serviceId) {
+      // orders up by it. A combined SKU's second line uses `${orderId}:2`.
+      const serviceIds = resolveOrderProductIds(product);
+      if (!serviceIds.length) {
         throw new Error(
           'No valid Yokcash service_id for this product (set provider_product_id in admin GameEditor). ' +
           'Order refunded — fix the product config, then have the customer re-order.'
         );
       }
-      const ycParams = {
-        service_id: serviceId,
-        target:     zoneId ? `${userId}|${zoneId}` : String(userId),
-        kontak:     order.metadata?.contact?.whatsapp || order.metadata?.contact?.email || '628888',
-        idtrx:      String(orderId),
-      };
-      console.log('[fulfill-order] yokcash order params:', JSON.stringify(ycParams));
 
-      // Pre-flight: block when the merchant Yokcash saldo can't cover the
-      // order (mirrors the Smile Points check above).
-      await preFlightSaldoCheck(product);
+      const booked = bookedCombinedSkus(order.metadata, serviceIds);
+      // Same as SmileCoin: don't re-check the full bundle cost once a line
+      // is already booked. expected_provider_price is the bundle total.
+      if (booked.length === 0) {
+        await preFlightSaldoCheck(product);
+      }
+      const done = new Set(booked.map((row) => row.productid));
+      let partialError = null;
 
-      let body;
-      try {
-        body = await yokcash.placeOrder(ycParams);
-      } catch (ycErr) {
-        // Same posture as SmileCoin: a transport/parse throw may still have
-        // been processed provider-side. Mark uncertain — never blind-refund.
-        console.error(`[fulfill-order] Yokcash placeOrder threw but order may have been processed: ${ycErr.message}`);
-        fulfillResult = { uncertain: true, error: ycErr.message };
-        throw ycErr;
+      for (let index = 0; index < serviceIds.length; index += 1) {
+        const serviceId = serviceIds[index];
+        if (done.has(String(serviceId))) continue;
+        const ycParams = {
+          service_id: serviceId,
+          target:     zoneId ? `${userId}|${zoneId}` : String(userId),
+          kontak:     order.metadata?.contact?.whatsapp || order.metadata?.contact?.email || '628888',
+          idtrx:      yokcashIdtrx(orderId, index),
+        };
+        console.log('[fulfill-order] yokcash order params:', JSON.stringify(ycParams));
+
+        let body;
+        try {
+          body = await yokcash.placeOrder(ycParams);
+        } catch (ycErr) {
+          // Same posture as SmileCoin: a transport/parse throw may still have
+          // been processed provider-side. Mark uncertain — never blind-refund.
+          // A later line that throws must not refund a line already booked.
+          console.error(`[fulfill-order] Yokcash placeOrder threw but order may have been processed: ${ycErr.message}`);
+          const remaining = serviceIds.filter((id) => !done.has(String(id)));
+          if (booked.length === 0) {
+            fulfillResult = {
+              uncertain: true,
+              error: ycErr.message,
+              ...(serviceIds.length > 1 ? { combined: true, product_ids: serviceIds, remaining_product_ids: remaining } : {}),
+            };
+            throw ycErr;
+          }
+          partialError = ycErr.message;
+          providerDeliveryUncertain = `Combined SKU booked ${booked.map((row) => row.productid).join('+')}. ${serviceId} may have been sent but the response failed (${ycErr.message}). Not attempted after that: ${remaining.filter((id) => String(id) !== String(serviceId)).join(', ') || 'none'}. Confirm with the provider before retrying the missing SKU.`;
+          break;
+        }
+
+        // Yokcash returns {status:true, msg, data:{id, status:"pending"|...}}.
+        // Only status:true means the order was booked — status:false is a clean
+        // rejection (insufficient saldo, bad target). Do NOT set fulfillResult
+        // on a rejection of the first line: the catch must take the refund path.
+        if (body?.status !== true) {
+          const message = body?.msg || `Yokcash order rejected (status ${body?.status})`;
+          if (booked.length === 0) throw new Error(message);
+          partialError = message;
+          providerDeliveryUncertain = `Combined SKU booked ${booked.map((row) => row.productid).join('+')} but ${serviceId} was rejected (${message}). Missing: ${serviceIds.filter((id) => !done.has(String(id))).join(', ')}. Not refunded — the first SKU was already delivered.`;
+          break;
+        }
+
+        const ycStatus = String(body?.data?.status ?? '').toLowerCase();
+        if (ycStatus && !['pending', 'processing', 'success'].includes(ycStatus)) {
+          const note = `Yokcash status ${ycStatus}: ${body?.msg || 'delivery unconfirmed'}`;
+          providerDeliveryUncertain = providerDeliveryUncertain ? `${providerDeliveryUncertain} ${note}` : note;
+          console.warn(`[fulfill-order] order ${orderId} booked (id ${body?.data?.id}) but ${note}`);
+        }
+
+        booked.push({ productid: String(serviceId), result: body, at: new Date().toISOString() });
+        done.add(String(serviceId));
+        order.metadata = { ...(order.metadata || {}), combined_sku_results: booked };
+        orderMetadata = order.metadata;
+        await checkpointCombinedSkus(orderId, order.metadata);
       }
 
-      // Yokcash returns {status:true, msg, data:{id, status:"pending"|...}}.
-      // Only status:true means the order was booked — status:false is a clean
-      // rejection (insufficient saldo, bad target). Do NOT set fulfillResult
-      // on a rejection: the catch must take the refund path.
-      if (body?.status !== true) {
-        throw new Error(body?.msg || `Yokcash order rejected (status ${body?.status})`);
-      }
-      fulfillResult = body;
-      const ycStatus = String(body?.data?.status ?? '').toLowerCase();
-      if (ycStatus && !['pending', 'processing', 'success'].includes(ycStatus)) {
-        providerDeliveryUncertain = `Yokcash status ${ycStatus}: ${body?.msg || 'delivery unconfirmed'}`;
-        console.warn(`[fulfill-order] order ${orderId} booked (id ${body?.data?.id}) but ${providerDeliveryUncertain}`);
+      if (serviceIds.length === 1 && booked.length === 1 && !partialError) {
+        fulfillResult = booked[0].result;
+      } else {
+        fulfillResult = {
+          combined: true,
+          orders: booked.map((row) => row.result),
+          product_ids: serviceIds,
+          booked_product_ids: booked.map((row) => row.productid),
+          ...(partialError ? { partial_error: partialError } : {}),
+        };
       }
     } else if (game.provider === 'smile_one' && smileOne.isConfigured() && game.provider_game_code) {
-      const sku = product?.sku;
-      const pid = product?.provider_product_id;
-      if (!sku && !pid) throw new Error('No SKU or provider_product_id configured for this product');
+      const items = smileOneOrderItems(product);
+      if (!items.length) throw new Error('No SKU or provider_product_id configured for this product');
 
       // Pre-flight: block when the merchant SmileOne USD balance can't cover
       // the order (mirrors the Smile Points / Yokcash saldo checks).
@@ -4136,7 +4334,7 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
       try {
         smileOneData = await smileOne.sendOrder(
           game.provider_game_code,
-          [{ sku: sku || pid, qty: 1, pid: pid || sku }],
+          items,
           userAccount
         );
       } catch (smileOneErr) {
@@ -4144,10 +4342,20 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
         // cannot know whether SmileOne actually processed the order. Treat as
         // "possibly delivered" so the catch block won't blindly refund.
         console.error(`[fulfill-order] SmileOne sendOrder threw but order may have been processed: ${smileOneErr.message}`);
-        fulfillResult = { uncertain: true, error: smileOneErr.message };
+        fulfillResult = {
+          uncertain: true,
+          error: smileOneErr.message,
+          ...(items.length > 1 ? { combined: true, product_ids: items.map((item) => item.pid), items } : {}),
+        };
         throw smileOneErr;
       }
-      fulfillResult = smileOneData.result ?? smileOneData;
+      // One sendOrder carries every line, so the response price is the
+      // provider's own total. Don't wrap it in `orders` — summing a single
+      // payload against a bundle expected price would false-refund.
+      const smilePayload = smileOneData.result ?? smileOneData;
+      fulfillResult = (items.length > 1 && smilePayload && typeof smilePayload === 'object' && !Array.isArray(smilePayload))
+        ? { ...smilePayload, combined: true, product_ids: items.map((item) => item.pid), items }
+        : smilePayload;
     } else {
       // No auto-fulfillment provider configured — order stays processing for manual fulfillment
       console.log(`[fulfill-order] No auto-fulfill provider for game ${gameId} (provider=${game.provider}, smile_coin_product=${scProduct || 'none'}). Order ${orderId} stays processing.`);
@@ -4196,7 +4404,21 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
 
     let mismatch = null;
     let refundAmount = 0;
-    const returnedPrice = extractReturnedPrice(fulfillResult);
+    // A bundle's expected price is the total of both SKUs. Sum every booked
+    // createorder price before comparing. Skip the refund when a later SKU
+    // failed — the first line was delivered, and refunding the gap would claw
+    // back a charge for a product the customer still needs delivered by hand.
+    let returnedPrice = null;
+    if (fulfillResult?.partial_error) {
+      console.warn(`[fulfill-order] Combined SKU incomplete on order ${orderId}: ${fulfillResult.partial_error}. Skipping price-mismatch refund.`);
+    } else if (fulfillResult?.combined && Array.isArray(fulfillResult.orders)) {
+      returnedPrice = sumProviderCharges(fulfillResult.orders.map((part) => extractReturnedPrice(part)));
+      if (returnedPrice == null) {
+        console.log(`[fulfill-order] Combined SKU on order ${orderId} is missing a per-SKU price; skipping substitution check.`);
+      }
+    } else {
+      returnedPrice = extractReturnedPrice(fulfillResult);
+    }
     // Expected price: ONLY product.metadata.expected_provider_price, and it must
     // be in Smile Points — the unit createorder returns (confirmed in prod logs:
     // the merchant Smile Points balance drops by exactly the createorder price).
@@ -4229,7 +4451,10 @@ app.post('/api/fulfill-order', fulfillLimiter, async (req, res) => {
           expected_provider_price: expectedPrice,
           actual_provider_price: returnedPrice,
           product_name: product?.name || order.metadata?.product_name,
-          provider_order_id: fulfillResult?.order_id,
+          provider_order_id: fulfillResult?.order_id
+            || (Array.isArray(fulfillResult?.orders)
+              ? fulfillResult.orders.map((part) => extractProviderOrderId(part)).filter(Boolean).join(',')
+              : null),
           refund_amount: refundAmount,
           refund_currency: order.currency || 'PKS',
         };

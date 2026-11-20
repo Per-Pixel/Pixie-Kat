@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Fixed
+- Combined SKU packages now deliver both provider products on one purchase. Fulfillment was sending only the second SKU, so a pack built from two denominations delivered just the add-on. A retry skips SKUs already booked, and a failure of the second SKU does not refund the one already delivered. Saving a game keeps the existing product id, so the combined SKU updates that package. Requires an **API** deploy (`eb deploy` from `main/server`).
 - **Dashboard**, **Analytics**, and **Sales overview** revenue now use the same order rollups as **Revenue → Orders** (completed product sales, wallet top-ups excluded, **Internal** toggle respected). Removed the old server-only SQL totals that always hid admin orders.
 - Admin **Product revenue** defaults to **30 days**, **active** catalog, and only lines with completed sales (toggle **Full catalog** for every SKU). Client period windows now match **Dashboard / Analytics** SQL (`7d` = 7 calendar days, not 8).
 - **Orders** completed-revenue stat excludes wallet top-ups and uses the same period math as analytics.

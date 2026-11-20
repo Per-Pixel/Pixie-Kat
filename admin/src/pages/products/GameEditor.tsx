@@ -466,6 +466,7 @@ const GameEditor: React.FC = () => {
           }
         }
         return {
+          ...(p.id ? { id: p.id } : {}),
           name: p.name, amount: p.amount || null, description: p.description || null,
           price: Number(inr.selling_price || 0),
           cost_price: inr.cost_price ? Number(inr.cost_price) : null,
@@ -476,7 +477,7 @@ const GameEditor: React.FC = () => {
           is_popular: p.is_popular, status: p.status,
           metadata: {
             ...(Object.keys(extraCurrencies).length > 0 ? { currencies: extraCurrencies } : {}),
-            ...(p.secondary_provider_product_id ? { secondary_provider_product_id: p.secondary_provider_product_id } : {}),
+            ...(p.secondary_provider_product_id.trim() ? { secondary_provider_product_id: p.secondary_provider_product_id.trim() } : {}),
             ...(p.expected_provider_price ? { expected_provider_price: Number(p.expected_provider_price) } : {}),
             ...(p.excluded_regions.trim() ? { excluded_regions: parseRegionList(p.excluded_regions) } : {}),
           },
@@ -1125,10 +1126,11 @@ const GameEditor: React.FC = () => {
                               onChange={(e) => updateProduct(p._key, { expected_provider_price: e.target.value })}
                             />
                             <p className="text-xs text-gray-500 mt-1">
-                              Smile Points the provider charges for this SKU — the <code>price</code> in a
+                              Smile Points the provider charges for this package — the <code>price</code> in a
                               createorder response (find it via a test order or the Smile One dashboard; the
-                              productlist shows BRL, not Smile Points). Compared against the createorder charge
-                              to detect substitution and auto-refund. Leave blank to disable monitoring.
+                              productlist shows BRL, not Smile Points). For a combined SKU, enter the total of
+                              both items. Compared against the createorder charge to detect substitution and
+                              auto-refund. Leave blank to disable monitoring.
                             </p>
                           </div>
                           <div>

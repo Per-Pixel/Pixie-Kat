@@ -57,17 +57,72 @@ test('refund ratio is correct for cheaper provider price', () => {
 });
 
 // ── Fulfillment guards: provider product id + Smile Points pre-flight ─────────
-// Mirrors of the pure helpers in ../index.js (resolveOrderProductId,
+// Mirrors of the pure helpers in ../index.js (resolveOrderProductIds,
 // extractPointsBalance, extractSkuPrice, pointsDeficiency, balanceDeficiency,
 // extractYokcashSaldo, extractSmileOneBalance, extractProviderOrderId).
 
-function resolveOrderProductId(product) {
-  const id = String(
-    product?.metadata?.secondary_provider_product_id ||
-    product?.provider_product_id ||
-    product?.sku || ''
-  ).trim();
+function normalizeProviderProductId(value) {
+  const id = String(value ?? '').trim();
   return (!id || id === '1') ? null : id;
+}
+
+function resolveOrderProductIds(product) {
+  const primary = normalizeProviderProductId(product?.provider_product_id)
+    || normalizeProviderProductId(product?.sku);
+  const secondary = normalizeProviderProductId(product?.metadata?.secondary_provider_product_id);
+  const ids = [];
+  if (primary) ids.push(primary);
+  if (secondary && secondary !== primary) ids.push(secondary);
+  return ids;
+}
+
+function resolveOrderProductId(product) {
+  return resolveOrderProductIds(product)[0] ?? null;
+}
+
+function bookedCombinedSkus(metadata, productIds) {
+  const rows = Array.isArray(metadata?.combined_sku_results) ? metadata.combined_sku_results : [];
+  const allowed = new Set(productIds.map((id) => String(id)));
+  const booked = [];
+  const seen = new Set();
+  for (const row of rows) {
+    const productid = String(row?.productid ?? '').trim();
+    if (!allowed.has(productid) || seen.has(productid) || row?.result == null) continue;
+    booked.push({ productid, result: row.result, at: row.at || null });
+    seen.add(productid);
+  }
+  return booked;
+}
+
+function yokcashIdtrx(orderId, index) {
+  return index === 0 ? String(orderId) : `${orderId}:${index + 1}`;
+}
+
+function orderIdFromYokcashIdtrx(idtrx) {
+  const raw = String(idtrx || '').trim();
+  if (!raw) return null;
+  const head = raw.split(':')[0];
+  return head || null;
+}
+
+function smileOneOrderItems(product) {
+  const ids = resolveOrderProductIds(product);
+  if (!ids.length) return [];
+  const primaryPid = normalizeProviderProductId(product?.provider_product_id);
+  const primarySku = normalizeProviderProductId(product?.sku);
+  return ids.map((id, index) => {
+    if (index === 0) {
+      return { sku: primarySku || primaryPid || id, qty: 1, pid: primaryPid || primarySku || id };
+    }
+    return { sku: id, qty: 1, pid: id };
+  });
+}
+
+function sumProviderCharges(prices) {
+  if (!Array.isArray(prices) || prices.length === 0 || prices.some((price) => price == null || !Number.isFinite(price))) {
+    return null;
+  }
+  return Math.round(prices.reduce((sum, price) => sum + price, 0) * 100) / 100;
 }
 
 function extractPointsBalance(body) {
@@ -113,6 +168,24 @@ function resolvePointsCost(product, skus, productid) {
   const skuPoints = extractSkuPoints(skus, productid);
   if (Number.isFinite(skuPoints) && skuPoints > 0) return skuPoints;
   return NaN;
+}
+
+function resolveBundlePointsCost(product, skus, productIds) {
+  if (product?.metadata?.expected_provider_price != null) {
+    const n = Number(product.metadata.expected_provider_price);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  const ids = (Array.isArray(productIds) ? productIds : [productIds])
+    .map((id) => String(id ?? '').trim())
+    .filter(Boolean);
+  if (!ids.length) return NaN;
+  let total = 0;
+  for (const id of ids) {
+    const pts = extractSkuPoints(skus, id);
+    if (!Number.isFinite(pts) || pts <= 0) return NaN;
+    total += pts;
+  }
+  return total;
 }
 
 function balanceDeficiency(label, balance, cost) {
@@ -163,6 +236,98 @@ test('resolveOrderProductId never falls back to a placeholder/lowest SKU', () =>
   assert.strictEqual(resolveOrderProductId({ provider_product_id: '1' }), null);
   assert.strictEqual(resolveOrderProductId({ provider_product_id: '   ' }), null);
   assert.strictEqual(resolveOrderProductId(null), null);
+});
+
+test('resolveOrderProductIds delivers the primary SKU and a different combined SKU', () => {
+  assert.deepStrictEqual(
+    resolveOrderProductIds({ provider_product_id: '22590', metadata: { secondary_provider_product_id: '13' } }),
+    ['22590', '13']
+  );
+  // Same code twice is one delivery, not two.
+  assert.deepStrictEqual(
+    resolveOrderProductIds({ provider_product_id: '25', metadata: { secondary_provider_product_id: ' 25 ' } }),
+    ['25']
+  );
+  // Placeholder primary falls through to the real secondary.
+  assert.deepStrictEqual(
+    resolveOrderProductIds({ provider_product_id: '1', metadata: { secondary_provider_product_id: '13' } }),
+    ['13']
+  );
+  assert.deepStrictEqual(
+    resolveOrderProductIds({ sku: 'MLBB-100D', metadata: { secondary_provider_product_id: '1' } }),
+    ['MLBB-100D']
+  );
+  // When both are set, the first id is the primary — fulfillment used to send only the secondary.
+  assert.strictEqual(
+    resolveOrderProductId({ provider_product_id: '22590', metadata: { secondary_provider_product_id: '13' } }),
+    '22590'
+  );
+});
+
+test('resolveBundlePointsCost sums both SKUs unless the admin set a bundle total', () => {
+  const skus = [
+    { id: '22590', smile_points: 50 },
+    { id: '13', smile_points: 26 },
+  ];
+  const bundle = { provider_product_id: '22590', metadata: { secondary_provider_product_id: '13' } };
+  assert.strictEqual(resolveBundlePointsCost(bundle, skus, ['22590', '13']), 76);
+  assert.strictEqual(
+    resolveBundlePointsCost(
+      { ...bundle, metadata: { secondary_provider_product_id: '13', expected_provider_price: 80 } },
+      skus,
+      ['22590', '13']
+    ),
+    80
+  );
+  assert.ok(Number.isNaN(resolveBundlePointsCost(bundle, [{ id: '22590', smile_points: 50 }], ['22590', '13'])));
+});
+
+test('yokcash idtrx keeps the order uuid and a stable suffix for the second SKU', () => {
+  const orderId = '11111111-1111-1111-1111-111111111111';
+  assert.strictEqual(yokcashIdtrx(orderId, 0), orderId);
+  assert.strictEqual(yokcashIdtrx(orderId, 1), `${orderId}:2`);
+  assert.strictEqual(orderIdFromYokcashIdtrx(`${orderId}:2`), orderId);
+  assert.strictEqual(orderIdFromYokcashIdtrx(orderId), orderId);
+  assert.strictEqual(orderIdFromYokcashIdtrx(''), null);
+});
+
+test('smileOneOrderItems keeps sku and pid on the primary line and adds the second SKU', () => {
+  assert.deepStrictEqual(
+    smileOneOrderItems({
+      sku: 'SKU-A',
+      provider_product_id: 'PID-A',
+      metadata: { secondary_provider_product_id: 'PID-B' },
+    }),
+    [
+      { sku: 'SKU-A', qty: 1, pid: 'PID-A' },
+      { sku: 'PID-B', qty: 1, pid: 'PID-B' },
+    ]
+  );
+  assert.deepStrictEqual(
+    smileOneOrderItems({ sku: 'SKU-A', provider_product_id: 'PID-A' }),
+    [{ sku: 'SKU-A', qty: 1, pid: 'PID-A' }]
+  );
+});
+
+test('bookedCombinedSkus skips ids that are no longer on the product', () => {
+  const metadata = {
+    combined_sku_results: [
+      { productid: '22590', result: { order_id: 'S1' } },
+      { productid: '999', result: { order_id: 'S2' } },
+      { productid: '22590', result: { order_id: 'S1-dup' } },
+    ],
+  };
+  assert.deepStrictEqual(
+    bookedCombinedSkus(metadata, ['22590', '13']).map((row) => row.productid),
+    ['22590']
+  );
+});
+
+test('sumProviderCharges adds both booked prices and refuses a partial sum', () => {
+  assert.strictEqual(sumProviderCharges([50, 26]), 76);
+  assert.strictEqual(sumProviderCharges([39.1, 36.9]), 76);
+  assert.strictEqual(sumProviderCharges([50, null]), null);
+  assert.strictEqual(sumProviderCharges([]), null);
 });
 
 test('extractPointsBalance handles flat, nested, and zero balances', () => {
