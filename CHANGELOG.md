@@ -35,6 +35,7 @@
 - Saving a game no longer fails on `orders_product_id_fkey` once it has orders: package saves upsert with stable product ids instead of wipe-and-reinsert, and removing an order-referenced package — or deleting an order-referenced package/game outright — retires it to Inactive rather than erroring, so order history keeps a valid FK target.
 
 ### Storefront
+- The storefront publishes a square favicon in the page HTML and at `/favicon.ico`, so browsers and Google can show the PixieKat mark. An empty appearance favicon no longer leaves the tab with no icon.
 - Package cards show each product's description under the name, including the compact grid. Cards are a little taller so the note fits. Previously only featured packs, such as Weekly Elite Bundle, showed it.
 - Email verification is optional after signup. The account works immediately; verifying locks the username. Security explains that the link may be in spam, and offers support or WhatsApp as the other way to verify.
 - Kagura Legend draw planner at `/event/kagura-legend` (day checklist, bill, routes, traps); homepage promo is a `promotional_items` row editable under **Exclusive Offers** (`059_kagura_exclusive_offer.sql`).

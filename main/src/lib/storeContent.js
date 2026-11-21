@@ -338,8 +338,8 @@ export const DEFAULT_PRODUCTS_PAGE = {
 };
 
 export const DEFAULT_APPEARANCE = {
-  favicon_url: "",
-  icon_url: "",
+  favicon_url: "/favicon-192.png",
+  icon_url: "/apple-touch-icon.png",
   logo_url: publicMediaUrl("/img/logo.png"),
   header_brand_text: "PixieKat",
   tab_title_active: "PixieKat",
