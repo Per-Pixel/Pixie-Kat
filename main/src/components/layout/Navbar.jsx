@@ -189,6 +189,7 @@ const NavBar = () => {
       y: isNavVisible ? 0 : -100,
       opacity: isNavVisible ? 1 : 0,
       duration: 0.2,
+      overwrite: "auto",
     });
   }, [isNavVisible]);
 

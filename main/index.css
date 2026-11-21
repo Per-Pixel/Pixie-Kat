@@ -154,7 +154,11 @@ html {
     @apply special-font font-display font-black opacity-0;
     transform: translate3d(10px, 51px, -60px) rotateY(60deg) rotateX(-40deg);
     transform-origin: 50% 50% -150px !important;
-    will-change: opacity, transform;
+  }
+
+  html.motion-constrained .animated-word {
+    transform: none;
+    transform-origin: center bottom;
   }
 
   .bento-tilt_1 {
@@ -172,6 +176,11 @@ html {
   .story-img-container {
     @apply relative md:h-dvh h-[90vh] w-full;
     filter: url("#flt_tag");
+  }
+
+  /* The gooey SVG blur is re-rasterized while scrolling. The clip shape stays. */
+  html.motion-constrained .story-img-container {
+    filter: none;
   }
 
   .story-img-mask {
@@ -1301,10 +1310,6 @@ html {
 /* ===================================================
    MOUSE-GLOW — interactive cursor-following light
    =================================================== */
-
-.mouse-glow-layer {
-  will-change: background, opacity;
-}
 
 /* ── Responsive: tone down glow on small screens ─────── */
 @media (max-width: 640px) {

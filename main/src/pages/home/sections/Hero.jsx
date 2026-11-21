@@ -11,6 +11,7 @@ import FlipCard from "../../../components/common/FlipCard";
 import LazyVideo from "../../../components/common/LazyVideo";
 import { useParallaxScroll } from "../../../animations/hooks/useParallaxScroll";
 import { useReducedMotion } from "../../../hooks/useReducedMotion";
+import { isConstrainedMotion } from "../../../animations/motionBudget";
 import MobileSquareButton from "../../../components/common/MobileSquareButton";
 import Loading from "../../../components/common/Loading";
 import { readPreferences } from "../../../lib/preferences";
@@ -68,6 +69,8 @@ const Hero = () => {
   const [showContactUs, setShowContactUs] = useState(false);
   const heroRef = useRef(null);
   const heroContainerRef = useRef(null);
+  const backgroundVideoRef = useRef(null);
+  const constrainedMotion = isConstrainedMotion();
   const mobileTabletCharacterSize = isMobile ? "w-[320px] md:w-[420px]" : "";
 
   // Fetch hero settings from Supabase
@@ -157,72 +160,108 @@ const Hero = () => {
   }, []);
 
   useGSAP(() => {
+    const constrained = isConstrainedMotion();
     // Set initial clip path and border
     gsap.set("#video-frame", {
       clipPath: "polygon(14% 0, 72% 0, 88% 90%, 0 95%)",
       borderRadius: "0% 0% 40% 10%",
       boxShadow: "0 0 0 0px rgba(0, 0, 0, 0)",
     });
-    
-    // Create animation with stroke effect
-    gsap.from("#video-frame", {
+
+    // box-shadow on a full-viewport video repaints every scrub frame on Android.
+    const fromVars = {
       clipPath: "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)",
       borderRadius: "0% 0% 0% 0%",
-      boxShadow: "0 0 0 10px rgba(0, 0, 0, 0.8)",
+    };
+    if (!constrained) {
+      fromVars.boxShadow = "0 0 0 10px rgba(0, 0, 0, 0.8)";
+    }
+
+    gsap.from("#video-frame", {
+      ...fromVars,
       ease: "power1.inOut",
       scrollTrigger: {
         trigger: "#video-frame",
         start: "center center",
         end: "bottom center",
         scrub: true,
+        ...(constrained ? { fastScrollEnd: true } : {}),
       },
     });
   });
 
   useEffect(() => {
-    if (!gsap || !jinxRef.current || !fazeLogoRef.current || !lunoxRef.current) return;
+    if (!isConstrainedMotion()) return undefined;
+    const video = backgroundVideoRef.current;
+    const frame = document.getElementById("video-frame");
+    if (!video || !frame) return undefined;
 
-    const ctx = gsap.context(() => {
-      // Jinx animation
-      gsap.to(jinxRef.current, {
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) video.play().catch(() => {});
+      else video.pause();
+    }, { threshold: 0.2 });
+
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, [heroSettings.background_video]);
+
+  useEffect(() => {
+    const tweens = [];
+
+    if (jinxRef.current) {
+      tweens.push(gsap.to(jinxRef.current, {
         x: -10,
         y: -5,
         rotation: -2,
         duration: 3,
         ease: "sine.inOut",
         repeat: -1,
-        yoyo: true
-      });
+        yoyo: true,
+      }));
+    }
 
-      // Lunox animation
-      gsap.to(lunoxRef.current, {
+    if (lunoxRef.current) {
+      tweens.push(gsap.to(lunoxRef.current, {
         x: 10,
         y: -5,
         rotation: 2,
         duration: 3.2,
         ease: "sine.inOut",
         repeat: -1,
-        yoyo: true
+        yoyo: true,
+      }));
+    }
+
+    if (fazeLogoRef.current) {
+      tweens.push(gsap.to(fazeLogoRef.current, {
+        y: 5,
+        duration: 2.5,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut",
+      }));
+    }
+
+    if (!tweens.length) return undefined;
+
+    // Idle floats keep running after the hero has left the screen.
+    let trigger;
+    if (isConstrainedMotion()) {
+      trigger = ScrollTrigger.create({
+        trigger: "#video-frame",
+        start: "top bottom",
+        end: "bottom top",
+        onToggle: (self) => {
+          tweens.forEach((tween) => (self.isActive ? tween.resume() : tween.pause()));
+        },
       });
-    });
+    }
 
-    return () => ctx.revert();
-  }, []);
-
-  // Add back the subtle floating animation for Faze logo
-  useEffect(() => {
-    if (!gsap || !fazeLogoRef.current) return;
-    
-    const tween = gsap.to(fazeLogoRef.current, {
-      y: '+=5',           // Move 5px down (more subtle than 10px)
-      duration: 2.5,      // Slightly faster for subtlety
-      repeat: -1,
-      yoyo: true,
-      ease: 'sine.inOut', // Smooth ease for up/down
-    });
-    
-    return () => tween.kill(); // Clean up on unmount
-  }, []);
+    return () => {
+      trigger?.kill();
+      tweens.forEach((tween) => tween.kill());
+    };
+  }, [heroSettings, isPhone]);
 
   return (
   <div className="relative h-dvh w-screen overflow-x-hidden">
@@ -240,6 +279,7 @@ const Hero = () => {
       >
         <div>
           <video
+            ref={backgroundVideoRef}
             src={publicMediaUrl(heroSettings.background_video) || publicMediaUrl("/videos/hero-1.mp4")}
             autoPlay
             loop
@@ -357,23 +397,23 @@ const Hero = () => {
         <div
           ref={parallaxContainerRef}
           className="pointer-events-none absolute inset-0 z-20"
-          style={{ willChange: 'transform' }}
+          style={constrainedMotion ? undefined : { willChange: "transform" }}
         >
           {/* Jinx image */}
           {(() => { const r = getImgTx('jinx'); if (!r) return null; const { img, tx } = r; return (!isPhone || img.show_on_phone) ? (
-          <div className="absolute z-30" style={{ left: tx.pos_left, top: tx.pos_top, transform: `translate(-50%,-50%) scale(${tx.scale/100}) rotate(${tx.rotate}deg) translate(${tx.x}px,${tx.y}px)`, willChange: 'transform' }}>
+          <div className="absolute z-30" style={{ left: tx.pos_left, top: tx.pos_top, transform: `translate(-50%,-50%) scale(${tx.scale/100}) rotate(${tx.rotate}deg) translate(${tx.x}px,${tx.y}px)`, ...(constrainedMotion ? {} : { willChange: "transform" }) }}>
             <img ref={jinxRef} src={img.url} alt="Jinx" className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-120"}`} loading="lazy" decoding="async" fetchPriority="low" sizes="(max-width: 768px) 360px, 480px" />
           </div>) : null; })()}
 
           {/* Faze image */}
           {(() => { const r = getImgTx('faze'); if (!r) return null; const { img, tx } = r; return (!isPhone || img.show_on_phone) ? (
-          <div className="absolute z-50" style={{ left: tx.pos_left, top: tx.pos_top, transform: `translate(-50%,-50%) scale(${tx.scale/100}) rotate(${tx.rotate}deg) translate(${tx.x}px,${tx.y}px)`, willChange: 'transform' }}>
+          <div className="absolute z-50" style={{ left: tx.pos_left, top: tx.pos_top, transform: `translate(-50%,-50%) scale(${tx.scale/100}) rotate(${tx.rotate}deg) translate(${tx.x}px,${tx.y}px)`, ...(constrainedMotion ? {} : { willChange: "transform" }) }}>
             <img ref={fazeLogoRef} src={img.url} alt="Faze" className={`h-auto ${isPhone ? "w-[461px]" : "w-64 md:w-80"}`} loading="lazy" decoding="async" fetchPriority="low" sizes="(max-width: 768px) 256px, 320px" />
           </div>) : null; })()}
 
           {/* Melissa image */}
           {(() => { const r = getImgTx('melissa'); if (!r) return null; const { img, tx } = r; return (!isPhone || img.show_on_phone) ? (
-          <div className="absolute z-20" style={{ left: tx.pos_left, top: tx.pos_top, transform: `translate(-50%,-50%) scale(${tx.scale/100}) rotate(${tx.rotate}deg) translate(${tx.x}px,${tx.y}px)`, willChange: 'transform' }}>
+          <div className="absolute z-20" style={{ left: tx.pos_left, top: tx.pos_top, transform: `translate(-50%,-50%) scale(${tx.scale/100}) rotate(${tx.rotate}deg) translate(${tx.x}px,${tx.y}px)`, ...(constrainedMotion ? {} : { willChange: "transform" }) }}>
             <img ref={lunoxRef} src={img.url} alt="Lunox" className={`h-auto ${mobileTabletCharacterSize || "w-90 md:w-130"}`} loading="lazy" decoding="async" fetchPriority="low" sizes="(max-width: 768px) 360px, 520px" />
           </div>) : null; })()}
         </div>

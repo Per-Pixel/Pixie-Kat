@@ -3,6 +3,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/all";
 import { useEffect, useState } from "react";
 import AnimatedTitle from "../../../components/common/AnimatedTitle";
+import { isConstrainedMotion } from "../../../animations/motionBudget";
 import { publicMediaUrl, supabase } from "../../../lib/supabase";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -81,17 +82,60 @@ const About = () => {
     };
   }, []);
 
-  // CMS/fonts/images can land after first paint on remote — refresh pin math only
+  // CMS/fonts/images can land after first paint on remote — refresh pin math only.
+  // Height-only resizes are the Android URL bar. Refreshing the pin on those
+  // fires mid-scroll and is what makes the expand stutter.
   useEffect(() => {
+    let cancelled = false;
     refreshPinLayout();
-    const onResize = () => refreshPinLayout();
+    let width = window.innerWidth;
+    const onResize = () => {
+      if (window.innerWidth === width) return;
+      width = window.innerWidth;
+      refreshPinLayout();
+    };
     window.addEventListener("resize", onResize);
-    document.fonts?.ready?.then(refreshPinLayout);
-    return () => window.removeEventListener("resize", onResize);
+    document.fonts?.ready?.then(() => {
+      if (!cancelled) refreshPinLayout();
+    });
+    return () => {
+      cancelled = true;
+      window.removeEventListener("resize", onResize);
+    };
   }, [copy]);
 
-  // Pristine clip timeline — same structure as the working local template
+  // Desktop/iOS keep the width/height window. Touch Android scales the same
+  // card so the photo is not re-rasterized on every scroll frame.
   useGSAP(() => {
+    const mask = document.querySelector("#clip .mask-clip-path");
+    if (!mask) return;
+
+    if (isConstrainedMotion()) {
+      gsap.set(mask, { xPercent: -50, transformOrigin: "top center", force3D: true });
+      gsap.to(mask, {
+        scale: () => {
+          const width = mask.offsetWidth || 1;
+          const height = mask.offsetHeight || 1;
+          const top = mask.offsetTop || 0;
+          const scaleX = window.innerWidth / width;
+          const scaleY = Math.max(window.innerHeight - top, 1) / height;
+          return Math.max(scaleX, scaleY) * 1.04;
+        },
+        borderRadius: 0,
+        scrollTrigger: {
+          trigger: "#clip",
+          start: "center center",
+          end: "+=800 center",
+          scrub: true,
+          pin: true,
+          pinSpacing: true,
+          invalidateOnRefresh: true,
+          fastScrollEnd: true,
+        },
+      });
+      return;
+    }
+
     const clipAnimation = gsap.timeline({
       scrollTrigger: {
         trigger: "#clip",
