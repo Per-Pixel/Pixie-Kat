@@ -928,7 +928,7 @@ const GameEditor: React.FC = () => {
               </div>
 
               <p className="mt-2 text-xs text-gray-400">
-                Compact shows dense price-first cards in 3 columns, like regional top-up sites. Pin packages with <strong>Featured</strong> to show them as wide cards above the grid (weekly/monthly passes, bundles). Package <strong>Description</strong> becomes the subtitle on featured cards.
+                Compact shows dense price-first cards in 3 columns, like regional top-up sites. Pin packages with <strong>Featured</strong> to show them as wide cards above the grid (weekly/monthly passes, bundles). Package <strong>Description</strong> is the subtitle under the package name on every card.
               </p>
             </div>
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

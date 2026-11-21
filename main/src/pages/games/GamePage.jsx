@@ -135,7 +135,7 @@ const CompactPackageCard = ({ item, selected, onSelect, mobileLegends = false })
     onClick={onSelect}
     aria-pressed={selected}
     className={`relative flex w-full flex-col items-stretch justify-between rounded-lg border bg-white text-left shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7152ff] ${
-      mobileLegends ? "min-h-[116px] p-3 md:min-h-[96px] md:p-3.5" : "min-h-[84px] p-3 sm:min-h-[96px] sm:p-3.5"
+      mobileLegends ? "min-h-[140px] p-3 md:min-h-[118px] md:p-3.5" : "min-h-[108px] p-3 sm:min-h-[118px] sm:p-3.5"
     } ${selected ? "border-[#7152ff]" : "border-[#dfe4ec] hover:border-[#c5ccd8]"}`}
   >
     {selected ? (
@@ -164,12 +164,22 @@ const CompactPackageCard = ({ item, selected, onSelect, mobileLegends = false })
         />
       )}
     </div>
-    <p className={mobileLegends
-      ? "mt-4 break-words text-xs font-medium leading-snug text-[#3b4350]"
-      : "mt-4 text-[11px] font-medium leading-tight text-[#3b4350] sm:text-xs"}
-    >
-      {mobileLegends ? item.name : item.amount || item.name}
-    </p>
+    <div className="mt-4">
+      <p className={mobileLegends
+        ? "break-words text-xs font-medium leading-snug text-[#3b4350]"
+        : "text-[11px] font-medium leading-tight text-[#3b4350] sm:text-xs"}
+      >
+        {mobileLegends ? item.name : item.amount || item.name}
+      </p>
+      {item.description ? (
+        <p className={mobileLegends
+          ? "mt-1 line-clamp-3 break-words text-xs leading-snug text-[#6d7480]"
+          : "mt-0.5 line-clamp-2 text-[11px] font-medium leading-tight text-[#6d7480]"}
+        >
+          {item.description}
+        </p>
+      ) : null}
+    </div>
   </button>
 );
 
@@ -178,7 +188,7 @@ const FeaturedPackageCard = ({ item, selected, onSelect, mobileLegends = false }
     type="button"
     onClick={onSelect}
     aria-pressed={selected}
-    className={`relative flex min-h-[112px] w-full flex-col items-stretch justify-between rounded-lg border bg-white text-left shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7152ff] ${
+    className={`relative flex min-h-[128px] w-full flex-col items-stretch justify-between rounded-lg border bg-white text-left shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7152ff] ${
       mobileLegends ? "p-3 md:p-4" : "p-4"
     } ${selected ? "border-[#7152ff]" : "border-[#dfe4ec] hover:border-[#c5ccd8]"}`}
   >
@@ -1589,7 +1599,7 @@ const GamePage = () => {
                         key={item.id}
                         type="button"
                         onClick={() => setSelectedPackageId(item.id)}
-                        className={`relative min-h-[100px] rounded-lg border bg-white p-3 text-left shadow-sm transition ${
+                        className={`relative min-h-[124px] rounded-lg border bg-white p-3 text-left shadow-sm transition ${
                           selected ? "border-[#7152ff] bg-[#f6f3ff]" : "border-[#dfe4ec] hover:border-[#c5ccd8]"
                         }`}
                       >
@@ -1610,6 +1620,9 @@ const GamePage = () => {
                           </div>
                         </div>
                         <p className="mt-5 text-sm font-medium text-[#3b4350]">{item.name}</p>
+                        {item.description ? (
+                          <p className="mt-1 line-clamp-3 text-xs leading-snug text-[#6d7480]">{item.description}</p>
+                        ) : null}
                       </button>
                     );
                   })}
