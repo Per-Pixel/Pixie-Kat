@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 
 /**
  * MouseGlow — Premium multi-layered mouse-tracking glow effect.
@@ -9,9 +9,8 @@ import { useRef, useEffect, useCallback, useState } from 'react';
  * HOW IT WORKS
  * 1. `mousemove` on the wrapper stores the *target* position in a ref
  *    (no React state ⇒ zero re-renders).
- * 2. On fine pointers, a `requestAnimationFrame` loop lerps toward the cursor
- *    while hovered and stops after the glow fades. Touch devices skip the
- *    blur layers.
+ * 2. A persistent `requestAnimationFrame` loop lerps the *current*
+ *    position toward the target every frame → butter-smooth 60fps.
  * 3. Two radial-gradient layers (purple + pink) are composited with
  *    different sizes, colours, and blur radii for a rich, diffused light.
  *
@@ -29,9 +28,6 @@ const MouseGlow = ({
   const containerRef = useRef(null);
   const glowPrimaryRef = useRef(null);
   const glowSecondaryRef = useRef(null);
-  const [glowEnabled] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(hover: hover) and (pointer: fine)").matches,
-  );
 
   // Mutable animation state — avoids React re-renders entirely
   const target = useRef({ x: 0, y: 0 });
@@ -43,14 +39,16 @@ const MouseGlow = ({
   // ── Lerp helper ──────────────────────────────────────────────
   const lerp = (a, b, t) => a + (b - a) * t;
 
-  // ── Animation loop, started on hover and stopped once it fades out ──
-  const step = useCallback(() => {
-    const EASE = 0.09;
-    const OPACITY_EASE = 0.06;
+  // ── Animation loop ───────────────────────────────────────────
+  const animate = useCallback(() => {
+    const EASE = 0.09;          // position smoothing
+    const OPACITY_EASE = 0.06;  // fade smoothing
 
+    // Interpolate position toward target
     current.current.x = lerp(current.current.x, target.current.x, EASE);
     current.current.y = lerp(current.current.y, target.current.y, EASE);
 
+    // Interpolate opacity (fade in on hover, fade out on leave)
     const targetOpacity = isHovering.current ? intensity : 0;
     currentOpacity.current = lerp(currentOpacity.current, targetOpacity, OPACITY_EASE);
 
@@ -58,24 +56,21 @@ const MouseGlow = ({
     const y = current.current.y;
     const op = currentOpacity.current;
 
+    // ── Primary glow (large, purple-violet) ────────────────────
     if (glowPrimaryRef.current) {
       glowPrimaryRef.current.style.background =
         `radial-gradient(600px circle at ${x}px ${y}px, rgba(139,92,246,${0.22 * op}), rgba(109,40,217,${0.10 * op}) 40%, transparent 70%)`;
       glowPrimaryRef.current.style.opacity = String(op);
     }
 
+    // ── Secondary glow (smaller, pink-magenta, offset) ─────────
     if (glowSecondaryRef.current) {
       glowSecondaryRef.current.style.background =
         `radial-gradient(420px circle at ${x + 30}px ${y + 20}px, rgba(236,72,153,${0.16 * op}), rgba(168,85,247,${0.07 * op}) 45%, transparent 70%)`;
       glowSecondaryRef.current.style.opacity = String(op);
     }
 
-    if (!isHovering.current && op < 0.02) {
-      animFrameId.current = null;
-      return;
-    }
-
-    animFrameId.current = requestAnimationFrame(step);
+    animFrameId.current = requestAnimationFrame(animate);
   }, [intensity]);
 
   // ── Mouse handlers (update refs only — no React state) ──────
@@ -104,24 +99,13 @@ const MouseGlow = ({
     isHovering.current = false;
   }, []);
 
-  // Touch devices never hover, and a permanent blur layer is expensive there.
+  // ── Start / stop the RAF loop ───────────────────────────────
   useEffect(() => {
-    if (!glowEnabled) return undefined;
-    const el = containerRef.current;
-    if (!el) return undefined;
-
-    const start = () => {
-      if (animFrameId.current) return;
-      animFrameId.current = requestAnimationFrame(step);
-    };
-
-    el.addEventListener("mouseenter", start);
+    animFrameId.current = requestAnimationFrame(animate);
     return () => {
-      el.removeEventListener("mouseenter", start);
       if (animFrameId.current) cancelAnimationFrame(animFrameId.current);
-      animFrameId.current = null;
     };
-  }, [glowEnabled, step]);
+  }, [animate]);
 
   const blurPrimary = Math.round(60 + (1 - intensity) * 40);
   const blurSecondary = Math.round(40 + (1 - intensity) * 30);
@@ -136,38 +120,37 @@ const MouseGlow = ({
       className={className}
       style={{ position: 'relative' }}
     >
-      {glowEnabled && (
-        <>
-          <div
-            ref={glowPrimaryRef}
-            className="mouse-glow-layer"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              pointerEvents: 'none',
-              opacity: 0,
-              filter: `blur(${blurPrimary}px)`,
-              zIndex: 0,
-              borderRadius: 'inherit',
-              ...blendStyle,
-            }}
-          />
-          <div
-            ref={glowSecondaryRef}
-            className="mouse-glow-layer"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              pointerEvents: 'none',
-              opacity: 0,
-              filter: `blur(${blurSecondary}px)`,
-              zIndex: 0,
-              borderRadius: 'inherit',
-              ...blendStyle,
-            }}
-          />
-        </>
-      )}
+      {/* Primary glow layer — behind content */}
+      <div
+        ref={glowPrimaryRef}
+        className="mouse-glow-layer"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          opacity: 0,
+          filter: `blur(${blurPrimary}px)`,
+          zIndex: 0,
+          borderRadius: 'inherit',
+          ...blendStyle,
+        }}
+      />
+
+      {/* Secondary glow layer */}
+      <div
+        ref={glowSecondaryRef}
+        className="mouse-glow-layer"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          opacity: 0,
+          filter: `blur(${blurSecondary}px)`,
+          zIndex: 0,
+          borderRadius: 'inherit',
+          ...blendStyle,
+        }}
+      />
 
       {/* Actual content — always above glow */}
       <div style={{ position: 'relative', zIndex: 1 }}>

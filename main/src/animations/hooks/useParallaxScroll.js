@@ -1,47 +1,53 @@
 import { useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { isConstrainedMotion } from "../motionBudget";
 
 gsap.registerPlugin(ScrollTrigger);
 
 export const useParallaxScroll = (elementRef, options = {}) => {
-  const speed = options.speed ?? 0.2;
-  const direction = options.direction ?? "vertical";
-  const start = options.start ?? "top bottom";
-  const end = options.end ?? "bottom top";
-  const scrub = options.scrub ?? 0.15;
-
   useEffect(() => {
+    const defaults = {
+      speed: 0.2,
+      direction: "vertical", // "vertical" or "horizontal"
+      start: "top bottom",
+      end: "bottom top",
+      scrub: 0.15, // Lower value for more real-time, fluid animation
+    };
+
+    const settings = { ...defaults, ...options };
     const element = elementRef.current;
-
-    if (!element || !speed) return undefined;
-
-    const constrained = isConstrainedMotion();
-    const span = direction === "vertical" ? element.offsetHeight : element.offsetWidth;
-    const distance = span * speed * (constrained ? 0.5 : 1);
+    
+    if (!element) return;
 
     const tl = gsap.timeline({
       scrollTrigger: {
         trigger: element,
-        start,
-        end,
-        // A numeric scrub keeps easing after the finger stops. Direct scrub
-        // tracks the scroll position and costs one update per frame.
-        scrub: constrained ? true : scrub,
-        ...(constrained ? { fastScrollEnd: true } : {}),
-      },
+        start: settings.start,
+        end: settings.end,
+        scrub: settings.scrub,
+      }
     });
 
-    if (direction === "vertical") {
-      tl.fromTo(element, { y: -distance }, { y: distance, ease: "none" });
+    const distance = settings.direction === "vertical" 
+      ? element.offsetHeight * settings.speed
+      : element.offsetWidth * settings.speed;
+    
+    if (settings.direction === "vertical") {
+      tl.fromTo(
+        element,
+        { y: -distance },
+        { y: distance, ease: "none" }
+      );
     } else {
-      tl.fromTo(element, { x: -distance }, { x: distance, ease: "none" });
+      tl.fromTo(
+        element,
+        { x: -distance },
+        { x: distance, ease: "none" }
+      );
     }
 
     return () => {
-      tl.scrollTrigger?.kill();
       tl.kill();
     };
-  }, [elementRef, speed, direction, start, end, scrub]);
+  }, [elementRef, options]);
 };
